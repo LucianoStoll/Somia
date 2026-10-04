@@ -153,12 +153,13 @@ void main() {
   }
 
   Future<void> bottom(WidgetTester tester) async {
-    final scroll = tester.state<ScrollableState>(find
-        .descendant(
-            of: find.byKey(const ValueKey('account-statement-scroll')),
-            matching: find.byType(Scrollable))
-        .first);
-    scroll.position.jumpTo(scroll.position.maxScrollExtent);
+    await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('statement-day-5')), 250,
+        scrollable: find
+            .descendant(
+                of: find.byKey(const ValueKey('account-statement-scroll')),
+                matching: find.byType(Scrollable))
+            .first);
     await tester.pumpAndSettle();
   }
 
@@ -180,8 +181,25 @@ void main() {
       await tester.pumpAndSettle();
       await bottom(tester);
       expect(find.byKey(const ValueKey('statement-day-5')), findsOneWidget);
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('statement-day-5')),
+              matching: find.text('Saldo ao fim do dia')),
+          findsOneWidget);
+      await tester.scrollUntilVisible(
+          find.byKey(const ValueKey('statement-day-12')), 250,
+          scrollable: find
+              .descendant(
+                  of: find.byKey(const ValueKey('account-statement-scroll')),
+                  matching: find.byType(Scrollable))
+              .first);
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('statement-day-12')), findsOneWidget);
-      expect(find.text('Saldo ao fim do dia'), findsNWidgets(2));
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('statement-day-12')),
+              matching: find.text('Saldo ao fim do dia')),
+          findsOneWidget);
       expect(find.text('Conta pendente'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
