@@ -2,6 +2,7 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #48: lista de sugestões ao digitar trechos da descrição, com conta/cartão e valor; escolher reutiliza descrição, classificação, origem e valor, mantendo datas/efetivação independentes.
 - #48: categoria/subcategoria preenchidas pela descrição de lançamentos anteriores ao criar receitas/despesas e compras no cartão; escolha manual e edição preservadas. Histórico offline, classificação válida mais recente e separação por tipo.
 - #47: linha de fatura no estilo da referência, com nome “Cartão - nome”, total, vencimento e etiqueta azul de fechamento.
 - #47: Despesas agrupa por fatura, abre detalhes no cartão e permite pagar o saldo restante pelo ícone, com desfazer/ajustar data e preservação de pagamentos parciais e agendados.

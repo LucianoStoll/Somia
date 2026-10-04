@@ -20,3 +20,11 @@ Só categoria/subcategoria são sugeridas. Valores, contas, datas, efetivação,
 8. Arquive uma categoria/pai e confira que não é sugerida.
 
 Validação manual pendente, Android e Windows.
+
+## Sugestões por trecho — ajuste de 04/10/2026
+
+Ao digitar parte da descrição, mostrar até oito lançamentos anteriores com descrição, conta/cartão e valor. Uma sugestão por descrição e conta/cartão, mantendo a versão mais recente. Somente origens ativas; receitas e despesas separadas. O botão X oculta a sugestão neste formulário e não apaga o histórico.
+
+Ao escolher, preencher descrição, categoria/subcategoria válida, conta/cartão e valor, conforme escolha expressa do usuário. Datas, efetivação e séries não são copiadas. Compra mantém fatura automática pelo fechamento atual. Sugestão explícita tem prioridade sobre preenchimento anterior; todos os campos continuam editáveis. A lista não é exibida em edição de lançamento existente.
+
+Validar: digitar Ren, conferir lista e valores; escolher uma sugestão em outra conta e conferir os campos; ocultar uma linha e conferir que o lançamento original permanece. Depois salvar e conferir datas/estado definidos no novo formulário.

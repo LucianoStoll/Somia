@@ -122,4 +122,34 @@ void main() {
     expect(after.map((e) => e.amountMinor), before.map((e) => e.amountMinor));
     expect(after.map((e) => e.categoryId), before.map((e) => e.categoryId));
   });
+  test('sugestões distinguem contas e deduplicam descrição na mesma conta',
+      () async {
+    final bank = SqliteAccountsRepository(db);
+    final second = (await bank.create(const AccountDraft(
+            name: 'Reserva',
+            type: AccountType.savings,
+            currencyCode: 'BRL',
+            initialBalanceMinor: 0,
+            includeInAnalytics: true)))
+        .id;
+    await add('Rendimento CDI', income, 1, type: TransactionType.income);
+    await add(' RENDIMENTO CDI ', income, 2, type: TransactionType.income);
+    await transactions.create(TransactionDraft(
+        description: 'Rendimento CDI',
+        type: TransactionType.income,
+        amountMinor: 25,
+        date: DateTime(2026, 1),
+        isEffective: false,
+        accountId: second,
+        categoryId: income));
+    final suggestions = await history.suggestions(TransactionType.income);
+    expect(suggestions, hasLength(2));
+    expect(suggestions.first.accountId, second);
+    expect(suggestions.first.amountMinor, 25);
+    expect(suggestions.last.description, 'RENDIMENTO CDI');
+    await db.customStatement(
+        'UPDATE accounts SET is_archived=1 WHERE id=?', [second]);
+    expect(await history.suggestions(TransactionType.income), hasLength(1));
+    expect(await history.suggestions(TransactionType.expense), isEmpty);
+  });
 }

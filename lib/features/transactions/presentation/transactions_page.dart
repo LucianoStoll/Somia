@@ -860,7 +860,122 @@ class TransactionFormState extends State<TransactionForm> {
   bool _categoryChosenManually = false;
   bool _categoryFromHistory = false;
   Map<String, String> _categoryHistory = {};
+  List<HistorySuggestion> _historySuggestions = [];
+  final Set<String> _hiddenSuggestions = {};
+  bool _showSuggestions = false;
   int _historyRequest = 0;
+
+  void _descriptionChanged() {
+    _applyCategoryHistory();
+    if (mounted && widget.item == null) {
+      setState(() => _showSuggestions = true);
+    }
+  }
+
+  List<HistorySuggestion> get _matchingSuggestions {
+    final query = CategoryHistoryRepository.normalize(_description.text);
+    if (!_showSuggestions || query.isEmpty || widget.item != null) {
+      return [];
+    }
+    return _historySuggestions
+        .where((s) =>
+            !_hiddenSuggestions.contains(s.id) &&
+            (widget.initialCardId == null || s.cardId != null) &&
+            CategoryHistoryRepository.normalize(s.description).contains(query))
+        .take(8)
+        .toList();
+  }
+
+  void _selectSuggestion(HistorySuggestion suggestion) {
+    final account = widget.accounts
+        .where((a) => a.id == suggestion.accountId && !a.isArchived)
+        .firstOrNull;
+    final card = widget.cards
+        .where((c) => c.id == suggestion.cardId && !c.isArchived)
+        .firstOrNull;
+    if (account == null || (suggestion.cardId != null && card == null)) {
+      return;
+    }
+    _categoryChosenManually = true;
+    _description.text = suggestion.description;
+    _amount.text = MoneyMinor.plain(suggestion.amountMinor);
+    final category = widget.categories
+        .where((c) =>
+            c.id == suggestion.categoryId &&
+            !c.isArchived &&
+            c.type.name == _type.name)
+        .firstOrNull;
+    final parent = category?.parentId == null
+        ? category
+        : widget.categories
+            .where((c) => c.id == category!.parentId && !c.isArchived)
+            .firstOrNull;
+    setState(() {
+      _accountId = account.id;
+      _cardId = card?.id;
+      _cardMonth = null;
+      _categoryId = parent?.id;
+      _subcategoryId =
+          parent != null && category?.parentId != null ? category?.id : null;
+      _categoryFromHistory = parent != null;
+      _showSuggestions = false;
+      if (card != null) {
+        _series.change(() {
+          if (_series.kind == SeriesKind.recurring) {
+            _series.kind = SeriesKind.single;
+          }
+          _series.unit = SeriesUnit.month;
+          _series.interval.text = '1';
+        });
+      }
+    });
+    _descriptionFocus.unfocus();
+  }
+
+  Widget _suggestionsPanel() => Material(
+      color: SomiaColors.surfaceHigh,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 240),
+          child: ListView.builder(
+              shrinkWrap: true,
+              primary: false,
+              itemCount: _matchingSuggestions.length,
+              itemBuilder: (_, index) {
+                final suggestion = _matchingSuggestions[index];
+                return ListTile(
+                    key: ValueKey('history-suggestion-${suggestion.id}'),
+                    leading: Icon(
+                        suggestion.cardId == null
+                            ? Icons.history
+                            : Icons.credit_card,
+                        color: _type == TransactionType.income
+                            ? SomiaColors.green
+                            : SomiaColors.red),
+                    title: Text(suggestion.description,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(suggestion.accountName,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: SizedBox(
+                        width: 140,
+                        child: Row(children: [
+                          Expanded(
+                              child: Text(
+                                  MoneyMinor.display(suggestion.amountMinor,
+                                      suggestion.currencyCode),
+                                  textAlign: TextAlign.right,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis)),
+                          IconButton(
+                              tooltip: 'Ocultar sugestão',
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => setState(
+                                  () => _hiddenSuggestions.add(suggestion.id)))
+                        ])),
+                    onTap: () => _selectSuggestion(suggestion));
+              })));
+
   Future<void>? _historyLoading;
 
   Future<void> _loadCategoryHistory() async {
@@ -877,6 +992,12 @@ class TransactionFormState extends State<TransactionForm> {
       }
       _categoryHistory = history;
       _applyCategoryHistory();
+      final suggestions =
+          await getIt<CategoryHistoryRepository>().suggestions(type);
+      if (!mounted || request != _historyRequest || type != _type) {
+        return;
+      }
+      setState(() => _historySuggestions = suggestions);
     } catch (_) {
       // A sugestão é opcional; o cadastro manual continua disponível.
     }
@@ -938,7 +1059,7 @@ class TransactionFormState extends State<TransactionForm> {
         .firstOrNull;
     _categoryId = selected?.parentId ?? selected?.id;
     _subcategoryId = selected?.parentId == null ? null : selected?.id;
-    _description.addListener(_applyCategoryHistory);
+    _description.addListener(_descriptionChanged);
     _historyLoading = _loadCategoryHistory();
   }
 
@@ -953,7 +1074,7 @@ class TransactionFormState extends State<TransactionForm> {
     _descriptionFocus.dispose();
     _amountFocus.dispose();
     _series.dispose();
-    _description.removeListener(_applyCategoryHistory);
+    _description.removeListener(_descriptionChanged);
     _description.dispose();
     _amount.dispose();
     super.dispose();
@@ -1135,6 +1256,7 @@ class TransactionFormState extends State<TransactionForm> {
                               value == null || value.trim().isEmpty
                                   ? 'Informe a descrição.'
                                   : null),
+                      if (_matchingSuggestions.isNotEmpty) _suggestionsPanel(),
                       MonetaryCalculatorField(
                           controller: _amount,
                           labelText: _series.kind == SeriesKind.installments
@@ -1168,36 +1290,38 @@ class TransactionFormState extends State<TransactionForm> {
                           widget.initialCardId == null &&
                           widget.item == null &&
                           widget.cards.any((c) => !c.isArchived))
-                        DropdownButtonFormField<bool>(
-                            key: const ValueKey('payment-method'),
-                            initialValue: _cardId != null,
-                            decoration: const InputDecoration(
-                                labelText: 'Forma de pagamento'),
-                            items: const [
-                              DropdownMenuItem(
-                                  value: false, child: Text('Conta')),
-                              DropdownMenuItem(
-                                  value: true, child: Text('Cartão'))
-                            ],
-                            onChanged: (value) => setState(() {
-                                  _cardId = value == true
-                                      ? widget.cards
-                                          .where((c) => !c.isArchived)
-                                          .first
-                                          .id
-                                      : null;
-                                  _cardMonth = null;
-                                  _series.change(() {
-                                    if (value == true) {
-                                      if (_series.kind ==
-                                          SeriesKind.recurring) {
-                                        _series.kind = SeriesKind.single;
-                                      }
-                                      _series.unit = SeriesUnit.month;
-                                      _series.interval.text = '1';
-                                    }
-                                  });
-                                })),
+                        KeyedSubtree(
+                            key: ValueKey('payment-kind-${_cardId != null}'),
+                            child: DropdownButtonFormField<bool>(
+                                key: const ValueKey('payment-method'),
+                                initialValue: _cardId != null,
+                                decoration: const InputDecoration(
+                                    labelText: 'Forma de pagamento'),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: false, child: Text('Conta')),
+                                  DropdownMenuItem(
+                                      value: true, child: Text('Cartão'))
+                                ],
+                                onChanged: (value) => setState(() {
+                                      _cardId = value == true
+                                          ? widget.cards
+                                              .where((c) => !c.isArchived)
+                                              .first
+                                              .id
+                                          : null;
+                                      _cardMonth = null;
+                                      _series.change(() {
+                                        if (value == true) {
+                                          if (_series.kind ==
+                                              SeriesKind.recurring) {
+                                            _series.kind = SeriesKind.single;
+                                          }
+                                          _series.unit = SeriesUnit.month;
+                                          _series.interval.text = '1';
+                                        }
+                                      });
+                                    }))),
                       if (_cardId != null) ...[
                         DropdownButtonFormField<String>(
                             key: ValueKey('card-choice-$_cardId'),
@@ -1257,6 +1381,7 @@ class TransactionFormState extends State<TransactionForm> {
                       ],
                       if (_cardId == null)
                         DropdownButtonFormField<String>(
+                          key: ValueKey('account-choice-$_accountId'),
                           isExpanded: true,
                           initialValue: _accountId,
                           decoration: const InputDecoration(labelText: 'Conta'),
@@ -1384,6 +1509,8 @@ class TransactionFormState extends State<TransactionForm> {
                                     _categoryChosenManually = false;
                                     _categoryFromHistory = false;
                                     _categoryHistory = {};
+                                    _historySuggestions = [];
+                                    _showSuggestions = true;
                                   });
                                   _historyLoading = _loadCategoryHistory();
                                 }
