@@ -189,11 +189,15 @@ class _StatementViewState extends State<_StatementView> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Text('Início'),
-                                      Text(
-                                          'Dia ${(section.dailyBalances.length / 2).round()}'),
-                                      Text(
-                                          'Dia ${section.dailyBalances.length}')
+                                      const Expanded(child: Text('Início')),
+                                      Expanded(
+                                          child: Text(
+                                              'Dia ${(section.dailyBalances.length / 2).round()}',
+                                              textAlign: TextAlign.center)),
+                                      Expanded(
+                                          child: Text(
+                                              'Dia ${section.dailyBalances.length}',
+                                              textAlign: TextAlign.end))
                                     ]),
                                 const SizedBox(height: 8),
                                 Wrap(
