@@ -1,3 +1,5 @@
+import 'package:finapp/features/accounts/data/account_statement_repository.dart';
+import 'account_statement_page_test.dart' as statements;
 import 'package:finapp/core/series/movement_series.dart';
 import 'package:finapp/app/app.dart';
 import 'package:finapp/core/theme/app_theme.dart';
@@ -25,8 +27,10 @@ class _DashboardStub implements DashboardRepository {
 }
 
 class _AccountsStub implements AccountsRepository {
+  List<Account> items = [];
   @override
-  Future<List<Account>> list({DateTime? asOf, DateTime? through}) async => [];
+  Future<List<Account>> list({DateTime? asOf, DateTime? through}) async =>
+      items;
   @override
   Future<Account> create(AccountDraft draft) => throw UnimplementedError();
   @override
@@ -218,6 +222,27 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets(
+      'conta abre extrato e Voltar Android retorna à lista antes do Resumo',
+      (tester) async {
+    await openBackTest(tester);
+    (getIt<AccountsRepository>() as _AccountsStub).items = [statements.account];
+    getIt.registerSingleton<AccountStatementRepository>(
+        statements.FakeStatementRepository());
+    appRouter.go('/accounts');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mercado Pago'));
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/accounts/a');
+    expect(find.text('Detalhes da conta'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/accounts');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/');
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
       'Android: drawer, balão + e filtros fecham antes de sair da seção',
       (tester) async {

@@ -47,6 +47,8 @@ jobs:
         run: flutter test test/core/routing/cards_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render category suggestions preview
         run: flutter test test/core/routing/category_history_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render account statement preview
+        run: flutter test test/core/routing/account_statement_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render movement list preview
         run: flutter test test/core/widgets/movement_list_row_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Publish dashboard preview

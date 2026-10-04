@@ -1,3 +1,4 @@
+import '../../features/accounts/presentation/account_statement_page.dart';
 import '../../features/cards/presentation/cards_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
@@ -105,6 +106,13 @@ final GoRouter appRouter = GoRouter(
             name: AppRoutes.accounts,
             builder: (context, state) => SomiaSectionBackScope(
                 location: state.uri.path, child: const AccountsPage()),
+            routes: [
+              GoRoute(
+                  path: ':accountId',
+                  builder: (context, state) => AccountStatementPage(
+                      key: ValueKey(state.pathParameters['accountId']),
+                      accountId: state.pathParameters['accountId']!))
+            ],
           ),
           GoRoute(
             path: AppRoutes.settingsPath,

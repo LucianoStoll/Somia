@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -210,7 +211,8 @@ class _AccountsView extends StatelessWidget {
                           institutionId: account.institutionId,
                           type: account.type),
                       dense: false,
-                      onTap: () => _edit(context, account),
+                      onTap: () => context
+                          .go('/accounts/${Uri.encodeComponent(account.id)}'),
                     ),
                   );
                 },

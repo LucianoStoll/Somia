@@ -64,7 +64,9 @@ class SomiaSectionBackScope extends StatelessWidget {
           if (scaffold?.isDrawerOpen ?? false) {
             scaffold!.closeDrawer();
           } else if (location != AppRoutes.dashboardPath) {
-            context.go(AppRoutes.dashboardPath);
+            context.go(location.startsWith('${AppRoutes.accountsPath}/')
+                ? AppRoutes.accountsPath
+                : AppRoutes.dashboardPath);
           }
         },
         child: child,
@@ -149,7 +151,10 @@ class _SomiaMenu extends StatelessWidget {
                         minLeadingWidth: 0,
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: compact ? 18 : 14),
-                        selected: location == destination.path,
+                        selected: location == destination.path ||
+                            (destination.path == AppRoutes.accountsPath &&
+                                location
+                                    .startsWith('${AppRoutes.accountsPath}/')),
                         selectedTileColor: SomiaColors.surfaceHigh,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
