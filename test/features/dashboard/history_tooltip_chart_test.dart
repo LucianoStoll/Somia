@@ -184,7 +184,13 @@ void main() {
     await tester.tap(month(9));
     await tester.pumpAndSettle();
     expect(tooltip(), findsOneWidget);
-    await tester.drag(find.byType(ListView), const Offset(0, -100));
+    final position = tester
+        .state<ScrollableState>(find
+            .descendant(
+                of: find.byType(ListView), matching: find.byType(Scrollable))
+            .first)
+        .position;
+    position.jumpTo(position.pixels + 100);
     await tester.pumpAndSettle();
     expect(tooltip(), findsNothing);
     await tester.ensureVisible(month(9));
