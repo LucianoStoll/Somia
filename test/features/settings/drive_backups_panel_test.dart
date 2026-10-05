@@ -8,6 +8,7 @@ import 'package:finapp/core/drive/drive_backup_manager.dart';
 import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/features/settings/presentation/drive_backups_panel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../core/drive/drive_backup_test.dart'
     show FakeAuth, FakeTransport, jsonResponse;
@@ -93,12 +94,30 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(MaterialApp(theme: AppTheme.dark,
-          home: Scaffold(appBar: AppBar(title: const Text('Ajustes')),
-              body: SingleChildScrollView(child: DriveBackupsPanel(manager: manager)))));
+      final fonts = Directory(
+          '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts');
+      final font = FontLoader('Roboto'), icons = FontLoader('MaterialIcons');
+      for (final f in fonts.listSync().whereType<File>()) {
+        if (f.path.endsWith('Roboto-Regular.ttf') ||
+            f.path.endsWith('Roboto-Bold.ttf')) {
+          font.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
+        }
+        if (f.path.endsWith('MaterialIcons-Regular.otf')) {
+          icons.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
+        }
+      }
+      await font.load();
+      await icons.load();
+      await tester.pumpWidget(MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.dark,
+          home: Scaffold(
+              appBar: AppBar(title: const Text('Ajustes')),
+              body: SingleChildScrollView(
+                  child: DriveBackupsPanel(manager: manager)))));
       await tester.pumpAndSettle();
-      await expectLater(find.byType(MaterialApp), matchesGoldenFile('drive-backup-mobile-preview.png'));
+      await expectLater(find.byType(MaterialApp),
+          matchesGoldenFile('drive-backup-mobile-preview.png'));
     });
   }
-
 }
