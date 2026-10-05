@@ -25,6 +25,16 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
+      - name: Resolve Windows Drive sources
+        run: dart format lib test
+      - name: Publish resolved sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: somia-resolved-sources
+          path: |
+            lib/
+            test/
+          retention-days: 1
       - name: Check Dart formatting
         run: |
           dart format lib test

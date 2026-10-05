@@ -55,6 +55,21 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _configureDrive() => _localAction(() async {
+        final file = await FilePicker.pickFile(type: FileType.custom, allowedExtensions: ['json']);
+        if (file == null || !mounted) return;
+        if (getIt<DriveBackupManager>().email != null) {
+          final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+            scrollable: true, title: const Text('Alterar cliente Google?'),
+            content: const Text('A conta será desconectada neste computador. As cópias e os dados locais serão mantidos.'),
+            actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Alterar'))],
+          ));
+          if (confirmed != true || !mounted) return;
+        }
+        await getIt<DriveBackupManager>().configure(await file.readAsBytes());
+      }, '');
+
   Future<void> _exportCopy(LocalBackupCopy copy) => _localAction(() async {
         final bytes = await _manager!.readCopy(copy);
         final saved = await FilePicker.saveFile(
@@ -195,7 +210,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             'Restauração cancelada. Os dados atuais foram mantidos.')),
                   if (getIt.isRegistered<DriveBackupManager>())
                     DriveBackupsPanel(
-                        manager: getIt<DriveBackupManager>(), enabled: !_busy),
+                        manager: getIt<DriveBackupManager>(), enabled: !_busy, onConfigure: _configureDrive),
                   if (_busy) const Center(child: CircularProgressIndicator()),
                   Card(
                       child: ListTile(
