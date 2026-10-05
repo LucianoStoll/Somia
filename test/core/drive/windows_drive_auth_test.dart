@@ -166,4 +166,17 @@ void main() {
           throwsA(isA<DriveFailure>()));
     }
   });
+  test('consentimento parcial mantém a configuração e recusa sessão', () async {
+    final vault = MemoryVault();
+    final auth = WindowsDriveAuth(vault, FakeTransport((method, uri, headers, body) async {
+      expect(uri.host, 'oauth2.googleapis.com');
+      return jsonResponse({'access_token': 'access', 'refresh_token': 'refresh', 'expires_in': 3600,
+        'token_type': 'Bearer', 'scope': WindowsDriveAuth.emailScope});
+    }), launch: callback);
+    await auth.configure(config());
+    await expectLater(auth.connect(), throwsA(isA<DriveFailure>()));
+    expect(vault.data.containsKey('refresh'), isFalse);
+    expect(await auth.account(), isNull);
+  });
+
 }

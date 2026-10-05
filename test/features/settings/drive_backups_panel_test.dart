@@ -5,6 +5,7 @@ import 'package:finapp/core/database/backup_manager.dart';
 import 'package:finapp/core/database/local_backup_store.dart';
 import 'package:finapp/core/drive/drive_backup.dart';
 import 'package:finapp/core/drive/drive_backup_manager.dart';
+import 'package:finapp/core/drive/windows_drive_auth.dart';
 import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/features/settings/presentation/drive_backups_panel.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../core/drive/drive_backup_test.dart'
     show FakeAuth, FakeTransport, jsonResponse;
+
+class ConfigurationAuth extends FakeAuth implements ConfigurableDriveAuth {
+  @override bool configured = false;
+  int cancelled = 0;
+  @override void cancel() { cancelled++; }
+  @override Future<void> configure(Uint8List json) async { configured = true; email = null; }
+}
 
 class PanelManager extends DriveBackupManager {
   PanelManager()
@@ -88,6 +96,24 @@ void main() {
     expect(manager.restored, 1);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('Windows configura cliente antes de conectar e oferece cancelamento', (tester) async {
+    final auth = ConfigurationAuth();
+    final local = manager.local;
+    final desktop = DriveBackupManager(local, DriveBackupApi(auth,
+        FakeTransport((method, uri, headers, body) async => jsonResponse({'files': []}))));
+    addTearDown(desktop.dispose);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: DriveBackupsPanel(manager: desktop,
+        onConfigure: () => desktop.configure(Uint8List(0))))));
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Conectar conta Google')).onPressed, isNull);
+    await tester.tap(find.text('Configurar Google Drive')); await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Conectar conta Google')).onPressed, isNotNull);
+    desktop.busy = true; desktop.connecting = true; desktop.notifyListeners();
+    await tester.pump();
+    await tester.tap(find.text('Cancelar conexão')); await tester.pump();
+    expect(auth.cancelled, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
     testWidgets('prévia mobile do Drive', (tester) async {
       tester.view.physicalSize = const Size(390, 844);
