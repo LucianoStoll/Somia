@@ -64,8 +64,9 @@ class _SettingsPageState extends State<SettingsPage> {
         if (!await _confirmRestore() || !mounted) return;
         final bytes = await _manager!.readCopy(copy);
         await _manager!.restore(bytes);
-        if (mounted)
+        if (mounted) {
           _message('Backup validado. Feche e abra o Somia para aplicar.');
+        }
       }, '');
 
   Future<void> _export() async {
@@ -123,8 +124,9 @@ class _SettingsPageState extends State<SettingsPage> {
         } else {
           await _manager!.restore(bytes);
         }
-        if (mounted)
+        if (mounted) {
           _message('Backup validado. Feche e abra o Somia para aplicar.');
+        }
       }, '');
 
   void _message(String text) {
