@@ -19,6 +19,8 @@ class SyncManager extends ChangeNotifier {
   List<SyncRemoteFile> bases = const [];
   List<SyncEntry> history = const [];
   bool busy = false;
+  bool deferred=false;
+  int completedSyncCycles=0;
   String? error, message;
   bool _disposed = false;
   void _notify() {
@@ -37,9 +39,16 @@ class SyncManager extends ChangeNotifier {
     _notify();
   }
 
+  void observe(SyncState next) {
+    final old=state;
+    state=next;
+    if(old?.base!=next.base || old?.pending!=next.pending || old?.uploads!=next.uploads || old?.lastSync!=next.lastSync)_notify();
+  }
+
   Future<void> _run(Future<void> Function() action) async {
     if (busy || drive.busy || local.busy) return;
     busy = true;
+    deferred=false;
     error = null;
     message = null;
     _notify();
@@ -234,7 +243,8 @@ class SyncManager extends ChangeNotifier {
         message =
             'Base recebida. Este dispositivo já pode enviar e receber alterações.';
       });
-  Future<void> synchronize() => _run(() async {
+  Future<void> synchronize({bool automatic=false,bool Function()? canApply}) => _run(() async {
+        if(automatic && !(canApply?.call()??false)){deferred=true;return;}
         final s = await _session();
         final current = await store.state();
         if (current.base == null) {
@@ -257,13 +267,15 @@ class SyncManager extends ChangeNotifier {
         }
         final packets = await _receive(s, files);
         await _account(s);
+        if(automatic && !(canApply?.call()??false)){deferred=true;return;}
         if (packets.isNotEmpty) {
-          await local.maintain(() => store.apply(packets));
+          await local.maintain(() => store.apply(packets),preserveLocation:automatic,shouldRefresh:(changed)=>changed);
         }
         await _send(s, all);
         // Novas edições feitas durante a rede permanecem pendentes para o próximo
-        // clique. last_sync_at informa a conclusão deste ciclo, não trabalho futuro.
+        // ciclo. last_sync_at informa a conclusão deste ciclo, não trabalho futuro.
         await store.markCompleted();
+        completedSyncCycles++;
         message = 'Sincronização concluída.';
       });
   Future<void> recover(SyncEntry entry) => _run(() async {

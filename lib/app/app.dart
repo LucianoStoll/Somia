@@ -4,6 +4,8 @@ import '../core/database/backup_lifecycle.dart';
 import '../core/di/injection.dart';
 import '../core/routing/app_router.dart';
 import '../core/theme/app_theme.dart';
+import '../core/sync/auto_sync_controller.dart';
+import '../core/sync/sync_lifecycle.dart';
 
 class FinApp extends StatefulWidget {
   const FinApp({super.key});
@@ -14,11 +16,13 @@ class FinApp extends StatefulWidget {
 
 class _FinAppState extends State<FinApp> {
   BackupManager? _manager;
+  AutoSyncController? _auto;
   int _revision = 0;
 
   @override
   void initState() {
     super.initState();
+    if(getIt.isRegistered<AutoSyncController>())_auto=getIt<AutoSyncController>();
     if (getIt.isRegistered<BackupManager>()) {
       _manager = getIt<BackupManager>();
       _revision = _manager!.databaseRevision;
@@ -29,7 +33,7 @@ class _FinAppState extends State<FinApp> {
   void _databaseChanged() {
     if (_manager!.databaseRevision != _revision) {
       final previous = appRouter;
-      appRouter = createAppRouter(initialLocation: AppRoutes.settingsPath);
+      appRouter = createAppRouter(initialLocation:_manager!.preserveLocation?previous.routeInformationProvider.value.uri.toString():AppRoutes.settingsPath);
       _revision = _manager!.databaseRevision;
       // Descarta páginas, formulários e navegação associados à base anterior.
       WidgetsBinding.instance.addPostFrameCallback((_) => previous.dispose());
@@ -74,8 +78,9 @@ class _FinAppState extends State<FinApp> {
         ],
       ]),
     );
+    final child=_auto==null?app:SyncLifecycle(controller:_auto!,child:app);
     return _manager != null
-        ? BackupLifecycle(manager: _manager!, child: app)
-        : app;
+        ? BackupLifecycle(manager: _manager!, child: child)
+        : child;
   }
 }

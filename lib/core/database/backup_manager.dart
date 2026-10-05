@@ -14,6 +14,7 @@ class BackupManager extends ChangeNotifier {
   bool restorePending = false;
   bool restoring = false;
   int databaseRevision = 0;
+  bool preserveLocation=false;
   bool restoreFailed = false;
   Future<void> _queue = Future.value();
   bool _disposed = false;
@@ -86,6 +87,7 @@ class BackupManager extends ChangeNotifier {
         restorePending = false;
       });
   Future<void> restore(Uint8List bytes) => _run(() async {
+        preserveLocation=false;
         restoring = true;
         _notify();
         try {
@@ -98,13 +100,14 @@ class BackupManager extends ChangeNotifier {
         }
       });
   Future<T> maintain<T>(Future<T> Function() action,
-          {bool refreshScreens = true}) =>
+          {bool refreshScreens = true,bool preserveLocation=false,bool Function(T)? shouldRefresh}) =>
       _run(() async {
+        this.preserveLocation=preserveLocation;
         restoring = true;
         _notify();
         try {
           final result = await action();
-          if (refreshScreens) databaseRevision++;
+          if (refreshScreens && (shouldRefresh?.call(result)??true)) databaseRevision++;
           return result;
         } finally {
           restoring = false;

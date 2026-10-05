@@ -11,6 +11,7 @@ import '../../features/transactions/domain/financial_transaction.dart';
 import '../../features/transfers/presentation/transfers_page.dart';
 import '../../features/settings/presentation/settings_page.dart';
 import 'somia_shell.dart';
+import 'sync_navigation_guard.dart';
 
 abstract final class AppRoutes {
   static const dashboard = 'dashboard';
@@ -35,11 +36,14 @@ abstract final class AppRoutes {
 
 GoRouter appRouter = createAppRouter();
 
-GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) =>
-    GoRouter(
+GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) {
+    syncNavigation.reset();
+    return GoRouter(
+      observers:[syncNavigation.observer()],
       initialLocation: initialLocation,
       routes: [
         ShellRoute(
+            observers:[syncNavigation.observer()],
             builder: (context, state, child) => SomiaSectionBackScope(
                 location: state.uri.path,
                 child: SomiaShell(location: state.uri.path, child: child)),
@@ -134,3 +138,4 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) =>
             ]),
       ],
     );
+}

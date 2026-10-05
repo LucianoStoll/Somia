@@ -2,6 +2,7 @@ import '../../../core/drive/drive_backup_manager.dart';
 import 'drive_backups_panel.dart';
 import 'sync_panel.dart';
 import '../../../core/sync/sync_manager.dart';
+import '../../../core/sync/auto_sync_controller.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -251,7 +252,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 getIt<SyncManager>().busy),
                         onConfigure: _configureDrive),
                   if (getIt.isRegistered<SyncManager>())
-                    SyncPanel(manager: getIt<SyncManager>(), enabled: !_busy),
+                    SyncPanel(manager: getIt<SyncManager>(), enabled: !_busy,automatic:getIt.isRegistered<AutoSyncController>()?getIt<AutoSyncController>():null),
                   if (_busy) const Center(child: CircularProgressIndicator()),
                   Card(
                       child: ListTile(

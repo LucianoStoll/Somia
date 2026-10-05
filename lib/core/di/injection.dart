@@ -1,4 +1,6 @@
 import 'dart:io';
+import '../sync/auto_sync_controller.dart';
+import '../routing/sync_navigation_guard.dart';
 import '../sync/sync_manager.dart';
 import '../sync/sync_store.dart';
 import '../sync/drive_sync_api.dart';
@@ -69,6 +71,9 @@ Future<void> configureDependencies(AppEnvironment environment) async {
             DriveSyncApi(drive.api),
             primaryAllowed: Platform.isAndroid),
         dispose: (manager) => manager.dispose());
+  }
+  if(getIt.isRegistered<SyncManager>()) {
+    getIt.registerSingleton<AutoSyncController>(AutoSyncController(getIt<SyncManager>(),FileAutoSyncPreference(getIt<BackupManager>().store.directory),safeToApply:()=>syncNavigation.safe),dispose:(controller)=>controller.dispose());
   }
   getIt.registerLazySingleton<AccountStatementRepository>(
       () => AccountStatementRepository(getIt<AppDatabase>()));

@@ -31,7 +31,7 @@ class PanelSync extends SyncManager {
   }
 
   @override
-  Future<void> synchronize() async {
+  Future<void> synchronize({bool automatic=false,bool Function()? canApply}) async {
     synced++;
   }
 }

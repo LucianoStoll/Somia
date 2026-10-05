@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../core/sync/sync_manager.dart';
 import '../../../core/sync/sync_packet.dart';
+import '../../../core/sync/auto_sync_controller.dart';
 import 'local_backups_panel.dart';
 
 class SyncPanel extends StatelessWidget {
-  const SyncPanel({super.key, required this.manager, this.enabled = true});
+  const SyncPanel({super.key, required this.manager, this.enabled = true,this.automatic});
   final SyncManager manager;
   final bool enabled;
+  final AutoSyncController? automatic;
   Future<bool> _confirm(
           BuildContext context, String title, String text) async =>
       await showDialog<bool>(
@@ -107,7 +109,7 @@ class SyncPanel extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       const Text(
-                          'Envie e receba alterações pelo Google Drive. Nesta entrega, a sincronização começa pelo botão.'),
+                          'Envie e receba alterações pelo Google Drive. O primeiro vínculo é confirmado por você.'),
                       const SizedBox(height: 8),
                       Text(linked
                           ? 'Base vinculada à conta ${state!.email}'
@@ -164,6 +166,12 @@ class SyncPanel extends StatelessWidget {
                                         }
                                       : null,
                                   child: const Text('Receber'))),
+                      if(automatic!=null) AnimatedBuilder(animation:automatic!,builder:(context,_)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        SwitchListTile.adaptive(contentPadding:EdgeInsets.zero,title:const Text('Sincronização automática'),subtitle:const Text('Ao abrir, retomar e alterar dados. Funciona enquanto o app estiver aberto.'),value:automatic!.enabled,onChanged:ready && automatic!.loaded && !automatic!.saving?automatic!.setEnabled:null),
+                        if(automatic!.waiting)const Text('Aguardando fechar o formulário ou diálogo para atualizar.'),
+                        if(automatic!.retryAt!=null)Text('Nova tentativa: ${backupDate(automatic!.retryAt!)}'),
+                        if(automatic!.error!=null)Text(automatic!.error!,style:TextStyle(color:Theme.of(context).colorScheme.error)),
+                      ])),
                       if (linked)
                         TextButton.icon(
                             onPressed: ready ? manager.synchronize : null,

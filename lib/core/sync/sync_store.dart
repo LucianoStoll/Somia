@@ -9,10 +9,11 @@ import 'sync_packet.dart';
 
 class SyncState {
   const SyncState(this.base, this.email, this.device, this.lastSync,
-      this.pending, this.uploads);
+      this.pending, this.uploads, {this.clock=0});
   final String? base, email, device;
   final DateTime? lastSync;
   final int pending, uploads;
+  final int clock;
 }
 
 class SyncStore {
@@ -57,7 +58,7 @@ class SyncStore {
         row.readNullable<String>('device_id'),
         time == null ? null : DateTime.fromMillisecondsSinceEpoch(time),
         pending,
-        uploads);
+        uploads, clock:row.read<int>('clock'));
   }
 
   Future<Map<String, Map<String, String>>> columns() => financialColumns(db);
