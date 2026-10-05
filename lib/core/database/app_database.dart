@@ -31,22 +31,25 @@ class AppDatabase extends GeneratedDatabase {
           final directory = await getApplicationSupportDirectory();
           await directory.create(recursive: true);
           final file = File(p.join(directory.path, 'finapp.sqlite'));
-          await protectBeforeMigration(file,directory);
+          await protectBeforeMigration(file, directory);
           await BackupService.prepareForOpen(directory);
           return NativeDatabase.createInBackground(file);
         }),
       );
 
   /// Preserve a consistent copy before opening an older published database.
-  static Future<void> protectBeforeMigration(File file,Directory directory) async {
+  static Future<void> protectBeforeMigration(
+      File file, Directory directory) async {
     if (!await file.exists()) return;
     final previous = sqlite.sqlite3.open(file.path);
     try {
-      final version = previous.select('PRAGMA user_version').single['user_version'] as int;
-      if (version>0 && version<currentSchemaVersion) {
-        final folder = Directory(p.join(directory.path,'somia-backups'));
-        await folder.create(recursive:true);
-        final snapshot=p.join(folder.path,'beforeMigration-${DateTime.now().microsecondsSinceEpoch}-${const Uuid().v4()}.sqlite');
+      final version =
+          previous.select('PRAGMA user_version').single['user_version'] as int;
+      if (version > 0 && version < currentSchemaVersion) {
+        final folder = Directory(p.join(directory.path, 'somia-backups'));
+        await folder.create(recursive: true);
+        final snapshot = p.join(folder.path,
+            'beforeMigration-${DateTime.now().microsecondsSinceEpoch}-${const Uuid().v4()}.sqlite');
         previous.execute('VACUUM INTO ?', [snapshot]);
       }
     } finally {

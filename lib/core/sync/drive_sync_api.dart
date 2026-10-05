@@ -51,19 +51,23 @@ class DriveSyncApi implements SyncCloud {
         'pageSize': '100',
         if (page != null) 'pageToken': page,
       })));
-      if (value is! Map || value['files'] is! List)
+      if (value is! Map || value['files'] is! List) {
         throw const DriveFailure('Lista de sincronização inválida.');
+      }
       for (final f in value['files'] as List) {
-        if (f is! Map<String, dynamic>)
+        if (f is! Map<String, dynamic>) {
           throw const DriveFailure('Arquivo inválido.');
+        }
         result.add(SyncRemoteFile.parse(f));
       }
       final next = value['nextPageToken'];
-      if (next != null && next is! String)
+      if (next != null && next is! String) {
         throw const DriveFailure('Página inválida.');
+      }
       page = next as String?;
-      if (page != null && (!pages.add(page) || pages.length > 100))
+      if (page != null && (!pages.add(page) || pages.length > 100)) {
         throw const DriveFailure('A lista de sincronização excede o limite.');
+      }
     } while (page != null);
     return result;
   }
@@ -74,8 +78,9 @@ class DriveSyncApi implements SyncCloud {
   @override
   Future<void> upload(DriveSession session, SyncPacket packet) async {
     final bytes = packet.encode();
-    if (bytes.length > maxSyncBytes)
+    if (bytes.length > maxSyncBytes) {
       throw const DriveFailure('A sincronização excede 64 MB.');
+    }
     final boundary = 'somia-sync-${const Uuid().v4()}';
     final meta = jsonEncode({
       'name': 'somia-sync-${packet.id}.json',

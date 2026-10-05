@@ -193,21 +193,49 @@ void main() {
     expect((await a.sync.store.state()).pending, 0);
     expect((await b.sync.store.state()).pending, 0);
   });
-  test('compras offline na mesma fatura nova convergem sem duplicar fatura',()async{
-    final cardsA=CardsRepository(a.db);
-    final card=await cardsA.save(const CardDraft(name:'Compartilhado',paymentAccountId:'a',closingDay:25,dueDay:5,limitMinor:50000));
+  test('compras offline na mesma fatura nova convergem sem duplicar fatura',
+      () async {
+    final cardsA = CardsRepository(a.db);
+    final card = await cardsA.save(const CardDraft(
+        name: 'Compartilhado',
+        paymentAccountId: 'a',
+        closingDay: 25,
+        dueDay: 5,
+        limitMinor: 50000));
     await link();
-    final cardsB=CardsRepository(b.db);
-    Future<void> purchase(CardsRepository cards,String description,int amount)async{
-      await cards.createPurchase(TransactionDraft(description:description,type:TransactionType.expense,amountMinor:amount,
-        date:DateTime(2026,3,1),isEffective:false,accountId:'a',cardId:card));
+    final cardsB = CardsRepository(b.db);
+    Future<void> purchase(
+        CardsRepository cards, String description, int amount) async {
+      await cards.createPurchase(TransactionDraft(
+          description: description,
+          type: TransactionType.expense,
+          amountMinor: amount,
+          date: DateTime(2026, 3, 1),
+          isEffective: false,
+          accountId: 'a',
+          cardId: card));
     }
-    await purchase(cardsA,'Android',1000);await purchase(cardsB,'Windows',2000);
-    await a.sync.synchronize();await b.sync.synchronize();await a.sync.synchronize();
-    expect(a.sync.error,isNull);expect(b.sync.error,isNull);
-    expect(await readFinancial(a.db),await readFinancial(b.db));
-    expect((await b.db.customSelect('SELECT count(*) n FROM card_invoices').getSingle()).read<int>('n'),1);
-    expect((await b.db.customSelect('SELECT sum(amount_minor) n FROM card_entries').getSingle()).read<int>('n'),3000);
+
+    await purchase(cardsA, 'Android', 1000);
+    await purchase(cardsB, 'Windows', 2000);
+    await a.sync.synchronize();
+    await b.sync.synchronize();
+    await a.sync.synchronize();
+    expect(a.sync.error, isNull);
+    expect(b.sync.error, isNull);
+    expect(await readFinancial(a.db), await readFinancial(b.db));
+    expect(
+        (await b.db
+                .customSelect('SELECT count(*) n FROM card_invoices')
+                .getSingle())
+            .read<int>('n'),
+        1);
+    expect(
+        (await b.db
+                .customSelect('SELECT sum(amount_minor) n FROM card_entries')
+                .getSingle())
+            .read<int>('n'),
+        3000);
   });
   test('conta diferente, relógio e corrupção recusados antes de substituir',
       () async {

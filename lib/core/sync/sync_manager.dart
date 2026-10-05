@@ -64,8 +64,9 @@ class SyncManager extends ChangeNotifier {
 
   Future<DriveSession> _session() async {
     final s = await drive.api.auth.authorize();
-    if (await drive.api.auth.account() != s.email)
+    if (await drive.api.auth.account() != s.email) {
       throw const DriveFailure('A conta mudou. Reconecte o Google Drive.');
+    }
     final current = await store.state();
     if (current.email != null && current.email != s.email) {
       throw const DriveFailure(
@@ -75,9 +76,10 @@ class SyncManager extends ChangeNotifier {
   }
 
   Future<void> _account(DriveSession s) async {
-    if (await drive.api.auth.account() != s.email)
+    if (await drive.api.auth.account() != s.email) {
       throw const DriveFailure(
           'A conta mudou durante a sincronização. Os dados atuais foram mantidos.');
+    }
   }
 
   void _clock() {
@@ -135,14 +137,16 @@ class SyncManager extends ChangeNotifier {
     var bytes = 0;
     for (final file in _unique(files).values) {
       if (applied.containsKey(file.packet)) {
-        if (applied[file.packet] != file.copy.sha256Hash)
+        if (applied[file.packet] != file.copy.sha256Hash) {
           throw const DriveFailure('Um pacote já recebido foi alterado.');
+        }
         continue;
       }
       bytes += file.copy.size;
-      if (bytes > maxSyncBytes)
+      if (bytes > maxSyncBytes) {
         throw const DriveFailure(
             'As alterações pendentes excedem 64 MB nesta operação.');
+      }
       received.add(await _download(s, file));
     }
     return received;
@@ -155,9 +159,10 @@ class SyncManager extends ChangeNotifier {
     for (final p in await store.uploads()) {
       final existing = files[p.id];
       if (existing != null) {
-        if (existing.base != p.base || existing.copy.sha256Hash != p.digest)
+        if (existing.base != p.base || existing.copy.sha256Hash != p.digest) {
           throw const DriveFailure(
               'O pacote pendente tem outra versão no Drive.');
+        }
         await _download(s, existing);
       } else {
         await _account(s);
@@ -177,20 +182,23 @@ class SyncManager extends ChangeNotifier {
         final all = _unique(files);
         bases = all.values.where((f) => f.kind == 'genesis').toList()
           ..sort((a, b) => b.copy.createdAt.compareTo(a.copy.createdAt));
-        if (bases.isEmpty)
+        if (bases.isEmpty) {
           message = 'Nenhuma base publicada. Inicie pelo Android.';
+        }
       });
   Future<void> createBase() => _run(() async {
-        if (!primaryAllowed)
+        if (!primaryAllowed) {
           throw const DriveFailure(
               'A base inicial deve ser publicada pelo Android.');
+        }
         final s = await _session();
         final files = await cloud.list(s);
         await _account(s);
         _clock();
-        if (files.any((f) => f.kind == 'genesis'))
+        if (files.any((f) => f.kind == 'genesis')) {
           throw const DriveFailure(
               'Já existe uma base no Drive. Receba essa base para continuar.');
+        }
         await local.maintain(() => store.createBase(s.email),
             refreshScreens: false);
         await _send(s, _unique(files));
@@ -213,9 +221,10 @@ class SyncManager extends ChangeNotifier {
         }
         final genesis = all.values
             .where((f) => f.base == selected.base && f.kind == 'genesis');
-        if (genesis.length != 1)
+        if (genesis.length != 1) {
           throw const DriveFailure(
               'A base tem mais de uma origem. Nenhum dado foi substituído.');
+        }
         final packets = await _receive(
             s, all.values.where((f) => f.base == selected.base).toList(),
             joining: true);
@@ -228,16 +237,18 @@ class SyncManager extends ChangeNotifier {
   Future<void> synchronize() => _run(() async {
         final s = await _session();
         final current = await store.state();
-        if (current.base == null)
+        if (current.base == null) {
           throw const DriveFailure(
               'Publique ou receba a base inicial primeiro.');
+        }
         final all = _unique(await cloud.list(s));
         await _account(s);
         _clock();
         final files = all.values.where((f) => f.base == current.base).toList();
-        if (files.where((f) => f.kind == 'genesis').length > 1)
+        if (files.where((f) => f.kind == 'genesis').length > 1) {
           throw const DriveFailure(
               'Esta base tem mais de uma origem. Nenhum dado foi alterado.');
+        }
         final queued = await store.uploads();
         if (!files.any((f) => f.kind == 'genesis') &&
             !queued.any((p) => p.kind == 'genesis')) {
@@ -246,8 +257,9 @@ class SyncManager extends ChangeNotifier {
         }
         final packets = await _receive(s, files);
         await _account(s);
-        if (packets.isNotEmpty)
+        if (packets.isNotEmpty) {
           await local.maintain(() => store.apply(packets));
+        }
         await _send(s, all);
         // Novas edições feitas durante a rede permanecem pendentes para o próximo
         // clique. last_sync_at informa a conclusão deste ciclo, não trabalho futuro.

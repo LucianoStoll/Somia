@@ -29,6 +29,10 @@ jobs:
         run: dart fix --apply
       - name: Resolve Dart formatting
         run: dart format lib test
+      - name: Resolve multiline Dart fixes
+        run: |
+          dart fix --apply
+          dart format lib test
       - name: Upload resolved sources
         uses: actions/upload-artifact@v4
         with:

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import '../database/app_database.dart';
-import '../database/financial_data.dart';
 
 const syncProtocol = 1;
 const maxSyncBytes = 64 * 1024 * 1024;
@@ -51,8 +50,9 @@ class SyncEntry {
     }
     Map<String, Object?>? data;
     if (raw['deleted'] == true) {
-      if (raw['data'] != null)
+      if (raw['data'] != null) {
         throw const FormatException('Exclusão inválida.');
+      }
     } else {
       final value = raw['data'];
       if (value is! Map ||

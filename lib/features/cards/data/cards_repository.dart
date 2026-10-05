@@ -164,7 +164,9 @@ class CardsRepository {
     if (found.isNotEmpty) return found.single.read<String>('id');
     final card = await find(cardId);
     // A mesma fatura criada offline nos dois dispositivos tem uma identidade.
-    final id = const Uuid().v5(Namespace.url.value,'somia/invoice/$cardId/$key'), now = EntityMetadata.nowUtcMillis();
+    final id =
+            const Uuid().v5(Namespace.url.value, 'somia/invoice/$cardId/$key'),
+        now = EntityMetadata.nowUtcMillis();
     await db.customStatement(
         '''INSERT INTO card_invoices(id,card_id,month_at,closing_at,due_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)''',
         [
