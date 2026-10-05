@@ -20,7 +20,7 @@ class EmptyStore extends LocalBackupStore {
 }
 void main(){
   testWidgets('sincronização mantém URI atual; restauração continua voltando para Ajustes',(tester)async{
-    final directory=await Directory.systemTemp.createTemp('somia-auto-ui-');
+    final directory=(await tester.runAsync(()=>Directory.systemTemp.createTemp('somia-auto-ui-')))!;
     final db=AppDatabase(NativeDatabase.memory());final manager=QuietManager(db,EmptyStore(directory));
     getIt.registerSingleton<BackupManager>(manager);
     appRouter.dispose();appRouter=createAppRouter(initialLocation:'/settings?keep=true');
@@ -32,6 +32,6 @@ void main(){
     await tester.pumpAndSettle();expect(manager.databaseRevision,revision);
     await tester.runAsync(()=>manager.maintain(()=>Future.value(true)));
     await tester.pumpAndSettle();expect(appRouter.routeInformationProvider.value.uri.toString(),'/settings');
-    await tester.pumpWidget(const SizedBox());appRouter.dispose();await getIt.reset();manager.dispose();await db.close();await directory.delete(recursive:true);
+    await tester.pumpWidget(const SizedBox());appRouter.dispose();await getIt.reset();manager.dispose();await db.close();await tester.runAsync(()=>directory.delete(recursive:true));
   });
 }

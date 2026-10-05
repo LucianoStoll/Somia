@@ -283,12 +283,14 @@ class SyncManager extends ChangeNotifier {
         }
         if (packets.isNotEmpty) {
           await local.maintain(() async {
-            if(automatic && !(canApply?.call()??false)){deferred=true;return false;}
+            if (automatic && !(canApply?.call() ?? false)) {
+              deferred = true;
+              return false;
+            }
             return store.apply(packets);
-          },
-              preserveLocation: automatic, shouldRefresh: (changed) => changed);
+          }, preserveLocation: automatic, shouldRefresh: (changed) => changed);
         }
-        if(deferred)return;
+        if (deferred) return;
         await _send(s, all);
         // Novas edições feitas durante a rede permanecem pendentes para o próximo
         // ciclo. last_sync_at informa a conclusão deste ciclo, não trabalho futuro.

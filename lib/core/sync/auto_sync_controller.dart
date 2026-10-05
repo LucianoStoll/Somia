@@ -67,7 +67,7 @@ class AutoSyncController extends ChangeNotifier {
   int _failures = 0;
   String? _base;
   int? _observedClock;
-  DateTime? _due, _remoteDue;
+  DateTime? _due, _remoteDue, _observedSync;
   void _notify() {
     if (!_disposed) notifyListeners();
   }
@@ -160,6 +160,11 @@ class AutoSyncController extends ChangeNotifier {
         return;
       }
       final now = clock();
+      if(state.lastSync!=null && state.lastSync!=_observedSync && manager.error==null) {
+        retryAt=null;_failures=0;_remoteDue=now.add(remoteInterval);
+        if(state.pending==0 && state.uploads==0)_due=null;
+      }
+      _observedSync=state.lastSync;
       if (state.base != _base) {
         _base = state.base;
         _observedClock = state.clock;
@@ -203,6 +208,7 @@ class AutoSyncController extends ChangeNotifier {
       _remoteDue = clock().add(remoteInterval);
       final latest = manager.state;
       _observedClock = latest?.clock;
+      _observedSync=latest?.lastSync;
       _due = (latest != null && (latest.pending > 0 || latest.uploads > 0))
           ? clock().add(debounce)
           : null;

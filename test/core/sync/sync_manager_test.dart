@@ -284,17 +284,30 @@ void main() {
     expect(b.sync.error, contains('origem'));
     expect(cloud.files, isEmpty);
   });
-  test('formulário aberto durante download adia aplicação automática e mantém seção',()async{
-    await link();await seed(a.db,'remote','Recebida');await a.sync.synchronize();
-    final before=await readFinancial(b.db);final revision=b.local.databaseRevision;
-    var safe=true;cloud.afterDownload=(){safe=false;};
-    await b.sync.synchronize(automatic:true,canApply:()=>safe);
-    expect(b.sync.deferred,isTrue);expect(await readFinancial(b.db),before);expect(b.local.databaseRevision,revision);
-    cloud.afterDownload=null;safe=true;
-    await b.sync.synchronize(automatic:true,canApply:()=>safe);
-    expect(b.sync.error,isNull);expect(b.local.preserveLocation,isTrue);expect(await readFinancial(b.db),await readFinancial(a.db));
-    final updated=b.local.databaseRevision;
-    await b.sync.synchronize(automatic:true,canApply:()=>true);expect(b.local.databaseRevision,updated);
+  test(
+      'formulário aberto durante download adia aplicação automática e mantém seção',
+      () async {
+    await link();
+    await seed(a.db, 'remote', 'Recebida');
+    await a.sync.synchronize();
+    final before = await readFinancial(b.db);
+    final revision = b.local.databaseRevision;
+    var safe = true;
+    cloud.afterDownload = () {
+      safe = false;
+    };
+    await b.sync.synchronize(automatic: true, canApply: () => safe);
+    expect(b.sync.deferred, isTrue);
+    expect(await readFinancial(b.db), before);
+    expect(b.local.databaseRevision, revision);
+    cloud.afterDownload = null;
+    safe = true;
+    await b.sync.synchronize(automatic: true, canApply: () => safe);
+    expect(b.sync.error, isNull);
+    expect(b.local.preserveLocation, isTrue);
+    expect(await readFinancial(b.db), await readFinancial(a.db));
+    final updated = b.local.databaseRevision;
+    await b.sync.synchronize(automatic: true, canApply: () => true);
+    expect(b.local.databaseRevision, updated);
   });
-
 }

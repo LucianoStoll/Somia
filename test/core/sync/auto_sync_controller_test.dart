@@ -307,4 +307,12 @@ void main() {
     await pref.write(true);
     expect(await FileAutoSyncPreference(dir).read(), isTrue);
   });
+  test('sucesso manual limpa repetição antiga sem gerar um ciclo duplicado',(){fakeAsync((time){
+    manager.fail=true;final auto=setup(time);auto.resume();flush(time);expect(manager.calls,1);
+    manager.fail=false;manager.error=null;
+    store.snapshot=SyncState('base','same@example.com','device',DateTime(2026,10,5),0,0,clock:2);
+    time.elapse(const Duration(seconds:10));expect(manager.calls,1);expect(auto.retryAt,isNull);
+    time.elapse(const Duration(seconds:21));expect(manager.calls,2);
+  });});
+
 }
