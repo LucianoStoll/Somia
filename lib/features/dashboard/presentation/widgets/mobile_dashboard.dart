@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'dashboard_category_chart.dart';
+import 'balance_details_panel.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -143,20 +144,22 @@ class _CurrencySection extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (showCurrency)
         Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(code)),
-      _MetricCard(
-        key: ValueKey('mobile-balance-$code'),
-        wide: true,
-        label: future ? 'Saldo previsto' : 'Saldo do mês',
-        amount: future
-            ? currency.projectedBalanceMinor
-            : currency.currentBalanceMinor,
-        code: code,
-        color: SomiaColors.blue,
-        icon: Icons.account_balance_wallet_outlined,
-        detail: future
-            ? 'Saldo efetivado: ${_money(currency.currentBalanceMinor, code)}'
-            : 'Saldo projetado: ${_money(currency.projectedBalanceMinor, code)}',
-      ),
+      BalanceDetailCard(
+          currencyCode: code,
+          child: _MetricCard(
+            key: ValueKey('mobile-balance-$code'),
+            wide: true,
+            label: future ? 'Saldo previsto' : 'Saldo do mês',
+            amount: future
+                ? currency.projectedBalanceMinor
+                : currency.currentBalanceMinor,
+            code: code,
+            color: SomiaColors.blue,
+            icon: Icons.account_balance_wallet_outlined,
+            detail: future
+                ? 'Saldo efetivado: ${_money(currency.currentBalanceMinor, code)}'
+                : 'Saldo projetado: ${_money(currency.projectedBalanceMinor, code)}',
+          )),
       const SizedBox(height: 10),
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(

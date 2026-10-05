@@ -33,6 +33,8 @@ jobs:
         run: flutter test
       - name: Render dashboard mobile preview
         run: flutter test test/features/dashboard/dashboard_layout_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render balance details preview
+        run: flutter test test/features/dashboard/balance_details_panel_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render movement form preview
         run: flutter test test/core/routing/movement_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render account and category form previews

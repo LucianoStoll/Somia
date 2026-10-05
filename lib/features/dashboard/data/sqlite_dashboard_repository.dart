@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../accounts/domain/account.dart';
+import '../../balances/data/sqlite_balance_details.dart';
 import '../../balances/data/sqlite_balances_repository.dart';
 import '../domain/dashboard_repository.dart';
 import '../domain/entities/dashboard_summary.dart';
@@ -20,6 +21,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         final monthEnd = DateTime.utc(month.year, month.month + 1, 0);
         final balances = await SqliteBalancesRepository(_db)
             .calculate(asOf: monthEnd, through: monthEnd);
+        final details = await loadBalanceDetails(_db, month, balances);
         // Efetivados pertencem ao mês da efetivação; pendentes, ao vencimento.
         // A data de lançamento não define os totais nem os gráficos.
         final totals = <String, (int, int)>{};
@@ -153,6 +155,7 @@ class SqliteDashboardRepository implements DashboardRepository {
           for (final currency in currencies)
             DashboardCurrencySummary(
                 currencyCode: currency,
+                balanceDetails: details[currency],
                 currentBalanceMinor: byCurrency[currency]?.currentMinor ?? 0,
                 projectedBalanceMinor:
                     byCurrency[currency]?.projectedMinor ?? 0,

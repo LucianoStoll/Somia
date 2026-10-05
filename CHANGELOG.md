@@ -2,6 +2,8 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #38: tocar no saldo abre sua composição consolidada e prevista, por moeda, com saldo inicial, receitas/despesas, transferências e cartões; painel inferior no Android e diálogo no Windows, usando o mesmo corte mensal do dashboard.
+- #45 validada pelo usuário em 05/10/2026.
 - #45: detalhes da conta ao tocar na lista, abas Realizado/Previsto, saldos e totais mensais, gráficos e extrato agrupado por dia com saldo diário; somente consulta, incluindo transferências e pagamentos de cartão sem duplicar compras.
 - #48: lista de sugestões ao digitar trechos da descrição, com conta/cartão e valor; escolher reutiliza descrição, classificação, origem e valor, mantendo datas/efetivação independentes.
 - #48: categoria/subcategoria preenchidas pela descrição de lançamentos anteriores ao criar receitas/despesas e compras no cartão; escolha manual e edição preservadas. Histórico offline, classificação válida mais recente e separação por tipo.

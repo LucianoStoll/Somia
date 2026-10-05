@@ -16,6 +16,7 @@ import '../../domain/dashboard_repository.dart';
 import '../../domain/entities/dashboard_summary.dart';
 import '../dashboard_cubit.dart';
 import '../widgets/mobile_dashboard.dart';
+import '../widgets/balance_details_panel.dart';
 import '../widgets/dashboard_category_chart.dart';
 
 const _shortMonths = [
@@ -209,18 +210,20 @@ class _DashboardViewState extends State<_DashboardView>
         const gap = 12.0;
         final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
         final tiles = [
-          _metric(
-              context,
-              future ? 'Saldo previsto' : 'Saldo total',
-              future
-                  ? currency.projectedBalanceMinor
-                  : currency.currentBalanceMinor,
-              code,
-              Icons.account_balance_wallet_outlined,
-              SomiaColors.blue,
-              future
-                  ? 'Saldo efetivado: ${MoneyMinor.display(currency.currentBalanceMinor, code)}'
-                  : 'Saldo projetado: ${MoneyMinor.display(currency.projectedBalanceMinor, code)}'),
+          BalanceDetailCard(
+              currencyCode: code,
+              child: _metric(
+                  context,
+                  future ? 'Saldo previsto' : 'Saldo total',
+                  future
+                      ? currency.projectedBalanceMinor
+                      : currency.currentBalanceMinor,
+                  code,
+                  Icons.account_balance_wallet_outlined,
+                  SomiaColors.blue,
+                  future
+                      ? 'Saldo efetivado: ${MoneyMinor.display(currency.currentBalanceMinor, code)}'
+                      : 'Saldo projetado: ${MoneyMinor.display(currency.projectedBalanceMinor, code)}')),
           _metric(
               context,
               'Receitas',
@@ -237,14 +240,17 @@ class _DashboardViewState extends State<_DashboardView>
               Icons.arrow_downward_rounded,
               SomiaColors.red,
               'Efetivados e previstos'),
-          _metric(
-              context,
-              'Saldo projetado',
-              currency.projectedBalanceMinor,
-              code,
-              Icons.bar_chart_rounded,
-              SomiaColors.blue,
-              MoneyMinor.display(currency.monthlyResultMinor, code)),
+          BalanceDetailCard(
+              key: ValueKey('desktop-projected-$code'),
+              currencyCode: code,
+              child: _metric(
+                  context,
+                  'Saldo projetado',
+                  currency.projectedBalanceMinor,
+                  code,
+                  Icons.bar_chart_rounded,
+                  SomiaColors.blue,
+                  MoneyMinor.display(currency.monthlyResultMinor, code))),
         ];
         return Wrap(spacing: gap, runSpacing: gap, children: [
           for (final tile in tiles) SizedBox(width: width, child: tile)
