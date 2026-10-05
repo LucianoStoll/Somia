@@ -82,20 +82,25 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _importCsv() async {
     if (_busy || (_sync?.busy ?? false) || (_manager?.busy ?? false)) return;
-    final result = await Navigator.of(context,rootNavigator: true).push<CsvImportResult>(
-      MaterialPageRoute(builder: (_) => CsvImportPage(repository: getIt<CsvImportRepository>())));
+    final result = await Navigator.of(context, rootNavigator: true)
+        .push<CsvImportResult>(MaterialPageRoute(
+            builder: (_) =>
+                CsvImportPage(repository: getIt<CsvImportRepository>())));
     if (result == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     if (result.imported > 0 && _manager != null) {
       try {
-        await _manager!.maintain(() async {},preserveLocation: true);
+        await _manager!.maintain(() async {}, preserveLocation: true);
       } catch (_) {
-        messenger.showSnackBar(const SnackBar(content: Text('Lançamentos importados. Reabra a seção para atualizar a lista.')));
+        messenger.showSnackBar(const SnackBar(
+            content: Text(
+                'Lançamentos importados. Reabra a seção para atualizar a lista.')));
         return;
       }
     }
-    messenger.showSnackBar(SnackBar(content: Text(
-      '${result.imported} lançamentos importados.${result.skipped == 0 ? '' : ' ${result.skipped} duplicados ignorados após nova conferência.'}')));
+    messenger.showSnackBar(SnackBar(
+        content: Text(
+            '${result.imported} lançamentos importados.${result.skipped == 0 ? '' : ' ${result.skipped} duplicados ignorados após nova conferência.'}')));
   }
 
   Future<void> _configureDrive() => _localAction(() async {
@@ -238,11 +243,17 @@ class _SettingsPageState extends State<SettingsPage> {
                           subtitle: Text(
                               'As informações ficam armazenadas neste dispositivo.'))),
                   if (getIt.isRegistered<CsvImportRepository>())
-                    Card(child: ListTile(
-                      leading: const Icon(Icons.file_download_outlined),
-                      title: const Text('Importar extrato CSV'),
-                      subtitle: const Text('Confira receitas, despesas e duplicados antes de adicionar.'),
-                      onTap: _busy || (_sync?.busy ?? false) || (_manager?.busy ?? false) ? null : _importCsv)),
+                    Card(
+                        child: ListTile(
+                            leading: const Icon(Icons.file_download_outlined),
+                            title: const Text('Importar extrato CSV'),
+                            subtitle: const Text(
+                                'Confira receitas, despesas e duplicados antes de adicionar.'),
+                            onTap: _busy ||
+                                    (_sync?.busy ?? false) ||
+                                    (_manager?.busy ?? false)
+                                ? null
+                                : _importCsv)),
                   Card(
                       child: ListTile(
                           leading: const Icon(Icons.file_upload_outlined),

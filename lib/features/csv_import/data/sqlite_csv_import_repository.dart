@@ -93,6 +93,18 @@ class SqliteCsvImportRepository implements CsvImportRepository {
       }
       return CsvImportResult(imported,skipped);
     });
-    return maintenance == null ? action() : maintenance!.maintain(action,refreshScreens: false);
+    if (maintenance == null) return action();
+    CsvImportResult? committed;
+    try {
+      return await maintenance!.maintain(() async {
+        committed = await action();
+        return committed!;
+      },refreshScreens: false);
+    } catch (_) {
+      // A failure refreshing backup metadata after commit must not report that
+      // the financial import failed, nor invite a duplicate retry.
+      if (committed != null) return committed!;
+      rethrow;
+    }
   }
 }

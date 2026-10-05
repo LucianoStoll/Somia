@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:finapp/core/database/backup_manager.dart';
+import 'package:finapp/core/database/local_backup_store.dart';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/features/accounts/data/sqlite_accounts_repository.dart';
@@ -11,6 +14,12 @@ import 'package:finapp/features/csv_import/domain/csv_document.dart';
 import 'package:finapp/features/csv_import/domain/csv_import.dart';
 import 'package:finapp/features/csv_import/data/sqlite_csv_import_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class FailingBackupStore extends LocalBackupStore {
+  FailingBackupStore() : super(Directory.systemTemp);
+  @override
+  Future<List<LocalBackupCopy>> list() async => throw const FileSystemException('list failure');
+}
 
 void main() {
   late AppDatabase db;
@@ -86,5 +95,14 @@ void main() {
     await SqliteAccountsRepository(db).setArchived(account.id,archived:true);
     await expectLater(repo.commit(rows,account.id),throwsFormatException);
     expect(await movements.list(),isEmpty);
+  });  test('falha de metadados de backup após commit não transforma importação concluída em erro', () async {
+    final manager = BackupManager(db,FailingBackupStore());
+    addTearDown(manager.dispose);
+    final rows = await preview('Descrição;Valor;Data\nCompra;-10;05/10/2026');
+    final result = await SqliteCsvImportRepository(db,maintenance:manager).commit(rows,account.id);
+    expect(result.imported,1);
+    expect((await movements.list()).length,1);
+    expect(manager.error,isNotNull);
   });
+
 }
