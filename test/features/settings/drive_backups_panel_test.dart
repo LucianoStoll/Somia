@@ -100,10 +100,12 @@ void main() {
       for (final f in fonts.listSync().whereType<File>()) {
         if (f.path.endsWith('Roboto-Regular.ttf') ||
             f.path.endsWith('Roboto-Bold.ttf')) {
-          font.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
+          font.addFont(
+              Future.value(ByteData.sublistView(f.readAsBytesSync())));
         }
         if (f.path.endsWith('MaterialIcons-Regular.otf')) {
-          icons.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
+          icons.addFont(
+              Future.value(ByteData.sublistView(f.readAsBytesSync())));
         }
       }
       await font.load();
