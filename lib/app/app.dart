@@ -22,7 +22,9 @@ class _FinAppState extends State<FinApp> {
   @override
   void initState() {
     super.initState();
-    if(getIt.isRegistered<AutoSyncController>())_auto=getIt<AutoSyncController>();
+    if (getIt.isRegistered<AutoSyncController>()) {
+      _auto = getIt<AutoSyncController>();
+    }
     if (getIt.isRegistered<BackupManager>()) {
       _manager = getIt<BackupManager>();
       _revision = _manager!.databaseRevision;
@@ -33,7 +35,10 @@ class _FinAppState extends State<FinApp> {
   void _databaseChanged() {
     if (_manager!.databaseRevision != _revision) {
       final previous = appRouter;
-      appRouter = createAppRouter(initialLocation:_manager!.preserveLocation?previous.routeInformationProvider.value.uri.toString():AppRoutes.settingsPath);
+      appRouter = createAppRouter(
+          initialLocation: _manager!.preserveLocation
+              ? previous.routeInformationProvider.value.uri.toString()
+              : AppRoutes.settingsPath);
       _revision = _manager!.databaseRevision;
       // Descarta páginas, formulários e navegação associados à base anterior.
       WidgetsBinding.instance.addPostFrameCallback((_) => previous.dispose());
@@ -78,7 +83,8 @@ class _FinAppState extends State<FinApp> {
         ],
       ]),
     );
-    final child=_auto==null?app:SyncLifecycle(controller:_auto!,child:app);
+    final child =
+        _auto == null ? app : SyncLifecycle(controller: _auto!, child: app);
     return _manager != null
         ? BackupLifecycle(manager: _manager!, child: child)
         : child;

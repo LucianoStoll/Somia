@@ -252,7 +252,12 @@ class _SettingsPageState extends State<SettingsPage> {
                                 getIt<SyncManager>().busy),
                         onConfigure: _configureDrive),
                   if (getIt.isRegistered<SyncManager>())
-                    SyncPanel(manager: getIt<SyncManager>(), enabled: !_busy,automatic:getIt.isRegistered<AutoSyncController>()?getIt<AutoSyncController>():null),
+                    SyncPanel(
+                        manager: getIt<SyncManager>(),
+                        enabled: !_busy,
+                        automatic: getIt.isRegistered<AutoSyncController>()
+                            ? getIt<AutoSyncController>()
+                            : null),
                   if (_busy) const Center(child: CircularProgressIndicator()),
                   Card(
                       child: ListTile(

@@ -22,11 +22,11 @@ void main(){
     final pref=Preference()..value=false;
     final auto=AutoSyncController(manager,pref,safeToApply:()=>true);
     addTearDown(()async{auto.dispose();manager.dispose();drive.dispose();local.dispose();await db.close();});
-    await tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpWidget(SyncLifecycle(controller:auto,child:const SizedBox()));
     await tester.pump();expect(auto.active,isTrue);
-    await tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);await tester.pump();expect(auto.active,isFalse);
-    await tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);await tester.pump();expect(auto.active,isTrue);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);await tester.pump();expect(auto.active,isFalse);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);await tester.pump();expect(auto.active,isTrue);
     await tester.pumpWidget(const SizedBox());expect(auto.active,isFalse);
   });
 }

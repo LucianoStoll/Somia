@@ -72,8 +72,12 @@ Future<void> configureDependencies(AppEnvironment environment) async {
             primaryAllowed: Platform.isAndroid),
         dispose: (manager) => manager.dispose());
   }
-  if(getIt.isRegistered<SyncManager>()) {
-    getIt.registerSingleton<AutoSyncController>(AutoSyncController(getIt<SyncManager>(),FileAutoSyncPreference(getIt<BackupManager>().store.directory),safeToApply:()=>syncNavigation.safe),dispose:(controller)=>controller.dispose());
+  if (getIt.isRegistered<SyncManager>()) {
+    getIt.registerSingleton<AutoSyncController>(
+        AutoSyncController(getIt<SyncManager>(),
+            FileAutoSyncPreference(getIt<BackupManager>().store.directory),
+            safeToApply: () => syncNavigation.safe),
+        dispose: (controller) => controller.dispose());
   }
   getIt.registerLazySingleton<AccountStatementRepository>(
       () => AccountStatementRepository(getIt<AppDatabase>()));

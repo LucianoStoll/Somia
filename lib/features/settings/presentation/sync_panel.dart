@@ -5,7 +5,8 @@ import '../../../core/sync/auto_sync_controller.dart';
 import 'local_backups_panel.dart';
 
 class SyncPanel extends StatelessWidget {
-  const SyncPanel({super.key, required this.manager, this.enabled = true,this.automatic});
+  const SyncPanel(
+      {super.key, required this.manager, this.enabled = true, this.automatic});
   final SyncManager manager;
   final bool enabled;
   final AutoSyncController? automatic;
@@ -166,12 +167,38 @@ class SyncPanel extends StatelessWidget {
                                         }
                                       : null,
                                   child: const Text('Receber'))),
-                      if(automatic!=null) AnimatedBuilder(animation:automatic!,builder:(context,_)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                        SwitchListTile.adaptive(contentPadding:EdgeInsets.zero,title:const Text('Sincronização automática'),subtitle:const Text('Ao abrir, retomar e alterar dados. Funciona enquanto o app estiver aberto.'),value:automatic!.enabled,onChanged:ready && automatic!.loaded && !automatic!.saving?automatic!.setEnabled:null),
-                        if(automatic!.waiting)const Text('Aguardando fechar o formulário ou diálogo para atualizar.'),
-                        if(automatic!.retryAt!=null)Text('Nova tentativa: ${backupDate(automatic!.retryAt!)}'),
-                        if(automatic!.error!=null)Text(automatic!.error!,style:TextStyle(color:Theme.of(context).colorScheme.error)),
-                      ])),
+                      if (automatic != null)
+                        AnimatedBuilder(
+                            animation: automatic!,
+                            builder: (context, _) => Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      SwitchListTile.adaptive(
+                                          contentPadding: EdgeInsets.zero,
+                                          title: const Text(
+                                              'Sincronização automática'),
+                                          subtitle: const Text(
+                                              'Ao abrir, retomar e alterar dados. Funciona enquanto o app estiver aberto.'),
+                                          value: automatic!.enabled,
+                                          onChanged: ready &&
+                                                  automatic!.loaded &&
+                                                  !automatic!.saving
+                                              ? automatic!.setEnabled
+                                              : null),
+                                      if (automatic!.waiting)
+                                        const Text(
+                                            'Aguardando fechar o formulário ou diálogo para atualizar.'),
+                                      if (automatic!.retryAt != null)
+                                        Text(
+                                            'Nova tentativa: ${backupDate(automatic!.retryAt!)}'),
+                                      if (automatic!.error != null)
+                                        Text(automatic!.error!,
+                                            style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .error)),
+                                    ])),
                       if (linked)
                         TextButton.icon(
                             onPressed: ready ? manager.synchronize : null,

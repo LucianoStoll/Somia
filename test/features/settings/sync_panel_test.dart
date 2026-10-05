@@ -8,6 +8,8 @@ import 'package:finapp/core/drive/drive_backup_manager.dart';
 import 'package:finapp/core/sync/drive_sync_api.dart';
 import 'package:finapp/core/sync/sync_manager.dart';
 import 'package:finapp/core/sync/sync_store.dart';
+import 'package:finapp/core/sync/auto_sync_controller.dart';
+import '../../core/sync/auto_sync_controller_test.dart' show Preference;
 import 'package:finapp/features/settings/presentation/sync_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,7 +33,8 @@ class PanelSync extends SyncManager {
   }
 
   @override
-  Future<void> synchronize({bool automatic=false,bool Function()? canApply}) async {
+  Future<void> synchronize(
+      {bool automatic = false, bool Function()? canApply}) async {
     synced++;
   }
 }
@@ -50,7 +53,7 @@ void main() {
     manager.local.dispose();
     await manager.local.database.close();
   });
-  Future<void> show(WidgetTester tester) async {
+  Future<void> show(WidgetTester tester, {AutoSyncController? automatic}) async {
     tester.view.physicalSize = const Size(320, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -61,7 +64,7 @@ void main() {
                 .copyWith(textScaler: const TextScaler.linear(1.5)),
             child: child!),
         home: Scaffold(
-            body: SingleChildScrollView(child: SyncPanel(manager: manager)))));
+            body: SingleChildScrollView(child: SyncPanel(manager: manager,automatic:automatic)))));
   }
 
   testWidgets(
@@ -113,4 +116,11 @@ void main() {
     expect(manager.synced, 1);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('alternância automática persiste e cabe no painel com fonte ampliada',(tester)async{
+    final pref=Preference();final auto=AutoSyncController(manager,pref,safeToApply:()=>true);addTearDown(auto.dispose);
+    await auto.initialize();await show(tester,automatic:auto);
+    await tester.ensureVisible(find.text('Sincronização automática'));await tester.tap(find.text('Sincronização automática'));await tester.pumpAndSettle();
+    expect(auto.enabled,isFalse);expect(pref.value,isFalse);expect(tester.takeException(),isNull);
+  });
+
 }

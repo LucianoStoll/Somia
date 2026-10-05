@@ -8,7 +8,7 @@ Entrega inicial para Android e Windows na `v0.2.0-alpha`. Use a mesma conta Goog
 2. No Windows, conecte a mesma conta Google, escolha **Buscar bases no Drive**, depois **Receber**. A confirmação informa que os dados do Windows serão substituídos. Uma cópia **Antes de restaurar** é criada antes da substituição.
 3. Quando ambos estiverem vinculados, use **Sincronizar agora**. O ciclo recebe alterações desconhecidas e envia as alterações locais. Para uma edição do Windows chegar ao Android: sincronize Windows, depois Android. Repita no outro sentido para edições do Android.
 
-A sincronização desta fase é manual. Abrir o app, alterar lançamentos ou voltar do segundo plano não dispara envio. Automatização entra após validar este fluxo. É possível continuar lançando dados offline; a fila fica no banco e é enviada pelo botão quando houver conexão. Edições feitas durante um envio permanecem pendentes para o próximo ciclo.
+A #53 entregou o botão manual. A continuação #55 adiciona [sincronização automática com app aberto](sincronizacao-automatica.md), mantendo o primeiro vínculo explícito e o botão. É possível continuar lançando dados offline; a fila fica no banco e é enviada pelo botão quando houver conexão. Edições feitas durante um envio permanecem pendentes para o próximo ciclo.
 
 ## Conflitos e recuperação
 

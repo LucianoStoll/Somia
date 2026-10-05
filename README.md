@@ -4,7 +4,7 @@ Seu dinheiro, mais claro. Aplicativo de finanças pessoais para Android e Window
 
 ## Em desenvolvimento — v0.2.0-alpha (pós-MVP)
 
-Branch ativa: `v0.2.0-alpha`. Calculadora, séries, cartões/faturas, sugestões pelo histórico, extrato diário, detalhamento de saldo e backups local/Google Drive Android/Windows já compõem este ciclo. A #53 adiciona [sincronização manual entre dispositivos](docs/sincronizacao-drive.md), com base inicial Android, fila offline e recuperação de conflitos. O fechamento é acompanhado na #54: sincronização, importação CSV e revisão final. A validação manual deste ciclo precede a PR para `main`.
+Branch ativa: `v0.2.0-alpha`. Calculadora, séries, cartões/faturas, sugestões pelo histórico, extrato diário, detalhamento de saldo e backups local/Google Drive Android/Windows já compõem este ciclo. A #53 adiciona [sincronização manual entre dispositivos](docs/sincronizacao-drive.md), com base inicial Android, fila offline e recuperação de conflitos. A #55 continua com [sincronização automática com app aberto](docs/sincronizacao-automatica.md). O fechamento é acompanhado na #54: sincronização, importação CSV e revisão final. A validação manual deste ciclo precede a PR para `main`.
 
 ## MVP — v0.1.0-alpha
 

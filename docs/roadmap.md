@@ -231,7 +231,7 @@ Semantic Versioning: 0.x-alpha para desenvolvimento inicial, 0.x-beta para estab
 ## Fechamento da v0.2.0-alpha — #54
 
 - [x] Backups local/Drive Android/Windows e restauração com app aberto (#49–#52), validados.
-- [ ] Sincronização #53: botão manual nesta entrega; automatização depois da validação manual.
+- [ ] Sincronização #53 (manual) e #55 (automática com app aberto); ambas aguardam validação manual.
 - [ ] Importação CSV #14 com prévia, mapeamento, conta, duplicatas e sugestões de categoria.
 - [ ] Revisão final de atualização, dados, saldos, datas, séries, cartões, backup, rede e conflitos.
 - [ ] Documentação final, pacotes e validação; somente então PR para main e release.
