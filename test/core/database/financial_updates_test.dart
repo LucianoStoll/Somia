@@ -42,7 +42,10 @@ void main() {
     await db.customUpdate("DELETE FROM accounts WHERE id='one'");
     await flush();
     expect(events, 2);
-    expect(await db.customUpdate("UPDATE accounts SET name='Ausente' WHERE id='missing'"), 0);
+    expect(
+        await db.customUpdate(
+            "UPDATE accounts SET name='Ausente' WHERE id='missing'"),
+        0);
     await db.customStatement('UPDATE sync_state SET clock=clock+1 WHERE id=1');
     await flush();
     expect(events, 2);
