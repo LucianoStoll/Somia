@@ -124,8 +124,7 @@ void main() {
       final download = api.download(session, DriveCopy.parse(metadata(bytes)));
       if (corrupted) {
         await expectLater(download, throwsA(isA<DriveFailure>()));
-      }
-      else {
+      } else {
         expect(await download, bytes);
       }
     }

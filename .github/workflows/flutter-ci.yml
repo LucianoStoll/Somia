@@ -46,6 +46,8 @@ jobs:
         run: flutter test test/features/dashboard/dashboard_layout_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render history tooltip previews
         run: flutter test test/features/dashboard/history_tooltip_chart_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render Drive backup preview
+        run: flutter test test/features/settings/drive_backups_panel_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render local backup previews
         run: flutter test test/features/settings/local_backups_panel_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render balance details preview

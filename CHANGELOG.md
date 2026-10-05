@@ -2,6 +2,8 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #50 / #16: backup manual privado no Google Drive para Android, seleção e autorização nativas da conta, envio/listagem/restauração confirmada com verificação de tamanho, hashes e SQLite; desconexão local, proteção contra troca de conta e preservação de backup local. Windows e sincronização entre dispositivos ficam para entregas seguintes.
+
 - #49 / #16: backup automático diário com três versões, lista de cópias locais, criação manual, exportação/restauração e cancelamento de restauração preparada; proteção consistente dos dados atuais antes de restaurar, retenção separada e erro visível sem bloquear o uso financeiro.
 - #44 validada pelo usuário em 05/10/2026.
 

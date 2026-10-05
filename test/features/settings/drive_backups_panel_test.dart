@@ -87,4 +87,18 @@ void main() {
     expect(manager.restored, 1);
     expect(tester.takeException(), isNull);
   });
+  if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+    testWidgets('prévia mobile do Drive', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(MaterialApp(theme: AppTheme.dark,
+          home: Scaffold(appBar: AppBar(title: const Text('Ajustes')),
+              body: SingleChildScrollView(child: DriveBackupsPanel(manager: manager)))));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('drive-backup-mobile-preview.png'));
+    });
+  }
+
 }
