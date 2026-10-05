@@ -1,3 +1,5 @@
+import '../../../core/drive/drive_backup_manager.dart';
+import 'drive_backups_panel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -29,6 +31,9 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    if (getIt.isRegistered<DriveBackupManager>()) {
+      getIt<DriveBackupManager>().initialize();
+    }
     _manager?.refresh().catchError((Object _) {});
   }
 
@@ -188,6 +193,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         onRestore: _restoreCopy,
                         onCancel: () => _localAction(_manager!.cancelRestore,
                             'Restauração cancelada. Os dados atuais foram mantidos.')),
+                  if (getIt.isRegistered<DriveBackupManager>())
+                    DriveBackupsPanel(manager: getIt<DriveBackupManager>(), enabled: !_busy),
                   if (_busy) const Center(child: CircularProgressIndicator()),
                   Card(
                       child: ListTile(

@@ -1,3 +1,6 @@
+import 'dart:io';
+import '../drive/drive_backup.dart';
+import '../drive/drive_backup_manager.dart';
 import '../../features/accounts/data/account_statement_repository.dart';
 import '../../features/transactions/data/category_history_repository.dart';
 import '../../features/cards/data/cards_repository.dart';
@@ -42,6 +45,12 @@ Future<void> configureDependencies(AppEnvironment environment) async {
       BackupManager(
           database, LocalBackupStore(await getApplicationSupportDirectory())),
       dispose: (manager) => manager.dispose());
+  if (Platform.isAndroid) {
+    getIt.registerSingleton<DriveBackupManager>(
+        DriveBackupManager(getIt<BackupManager>(),
+            DriveBackupApi(AndroidDriveAuth(), IoDriveTransport())),
+        dispose: (manager) => manager.dispose());
+  }
   getIt.registerLazySingleton<AccountStatementRepository>(
       () => AccountStatementRepository(getIt<AppDatabase>()));
   getIt.registerLazySingleton<AccountsRepository>(
