@@ -17,18 +17,22 @@ class DriveBackupManager extends ChangeNotifier {
   List<DriveCopy> copies = const [];
   String? _listedAccount;
   bool get configurable => api.auth is ConfigurableDriveAuth;
-  bool get configured => !configurable || (api.auth as ConfigurableDriveAuth).configured;
+  bool get configured =>
+      !configurable || (api.auth as ConfigurableDriveAuth).configured;
   void cancelConnection() {
-    if (api.auth is ConfigurableDriveAuth) (api.auth as ConfigurableDriveAuth).cancel();
+    if (api.auth is ConfigurableDriveAuth) {
+      (api.auth as ConfigurableDriveAuth).cancel();
+    }
   }
+
   Future<void> configure(Uint8List bytes) => _run(() async {
-    if (api.auth is! ConfigurableDriveAuth) return;
-    await (api.auth as ConfigurableDriveAuth).configure(bytes);
-    email = null;
-    copies = const [];
-    _listedAccount = null;
-    message = 'Cliente Google configurado. Agora conecte sua conta.';
-  });
+        if (api.auth is! ConfigurableDriveAuth) return;
+        await (api.auth as ConfigurableDriveAuth).configure(bytes);
+        email = null;
+        copies = const [];
+        _listedAccount = null;
+        message = 'Cliente Google configurado. Agora conecte sua conta.';
+      });
   bool _disposed = false;
 
   void _notify() {
@@ -65,16 +69,18 @@ class DriveBackupManager extends ChangeNotifier {
         email = await api.auth.account();
       });
   Future<void> connect() => _run(() async {
-    connecting = true;
-    _notify();
-    try {
-      final session = await api.auth.connect();
-      email = session.email;
-      copies = const [];
-      _listedAccount = null;
-      await _list(session);
-    } finally { connecting = false; }
-  });
+        connecting = true;
+        _notify();
+        try {
+          final session = await api.auth.connect();
+          email = session.email;
+          copies = const [];
+          _listedAccount = null;
+          await _list(session);
+        } finally {
+          connecting = false;
+        }
+      });
   Future<void> disconnect() => _run(() async {
         await api.auth.disconnect();
         email = null;

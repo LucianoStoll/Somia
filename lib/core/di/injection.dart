@@ -48,10 +48,16 @@ Future<void> configureDependencies(AppEnvironment environment) async {
       dispose: (manager) => manager.dispose());
   if (Platform.isAndroid || Platform.isWindows) {
     getIt.registerSingleton<DriveBackupManager>(
-        DriveBackupManager(getIt<BackupManager>(),
-            DriveBackupApi(Platform.isWindows
-                ? WindowsDriveAuth(WindowsDesktopVault(await getApplicationSupportDirectory()), IoDriveTransport())
-                : AndroidDriveAuth(), IoDriveTransport())),
+        DriveBackupManager(
+            getIt<BackupManager>(),
+            DriveBackupApi(
+                Platform.isWindows
+                    ? WindowsDriveAuth(
+                        WindowsDesktopVault(
+                            await getApplicationSupportDirectory()),
+                        IoDriveTransport())
+                    : AndroidDriveAuth(),
+                IoDriveTransport())),
         dispose: (manager) => manager.dispose());
   }
   getIt.registerLazySingleton<AccountStatementRepository>(

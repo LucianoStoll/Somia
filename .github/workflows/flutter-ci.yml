@@ -36,9 +36,7 @@ jobs:
             test/
           retention-days: 1
       - name: Check Dart formatting
-        run: |
-          dart format lib test
-          git diff --exit-code -- lib test
+        run: dart format --output=none --set-exit-if-changed lib test
       - name: Static analysis
         run: flutter analyze
       - name: Tests

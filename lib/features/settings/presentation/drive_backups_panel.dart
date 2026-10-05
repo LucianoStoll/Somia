@@ -4,7 +4,10 @@ import '../../../core/drive/drive_backup_manager.dart';
 
 class DriveBackupsPanel extends StatelessWidget {
   const DriveBackupsPanel(
-      {super.key, required this.manager, this.enabled = true, this.onConfigure});
+      {super.key,
+      required this.manager,
+      this.enabled = true,
+      this.onConfigure});
   final DriveBackupManager manager;
   final bool enabled;
   final VoidCallback? onConfigure;
@@ -49,9 +52,13 @@ class DriveBackupsPanel extends StatelessWidget {
                           'Envio manual de cópias privadas do Somia. Os lançamentos não são sincronizados entre dispositivos.'),
                       if (manager.configurable) ...[
                         if (!manager.configured)
-                          const Text('Importe o JSON do cliente Google do tipo App para computador, criado no mesmo projeto do Android.'),
-                        TextButton(onPressed: active ? onConfigure : null,
-                            child: Text(manager.configured ? 'Alterar cliente Google' : 'Configurar Google Drive')),
+                          const Text(
+                              'Importe o JSON do cliente Google do tipo App para computador, criado no mesmo projeto do Android.'),
+                        TextButton(
+                            onPressed: active ? onConfigure : null,
+                            child: Text(manager.configured
+                                ? 'Alterar cliente Google'
+                                : 'Configurar Google Drive')),
                       ],
                       if (manager.email != null) ...[
                         const SizedBox(height: 8),
@@ -65,7 +72,9 @@ class DriveBackupsPanel extends StatelessWidget {
                               onPressed: active ? manager.refresh : null,
                               child: const Text('Atualizar lista')),
                           TextButton(
-                              onPressed: active && manager.configured ? manager.connect : null,
+                              onPressed: active && manager.configured
+                                  ? manager.connect
+                                  : null,
                               child: const Text('Reconectar')),
                           TextButton(
                               onPressed: active ? manager.disconnect : null,
@@ -89,7 +98,9 @@ class DriveBackupsPanel extends StatelessWidget {
                                       : null)),
                       ] else
                         FilledButton.icon(
-                            onPressed: active && manager.configured ? manager.connect : null,
+                            onPressed: active && manager.configured
+                                ? manager.connect
+                                : null,
                             icon: const Icon(Icons.cloud_outlined),
                             label: const Text('Conectar conta Google')),
                       if (manager.busy)
@@ -97,7 +108,9 @@ class DriveBackupsPanel extends StatelessWidget {
                             padding: EdgeInsets.all(12),
                             child: LinearProgressIndicator()),
                       if (manager.connecting && manager.configurable)
-                        TextButton(onPressed: manager.cancelConnection, child: const Text('Cancelar conexão')),
+                        TextButton(
+                            onPressed: manager.cancelConnection,
+                            child: const Text('Cancelar conexão')),
                       if (manager.error != null)
                         Text(manager.error!,
                             style: TextStyle(
