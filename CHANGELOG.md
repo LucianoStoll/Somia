@@ -2,6 +2,8 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #37: tocar/clicar num mês do gráfico Receitas × Despesas mostra mês/ano, receitas, despesas e resultado do mês; balão adapta posição/tamanho, troca de mês e atualização de dados, fecha ao tocar fora ou rolar. Android e Windows, offline.
+- #38 validada pelo usuário em 05/10/2026.
 - #38: tocar no saldo abre sua composição consolidada e prevista, por moeda, com saldo inicial, receitas/despesas, transferências e cartões; painel inferior no Android e diálogo no Windows, usando o mesmo corte mensal do dashboard.
 - #45 validada pelo usuário em 05/10/2026.
 - #45: detalhes da conta ao tocar na lista, abas Realizado/Previsto, saldos e totais mensais, gráficos e extrato agrupado por dia com saldo diário; somente consulta, incluindo transferências e pagamentos de cartão sem duplicar compras.

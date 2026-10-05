@@ -16,6 +16,7 @@ import '../../domain/dashboard_repository.dart';
 import '../../domain/entities/dashboard_summary.dart';
 import '../dashboard_cubit.dart';
 import '../widgets/mobile_dashboard.dart';
+import '../widgets/history_tooltip_chart.dart';
 import '../widgets/balance_details_panel.dart';
 import '../widgets/dashboard_category_chart.dart';
 
@@ -386,43 +387,66 @@ class _DashboardViewState extends State<_DashboardView>
                         0,
                         (value, item) => math.max(value,
                             math.max(item.incomeMinor, item.expenseMinor)));
-                    return Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          for (final item in currency.history)
-                            Expanded(
-                                child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 3),
-                                    child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          Expanded(
-                                              child: Row(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.end,
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                _bar(item.incomeMinor, maximum,
-                                                    SomiaColors.green),
-                                                const SizedBox(width: 3),
-                                                _bar(item.expenseMinor, maximum,
-                                                    SomiaColors.red),
-                                              ])),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                              _shortMonths[
-                                                  item.month.month - 1],
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall
-                                                  ?.copyWith(
-                                                      color:
-                                                          SomiaColors.muted)),
-                                        ])))
-                        ]);
+                    return HistoryTooltipChart(
+                        history: currency.history,
+                        currencyCode: currency.currencyCode,
+                        builder: (target) => Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  for (final item in currency.history)
+                                    Expanded(
+                                        child: target(
+                                            item,
+                                            ExcludeSemantics(
+                                                child: Padding(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 3),
+                                                    child: Column(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .end,
+                                                        children: [
+                                                          Expanded(
+                                                              child: Row(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .end,
+                                                                  mainAxisAlignment:
+                                                                      MainAxisAlignment
+                                                                          .center,
+                                                                  children: [
+                                                                _bar(
+                                                                    item
+                                                                        .incomeMinor,
+                                                                    maximum,
+                                                                    SomiaColors
+                                                                        .green),
+                                                                const SizedBox(
+                                                                    width: 3),
+                                                                _bar(
+                                                                    item
+                                                                        .expenseMinor,
+                                                                    maximum,
+                                                                    SomiaColors
+                                                                        .red),
+                                                              ])),
+                                                          const SizedBox(
+                                                              height: 8),
+                                                          Text(
+                                                              _shortMonths[item
+                                                                      .month
+                                                                      .month -
+                                                                  1],
+                                                              style: Theme.of(
+                                                                      context)
+                                                                  .textTheme
+                                                                  .bodySmall
+                                                                  ?.copyWith(
+                                                                      color: SomiaColors
+                                                                          .muted)),
+                                                        ])))))
+                                ]));
                   })),
             const SizedBox(height: 12),
             const Wrap(alignment: WrapAlignment.center, spacing: 18, children: [
