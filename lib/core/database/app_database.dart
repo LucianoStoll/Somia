@@ -39,6 +39,10 @@ class AppDatabase extends GeneratedDatabase {
   @override
   Future<void> customStatement(String statement, [List<Object?>? args]) async {
     await super.customStatement(statement, args);
+    _recordFinancialWrite(statement);
+  }
+
+  void _recordFinancialWrite(String statement) {
     final table =
         _financialWrite.firstMatch(statement)?.group(1)?.toLowerCase();
     if (table != null && financialTables.contains(table)) {
@@ -49,6 +53,17 @@ class AppDatabase extends GeneratedDatabase {
         _financialChanges.add(null);
       }
     }
+  }
+
+  @override
+  Future<int> customUpdate(String query,
+      {List<Variable> variables = const [],
+      Set<ResultSetImplementation>? updates,
+      UpdateKind? updateKind}) async {
+    final changed = await super.customUpdate(query,
+        variables: variables, updates: updates, updateKind: updateKind);
+    if (changed > 0) _recordFinancialWrite(query);
+    return changed;
   }
 
   @override
