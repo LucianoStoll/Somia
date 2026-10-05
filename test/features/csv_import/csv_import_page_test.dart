@@ -117,6 +117,8 @@ Future<void> openPreview(WidgetTester tester, PreviewRepository repo,
 }
 
 void main() {
+  setUp(() => WidgetController.hitTestWarningShouldBeFatal = true);
+  tearDown(() => WidgetController.hitTestWarningShouldBeFatal = false);
   testWidgets(
       'prévia cabe em tela estreita com fonte ampliada e cancelar não grava',
       (tester) async {
@@ -124,6 +126,7 @@ void main() {
     await openPreview(tester, repo);
     expect(find.textContaining('1 selecionados'), findsOneWidget);
     await tester.ensureVisible(find.text('Importar 1 lançamentos'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Importar 1 lançamentos'));
     await tester.pumpAndSettle();
     expect(repo.commits, 0);

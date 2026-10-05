@@ -98,14 +98,17 @@ class _CsvImportPageState extends State<CsvImportPage> {
   }
 
   Future<void> _generatePreview() async {
-    await _cubit.preview(_document!,_mapping,_accountId!);
-    if (mounted && _cubit.state.previewed && _scroll.hasClients) _scroll.jumpTo(0);
+    await _cubit.preview(_document!, _mapping, _accountId!);
+    if (mounted && _cubit.state.previewed && _scroll.hasClients) {
+      _scroll.jumpTo(0);
+    }
   }
 
   Future<void> _confirmImport() async {
     final state = _cubit.state;
     if (state.busy || state.selected == 0) return;
-    final account = state.references!.accounts.firstWhere((a) => a.id == _accountId);
+    final account =
+        state.references!.accounts.firstWhere((a) => a.id == _accountId);
     final duplicates =
         state.rows.where((r) => r.selected && r.duplicate).length;
     final confirmed = await showDialog<bool>(
@@ -214,11 +217,19 @@ class _CsvImportPageState extends State<CsvImportPage> {
             isExpanded: true,
             decoration: const InputDecoration(labelText: 'Separador'),
             items: const [
+              DropdownMenuItem(value: 'auto', child: Text('Automático')),
               DropdownMenuItem(
-                  value: 'auto', child: Text('Automático')),
-              DropdownMenuItem(value: ';', child: Text('Ponto e vírgula (;)',maxLines: 1,overflow: TextOverflow.ellipsis)),
-              DropdownMenuItem(value: ',', child: Text('Vírgula (,)',maxLines: 1,overflow: TextOverflow.ellipsis)),
-              DropdownMenuItem(value: '\t', child: Text('Tabulação',maxLines: 1,overflow: TextOverflow.ellipsis))
+                  value: ';',
+                  child: Text('Ponto e vírgula (;)',
+                      maxLines: 1, overflow: TextOverflow.ellipsis)),
+              DropdownMenuItem(
+                  value: ',',
+                  child: Text('Vírgula (,)',
+                      maxLines: 1, overflow: TextOverflow.ellipsis)),
+              DropdownMenuItem(
+                  value: '\t',
+                  child: Text('Tabulação',
+                      maxLines: 1, overflow: TextOverflow.ellipsis))
             ],
             onChanged: state.busy
                 ? null
@@ -268,10 +279,12 @@ class _CsvImportPageState extends State<CsvImportPage> {
             items: const [
               DropdownMenuItem(
                   value: CsvAmountFormat.comma,
-                  child: Text('1.234,56 (vírgula decimal)',maxLines: 1,overflow: TextOverflow.ellipsis)),
+                  child: Text('1.234,56 (vírgula decimal)',
+                      maxLines: 1, overflow: TextOverflow.ellipsis)),
               DropdownMenuItem(
                   value: CsvAmountFormat.dot,
-                  child: Text('1,234.56 (ponto decimal)',maxLines: 1,overflow: TextOverflow.ellipsis))
+                  child: Text('1,234.56 (ponto decimal)',
+                      maxLines: 1, overflow: TextOverflow.ellipsis))
             ],
             onChanged: state.busy
                 ? null
@@ -314,7 +327,8 @@ class _CsvImportPageState extends State<CsvImportPage> {
               items: const [
                 DropdownMenuItem(
                     value: CsvDirection.signed,
-                    child: Text('Pelo sinal: + receita, − despesa',maxLines: 1,overflow: TextOverflow.ellipsis)),
+                    child: Text('Pelo sinal: + receita, − despesa',
+                        maxLines: 1, overflow: TextOverflow.ellipsis)),
                 DropdownMenuItem(
                     value: CsvDirection.income, child: Text('Todas receitas')),
                 DropdownMenuItem(
@@ -331,9 +345,7 @@ class _CsvImportPageState extends State<CsvImportPage> {
             'Categorias existentes são associadas pelo nome. Sem categoria no arquivo, usamos sugestões do histórico; você pode alterar na prévia.'),
         const SizedBox(height: 16),
         FilledButton(
-            onPressed: state.busy || accounts.isEmpty
-                ? null
-                : _generatePreview,
+            onPressed: state.busy || accounts.isEmpty ? null : _generatePreview,
             child: const Text('Gerar prévia')),
       ],
       if (state.references == null && !state.busy)
@@ -347,7 +359,8 @@ class _CsvImportPageState extends State<CsvImportPage> {
         const Text('3. Conferir lançamentos',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        Text('Conta: ${state.references!.accounts.firstWhere((a) => a.id == _accountId).name}'),
+        Text(
+            'Conta: ${state.references!.accounts.firstWhere((a) => a.id == _accountId).name}'),
         const SizedBox(height: 8),
         Text(
             '${state.selected} selecionados • ${state.rows.where((r) => r.duplicate).length} possíveis duplicados • ${state.rows.where((r) => r.error != null).length} linhas inválidas'),
@@ -411,51 +424,50 @@ class _CsvImportPageState extends State<CsvImportPage> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      BlocConsumer<CsvImportCubit, CsvImportState>(
-          bloc: _cubit,
-          listener: (context, state) {
-            if (state.result != null) Navigator.pop(context, state.result);
-          },
-          builder: (context, state) => PopScope(
-              canPop: !state.busy && !_picking,
-              child: Scaffold(
-                  appBar: AppBar(title: const Text('Importar CSV')),
-                  body: Center(
-                      child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 760),
-                          child: CustomScrollView(controller: _scroll,slivers: [
-                            SliverPadding(
-                                padding: const EdgeInsets.all(20),
-                                sliver: SliverToBoxAdapter(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                      if (state.previewed)
-                                        _previewHeader(state)
-                                      else
-                                        _options(state),
-                                      if (state.error != null)
-                                        Text(state.error!,
-                                            style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .error)),
-                                      if (state.busy || _picking)
-                                        const Padding(
-                                            padding: EdgeInsets.all(12),
-                                            child: Center(
-                                                child:
-                                                    CircularProgressIndicator())),
-                                    ]))),
-                            if (state.previewed)
-                              SliverPadding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                                  sliver: SliverList.builder(
-                                      itemCount: state.rows.length,
-                                      itemBuilder: (context, i) =>
-                                          _row(state.rows[i], i, state))),
-                          ]))))));
+  Widget build(BuildContext context) => BlocConsumer<CsvImportCubit,
+          CsvImportState>(
+      bloc: _cubit,
+      listener: (context, state) {
+        if (state.result != null) Navigator.pop(context, state.result);
+      },
+      builder: (context, state) => PopScope(
+          canPop: !state.busy && !_picking,
+          child: Scaffold(
+              appBar: AppBar(title: const Text('Importar CSV')),
+              body: Center(
+                  child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: CustomScrollView(controller: _scroll, slivers: [
+                        SliverPadding(
+                            padding: const EdgeInsets.all(20),
+                            sliver: SliverToBoxAdapter(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                  if (state.previewed)
+                                    _previewHeader(state)
+                                  else
+                                    _options(state),
+                                  if (state.error != null)
+                                    Text(state.error!,
+                                        style: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .error)),
+                                  if (state.busy || _picking)
+                                    const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Center(
+                                            child:
+                                                CircularProgressIndicator())),
+                                ]))),
+                        if (state.previewed)
+                          SliverPadding(
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                              sliver: SliverList.builder(
+                                  itemCount: state.rows.length,
+                                  itemBuilder: (context, i) =>
+                                      _row(state.rows[i], i, state))),
+                      ]))))));
 }
