@@ -186,6 +186,23 @@ class SyncPanel extends StatelessWidget {
                                                   !automatic!.saving
                                               ? automatic!.setEnabled
                                               : null),
+                                      if (automatic!.enabled)
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          child: DropdownButtonFormField<AutoSyncMode>(
+                                            key: ValueKey('${automatic!.mode.name}:${automatic!.saving}:${automatic!.error}'),
+                                            initialValue: automatic!.mode,
+                                            isExpanded: true,
+                                            decoration: const InputDecoration(labelText: 'Quando sincronizar'),
+                                            items: const [
+                                              DropdownMenuItem(value: AutoSyncMode.grouped, child: Text('Alterações agrupadas')),
+                                              DropdownMenuItem(value: AutoSyncMode.eachChange, child: Text('A cada alteração')),
+                                            ],
+                                            onChanged: ready && automatic!.loaded && !automatic!.saving
+                                                ? (mode) { if (mode != null) automatic!.setMode(mode); }
+                                                : null,
+                                          ),
+                                        ),
                                       if (automatic!.waiting)
                                         const Text(
                                             'Aguardando fechar o formulário ou diálogo para atualizar.'),

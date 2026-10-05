@@ -26,6 +26,21 @@ import 'backup_service.dart';
 class AppDatabase extends GeneratedDatabase {
   AppDatabase(super.executor);
 
+  // Raw SQL repositories need explicit Drift notifications. Drift buffers these
+  // in a transaction and publishes only after commit (discarding rollbacks).
+  static final _financialWrite = RegExp(
+      r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
+      caseSensitive: false);
+
+  @override
+  Future<void> customStatement(String statement, [List<Object?>? args]) async {
+    await super.customStatement(statement, args);
+    final table = _financialWrite.firstMatch(statement)?.group(1)?.toLowerCase();
+    if (table != null && financialTables.contains(table)) {
+      notifyUpdates({TableUpdate(table)});
+    }
+  }
+
   factory AppDatabase.open() => AppDatabase(
         LazyDatabase(() async {
           final directory = await getApplicationSupportDirectory();

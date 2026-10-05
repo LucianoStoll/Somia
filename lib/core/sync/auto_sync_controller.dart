@@ -3,15 +3,36 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'sync_manager.dart';
 
+enum AutoSyncMode { grouped, eachChange }
+
 abstract class AutoSyncPreference {
   Future<bool> read();
   Future<void> write(bool enabled);
+  Future<AutoSyncMode> readMode();
+  Future<void> writeMode(AutoSyncMode mode);
 }
 
 class FileAutoSyncPreference implements AutoSyncPreference {
   FileAutoSyncPreference(this.directory);
   final Directory directory;
   File get _file => File('${directory.path}/somia-sync-auto.txt');
+  File get _modeFile => File('${directory.path}/somia-sync-mode.txt');
+  @override
+  Future<AutoSyncMode> readMode() async {
+    if (!await _modeFile.exists()) return AutoSyncMode.grouped;
+    final value = (await _modeFile.readAsString()).trim();
+    return AutoSyncMode.values.firstWhere((mode) => mode.name == value,
+        orElse: () => throw const FormatException('Modo de sincronização inválido.'));
+  }
+
+  @override
+  Future<void> writeMode(AutoSyncMode mode) async {
+    await directory.create(recursive: true);
+    final temporary = File('${_modeFile.path}.tmp');
+    await temporary.writeAsString(mode.name, flush: true);
+    await temporary.rename(_modeFile.path);
+  }
+
   @override
   Future<bool> read() async {
     if (!await _file.exists()) return true;
@@ -32,7 +53,7 @@ class FileAutoSyncPreference implements AutoSyncPreference {
   }
 }
 
-/// One foreground loop: observe local clock, debounce writes and poll Drive.
+/// One foreground loop: observe committed writes and poll Drive.
 class AutoSyncController extends ChangeNotifier {
   AutoSyncController(this.manager, this.preference,
       {required this.safeToApply,
@@ -59,6 +80,10 @@ class AutoSyncController extends ChangeNotifier {
       active = false,
       saving = false,
       waiting = false;
+  AutoSyncMode mode = AutoSyncMode.grouped;
+  Duration get _writeDelay => mode == AutoSyncMode.eachChange ? Duration.zero : debounce;
+  StreamSubscription<void>? _changes;
+  bool _wake = false;
   String? error;
   DateTime? retryAt;
   Timer? _timer;
@@ -75,6 +100,7 @@ class AutoSyncController extends ChangeNotifier {
   Future<void> initialize() => _initialization ??= () async {
         try {
           enabled = await preference.read();
+          mode = await preference.readMode();
         } catch (_) {
           enabled = false;
           error =
@@ -110,9 +136,39 @@ class AutoSyncController extends ChangeNotifier {
     }
   }
 
+  Future<void> setMode(AutoSyncMode value) async {
+    if (saving || _disposed) return;
+    await initialize();
+    saving = true;
+    _notify();
+    try {
+      await preference.writeMode(value);
+      if (_disposed) return;
+      mode = value;
+      error = null;
+      if (_due != null) _due = clock().add(_writeDelay);
+    } catch (_) {
+      error = 'Não foi possível salvar a preferência. Tente novamente.';
+    } finally {
+      saving = false;
+      _notify();
+      _schedule(Duration.zero);
+    }
+  }
+
+  void _onChange(void _) {
+    if (_disposed || !active || !enabled) return;
+    if (_checking) {
+      _wake = true;
+    } else {
+      _schedule(Duration.zero);
+    }
+  }
+
   void resume() {
     if (_disposed || active) return;
     active = true;
+    _changes ??= manager.store.changes.listen(_onChange);
     _due = clock();
     retryAt = null;
     _failures = 0;
@@ -145,6 +201,7 @@ class AutoSyncController extends ChangeNotifier {
   Future<void> _check() async {
     if (_disposed || !active || !enabled || _checking) return;
     _checking = true;
+    var completedCycle = false;
     try {
       if (manager.busy || manager.local.busy || manager.drive.busy) return;
       final state = await manager.store.state();
@@ -177,7 +234,7 @@ class AutoSyncController extends ChangeNotifier {
         _failures = 0;
       } else if (state.clock != _observedClock) {
         _observedClock = state.clock;
-        if (state.pending > 0 || state.uploads > 0) _due = now.add(debounce);
+        if (state.pending > 0 || state.uploads > 0) _due = now.add(_writeDelay);
       }
       if (retryAt != null && now.isBefore(retryAt!)) return;
       final due = (_due != null && !now.isBefore(_due!)) ||
@@ -206,6 +263,7 @@ class AutoSyncController extends ChangeNotifier {
         _retry();
         return;
       }
+      completedCycle = true;
       _failures = 0;
       retryAt = null;
       error = null;
@@ -214,7 +272,7 @@ class AutoSyncController extends ChangeNotifier {
       _observedClock = latest?.clock;
       _observedSync = latest?.lastSync;
       _due = (latest != null && (latest.pending > 0 || latest.uploads > 0))
-          ? clock().add(debounce)
+          ? clock().add(_writeDelay)
           : null;
     } catch (_) {
       error =
@@ -223,13 +281,18 @@ class AutoSyncController extends ChangeNotifier {
     } finally {
       _checking = false;
       _notify();
-      _schedule(poll);
+      final immediatePending = completedCycle && mode == AutoSyncMode.eachChange &&
+          !waiting && retryAt == null && _due != null && !clock().isBefore(_due!);
+      final wake = _wake;
+      _wake = false;
+      _schedule(wake || immediatePending ? Duration.zero : poll);
     }
   }
 
   @override
   void dispose() {
     _disposed = true;
+    unawaited(_changes?.cancel());
     _timer?.cancel();
     super.dispose();
   }

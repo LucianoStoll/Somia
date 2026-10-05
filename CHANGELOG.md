@@ -2,6 +2,8 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- Ajustes: escolha entre sincronizar a cada alteração salva ou agrupar alterações, com preferência persistente e notificações após commit.
+
 - #55: sincronização automática após vínculo explícito, ao abrir/retomar e após alterações agrupadas; consulta remota enquanto aberto, repetição com espera crescente, preferência persistente, proteção de formulários e manutenção da seção após atualização. Botão manual e fluxo de backup continuam disponíveis.
 
 - #49 validada pelo usuário em 05/10/2026; fechamento da alpha acompanhado na #54: sincronização, importação CSV #14 e revisão final.

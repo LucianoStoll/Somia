@@ -118,6 +118,28 @@ void main() {
     expect(manager.synced, 1);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('modo a cada alteração é selecionável e persistido com fonte ampliada', (tester) async {
+    final pref = Preference();
+    final auto = AutoSyncController(manager, pref, safeToApply: () => true);
+    addTearDown(auto.dispose);
+    await auto.initialize();
+    await show(tester, automatic: auto);
+    await tester.ensureVisible(find.text('Alterações agrupadas'));
+    await tester.tap(find.text('Alterações agrupadas'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('A cada alteração').last);
+    await tester.pumpAndSettle();
+    expect(auto.mode, AutoSyncMode.eachChange);
+    expect(pref.mode, AutoSyncMode.eachChange);
+    pref.failWrite = true;
+    await tester.tap(find.text('A cada alteração'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Alterações agrupadas').last);
+    await tester.pumpAndSettle();
+    expect(auto.mode, AutoSyncMode.eachChange);
+    expect(find.text('A cada alteração'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
       'alternância automática persiste e cabe no painel com fonte ampliada',
       (tester) async {

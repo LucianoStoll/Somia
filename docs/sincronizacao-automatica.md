@@ -6,7 +6,9 @@ Continuação da [sincronização manual #53](sincronizacao-drive.md), no fecham
 
 **Sincronização automática** fica nos Ajustes e vem ativada. A escolha é salva fora do banco financeiro e permanece após reabrir ou restaurar um backup. Pode ser desativada; o botão **Sincronizar agora** continua disponível.
 
-Após o vínculo, o app sincroniza ao abrir e retomar. Enquanto está em primeiro plano, observa as alterações locais a cada dois segundos e espera três segundos após detectar a última alteração de uma sequência para agrupá-las. Novas alterações durante um envio permanecem pendentes e geram outro ciclo. O app consulta alterações remotas a cada minuto, mesmo sem edição local.
+**Quando sincronizar** permite escolher **Alterações agrupadas** (padrão existente, espera três segundos após detectar a última alteração) ou **A cada alteração** (inicia o ciclo após salvar, sem essa espera). O modo também é salvo fora do banco e permanece após reabrir ou restaurar. Somente transações concluídas disparam a observação; gravações parciais e operações revertidas não iniciam envio.
+
+Após o vínculo, o app sincroniza ao abrir e retomar. Enquanto está em primeiro plano, recebe notificações de alterações financeiras confirmadas; a verificação a cada dois segundos continua como apoio. Novas alterações durante um envio permanecem pendentes e geram outro ciclo. O app consulta alterações remotas a cada minuto, mesmo sem edição local.
 
 Nenhuma base é publicada ou substituída automaticamente ao conectar a conta. Uma restauração de backup continua limpando o vínculo; sem base vinculada, não há sincronização automática.
 
@@ -31,6 +33,6 @@ Os limites de tamanho, schema/protocolo, integridade e compactação são os mes
 5. Abrir um formulário e digitar. Fazer uma mudança no outro dispositivo: o formulário deve continuar intacto. Fechar/salvar e conferir atualização sem trocar de seção.
 6. Pausar e retomar: conferir ausência de novos ciclos no segundo plano e sincronização ao retornar.
 7. Desligar a internet: conferir erro, pendências e repetição com espera. Reconectar e conferir convergência.
-8. Desativar a opção, fechar/reabrir: a escolha deve permanecer. O botão manual deve continuar funcionando.
+8. Selecionar A cada alteração e conferir envio após salvar; alternar para Alterações agrupadas e conferir a espera. Fechar/reabrir e verificar o modo escolhido. Desativar a opção, fechar/reabrir: a escolha deve permanecer. O botão manual deve continuar funcionando.
 9. Restaurar um backup: conferir desvinculação e ausência de publicação automática dos dados restaurados.
 10. Desconectar/trocar a conta: não abrir login automaticamente nem substituir dados. Reconectar manualmente a conta vinculada.

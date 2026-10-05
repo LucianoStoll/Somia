@@ -20,6 +20,7 @@ class SyncState {
 class SyncStore {
   SyncStore(this.db, this.backups, {String? device}) : _device = device;
   final AppDatabase db;
+  Stream<void> get changes => db.tableUpdates().map((_) {});
   final LocalBackupStore backups;
   String? _device;
   Future<String> device() async {

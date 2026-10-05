@@ -15,6 +15,14 @@ import 'sync_manager_test.dart' show TestAuth, NoTransport, MemoryCloud;
 
 class Preference implements AutoSyncPreference {
   bool value = true, failRead = false, failWrite = false;
+  AutoSyncMode mode = AutoSyncMode.grouped;
+  @override
+  Future<AutoSyncMode> readMode() async => mode;
+  @override
+  Future<void> writeMode(AutoSyncMode value) async {
+    if (failWrite) throw const FileSystemException();
+    mode = value;
+  }
   @override
   Future<bool> read() async {
     if (failRead) throw const FileSystemException();
@@ -33,10 +41,14 @@ class ObservedStore extends SyncStore {
   SyncState snapshot = const SyncState(
       'base', 'same@example.com', 'device', null, 0, 0,
       clock: 1);
-  void edit(int clock, {int pending = 1}) {
+  final events = StreamController<void>.broadcast();
+  @override
+  Stream<void> get changes => events.stream;
+  void edit(int clock, {int pending = 1, bool notify = false}) {
     snapshot = SyncState(
         snapshot.base, snapshot.email, snapshot.device, null, pending, 0,
         clock: clock);
+    if (notify) events.add(null);
   }
 
   @override
@@ -103,6 +115,7 @@ void main() {
     manager.dispose();
     drive.dispose();
     local.dispose();
+    await store.events.close();
     await db.close();
   });
   AutoSyncController setup(FakeAsync time, {bool Function()? safe}) {
@@ -302,10 +315,88 @@ void main() {
     addTearDown(() => dir.delete(recursive: true));
     final pref = FileAutoSyncPreference(dir);
     expect(await pref.read(), isTrue);
+    expect(await pref.readMode(), AutoSyncMode.grouped);
+    await pref.writeMode(AutoSyncMode.eachChange);
+    expect(await FileAutoSyncPreference(dir).readMode(), AutoSyncMode.eachChange);
     await pref.write(false);
     expect(await FileAutoSyncPreference(dir).read(), isFalse);
     await pref.write(true);
     expect(await FileAutoSyncPreference(dir).read(), isTrue);
+  });
+  test('cada alteração dispara pelo evento, sem esperar a consulta periódica', () {
+    fakeAsync((time) {
+      preference.mode = AutoSyncMode.eachChange;
+      final auto = setup(time);
+      auto.resume();
+      flush(time);
+      expect(manager.calls, 1);
+      store.edit(2, notify: true);
+      flush(time);
+      expect(manager.calls, 2);
+      store.edit(3, notify: true);
+      flush(time);
+      expect(manager.calls, 3);
+      store.edit(4, pending: 0, notify: true);
+      flush(time);
+      expect(manager.calls, 3);
+      auto.pause();
+      store.edit(5, notify: true);
+      flush(time);
+      expect(manager.calls, 3);
+    });
+  });
+  test('evento agrupado espera; trocar modo libera pendências e falha preserva opção', () {
+    fakeAsync((time) {
+      final auto = setup(time);
+      auto.resume();
+      flush(time);
+      store.edit(2, notify: true);
+      flush(time);
+      expect(manager.calls, 1);
+      time.elapse(const Duration(seconds: 1));
+      auto.setMode(AutoSyncMode.eachChange);
+      flush(time);
+      expect(manager.calls, 2);
+      expect(preference.mode, AutoSyncMode.eachChange);
+      preference.failWrite = true;
+      auto.setMode(AutoSyncMode.grouped);
+      flush(time);
+      expect(auto.mode, AutoSyncMode.eachChange);
+      expect(auto.error, isNotNull);
+    });
+  });
+  test('modo imediato mantém fila durante envio, formulários e espera de falha', () {
+    fakeAsync((time) {
+      preference.mode = AutoSyncMode.eachChange;
+      var safe = true;
+      final auto = setup(time, safe: () => safe);
+      auto.resume();
+      flush(time);
+      manager.afterCycle = () {
+        store.edit(3, notify: true);
+        manager.afterCycle = null;
+      };
+      store.edit(2, notify: true);
+      flush(time);
+      expect(manager.calls, 3);
+      safe = false;
+      store.edit(4, notify: true);
+      flush(time);
+      expect(manager.calls, 3);
+      expect(auto.waiting, isTrue);
+      safe = true;
+      manager.fail = true;
+      time.elapse(const Duration(seconds: 1));
+      expect(manager.calls, 4);
+      store.edit(5, notify: true);
+      flush(time);
+      expect(manager.calls, 4);
+      time.elapse(const Duration(seconds: 4));
+      expect(manager.calls, 4);
+      manager.fail = false;
+      time.elapse(const Duration(seconds: 1));
+      expect(manager.calls, 5);
+    });
   });
   test('sucesso manual limpa repetição antiga sem gerar um ciclo duplicado',
       () {
