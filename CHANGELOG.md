@@ -2,6 +2,8 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #56 / #14: importação CSV por conta com mapeamento, prévia, seleção e identificação de duplicados, categorias pelo nome/histórico, datas e centavos validados e gravação atômica. Lançamentos sem efetivação entram pendentes; nenhum dado é substituído.
+
 - Ajustes: escolha entre sincronizar a cada alteração salva ou agrupar alterações, com preferência persistente e notificações após commit.
 
 - #55: sincronização automática após vínculo explícito, ao abrir/retomar e após alterações agrupadas; consulta remota enquanto aberto, repetição com espera crescente, preferência persistente, proteção de formulários e manutenção da seção após atualização. Botão manual e fluxo de backup continuam disponíveis.

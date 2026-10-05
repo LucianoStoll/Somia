@@ -25,6 +25,19 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
+      - name: Resolve Dart sources
+        run: |
+          dart format lib test
+          dart fix --apply
+          dart format lib test
+      - name: Upload resolved sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: somia-resolved-sources
+          path: |
+            lib/
+            test/
+            pubspec.lock
       - name: Check Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Static analysis
@@ -59,6 +72,8 @@ jobs:
         run: flutter test test/core/routing/account_statement_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render movement list preview
         run: flutter test test/core/widgets/movement_list_row_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render CSV import preview
+        run: flutter test test/features/csv_import/csv_import_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Publish dashboard preview
         uses: actions/upload-artifact@v4
         with:
@@ -70,6 +85,7 @@ jobs:
             test/features/settings/*desktop-preview.png
             test/core/routing/*mobile-preview.png
             test/core/widgets/*mobile-preview.png
+            test/features/csv_import/*mobile-preview.png
           if-no-files-found: error
           retention-days: 30
 

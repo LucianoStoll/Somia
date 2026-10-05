@@ -1,4 +1,6 @@
 import '../../../core/drive/drive_backup_manager.dart';
+import '../../csv_import/domain/csv_import.dart';
+import '../../csv_import/presentation/csv_import_page.dart';
 import 'drive_backups_panel.dart';
 import 'sync_panel.dart';
 import '../../../core/sync/sync_manager.dart';
@@ -29,6 +31,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _busy = false;
   SyncManager? _sync;
+  BackupManager? _local;
   void _syncChanged() {
     if (mounted) setState(() {});
   }
@@ -36,6 +39,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void dispose() {
     _sync?.removeListener(_syncChanged);
+    _local?.removeListener(_syncChanged);
     super.dispose();
   }
 
@@ -45,6 +49,8 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    _local = _manager;
+    _local?.addListener(_syncChanged);
     if (getIt.isRegistered<DriveBackupManager>()) {
       getIt<DriveBackupManager>().initialize();
     }
@@ -72,6 +78,24 @@ class _SettingsPageState extends State<SettingsPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _importCsv() async {
+    if (_busy || (_sync?.busy ?? false) || (_manager?.busy ?? false)) return;
+    final result = await Navigator.of(context,rootNavigator: true).push<CsvImportResult>(
+      MaterialPageRoute(builder: (_) => CsvImportPage(repository: getIt<CsvImportRepository>())));
+    if (result == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (result.imported > 0 && _manager != null) {
+      try {
+        await _manager!.maintain(() async {},preserveLocation: true);
+      } catch (_) {
+        messenger.showSnackBar(const SnackBar(content: Text('Lançamentos importados. Reabra a seção para atualizar a lista.')));
+        return;
+      }
+    }
+    messenger.showSnackBar(SnackBar(content: Text(
+      '${result.imported} lançamentos importados.${result.skipped == 0 ? '' : ' ${result.skipped} duplicados ignorados após nova conferência.'}')));
   }
 
   Future<void> _configureDrive() => _localAction(() async {
@@ -213,6 +237,12 @@ class _SettingsPageState extends State<SettingsPage> {
                           title: Text('Seus dados'),
                           subtitle: Text(
                               'As informações ficam armazenadas neste dispositivo.'))),
+                  if (getIt.isRegistered<CsvImportRepository>())
+                    Card(child: ListTile(
+                      leading: const Icon(Icons.file_download_outlined),
+                      title: const Text('Importar extrato CSV'),
+                      subtitle: const Text('Confira receitas, despesas e duplicados antes de adicionar.'),
+                      onTap: _busy || (_sync?.busy ?? false) || (_manager?.busy ?? false) ? null : _importCsv)),
                   Card(
                       child: ListTile(
                           leading: const Icon(Icons.file_upload_outlined),
