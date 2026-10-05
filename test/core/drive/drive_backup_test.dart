@@ -196,7 +196,8 @@ void main() {
       await directory.delete(recursive: true);
     });
     test('válida restaura imediatamente mantendo conexão aberta', () async {
-      await db.customStatement("INSERT INTO accounts (id, name, type, currency_code, initial_balance_minor, created_at, updated_at) VALUES ('old', 'Antiga', 'cash', 'BRL', 0, 1, 1)");
+      await db.customStatement(
+          "INSERT INTO accounts (id, name, type, currency_code, initial_balance_minor, created_at, updated_at) VALUES ('old', 'Antiga', 'cash', 'BRL', 0, 1, 1)");
       await manager.refresh();
       await manager.restore(manager.copies.single);
       expect(manager.error, isNull);

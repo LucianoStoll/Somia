@@ -61,7 +61,9 @@ class _FinAppState extends State<FinApp> {
         ),
         if (_manager?.restoring ?? false) ...[
           const ModalBarrier(dismissible: false, color: Colors.black54),
-          const Center(child: Card(child: Padding(
+          const Center(
+              child: Card(
+                  child: Padding(
             padding: EdgeInsets.all(24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               CircularProgressIndicator(),

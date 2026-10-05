@@ -1,6 +1,6 @@
 # Backup manual no Google Drive (Android)
 
-Entrega #50 da #16. O Android pode conectar uma conta Google, enviar uma cópia consistente do banco local, listar as cópias privadas e preparar uma restauração. Windows continua com backup local. Não há envio automático, mesclagem ou sincronização de lançamentos nesta etapa.
+Entrega #50 da #16. O Android pode conectar uma conta Google, enviar uma cópia consistente do banco local, listar as cópias privadas e restaurar os dados. Windows possui a integração #51. Não há envio automático, mesclagem ou sincronização de lançamentos nesta etapa.
 
 ## Configuração do projeto Google
 
@@ -21,7 +21,7 @@ Downloads conferem metadados atuais, pasta privada, tamanho, MD5 do Drive e SHA-
 
 Requisições têm limite de tempo e tamanho; não há repetição automática de envios, evitando cópias duplicadas após uma resposta perdida. Se um envio der erro de conexão, atualizar a lista antes de reenviar. Permissão negada, token expirado e limites do Drive são informados em Ajustes.
 
-## Validação real pendente
+## Validação manual
 
 1. Instalar APK assinado e abrir Ajustes → Backup no Google Drive.
 2. Conectar a conta de teste, aceitar a permissão, enviar backup e atualizar lista.
@@ -30,6 +30,6 @@ Requisições têm limite de tempo e tamanho; não há repetição automática d
 5. Desconectar, conectar outra conta e conferir que as cópias anteriores não aparecem.
 6. Cancelar o seletor/consentimento e testar sem rede. O uso financeiro offline deve continuar.
 
-Os testes automatizados usam autorização e transporte substituídos. Não enviam dados reais ao Google. Consentimento, certificado cadastrado, Drive API habilitada e acesso real dependem da validação no Android.
+Os testes automatizados usam autorização e transporte substituídos. Não enviam dados reais ao Google. Acesso real no Android foi validado pelo usuário em 05/10/2026; a aplicação imediata (#52) possui sua própria validação manual.
 
 Referências: https://developer.android.com/identity/authorization e https://developers.google.com/workspace/drive/api/guides/appdata.

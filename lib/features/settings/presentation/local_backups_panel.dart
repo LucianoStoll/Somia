@@ -55,7 +55,8 @@ class LocalBackupsPanel extends StatelessWidget {
                               const Text('Tentar backup automático novamente')),
                     ],
                     if (manager.databaseRevision > 0)
-                      const Text('Backup restaurado. Os dados já estão atualizados.'),
+                      const Text(
+                          'Backup restaurado. Os dados já estão atualizados.'),
                     if (manager.restorePending) ...[
                       if (manager.restoreFailed)
                         const Text(

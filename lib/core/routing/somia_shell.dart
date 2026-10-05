@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
+import '../di/injection.dart';
+import '../database/backup_manager.dart';
 import '../widgets/somia_brand.dart';
 import 'app_router.dart';
 
@@ -53,11 +55,16 @@ class SomiaSectionBackScope extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => PopScope<Object?>(
-        canPop: Theme.of(context).platform != TargetPlatform.android ||
-            location == AppRoutes.dashboardPath,
+  Widget build(BuildContext context) {
+    final manager = getIt.isRegistered<BackupManager>()
+        ? getIt<BackupManager>() : null;
+    Widget scope() => PopScope<Object?>(
+        canPop: !(manager?.restoring ?? false) &&
+            (Theme.of(context).platform != TargetPlatform.android ||
+            location == AppRoutes.dashboardPath),
         onPopInvokedWithResult: (didPop, result) {
-          if (didPop || Theme.of(context).platform != TargetPlatform.android) {
+          if ((manager?.restoring ?? false) || didPop ||
+              Theme.of(context).platform != TargetPlatform.android) {
             return;
           }
           final scaffold = _mobileScaffoldKey.currentState;
@@ -71,6 +78,9 @@ class SomiaSectionBackScope extends StatelessWidget {
         },
         child: child,
       );
+    return manager == null ? scope() : AnimatedBuilder(
+        animation: manager, builder: (context, _) => scope());
+  }
 }
 
 class SomiaShell extends StatelessWidget {

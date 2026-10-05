@@ -101,18 +101,20 @@ abstract final class BackupService {
       AppDatabase database, LocalBackupStore store, Uint8List bytes) async {
     final candidate = await _checkedCandidate(bytes, store.directory);
     var attached = false;
+    var committed = false;
     try {
       final columns = await _expectedColumns();
       await store.create(database, BackupKind.beforeRestore);
       // Evita que um agendamento antigo sobreponha esta restauração ao abrir.
       await cancelPendingRestore(store.directory);
-      await database.customStatement('ATTACH DATABASE ? AS restore_source',
-          [candidate.path]);
+      await database.customStatement(
+          'ATTACH DATABASE ? AS restore_source', [candidate.path]);
       attached = true;
       await database.transaction(() async {
         await database.customStatement('PRAGMA defer_foreign_keys = ON');
-        final triggers = await database.customSelect(
-            "SELECT name, sql FROM main.sqlite_master WHERE type = 'trigger'")
+        final triggers = await database
+            .customSelect(
+                "SELECT name, sql FROM main.sqlite_master WHERE type = 'trigger'")
             .get();
         // Regras de novos lançamentos não se aplicam ao histórico: contas e
         // categorias podem ter sido arquivadas depois de usadas.
@@ -125,13 +127,14 @@ abstract final class BackupService {
         }
         for (final entry in columns.entries) {
           final names = entry.value
-              .map((column) => '"${column.split(':').first}"').join(', ');
-          await database.customStatement(
-              'INSERT INTO main."${entry.key}" ($names) '
-              'SELECT $names FROM restore_source."${entry.key}"');
+              .map((column) => '"${column.split(':').first}"')
+              .join(', ');
+          await database
+              .customStatement('INSERT INTO main."${entry.key}" ($names) '
+                  'SELECT $names FROM restore_source."${entry.key}"');
         }
-        final violations = await database
-            .customSelect('PRAGMA main.foreign_key_check').get();
+        final violations =
+            await database.customSelect('PRAGMA main.foreign_key_check').get();
         if (violations.isNotEmpty) {
           throw const FormatException('O backup contém vínculos inválidos.');
         }
@@ -139,12 +142,25 @@ abstract final class BackupService {
           await database.customStatement(trigger.read<String>('sql'));
         }
       });
+      committed = true;
       await _clearRestoreFailure(store.directory);
     } finally {
-      if (attached) {
-        await database.customStatement('DETACH DATABASE restore_source');
+      try {
+        if (attached) {
+          try {
+            await database.customStatement('DETACH DATABASE restore_source');
+          } catch (_) {
+            if (!committed) rethrow;
+            // Limpeza não pode transformar um commit concluído em falha.
+          }
+        }
+      } finally {
+        try {
+          if (await candidate.exists()) await candidate.delete();
+        } catch (_) {
+          // O temporário não entra na lista de cópias nem é aplicado ao abrir.
+        }
       }
-      if (await candidate.exists()) await candidate.delete();
     }
   }
 

@@ -103,13 +103,21 @@ void main() {
     addTearDown(() => directory.delete(recursive: true));
     final file = File(p.join(directory.path, 'v1.sqlite'));
     final legacy = _LegacyV1(NativeDatabase(file));
-    await legacy.customStatement("INSERT INTO accounts (id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES ('a','Legada','cash','BRL',100,1,1)");
+    await legacy.customStatement(
+        "INSERT INTO accounts (id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES ('a','Legada','cash','BRL',100,1,1)");
     await legacy.close();
     final current = AppDatabase(NativeDatabase.memory());
     addTearDown(current.close);
-    await BackupService.restoreOpen(current, LocalBackupStore(directory), await file.readAsBytes());
-    expect((await current.customSelect('SELECT name, include_in_balance FROM accounts').getSingle()).data, {'name': 'Legada', 'include_in_balance': 1});
-    expect(await current.customSelect('SELECT * FROM credit_cards').get(), isEmpty);
+    await BackupService.restoreOpen(
+        current, LocalBackupStore(directory), await file.readAsBytes());
+    expect(
+        (await current
+                .customSelect('SELECT name, include_in_balance FROM accounts')
+                .getSingle())
+            .data,
+        {'name': 'Legada', 'include_in_balance': 1});
+    expect(await current.customSelect('SELECT * FROM credit_cards').get(),
+        isEmpty);
   });
 
   test('arquivo inválido não substitui o banco existente', () async {

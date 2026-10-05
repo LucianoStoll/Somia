@@ -129,8 +129,7 @@ class _SettingsPageState extends State<SettingsPage> {
         builder: (context) => AlertDialog(
               scrollable: true,
               title: const Text('Restaurar backup?'),
-              content: const Text(
-                  'Os dados atuais serão substituídos agora. '
+              content: const Text('Os dados atuais serão substituídos agora. '
                   'Uma cópia dos dados atuais será salva automaticamente antes '
                   'da substituição. A restauração não mescla os dados.'),
               actions: [
