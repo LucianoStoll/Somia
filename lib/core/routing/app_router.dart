@@ -33,8 +33,10 @@ abstract final class AppRoutes {
   static const settingsPath = '/settings';
 }
 
-final GoRouter appRouter = GoRouter(
-  initialLocation: AppRoutes.dashboardPath,
+GoRouter appRouter = createAppRouter();
+
+GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) => GoRouter(
+  initialLocation: initialLocation,
   routes: [
     ShellRoute(
         builder: (context, state, child) => SomiaSectionBackScope(

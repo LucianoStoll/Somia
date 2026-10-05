@@ -1,3 +1,10 @@
+import 'dart:io';
+import 'package:drift/native.dart';
+import 'package:finapp/core/database/app_database.dart';
+import 'package:finapp/core/database/backup_manager.dart';
+import 'package:finapp/core/database/local_backup_store.dart';
+import 'package:finapp/core/database/backup_service.dart';
+import 'package:finapp/features/accounts/data/sqlite_accounts_repository.dart';
 import 'package:finapp/features/accounts/data/account_statement_repository.dart';
 import 'account_statement_page_test.dart' as statements;
 import 'package:finapp/core/series/movement_series.dart';
@@ -197,7 +204,41 @@ void main() {
   }
 
   for (final size in [const Size(390, 844), const Size(915, 412)]) {
-    testWidgets(
+    testWidgets('restauração com app aberto descarta formulário e recarrega contas', (tester) async {
+    final dir = await Directory.systemTemp.createTemp('somia-live-ui-');
+    final db = AppDatabase(NativeDatabase.memory());
+    await db.customStatement("INSERT INTO accounts (id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES ('a','Restaurada','cash','BRL',0,1,1)");
+    final bytes = await BackupService.export(db, dir);
+    await db.customStatement("UPDATE accounts SET name='Anterior'");
+    final manager = BackupManager(db, LocalBackupStore(dir));
+    getIt.registerSingleton<BackupManager>(manager);
+    getIt.registerSingleton<AccountsRepository>(SqliteAccountsRepository(db));
+    addTearDown(() async {
+      appRouter.go('/');
+      await getIt.reset();
+      manager.dispose();
+      await db.close();
+      await dir.delete(recursive: true);
+    });
+    appRouter.go('/accounts');
+    await tester.pumpWidget(const FinApp());
+    await tester.pumpAndSettle();
+    expect(find.text('Anterior'), findsOneWidget);
+    await tester.tap(find.text('Nova conta'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() => manager.restore(bytes));
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/settings');
+    expect(find.text('Backup restaurado. Os dados já estão atualizados.'), findsOneWidget);
+    appRouter.go('/accounts');
+    await tester.pumpAndSettle();
+    expect(find.text('Restaurada'), findsOneWidget);
+    expect(find.text('Anterior'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
         'Android $size: Voltar retorna ao Resumo em todas as seções e só então permite sair',
         (tester) async {
       await openBackTest(tester, size: size);

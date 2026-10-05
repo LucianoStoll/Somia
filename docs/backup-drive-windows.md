@@ -22,11 +22,11 @@ Desconectar apaga a sessão local e mantém o cliente configurado. Não exclui c
 
 ## Compatibilidade e validação
 
-Use cliente Desktop e Android **do mesmo projeto Google**, e a mesma conta Google, para consultar as cópias privadas do aplicativo entre dispositivos. A autorização de cada dispositivo é independente. A recuperação reutiliza metadados, tamanho, MD5/SHA-256 e validação SQLite da #50, com proteção local da #49. Aplicação da restauração na próxima abertura.
+Use cliente Desktop e Android **do mesmo projeto Google**, e a mesma conta Google, para consultar as cópias privadas do aplicativo entre dispositivos. A autorização de cada dispositivo é independente. A recuperação reutiliza metadados, tamanho, MD5/SHA-256 e validação SQLite da #50, com proteção local da #49. Aplicação imediata com o app aberto (#52), seguida do recarregamento das telas.
 
 Validar no Windows:
 - Importar JSON, conectar, cancelar e reconectar pelo navegador.
-- Listar cópia criada no Android e restaurar no Windows; fechar/reabrir e conferir dados.
+- Listar cópia criada no Android e restaurar no Windows; conferir dados com o app aberto.
 - Enviar cópia do Windows e consultá-la no Android.
 - Reabrir Windows e confirmar renovação sem novo consentimento; desconectar e trocar conta.
 - Sem rede, manter o uso financeiro offline e mensagem de erro na operação Drive.

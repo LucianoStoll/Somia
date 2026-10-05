@@ -19,7 +19,7 @@ class DriveBackupsPanel extends StatelessWidget {
               scrollable: true,
               title: const Text('Restaurar cópia do Drive?'),
               content: Text(
-                  'Conta: ${manager.email}\n\nOs dados atuais serão substituídos na próxima abertura. Uma cópia local será salva antes da substituição. A restauração não mescla os dados.'),
+                  'Conta: ${manager.email}\n\nOs dados atuais serão substituídos agora. Uma cópia local será salva antes da substituição. A restauração não mescla os dados.'),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(context, false),

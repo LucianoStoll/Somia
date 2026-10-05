@@ -2,6 +2,8 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #52 / #16: restauração local e Google Drive aplicada com o app aberto, substituição atômica e proteção dos dados atuais; telas e formulários recarregados após sucesso, sem reiniciar.
+- #51 validada pelo usuário em 05/10/2026.
 - #50 validada pelo usuário em 05/10/2026.
 - #51 / #16: backup no Google Drive para Windows, autorização no navegador com PKCE e callback local, configuração por JSON Desktop, renovação de autorização e credenciais protegidas por DPAPI fora do banco financeiro; mantém envio/restauração manuais e proteção local.
 

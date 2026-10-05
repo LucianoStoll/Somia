@@ -120,7 +120,8 @@ void main() {
     await account('Original');
     final manager = BackupManager(db, store);
     final bytes = await manager.export();
-    await manager.restore(bytes);
+    await BackupService.stageRestore(bytes, directory);
+    await manager.refresh();
     await expectLater(
         manager.restore(Uint8List.fromList([1, 2, 3])), throwsFormatException);
     expect(await BackupService.hasPendingRestore(directory), isTrue);

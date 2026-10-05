@@ -145,6 +145,6 @@ class DriveBackupManager extends ChangeNotifier {
         final bytes = await api.download(session, copy);
         await _checkAccount(session);
         await local.restore(bytes);
-        message = 'Backup validado. Feche e abra o Somia para aplicar.';
+        message = 'Backup restaurado. Os dados já estão atualizados.';
       });
 }

@@ -12,6 +12,8 @@ class BackupManager extends ChangeNotifier {
   String? error;
   bool busy = false;
   bool restorePending = false;
+  bool restoring = false;
+  int databaseRevision = 0;
   bool restoreFailed = false;
   Future<void> _queue = Future.value();
   bool _disposed = false;
@@ -75,7 +77,15 @@ class BackupManager extends ChangeNotifier {
         restorePending = false;
       });
   Future<void> restore(Uint8List bytes) => _run(() async {
-        await BackupService.stageRestore(bytes, store.directory);
-        restorePending = true;
+        restoring = true;
+        _notify();
+        try {
+          await BackupService.restoreOpen(database, store, bytes);
+          restorePending = false;
+          databaseRevision++;
+        } finally {
+          restoring = false;
+          _notify();
+        }
       });
 }

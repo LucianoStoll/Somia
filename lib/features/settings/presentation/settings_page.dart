@@ -96,7 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
         final bytes = await _manager!.readCopy(copy);
         await _manager!.restore(bytes);
         if (mounted) {
-          _message('Backup validado. Feche e abra o Somia para aplicar.');
+          _message('Backup restaurado. Os dados já estão atualizados.');
         }
       }, '');
 
@@ -130,7 +130,7 @@ class _SettingsPageState extends State<SettingsPage> {
               scrollable: true,
               title: const Text('Restaurar backup?'),
               content: const Text(
-                  'Na próxima abertura, os dados atuais serão substituídos. '
+                  'Os dados atuais serão substituídos agora. '
                   'Uma cópia dos dados atuais será salva automaticamente antes '
                   'da substituição. A restauração não mescla os dados.'),
               actions: [
@@ -151,13 +151,13 @@ class _SettingsPageState extends State<SettingsPage> {
         if (!await _confirmRestore() || !mounted) return;
         final bytes = await file.readAsBytes();
         if (_manager == null) {
-          await BackupService.stageRestore(
-              bytes, await getApplicationSupportDirectory());
+          await BackupService.restoreOpen(getIt<AppDatabase>(),
+              LocalBackupStore(await getApplicationSupportDirectory()), bytes);
         } else {
           await _manager!.restore(bytes);
         }
         if (mounted) {
-          _message('Backup validado. Feche e abra o Somia para aplicar.');
+          _message('Backup restaurado. Os dados já estão atualizados.');
         }
       }, '');
 
@@ -206,7 +206,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           leading: const Icon(Icons.restore_outlined),
                           title: const Text('Restaurar backup'),
                           subtitle: const Text(
-                              'Selecione um arquivo .sqlite e reinicie o aplicativo.'),
+                              'Selecione um arquivo .sqlite para atualizar os dados agora.'),
                           onTap: _busy ? null : _restore)),
                   if (_manager != null)
                     LocalBackupsPanel(

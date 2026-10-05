@@ -8,8 +8,8 @@ import 'package:uuid/uuid.dart';
 import 'app_database.dart';
 import 'local_backup_store.dart';
 
-/// Exporta um snapshot consistente sem fechar o banco em uso. A importação
-/// é preparada e aplicada apenas na próxima abertura do aplicativo.
+/// Snapshots consistentes e restauração atômica na conexão em uso.
+/// Mantém o fluxo legado de restauração pendente para bases já agendadas.
 abstract final class BackupService {
   static const _databaseName = 'finapp.sqlite';
   static const _pendingName = 'finapp.restore.pending';
@@ -92,6 +92,59 @@ abstract final class BackupService {
       return await snapshot.readAsBytes();
     } finally {
       if (await snapshot.exists()) await snapshot.delete();
+    }
+  }
+
+  /// Apenas dados são importados. Schema e triggers vêm da base operacional,
+  /// nunca do arquivo externo. O rollback inclui dados e triggers.
+  static Future<void> restoreOpen(
+      AppDatabase database, LocalBackupStore store, Uint8List bytes) async {
+    final candidate = await _checkedCandidate(bytes, store.directory);
+    var attached = false;
+    try {
+      final columns = await _expectedColumns();
+      await store.create(database, BackupKind.beforeRestore);
+      // Evita que um agendamento antigo sobreponha esta restauração ao abrir.
+      await cancelPendingRestore(store.directory);
+      await database.customStatement('ATTACH DATABASE ? AS restore_source',
+          [candidate.path]);
+      attached = true;
+      await database.transaction(() async {
+        await database.customStatement('PRAGMA defer_foreign_keys = ON');
+        final triggers = await database.customSelect(
+            "SELECT name, sql FROM main.sqlite_master WHERE type = 'trigger'")
+            .get();
+        // Regras de novos lançamentos não se aplicam ao histórico: contas e
+        // categorias podem ter sido arquivadas depois de usadas.
+        for (final trigger in triggers) {
+          final name = trigger.read<String>('name').replaceAll('"', '""');
+          await database.customStatement('DROP TRIGGER main."$name"');
+        }
+        for (final table in columns.keys) {
+          await database.customStatement('DELETE FROM main."$table"');
+        }
+        for (final entry in columns.entries) {
+          final names = entry.value
+              .map((column) => '"${column.split(':').first}"').join(', ');
+          await database.customStatement(
+              'INSERT INTO main."${entry.key}" ($names) '
+              'SELECT $names FROM restore_source."${entry.key}"');
+        }
+        final violations = await database
+            .customSelect('PRAGMA main.foreign_key_check').get();
+        if (violations.isNotEmpty) {
+          throw const FormatException('O backup contém vínculos inválidos.');
+        }
+        for (final trigger in triggers) {
+          await database.customStatement(trigger.read<String>('sql'));
+        }
+      });
+      await _clearRestoreFailure(store.directory);
+    } finally {
+      if (attached) {
+        await database.customStatement('DETACH DATABASE restore_source');
+      }
+      if (await candidate.exists()) await candidate.delete();
     }
   }
 

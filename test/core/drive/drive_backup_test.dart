@@ -195,11 +195,14 @@ void main() {
       await db.close();
       await directory.delete(recursive: true);
     });
-    test('válida prepara restauração sem substituir banco aberto', () async {
+    test('válida restaura imediatamente mantendo conexão aberta', () async {
+      await db.customStatement("INSERT INTO accounts (id, name, type, currency_code, initial_balance_minor, created_at, updated_at) VALUES ('old', 'Antiga', 'cash', 'BRL', 0, 1, 1)");
       await manager.refresh();
       await manager.restore(manager.copies.single);
       expect(manager.error, isNull);
-      expect(await BackupService.hasPendingRestore(directory), isTrue);
+      expect(local.databaseRevision, 1);
+      expect(await db.customSelect('SELECT * FROM accounts').get(), isEmpty);
+      expect(await BackupService.hasPendingRestore(directory), isFalse);
       expect(
           await db.customSelect('PRAGMA user_version').getSingle(), isNotNull);
     });

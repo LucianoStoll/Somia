@@ -17,7 +17,7 @@ O seletor nativo escolhe a conta; a autorização usa explicitamente essa conta 
 
 Os arquivos ficam em `appDataFolder`, invisíveis na lista comum do Drive. Cada envio cria uma cópia separada, identificada por metadados do Somia, com SHA-256. Não há exclusão ou retenção remota automática nesta entrega; as cópias consomem espaço da conta. Limite por cópia: 64 MB.
 
-Downloads conferem metadados atuais, pasta privada, tamanho, MD5 do Drive e SHA-256 registrado. Depois, a validação SQLite verifica integridade, chaves estrangeiras e compatibilidade. A restauração é preparada para a próxima abertura; o fluxo local da #49 salva proteção antes da substituição. Uma conta diferente invalida a lista. Erros não substituem o banco em uso.
+Downloads conferem metadados atuais, pasta privada, tamanho, MD5 do Drive e SHA-256 registrado. Depois, a validação SQLite verifica integridade, chaves estrangeiras e compatibilidade. A restauração é aplicada imediatamente (#52); o fluxo local salva proteção antes da substituição e recarrega as telas. Uma conta diferente invalida a lista. Erros não substituem o banco em uso.
 
 Requisições têm limite de tempo e tamanho; não há repetição automática de envios, evitando cópias duplicadas após uma resposta perdida. Se um envio der erro de conexão, atualizar a lista antes de reenviar. Permissão negada, token expirado e limites do Drive são informados em Ajustes.
 
@@ -26,7 +26,7 @@ Requisições têm limite de tempo e tamanho; não há repetição automática d
 1. Instalar APK assinado e abrir Ajustes → Backup no Google Drive.
 2. Conectar a conta de teste, aceitar a permissão, enviar backup e atualizar lista.
 3. Cancelar uma restauração e confirmar que nada mudou.
-4. Restaurar a cópia, fechar e reabrir o Somia; conferir lançamentos e proteção local.
+4. Restaurar a cópia, conferir imediatamente lançamentos e proteção local.
 5. Desconectar, conectar outra conta e conferir que as cópias anteriores não aparecem.
 6. Cancelar o seletor/consentimento e testar sem rede. O uso financeiro offline deve continuar.
 
