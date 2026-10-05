@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -26,8 +27,11 @@ import 'backup_service.dart';
 class AppDatabase extends GeneratedDatabase {
   AppDatabase(super.executor);
 
-  // Raw SQL repositories need explicit Drift notifications. Drift buffers these
-  // in a transaction and publishes only after commit (discarding rollbacks).
+  // Keep financial notifications separate from Drift invalidation, which can
+  // also occur after rollback. Zones isolate concurrent and nested transactions.
+  final _financialChanges = StreamController<void>.broadcast();
+  final _writeZoneKey = Object();
+  Stream<void> get financialChanges => _financialChanges.stream;
   static final _financialWrite = RegExp(
       r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
       caseSensitive: false);
@@ -38,8 +42,37 @@ class AppDatabase extends GeneratedDatabase {
     final table =
         _financialWrite.firstMatch(statement)?.group(1)?.toLowerCase();
     if (table != null && financialTables.contains(table)) {
-      notifyUpdates({TableUpdate(table)});
+      final writes = Zone.current[_writeZoneKey] as _FinancialWrites?;
+      if (writes != null) {
+        writes.changed = true;
+      } else {
+        _financialChanges.add(null);
+      }
     }
+  }
+
+  @override
+  Future<T> transaction<T>(Future<T> Function() action,
+      {bool requireNew = false}) async {
+    final parent = Zone.current[_writeZoneKey] as _FinancialWrites?;
+    final writes = _FinancialWrites();
+    final result = await super.transaction(
+        () => runZoned(action, zoneValues: {_writeZoneKey: writes}),
+        requireNew: requireNew);
+    if (writes.changed) {
+      if (parent != null) {
+        parent.changed = true;
+      } else {
+        _financialChanges.add(null);
+      }
+    }
+    return result;
+  }
+
+  @override
+  Future<void> close() async {
+    await super.close();
+    await _financialChanges.close();
   }
 
   factory AppDatabase.open() => AppDatabase(
@@ -137,4 +170,8 @@ class AppDatabase extends GeneratedDatabase {
           }
         },
       );
+}
+
+class _FinancialWrites {
+  bool changed = false;
 }
