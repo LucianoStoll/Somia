@@ -23,6 +23,7 @@ class Preference implements AutoSyncPreference {
     if (failWrite) throw const FileSystemException();
     mode = value;
   }
+
   @override
   Future<bool> read() async {
     if (failRead) throw const FileSystemException();
@@ -317,13 +318,15 @@ void main() {
     expect(await pref.read(), isTrue);
     expect(await pref.readMode(), AutoSyncMode.grouped);
     await pref.writeMode(AutoSyncMode.eachChange);
-    expect(await FileAutoSyncPreference(dir).readMode(), AutoSyncMode.eachChange);
+    expect(
+        await FileAutoSyncPreference(dir).readMode(), AutoSyncMode.eachChange);
     await pref.write(false);
     expect(await FileAutoSyncPreference(dir).read(), isFalse);
     await pref.write(true);
     expect(await FileAutoSyncPreference(dir).read(), isTrue);
   });
-  test('cada alteração dispara pelo evento, sem esperar a consulta periódica', () {
+  test('cada alteração dispara pelo evento, sem esperar a consulta periódica',
+      () {
     fakeAsync((time) {
       preference.mode = AutoSyncMode.eachChange;
       final auto = setup(time);
@@ -345,7 +348,9 @@ void main() {
       expect(manager.calls, 3);
     });
   });
-  test('evento agrupado espera; trocar modo libera pendências e falha preserva opção', () {
+  test(
+      'evento agrupado espera; trocar modo libera pendências e falha preserva opção',
+      () {
     fakeAsync((time) {
       final auto = setup(time);
       auto.resume();
@@ -365,7 +370,8 @@ void main() {
       expect(auto.error, isNotNull);
     });
   });
-  test('modo imediato mantém fila durante envio, formulários e espera de falha', () {
+  test('modo imediato mantém fila durante envio, formulários e espera de falha',
+      () {
     fakeAsync((time) {
       preference.mode = AutoSyncMode.eachChange;
       var safe = true;

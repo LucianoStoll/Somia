@@ -118,7 +118,9 @@ void main() {
     expect(manager.synced, 1);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('modo a cada alteração é selecionável e persistido com fonte ampliada', (tester) async {
+  testWidgets(
+      'modo a cada alteração é selecionável e persistido com fonte ampliada',
+      (tester) async {
     final pref = Preference();
     final auto = AutoSyncController(manager, pref, safeToApply: () => true);
     addTearDown(auto.dispose);

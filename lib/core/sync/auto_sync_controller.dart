@@ -22,7 +22,8 @@ class FileAutoSyncPreference implements AutoSyncPreference {
     if (!await _modeFile.exists()) return AutoSyncMode.grouped;
     final value = (await _modeFile.readAsString()).trim();
     return AutoSyncMode.values.firstWhere((mode) => mode.name == value,
-        orElse: () => throw const FormatException('Modo de sincronização inválido.'));
+        orElse: () =>
+            throw const FormatException('Modo de sincronização inválido.'));
   }
 
   @override
@@ -81,7 +82,8 @@ class AutoSyncController extends ChangeNotifier {
       saving = false,
       waiting = false;
   AutoSyncMode mode = AutoSyncMode.grouped;
-  Duration get _writeDelay => mode == AutoSyncMode.eachChange ? Duration.zero : debounce;
+  Duration get _writeDelay =>
+      mode == AutoSyncMode.eachChange ? Duration.zero : debounce;
   StreamSubscription<void>? _changes;
   bool _wake = false;
   String? error;
@@ -281,8 +283,12 @@ class AutoSyncController extends ChangeNotifier {
     } finally {
       _checking = false;
       _notify();
-      final immediatePending = completedCycle && mode == AutoSyncMode.eachChange &&
-          !waiting && retryAt == null && _due != null && !clock().isBefore(_due!);
+      final immediatePending = completedCycle &&
+          mode == AutoSyncMode.eachChange &&
+          !waiting &&
+          retryAt == null &&
+          _due != null &&
+          !clock().isBefore(_due!);
       final wake = _wake;
       _wake = false;
       _schedule(wake || immediatePending ? Duration.zero : poll);

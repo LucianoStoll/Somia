@@ -35,7 +35,8 @@ class AppDatabase extends GeneratedDatabase {
   @override
   Future<void> customStatement(String statement, [List<Object?>? args]) async {
     await super.customStatement(statement, args);
-    final table = _financialWrite.firstMatch(statement)?.group(1)?.toLowerCase();
+    final table =
+        _financialWrite.firstMatch(statement)?.group(1)?.toLowerCase();
     if (table != null && financialTables.contains(table)) {
       notifyUpdates({TableUpdate(table)});
     }
