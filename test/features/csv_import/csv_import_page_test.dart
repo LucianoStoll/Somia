@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/features/accounts/domain/account.dart';
@@ -8,6 +9,7 @@ import 'package:finapp/features/csv_import/domain/csv_document.dart';
 import 'package:finapp/features/csv_import/domain/csv_import.dart';
 import 'package:finapp/features/csv_import/presentation/csv_import_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class PreviewRepository implements CsvImportRepository {
@@ -181,6 +183,22 @@ void main() {
   });
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
     testWidgets('prévia CSV mobile', (tester) async {
+      final fonts = Directory(
+          '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts');
+      final font = FontLoader('Roboto'), icons = FontLoader('MaterialIcons');
+      for (final file in fonts.listSync().whereType<File>()) {
+        if (file.path.endsWith('Roboto-Regular.ttf') ||
+            file.path.endsWith('Roboto-Bold.ttf')) {
+          font.addFont(
+              Future.value(ByteData.sublistView(file.readAsBytesSync())));
+        }
+        if (file.path.endsWith('MaterialIcons-Regular.otf')) {
+          icons.addFont(
+              Future.value(ByteData.sublistView(file.readAsBytesSync())));
+        }
+      }
+      await font.load();
+      await icons.load();
       await openPreview(tester, PreviewRepository(),
           size: const Size(390, 844), scale: 1);
       await expectLater(find.byKey(const Key('csv-preview')),
