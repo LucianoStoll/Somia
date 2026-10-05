@@ -51,7 +51,7 @@ void main() {
               date: DateTime.utc(2026, 9, 1),
               dueDate: due,
               isEffective: effective,
-              effectiveDate: at,
+              effectiveDate: at ?? (effective ? due : null),
               accountId: account)))
           .id;
   Future<DashboardCurrencySummary> load(DateTime date,
