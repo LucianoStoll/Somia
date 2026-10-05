@@ -2,6 +2,9 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #49 / #16: backup automático diário com três versões, lista de cópias locais, criação manual, exportação/restauração e cancelamento de restauração preparada; proteção consistente dos dados atuais antes de restaurar, retenção separada e erro visível sem bloquear o uso financeiro.
+- #44 validada pelo usuário em 05/10/2026.
+
 - #44: escala monetária e linhas alinhadas no gráfico Windows, intervalos legíveis, indicação da moeda e barras zeradas vazias; suporta janela estreita e texto ampliado.
 - #37 validada pelo usuário em 05/10/2026.
 

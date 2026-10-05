@@ -2,9 +2,12 @@ import '../../features/accounts/data/account_statement_repository.dart';
 import '../../features/transactions/data/category_history_repository.dart';
 import '../../features/cards/data/cards_repository.dart';
 import 'package:get_it/get_it.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../config/app_environment.dart';
 import '../database/app_database.dart';
+import '../database/backup_manager.dart';
+import '../database/local_backup_store.dart';
 import '../../features/accounts/data/sqlite_accounts_repository.dart';
 import '../../features/accounts/domain/accounts_repository.dart';
 import '../../features/categories/data/sqlite_categories_repository.dart';
@@ -35,6 +38,10 @@ Future<void> configureDependencies(AppEnvironment environment) async {
     rethrow;
   }
   getIt.registerSingleton<AppDatabase>(database, dispose: (db) => db.close());
+  getIt.registerSingleton<BackupManager>(
+      BackupManager(
+          database, LocalBackupStore(await getApplicationSupportDirectory())),
+      dispose: (manager) => manager.dispose());
   getIt.registerLazySingleton<AccountStatementRepository>(
       () => AccountStatementRepository(getIt<AppDatabase>()));
   getIt.registerLazySingleton<AccountsRepository>(

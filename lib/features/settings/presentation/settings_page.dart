@@ -7,6 +7,9 @@ import '../../../core/app_version.dart';
 import '../../../core/widgets/balance_help_button.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/backup_service.dart';
+import '../../../core/database/backup_manager.dart';
+import '../../../core/database/local_backup_store.dart';
+import 'local_backups_panel.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/routing/somia_shell.dart';
@@ -20,12 +23,58 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _busy = false;
+  BackupManager? get _manager =>
+      getIt.isRegistered<BackupManager>() ? getIt<BackupManager>() : null;
+
+  @override
+  void initState() {
+    super.initState();
+    _manager?.refresh().catchError((Object _) {});
+  }
+
+  Future<void> _localAction(
+      Future<void> Function() action, String message) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+      if (mounted) _message(message);
+    } catch (error) {
+      if (mounted) {
+        _message(error is FormatException
+            ? error.message
+            : 'Não foi possível concluir. Tente novamente e confira o espaço disponível.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _exportCopy(LocalBackupCopy copy) => _localAction(() async {
+        final bytes = await _manager!.readCopy(copy);
+        final saved = await FilePicker.saveFile(
+            fileName:
+                'somia-backup-${copy.createdAt.microsecondsSinceEpoch}.sqlite',
+            bytes: bytes,
+            mimeType: 'application/vnd.sqlite3');
+        if (saved != null && mounted) _message('Cópia exportada com sucesso.');
+      }, '');
+
+  Future<void> _restoreCopy(LocalBackupCopy copy) => _localAction(() async {
+        if (!await _confirmRestore() || !mounted) return;
+        final bytes = await _manager!.readCopy(copy);
+        await _manager!.restore(bytes);
+        if (mounted)
+          _message('Backup validado. Feche e abra o Somia para aplicar.');
+      }, '');
 
   Future<void> _export() async {
     setState(() => _busy = true);
     try {
       final directory = await getApplicationSupportDirectory();
-      final bytes = await BackupService.export(getIt<AppDatabase>(), directory);
+      final bytes = _manager == null
+          ? await BackupService.export(getIt<AppDatabase>(), directory)
+          : await _manager!.export();
       final now = DateTime.now();
       final date = '${now.year}${now.month.toString().padLeft(2, '0')}'
           '${now.day.toString().padLeft(2, '0')}';
@@ -42,16 +91,15 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _restore() async {
-    final file = await FilePicker.pickFile(type: FileType.any);
-    if (file == null || !mounted) return;
+  Future<bool> _confirmRestore() async {
     final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
               title: const Text('Restaurar backup?'),
               content: const Text(
                   'Na próxima abertura, os dados atuais serão substituídos. '
-                  'Exporte um backup dos dados atuais antes de continuar.'),
+                  'Uma cópia dos dados atuais será salva automaticamente antes '
+                  'da substituição. A restauração não mescla os dados.'),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(context, false),
@@ -61,24 +109,29 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: const Text('Restaurar')),
               ],
             ));
-    if (confirmed != true || !mounted) return;
-    setState(() => _busy = true);
-    try {
-      final bytes = await file.readAsBytes();
-      final directory = await getApplicationSupportDirectory();
-      await BackupService.stageRestore(bytes, directory);
-      if (mounted) {
-        _message('Backup validado. Feche e abra o Somia para aplicar.');
-      }
-    } catch (error) {
-      if (mounted) _message('Não foi possível restaurar: $error');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    return confirmed == true;
   }
 
-  void _message(String text) =>
+  Future<void> _restore() => _localAction(() async {
+        final file = await FilePicker.pickFile(type: FileType.any);
+        if (file == null || !mounted) return;
+        if (!await _confirmRestore() || !mounted) return;
+        final bytes = await file.readAsBytes();
+        if (_manager == null) {
+          await BackupService.stageRestore(
+              bytes, await getApplicationSupportDirectory());
+        } else {
+          await _manager!.restore(bytes);
+        }
+        if (mounted)
+          _message('Backup validado. Feche e abra o Somia para aplicar.');
+      }, '');
+
+  void _message(String text) {
+    if (text.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -121,6 +174,17 @@ class _SettingsPageState extends State<SettingsPage> {
                           subtitle: const Text(
                               'Selecione um arquivo .sqlite e reinicie o aplicativo.'),
                           onTap: _busy ? null : _restore)),
+                  if (_manager != null)
+                    LocalBackupsPanel(
+                        manager: _manager!,
+                        enabled: !_busy,
+                        onCreate: () => _localAction(() async {
+                              await _manager!.create();
+                            }, 'Cópia local criada com sucesso.'),
+                        onExport: _exportCopy,
+                        onRestore: _restoreCopy,
+                        onCancel: () => _localAction(_manager!.cancelRestore,
+                            'Restauração cancelada. Os dados atuais foram mantidos.')),
                   if (_busy) const Center(child: CircularProgressIndicator()),
                   Card(
                       child: ListTile(

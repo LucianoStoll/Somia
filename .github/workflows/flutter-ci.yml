@@ -35,6 +35,8 @@ jobs:
         run: flutter test test/features/dashboard/dashboard_layout_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render history tooltip previews
         run: flutter test test/features/dashboard/history_tooltip_chart_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render local backup previews
+        run: flutter test test/features/settings/local_backups_panel_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render balance details preview
         run: flutter test test/features/dashboard/balance_details_panel_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render movement form preview
@@ -62,6 +64,8 @@ jobs:
           path: |
             test/features/dashboard/*mobile-preview.png
             test/features/dashboard/*desktop-preview.png
+            test/features/settings/*mobile-preview.png
+            test/features/settings/*desktop-preview.png
             test/core/routing/*mobile-preview.png
             test/core/widgets/*mobile-preview.png
           if-no-files-found: error

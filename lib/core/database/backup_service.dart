@@ -3,8 +3,10 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
+import 'package:uuid/uuid.dart';
 
 import 'app_database.dart';
+import 'local_backup_store.dart';
 
 /// Exporta um snapshot consistente sem fechar o banco em uso. A importação
 /// é preparada e aplicada apenas na próxima abertura do aplicativo.
@@ -12,12 +14,78 @@ abstract final class BackupService {
   static const _databaseName = 'finapp.sqlite';
   static const _pendingName = 'finapp.restore.pending';
   static const _previousName = 'finapp.before-restore.sqlite';
+  static const _failureName = 'finapp.restore.failed';
+  static Future<Map<String, Set<String>>>? _schemaColumns;
+
+  static Future<Map<String, Set<String>>> _expectedColumns() =>
+      _schemaColumns ??= () async {
+        final reference = AppDatabase(NativeDatabase.memory());
+        try {
+          final tables = await reference
+              .customSelect(
+                  "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+              .get();
+          final result = <String, Set<String>>{};
+          for (final table in tables) {
+            final name = table.read<String>('name');
+            final columns = await reference
+                .customSelect('PRAGMA table_info("$name")')
+                .get();
+            result[name] = columns
+                .map((row) =>
+                    '${row.read<String>('name')}:${row.read<String>('type')}')
+                .toSet();
+          }
+          return result;
+        } finally {
+          await reference.close();
+        }
+      }();
+
+  static Future<bool> hasRestoreFailure(Directory directory) =>
+      File(p.join(directory.path, _failureName)).exists();
+
+  static Future<void> recordRestoreFailure(Directory directory) async {
+    try {
+      await File(p.join(directory.path, _failureName))
+          .writeAsString('failed', flush: true);
+    } catch (_) {
+      // Falta de espaço não pode impedir abrir a base que foi preservada.
+    }
+  }
+
+  static Future<void> _clearRestoreFailure(Directory directory) async {
+    try {
+      final file = File(p.join(directory.path, _failureName));
+      if (await file.exists()) await file.delete();
+    } catch (_) {
+      // O marcador não altera o resultado de uma restauração já concluída.
+    }
+  }
+
+  static Future<bool> hasPendingRestore(Directory directory) =>
+      File(p.join(directory.path, _pendingName)).exists();
+
+  static Future<void> cancelPendingRestore(Directory directory) async {
+    final file = File(p.join(directory.path, _pendingName));
+    if (await file.exists()) await file.delete();
+    await _clearRestoreFailure(directory);
+  }
+
+  static Future<void> prepareForOpen(Directory directory) async {
+    try {
+      await applyPendingRestore(directory);
+    } catch (_) {
+      if (!await File(p.join(directory.path, _databaseName)).exists()) rethrow;
+      await recordRestoreFailure(directory);
+    }
+  }
 
   static Future<Uint8List> export(
       AppDatabase database, Directory directory) async {
     await directory.create(recursive: true);
-    final snapshot = File(p.join(directory.path, 'finapp.export.tmp.sqlite'));
-    if (await snapshot.exists()) await snapshot.delete();
+    final snapshot = File(p.join(
+        directory.path, 'finapp.export.${const Uuid().v4()}.tmp.sqlite'));
     try {
       // SQLite cria uma cópia consistente mesmo se houver WAL ativo.
       await database.customStatement('VACUUM INTO ?', [snapshot.path]);
@@ -28,6 +96,25 @@ abstract final class BackupService {
   }
 
   static Future<void> stageRestore(Uint8List bytes, Directory directory) async {
+    final candidate = await _checkedCandidate(bytes, directory);
+    try {
+      final pending = File(p.join(directory.path, _pendingName));
+      if (await pending.exists()) await pending.delete();
+      await candidate.rename(pending.path);
+      await _clearRestoreFailure(directory);
+    } finally {
+      if (await candidate.exists()) await candidate.delete();
+    }
+  }
+
+  static Future<void> validateBytes(
+      Uint8List bytes, Directory directory) async {
+    final candidate = await _checkedCandidate(bytes, directory);
+    await candidate.delete();
+  }
+
+  static Future<File> _checkedCandidate(
+      Uint8List bytes, Directory directory) async {
     if (bytes.length < 100 ||
         String.fromCharCodes(bytes.take(15)) != 'SQLite format 3') {
       throw const FormatException('O arquivo não é um banco SQLite válido.');
@@ -38,17 +125,15 @@ abstract final class BackupService {
           'Versão do backup incompatível com este aplicativo.');
     }
     await directory.create(recursive: true);
-    final candidate =
-        File(p.join(directory.path, 'finapp.restore.check.sqlite'));
-    if (await candidate.exists()) await candidate.delete();
+    final candidate = File(p.join(
+        directory.path, 'finapp.restore.${const Uuid().v4()}.check.sqlite'));
     try {
       await candidate.writeAsBytes(bytes, flush: true);
       await _validate(candidate);
-      final pending = File(p.join(directory.path, _pendingName));
-      if (await pending.exists()) await pending.delete();
-      await candidate.rename(pending.path);
-    } finally {
+      return candidate;
+    } catch (_) {
       if (await candidate.exists()) await candidate.delete();
+      rethrow;
     }
   }
 
@@ -76,6 +161,22 @@ abstract final class BackupService {
           ['accounts', 'categories', 'transactions', 'transfers'])) {
         throw const FormatException('O arquivo não contém os dados do Somia.');
       }
+      for (final entry in (await _expectedColumns()).entries) {
+        if (!names.contains(entry.key)) {
+          throw const FormatException('O backup está incompleto.');
+        }
+        final columns = await database
+            .customSelect('PRAGMA table_info("${entry.key}")')
+            .get();
+        final actual = columns
+            .map((row) =>
+                '${row.read<String>('name')}:${row.read<String>('type')}')
+            .toSet();
+        if (!actual.containsAll(entry.value)) {
+          throw const FormatException(
+              'A estrutura do backup não é compatível com o Somia.');
+        }
+      }
     } finally {
       await database.close();
     }
@@ -84,7 +185,6 @@ abstract final class BackupService {
   static Future<void> applyPendingRestore(Directory directory) async {
     final pending = File(p.join(directory.path, _pendingName));
     if (!await pending.exists()) return;
-    await _validate(pending);
     final current = File(p.join(directory.path, _databaseName));
     final previous = File(p.join(directory.path, _previousName));
 
@@ -96,6 +196,18 @@ abstract final class BackupService {
         if (await oldSidecar.exists()) {
           await oldSidecar.rename('${current.path}$suffix');
         }
+      }
+    }
+    await _validate(pending);
+    // AppDatabase.open chama este método antes de abrir a conexão operacional.
+    // VACUUM inclui o WAL e preserva inclusive mudanças feitas após agendar.
+    if (await current.exists()) {
+      final database = AppDatabase(NativeDatabase(current));
+      try {
+        await LocalBackupStore(directory)
+            .create(database, BackupKind.beforeRestore);
+      } finally {
+        await database.close();
       }
     }
     for (final suffix in ['', '-wal', '-shm']) {
@@ -127,5 +239,6 @@ abstract final class BackupService {
       }
       rethrow;
     }
+    await _clearRestoreFailure(directory);
   }
 }

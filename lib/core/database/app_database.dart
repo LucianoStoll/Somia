@@ -26,8 +26,8 @@ class AppDatabase extends GeneratedDatabase {
         LazyDatabase(() async {
           final directory = await getApplicationSupportDirectory();
           await directory.create(recursive: true);
-          await BackupService.applyPendingRestore(directory);
           final file = File(p.join(directory.path, 'finapp.sqlite'));
+          await BackupService.prepareForOpen(directory);
           return NativeDatabase.createInBackground(file);
         }),
       );
