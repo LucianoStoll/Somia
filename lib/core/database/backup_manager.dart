@@ -37,12 +37,15 @@ class BackupManager extends ChangeNotifier {
         final value = await action();
         try {
           copies = await store.list();
-          restorePending = await BackupService.hasPendingRestore(store.directory);
-          restoreFailed = await BackupService.hasRestoreFailure(store.directory);
+          restorePending =
+              await BackupService.hasPendingRestore(store.directory);
+          restoreFailed =
+              await BackupService.hasRestoreFailure(store.directory);
           if (clearError) error = null;
         } catch (_) {
           if (databaseRevision == revision) rethrow;
-          error = 'Dados restaurados. Não foi possível atualizar a lista de cópias.';
+          error =
+              'Dados restaurados. Não foi possível atualizar a lista de cópias.';
         }
         return value;
       } catch (_) {

@@ -56,30 +56,32 @@ class SomiaSectionBackScope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final manager = getIt.isRegistered<BackupManager>()
-        ? getIt<BackupManager>() : null;
+    final manager =
+        getIt.isRegistered<BackupManager>() ? getIt<BackupManager>() : null;
     Widget scope() => PopScope<Object?>(
-        canPop: !(manager?.restoring ?? false) &&
-            (Theme.of(context).platform != TargetPlatform.android ||
-            location == AppRoutes.dashboardPath),
-        onPopInvokedWithResult: (didPop, result) {
-          if ((manager?.restoring ?? false) || didPop ||
-              Theme.of(context).platform != TargetPlatform.android) {
-            return;
-          }
-          final scaffold = _mobileScaffoldKey.currentState;
-          if (scaffold?.isDrawerOpen ?? false) {
-            scaffold!.closeDrawer();
-          } else if (location != AppRoutes.dashboardPath) {
-            context.go(location.startsWith('${AppRoutes.accountsPath}/')
-                ? AppRoutes.accountsPath
-                : AppRoutes.dashboardPath);
-          }
-        },
-        child: child,
-      );
-    return manager == null ? scope() : AnimatedBuilder(
-        animation: manager, builder: (context, _) => scope());
+          canPop: !(manager?.restoring ?? false) &&
+              (Theme.of(context).platform != TargetPlatform.android ||
+                  location == AppRoutes.dashboardPath),
+          onPopInvokedWithResult: (didPop, result) {
+            if ((manager?.restoring ?? false) ||
+                didPop ||
+                Theme.of(context).platform != TargetPlatform.android) {
+              return;
+            }
+            final scaffold = _mobileScaffoldKey.currentState;
+            if (scaffold?.isDrawerOpen ?? false) {
+              scaffold!.closeDrawer();
+            } else if (location != AppRoutes.dashboardPath) {
+              context.go(location.startsWith('${AppRoutes.accountsPath}/')
+                  ? AppRoutes.accountsPath
+                  : AppRoutes.dashboardPath);
+            }
+          },
+          child: child,
+        );
+    return manager == null
+        ? scope()
+        : AnimatedBuilder(animation: manager, builder: (context, _) => scope());
   }
 }
 

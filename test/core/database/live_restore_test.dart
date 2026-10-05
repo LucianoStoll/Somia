@@ -27,6 +27,7 @@ class _UnreadableListStore extends LocalBackupStore {
     if (failList) throw const FileSystemException('Falha simulada na listagem');
     return super.list();
   }
+
   @override
   Future<LocalBackupCopy> create(AppDatabase database, BackupKind kind) async {
     final copy = await super.create(database, kind);
@@ -135,7 +136,7 @@ void main() {
     final expected = await _data(source);
     // SQL externo nunca é instalado na base operacional.
     await source.customStatement(
-        "CREATE TRIGGER external_trigger AFTER INSERT ON accounts BEGIN DELETE FROM transfers; END");
+        'CREATE TRIGGER external_trigger AFTER INSERT ON accounts BEGIN DELETE FROM transfers; END');
     await manager.restore(await BackupService.export(source, dir));
     expect(await _data(db), expected);
     expect(manager.databaseRevision, 1);
@@ -198,7 +199,8 @@ void main() {
     expect(await _data(db), await _data(source));
   });
 
-  test('falha de listagem após commit informa sucesso e preserva revisão', () async {
+  test('falha de listagem após commit informa sucesso e preserva revisão',
+      () async {
     final other = BackupManager(db, _UnreadableListStore(dir));
     try {
       await other.restore(await BackupService.export(source, dir));
