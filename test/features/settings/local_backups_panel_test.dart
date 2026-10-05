@@ -89,15 +89,32 @@ void main() {
   testWidgets(
       'Ajustes cria cópia, confirma restauração e permite cancelar preparada',
       (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     getIt.registerSingleton<BackupManager>(manager);
-    await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.dark, home: const SettingsPage()));
-    await tester.scrollUntilVisible(find.text('Criar cópia agora'), 300);
+    await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark,
+        builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!),
+        home: const SettingsPage()));
+    await tester.scrollUntilVisible(find.text('Criar cópia agora'), 300,
+        scrollable: find
+            .descendant(
+                of: find.byType(ListView).first,
+                matching: find.byType(Scrollable))
+            .first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Criar cópia agora'));
     await tester.pumpAndSettle();
     expect(manager.created, 1);
-    await tester.scrollUntilVisible(find.text('Automático'), 200);
+    await tester.ensureVisible(find.text('Automático'));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byType(PopupMenuButton<String>).first);
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(PopupMenuButton<String>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Restaurar esta cópia'));
@@ -107,8 +124,8 @@ void main() {
     await tester.tap(find.text('Restaurar').last);
     await tester.pumpAndSettle();
     expect(manager.restored, 1);
-    await tester.scrollUntilVisible(
-        find.text('Cancelar restauração preparada'), -200);
+    await tester.ensureVisible(find.text('Cancelar restauração preparada'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Cancelar restauração preparada'));
     await tester.pumpAndSettle();
     expect(manager.restorePending, isFalse);
@@ -143,8 +160,10 @@ void main() {
                 },
                 onRestore: (_) {})
           ]))));
-      await tester.scrollUntilVisible(find.text('Manual'), 200);
+      await tester.ensureVisible(find.text('Manual'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.byType(PopupMenuButton<String>).at(1));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(PopupMenuButton<String>).at(1));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Exportar cópia'));

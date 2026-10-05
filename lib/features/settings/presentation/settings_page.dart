@@ -96,6 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+              scrollable: true,
               title: const Text('Restaurar backup?'),
               content: const Text(
                   'Na próxima abertura, os dados atuais serão substituídos. '
