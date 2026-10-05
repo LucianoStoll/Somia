@@ -97,7 +97,9 @@ class _HistoryTooltipChartState extends State<HistoryTooltipChart> {
             anchor is! RenderBox ||
             !anchor.hasSize ||
             overlay is! RenderBox ||
-            !overlay.hasSize) return const SizedBox.shrink();
+            !overlay.hasSize) {
+          return const SizedBox.shrink();
+        }
         final offset = anchor.localToGlobal(Offset.zero) -
             overlay.localToGlobal(Offset.zero);
         final media = MediaQuery.of(context);
