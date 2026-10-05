@@ -14,35 +14,68 @@ import 'package:flutter_test/flutter_test.dart';
 class FakeAuth implements DriveAuth {
   String? email = 'luciano@example.com';
   int cleared = 0;
-  @override Future<String?> account() async => email;
-  @override Future<DriveSession> connect() async => authorize();
-  @override Future<DriveSession> authorize() async => DriveSession(email!, 'token');
-  @override Future<void> disconnect() async { email = null; }
-  @override Future<void> clearToken(String token) async { cleared++; }
+  @override
+  Future<String?> account() async => email;
+  @override
+  Future<DriveSession> connect() async => authorize();
+  @override
+  Future<DriveSession> authorize() async => DriveSession(email!, 'token');
+  @override
+  Future<void> disconnect() async {
+    email = null;
+  }
+
+  @override
+  Future<void> clearToken(String token) async {
+    cleared++;
+  }
 }
 
 class FakeTransport implements DriveTransport {
   FakeTransport(this.handler);
-  final Future<DriveResponse> Function(String, Uri, Map<String, String>, Uint8List?) handler;
-  @override Future<DriveResponse> send(String method, Uri uri, Map<String, String> headers, Uint8List? body) => handler(method, uri, headers, body);
+  final Future<DriveResponse> Function(
+      String, Uri, Map<String, String>, Uint8List?) handler;
+  @override
+  Future<DriveResponse> send(String method, Uri uri,
+          Map<String, String> headers, Uint8List? body) =>
+      handler(method, uri, headers, body);
 }
-DriveResponse jsonResponse(Object value) => DriveResponse(200, Uint8List.fromList(utf8.encode(jsonEncode(value))));
+
+DriveResponse jsonResponse(Object value) =>
+    DriveResponse(200, Uint8List.fromList(utf8.encode(jsonEncode(value))));
 Map<String, Object> metadata(Uint8List bytes) => {
-  'id': 'copy-1', 'name': 'somia.sqlite', 'createdTime': '2026-10-05T12:00:00Z',
-  'size': '${bytes.length}', 'md5Checksum': md5.convert(bytes).toString(),
-  'spaces': ['appDataFolder'], 'appProperties': {'somiaBackup': '1', 'sha256': sha256.convert(bytes).toString()},
-};
+      'id': 'copy-1',
+      'name': 'somia.sqlite',
+      'createdTime': '2026-10-05T12:00:00Z',
+      'size': '${bytes.length}',
+      'md5Checksum': md5.convert(bytes).toString(),
+      'spaces': ['appDataFolder'],
+      'appProperties': {
+        'somiaBackup': '1',
+        'sha256': sha256.convert(bytes).toString()
+      },
+    };
 
 void main() {
   const session = DriveSession('luciano@example.com', 'token');
   final bytes = Uint8List.fromList([1, 2, 3]);
-  test('lista paginada usa pasta privada e ignora arquivos incompatíveis', () async {
+  test('lista paginada usa pasta privada e ignora arquivos incompatíveis',
+      () async {
     var calls = 0;
-    final api = DriveBackupApi(FakeAuth(), FakeTransport((method, uri, headers, body) async {
+    final api = DriveBackupApi(FakeAuth(),
+        FakeTransport((method, uri, headers, body) async {
       expect(headers['Authorization'], 'Bearer token');
       expect(uri.queryParameters['spaces'], 'appDataFolder');
       calls++;
-      if (calls == 1) return jsonResponse({'files': [metadata(bytes), {'id': 'other'}], 'nextPageToken': 'next'});
+      if (calls == 1) {
+        return jsonResponse({
+          'files': [
+            metadata(bytes),
+            {'id': 'other'}
+          ],
+          'nextPageToken': 'next'
+        });
+      }
       expect(uri.queryParameters['pageToken'], 'next');
       return jsonResponse({'files': []});
     }));
@@ -50,7 +83,8 @@ void main() {
     expect(calls, 2);
   });
   test('upload multipart mantém bytes, pasta e hash sem chave API', () async {
-    final api = DriveBackupApi(FakeAuth(), FakeTransport((method, uri, headers, body) async {
+    final api = DriveBackupApi(FakeAuth(),
+        FakeTransport((method, uri, headers, body) async {
       expect(method, 'POST');
       expect(uri.queryParameters['uploadType'], 'multipart');
       expect(uri.queryParameters.containsKey('key'), isFalse);
@@ -66,37 +100,60 @@ void main() {
     for (final status in [401, 403, 429, 500]) {
       final auth = FakeAuth();
       var calls = 0;
-      final api = DriveBackupApi(auth, FakeTransport((method, uri, headers, body) async {
-        calls++; return DriveResponse(status, Uint8List(0));
+      final api = DriveBackupApi(auth,
+          FakeTransport((method, uri, headers, body) async {
+        calls++;
+        return DriveResponse(status, Uint8List(0));
       }));
-      await expectLater(api.upload(session, bytes), throwsA(isA<DriveFailure>()));
+      await expectLater(
+          api.upload(session, bytes), throwsA(isA<DriveFailure>()));
       expect(calls, 1);
       expect(auth.cleared, status == 401 ? 1 : 0);
     }
   });
   test('download verifica metadados, tamanho e hashes', () async {
     for (final corrupted in [false, true]) {
-      final api = DriveBackupApi(FakeAuth(), FakeTransport((method, uri, headers, body) async {
-        if (uri.queryParameters['alt'] == 'media') return DriveResponse(200, corrupted ? Uint8List.fromList([3, 2, 1]) : bytes);
+      final api = DriveBackupApi(FakeAuth(),
+          FakeTransport((method, uri, headers, body) async {
+        if (uri.queryParameters['alt'] == 'media') {
+          return DriveResponse(
+              200, corrupted ? Uint8List.fromList([3, 2, 1]) : bytes);
+        }
         return jsonResponse(metadata(bytes));
       }));
       final download = api.download(session, DriveCopy.parse(metadata(bytes)));
-      if (corrupted) await expectLater(download, throwsA(isA<DriveFailure>()));
-      else expect(await download, bytes);
+      if (corrupted) {
+        await expectLater(download, throwsA(isA<DriveFailure>()));
+      }
+      else {
+        expect(await download, bytes);
+      }
     }
   });
-  test('cópia alterada impede download e arquivo fora da pasta é recusado', () async {
+  test('cópia alterada impede download e arquivo fora da pasta é recusado',
+      () async {
     var calls = 0;
     final changed = metadata(Uint8List.fromList([9, 9, 9]));
-    final api = DriveBackupApi(FakeAuth(), FakeTransport((method, uri, headers, body) async {
-      calls++; return jsonResponse(changed);
+    final api = DriveBackupApi(FakeAuth(),
+        FakeTransport((method, uri, headers, body) async {
+      calls++;
+      return jsonResponse(changed);
     }));
-    await expectLater(api.download(session, DriveCopy.parse(metadata(bytes))), throwsA(isA<DriveFailure>()));
+    await expectLater(api.download(session, DriveCopy.parse(metadata(bytes))),
+        throwsA(isA<DriveFailure>()));
     expect(calls, 1);
-    expect(() => DriveCopy.parse({...metadata(bytes), 'spaces': ['drive']}), throwsA(isA<DriveFailure>()));
+    expect(
+        () => DriveCopy.parse({
+              ...metadata(bytes),
+              'spaces': ['drive']
+            }),
+        throwsA(isA<DriveFailure>()));
   });
   test('pagina repetida encerra com erro', () async {
-    final api = DriveBackupApi(FakeAuth(), FakeTransport((method, uri, headers, body) async => jsonResponse({'files': [], 'nextPageToken': 'same'})));
+    final api = DriveBackupApi(
+        FakeAuth(),
+        FakeTransport((method, uri, headers, body) async =>
+            jsonResponse({'files': [], 'nextPageToken': 'same'})));
     await expectLater(api.list(session), throwsA(isA<DriveFailure>()));
   });
 
@@ -116,21 +173,36 @@ void main() {
       snapshot = await local.export();
       auth = FakeAuth();
       wrongBytes = false;
-      manager = DriveBackupManager(local, DriveBackupApi(auth, FakeTransport((method, uri, headers, body) async {
-        final candidate = wrongBytes ? bytes : snapshot;
-        if (uri.queryParameters['alt'] == 'media') return DriveResponse(200, candidate);
-        if (uri.path.endsWith('copy-1')) return jsonResponse(metadata(candidate));
-        return jsonResponse({'files': [metadata(candidate)]});
-      })));
+      manager = DriveBackupManager(
+          local,
+          DriveBackupApi(auth,
+              FakeTransport((method, uri, headers, body) async {
+            final candidate = wrongBytes ? bytes : snapshot;
+            if (uri.queryParameters['alt'] == 'media') {
+              return DriveResponse(200, candidate);
+            }
+            if (uri.path.endsWith('copy-1')) {
+              return jsonResponse(metadata(candidate));
+            }
+            return jsonResponse({
+              'files': [metadata(candidate)]
+            });
+          })));
       await manager.initialize();
     });
-    tearDown(() async { manager.dispose(); local.dispose(); await db.close(); await directory.delete(recursive: true); });
+    tearDown(() async {
+      manager.dispose();
+      local.dispose();
+      await db.close();
+      await directory.delete(recursive: true);
+    });
     test('válida prepara restauração sem substituir banco aberto', () async {
       await manager.refresh();
       await manager.restore(manager.copies.single);
       expect(manager.error, isNull);
       expect(await BackupService.hasPendingRestore(directory), isTrue);
-      expect(await db.customSelect('PRAGMA user_version').getSingle(), isNotNull);
+      expect(
+          await db.customSelect('PRAGMA user_version').getSingle(), isNotNull);
     });
     test('troca de conta invalida lista e não prepara restauração', () async {
       await manager.refresh();
@@ -153,7 +225,8 @@ void main() {
       await manager.disconnect();
       expect(manager.email, isNull);
       expect(manager.copies, isEmpty);
-      expect(await db.customSelect('PRAGMA user_version').getSingle(), isNotNull);
+      expect(
+          await db.customSelect('PRAGMA user_version').getSingle(), isNotNull);
     });
   });
 }

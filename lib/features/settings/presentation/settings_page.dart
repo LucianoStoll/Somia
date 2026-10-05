@@ -194,7 +194,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         onCancel: () => _localAction(_manager!.cancelRestore,
                             'Restauração cancelada. Os dados atuais foram mantidos.')),
                   if (getIt.isRegistered<DriveBackupManager>())
-                    DriveBackupsPanel(manager: getIt<DriveBackupManager>(), enabled: !_busy),
+                    DriveBackupsPanel(
+                        manager: getIt<DriveBackupManager>(), enabled: !_busy),
                   if (_busy) const Center(child: CircularProgressIndicator()),
                   Card(
                       child: ListTile(
