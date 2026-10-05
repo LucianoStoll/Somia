@@ -123,7 +123,8 @@ class DesktopOAuthCallback {
         final query = request.uri.queryParameters;
         final valid = request.method == 'GET' &&
             request.uri.path == redirect.path &&
-            request.headers.host == '127.0.0.1:${server.port}' &&
+            request.headers.value(HttpHeaders.hostHeader) ==
+                '127.0.0.1:${server.port}' &&
             query['state'] == state;
         request.response.headers.contentType = ContentType.html;
         request.response.headers.set('Cache-Control', 'no-store');

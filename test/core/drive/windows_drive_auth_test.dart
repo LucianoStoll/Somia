@@ -27,7 +27,7 @@ Uint8List config() => Uint8List.fromList(utf8.encode(jsonEncode({
 Future<void> callback(Uri url,
     {bool deny = false, String? overrideState}) async {
   final redirect = Uri.parse(url.queryParameters['redirect_uri']!);
-  final client = HttpClient();
+  final client = HttpClient()..findProxy = null;
   try {
     final request = await client.getUrl(redirect.replace(queryParameters: {
       'state': overrideState ?? url.queryParameters['state']!,
@@ -168,15 +168,20 @@ void main() {
   });
   test('consentimento parcial mantém a configuração e recusa sessão', () async {
     final vault = MemoryVault();
-    final auth = WindowsDriveAuth(vault, FakeTransport((method, uri, headers, body) async {
+    final auth = WindowsDriveAuth(vault,
+        FakeTransport((method, uri, headers, body) async {
       expect(uri.host, 'oauth2.googleapis.com');
-      return jsonResponse({'access_token': 'access', 'refresh_token': 'refresh', 'expires_in': 3600,
-        'token_type': 'Bearer', 'scope': WindowsDriveAuth.emailScope});
+      return jsonResponse({
+        'access_token': 'access',
+        'refresh_token': 'refresh',
+        'expires_in': 3600,
+        'token_type': 'Bearer',
+        'scope': WindowsDriveAuth.emailScope
+      });
     }), launch: callback);
     await auth.configure(config());
     await expectLater(auth.connect(), throwsA(isA<DriveFailure>()));
     expect(vault.data.containsKey('refresh'), isFalse);
     expect(await auth.account(), isNull);
   });
-
 }

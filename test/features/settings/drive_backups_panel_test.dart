@@ -15,10 +15,19 @@ import '../../core/drive/drive_backup_test.dart'
     show FakeAuth, FakeTransport, jsonResponse;
 
 class ConfigurationAuth extends FakeAuth implements ConfigurableDriveAuth {
-  @override bool configured = false;
+  @override
+  bool configured = false;
   int cancelled = 0;
-  @override void cancel() { cancelled++; }
-  @override Future<void> configure(Uint8List json) async { configured = true; email = null; }
+  @override
+  void cancel() {
+    cancelled++;
+  }
+
+  @override
+  Future<void> configure(Uint8List json) async {
+    configured = true;
+    email = null;
+  }
 }
 
 class PanelManager extends DriveBackupManager {
@@ -96,20 +105,43 @@ void main() {
     expect(manager.restored, 1);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('Windows configura cliente antes de conectar e oferece cancelamento', (tester) async {
+  testWidgets(
+      'Windows configura cliente antes de conectar e oferece cancelamento',
+      (tester) async {
     final auth = ConfigurationAuth();
     final local = manager.local;
-    final desktop = DriveBackupManager(local, DriveBackupApi(auth,
-        FakeTransport((method, uri, headers, body) async => jsonResponse({'files': []}))));
+    final desktop = DriveBackupManager(
+        local,
+        DriveBackupApi(
+            auth,
+            FakeTransport((method, uri, headers, body) async =>
+                jsonResponse({'files': []}))));
     addTearDown(desktop.dispose);
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: DriveBackupsPanel(manager: desktop,
-        onConfigure: () => desktop.configure(Uint8List(0))))));
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Conectar conta Google')).onPressed, isNull);
-    await tester.tap(find.text('Configurar Google Drive')); await tester.pumpAndSettle();
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Conectar conta Google')).onPressed, isNotNull);
-    desktop.busy = true; desktop.connecting = true; desktop.notifyListeners();
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: DriveBackupsPanel(
+                manager: desktop,
+                onConfigure: () => desktop.configure(Uint8List(0))))));
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Conectar conta Google'))
+            .onPressed,
+        isNull);
+    await tester.tap(find.text('Configurar Google Drive'));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Conectar conta Google'))
+            .onPressed,
+        isNotNull);
+    desktop.busy = true;
+    desktop.connecting = true;
+    desktop.notifyListeners();
     await tester.pump();
-    await tester.tap(find.text('Cancelar conexão')); await tester.pump();
+    await tester.tap(find.text('Cancelar conexão'));
+    await tester.pump();
     expect(auth.cancelled, 1);
     await tester.pumpWidget(const SizedBox());
   });
