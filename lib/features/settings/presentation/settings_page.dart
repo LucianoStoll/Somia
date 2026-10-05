@@ -28,9 +28,16 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _busy = false;
   SyncManager? _sync;
-  void _syncChanged() { if(mounted) setState(() {}); }
+  void _syncChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
-  void dispose() { _sync?.removeListener(_syncChanged); super.dispose(); }
+  void dispose() {
+    _sync?.removeListener(_syncChanged);
+    super.dispose();
+  }
+
   BackupManager? get _manager =>
       getIt.isRegistered<BackupManager>() ? getIt<BackupManager>() : null;
 
@@ -41,7 +48,7 @@ class _SettingsPageState extends State<SettingsPage> {
       getIt<DriveBackupManager>().initialize();
     }
     _manager?.refresh().catchError((Object _) {});
-    if(getIt.isRegistered<SyncManager>()) {
+    if (getIt.isRegistered<SyncManager>()) {
       _sync = getIt<SyncManager>();
       _sync!.addListener(_syncChanged);
       _sync!.refresh().catchError((Object _) {});
@@ -211,18 +218,24 @@ class _SettingsPageState extends State<SettingsPage> {
                           title: const Text('Exportar backup'),
                           subtitle: const Text(
                               'Salve uma cópia do banco local em outro lugar.'),
-                          onTap: _busy || (_sync?.busy ?? false) ? null : _export)),
+                          onTap: _busy || (_sync?.busy ?? false)
+                              ? null
+                              : _export)),
                   Card(
                       child: ListTile(
                           leading: const Icon(Icons.restore_outlined),
                           title: const Text('Restaurar backup'),
                           subtitle: const Text(
                               'Selecione um arquivo .sqlite para atualizar os dados agora.'),
-                          onTap: _busy || (_sync?.busy ?? false) ? null : _restore)),
+                          onTap: _busy || (_sync?.busy ?? false)
+                              ? null
+                              : _restore)),
                   if (_manager != null)
                     LocalBackupsPanel(
                         manager: _manager!,
-                        enabled: !_busy && !(getIt.isRegistered<SyncManager>() && getIt<SyncManager>().busy),
+                        enabled: !_busy &&
+                            !(getIt.isRegistered<SyncManager>() &&
+                                getIt<SyncManager>().busy),
                         onCreate: () => _localAction(() async {
                               await _manager!.create();
                             }, 'Cópia local criada com sucesso.'),
@@ -233,10 +246,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   if (getIt.isRegistered<DriveBackupManager>())
                     DriveBackupsPanel(
                         manager: getIt<DriveBackupManager>(),
-                        enabled: !_busy && !(getIt.isRegistered<SyncManager>() && getIt<SyncManager>().busy),
+                        enabled: !_busy &&
+                            !(getIt.isRegistered<SyncManager>() &&
+                                getIt<SyncManager>().busy),
                         onConfigure: _configureDrive),
-                  if(getIt.isRegistered<SyncManager>())
-                    SyncPanel(manager:getIt<SyncManager>(),enabled:!_busy),
+                  if (getIt.isRegistered<SyncManager>())
+                    SyncPanel(manager: getIt<SyncManager>(), enabled: !_busy),
                   if (_busy) const Center(child: CircularProgressIndicator()),
                   Card(
                       child: ListTile(

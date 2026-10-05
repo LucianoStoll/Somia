@@ -127,7 +127,8 @@ abstract final class BackupService {
         for (final table in financialTables) {
           await database.customStatement('DELETE FROM main."$table"');
         }
-        for (final entry in columns.entries.where((e) => financialTables.contains(e.key))) {
+        for (final entry
+            in columns.entries.where((e) => financialTables.contains(e.key))) {
           final names = entry.value
               .map((column) => '"${column.split(':').first}"')
               .join(', ');
@@ -279,7 +280,14 @@ abstract final class BackupService {
     final restored = AppDatabase(NativeDatabase(pending));
     try {
       await restored.transaction(() async {
-        for (final table in ['sync_outbox','sync_versions','sync_history','sync_applied','sync_uploads','sync_state']) {
+        for (final table in [
+          'sync_outbox',
+          'sync_versions',
+          'sync_history',
+          'sync_applied',
+          'sync_uploads',
+          'sync_state'
+        ]) {
           await restored.customStatement('DELETE FROM "$table"');
         }
         await restored.customStatement(schemaV11[1]);

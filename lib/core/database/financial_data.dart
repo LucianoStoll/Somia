@@ -1,17 +1,26 @@
 import 'app_database.dart';
 
 const financialTables = [
-  'accounts', 'categories', 'transactions', 'transfers', 'credit_cards',
-  'card_limit_history', 'card_invoices', 'card_entries', 'card_payments',
+  'accounts',
+  'categories',
+  'transactions',
+  'transfers',
+  'credit_cards',
+  'card_limit_history',
+  'card_invoices',
+  'card_entries',
+  'card_payments',
   'card_entry_history',
 ];
 typedef FinancialRows = Map<String, Map<String, Map<String, Object?>>>;
 
-Future<Map<String, Map<String, String>>> financialColumns(AppDatabase db) async {
+Future<Map<String, Map<String, String>>> financialColumns(
+    AppDatabase db) async {
   final result = <String, Map<String, String>>{};
   for (final table in financialTables) {
     result[table] = {
-      for (final row in await db.customSelect('PRAGMA table_info("$table")').get())
+      for (final row
+          in await db.customSelect('PRAGMA table_info("$table")').get())
         row.read<String>('name'): row.read<String>('type'),
     };
   }
@@ -19,18 +28,22 @@ Future<Map<String, Map<String, String>>> financialColumns(AppDatabase db) async 
 }
 
 Future<FinancialRows> readFinancial(AppDatabase db) async => {
-  for (final table in financialTables)
-    table: {
-      for (final row in await db.customSelect('SELECT * FROM "$table" ORDER BY id').get())
-        row.read<String>('id'): Map<String, Object?>.from(row.data),
-    },
-};
+      for (final table in financialTables)
+        table: {
+          for (final row in await db
+              .customSelect('SELECT * FROM "$table" ORDER BY id')
+              .get())
+            row.read<String>('id'): Map<String, Object?>.from(row.data),
+        },
+    };
 
 /// Caller owns the transaction. Imports only data, retaining trusted triggers.
 Future<void> replaceFinancial(AppDatabase db, FinancialRows rows) async {
   await db.customStatement('PRAGMA defer_foreign_keys=ON');
-  final triggers = await db.customSelect(
-    "SELECT name,sql FROM main.sqlite_master WHERE type='trigger'").get();
+  final triggers = await db
+      .customSelect(
+          "SELECT name,sql FROM main.sqlite_master WHERE type='trigger'")
+      .get();
   for (final trigger in triggers) {
     final name = trigger.read<String>('name').replaceAll('"', '""');
     await db.customStatement('DROP TRIGGER "$name"');
@@ -55,7 +68,8 @@ Future<void> replaceFinancial(AppDatabase db, FinancialRows rows) async {
 
 Future<void> validateFinancial(AppDatabase db) async {
   if ((await db.customSelect('PRAGMA foreign_key_check').get()).isNotEmpty) {
-    throw const FormatException('A sincronização contém vínculos incompletos. Tente novamente após sincronizar o outro dispositivo.');
+    throw const FormatException(
+        'A sincronização contém vínculos incompletos. Tente novamente após sincronizar o outro dispositivo.');
   }
   final invalid = await db.customSelect('''SELECT 1 FROM categories c
     JOIN categories p ON p.id=c.parent_id
@@ -67,18 +81,22 @@ Future<void> validateFinancial(AppDatabase db) async {
     UNION ALL SELECT 1 FROM card_entries e JOIN card_invoices i ON i.id=e.invoice_id
     WHERE e.card_id<>i.card_id LIMIT 1''').get();
   if (invalid.isNotEmpty) {
-    throw const FormatException('As alterações conflitantes não formam dados financeiros válidos. Os dados atuais foram preservados.');
+    throw const FormatException(
+        'As alterações conflitantes não formam dados financeiros válidos. Os dados atuais foram preservados.');
   }
 }
 
 Future<void> installSyncTriggers(AppDatabase db) async {
   final columns = await financialColumns(db);
   for (final table in financialTables) {
-    for (final action in ['INSERT','UPDATE','DELETE']) {
+    for (final action in ['INSERT', 'UPDATE', 'DELETE']) {
       final isDelete = action == 'DELETE';
       final source = isDelete ? 'OLD' : 'NEW';
-      final data = isDelete ? 'NULL' : 'json_object(${columns[table]!.keys.map((n) => "'$n',NEW.\"$n\"").join(',')})';
-      await db.customStatement('''CREATE TRIGGER IF NOT EXISTS sync_${table}_${action.toLowerCase()}
+      final data = isDelete
+          ? 'NULL'
+          : 'json_object(${columns[table]!.keys.map((n) => "'$n',NEW.\"$n\"").join(',')})';
+      await db.customStatement(
+          '''CREATE TRIGGER IF NOT EXISTS sync_${table}_${action.toLowerCase()}
         AFTER $action ON "$table"
         WHEN (SELECT capture_enabled FROM sync_state WHERE id=1)=1
         BEGIN

@@ -227,3 +227,13 @@ Entrega ativa: #47 (epic #12). Cadastro, compras, faturas, limite e liquidaçõe
 ## Releases
 
 Semantic Versioning: 0.x-alpha para desenvolvimento inicial, 0.x-beta para estabilização e 1.0.0 para primeira versão estável. Cada release terá tag, changelog e issues/PRs relacionados.
+
+## Fechamento da v0.2.0-alpha — #54
+
+- [x] Backups local/Drive Android/Windows e restauração com app aberto (#49–#52), validados.
+- [ ] Sincronização #53: botão manual nesta entrega; automatização depois da validação manual.
+- [ ] Importação CSV #14 com prévia, mapeamento, conta, duplicatas e sugestões de categoria.
+- [ ] Revisão final de atualização, dados, saldos, datas, séries, cartões, backup, rede e conflitos.
+- [ ] Documentação final, pacotes e validação; somente então PR para main e release.
+
+Rateio/reembolso (#11) permanece para ciclo posterior. [Fluxo e validação da sincronização](sincronizacao-drive.md).

@@ -9,83 +9,117 @@ const maxSyncBytes = 64 * 1024 * 1024;
 final _identity = RegExp(r'^[a-zA-Z0-9-]{16,80}$');
 
 class SyncEntry {
-  const SyncEntry(this.table, this.id, this.clock, this.device, this.deleted, this.data);
+  const SyncEntry(
+      this.table, this.id, this.clock, this.device, this.deleted, this.data);
   final String table, id, device;
   final int clock;
   final bool deleted;
-  final Map<String,Object?>? data;
+  final Map<String, Object?>? data;
   String get key => '$table/$id';
-  Map<String,Object?> toJson() => {
-    'table':table,'id':id,'clock':clock,'device':device,'deleted':deleted,'data':data,
-  };
+  Map<String, Object?> toJson() => {
+        'table': table,
+        'id': id,
+        'clock': clock,
+        'device': device,
+        'deleted': deleted,
+        'data': data,
+      };
   int compare(SyncEntry other) {
     final order = clock.compareTo(other.clock);
     return order != 0 ? order : device.compareTo(other.device);
   }
+
   bool sameData(SyncEntry other) =>
       deleted == other.deleted && jsonEncode(data) == jsonEncode(other.data);
-  static SyncEntry parse(Object? raw, Map<String,Map<String,String>> columns) {
-    if (raw is! Map || raw['table'] is! String || raw['id'] is! String ||
-        raw['clock'] is! int || (raw['clock'] as int)<0 ||
-        raw['device'] is! String || !_identity.hasMatch(raw['device'] as String) ||
+  static SyncEntry parse(
+      Object? raw, Map<String, Map<String, String>> columns) {
+    if (raw is! Map ||
+        raw['table'] is! String ||
+        raw['id'] is! String ||
+        raw['clock'] is! int ||
+        (raw['clock'] as int) < 0 ||
+        raw['device'] is! String ||
+        !_identity.hasMatch(raw['device'] as String) ||
         raw['deleted'] is! bool) {
       throw const FormatException('Alteração de sincronização inválida.');
     }
     final table = raw['table'] as String;
     final id = raw['id'] as String;
     final expected = columns[table];
-    if (expected == null || id.isEmpty || id.length>256) {
+    if (expected == null || id.isEmpty || id.length > 256) {
       throw const FormatException('Registro de sincronização incompatível.');
     }
-    Map<String,Object?>? data;
+    Map<String, Object?>? data;
     if (raw['deleted'] == true) {
-      if (raw['data'] != null) throw const FormatException('Exclusão inválida.');
+      if (raw['data'] != null)
+        throw const FormatException('Exclusão inválida.');
     } else {
       final value = raw['data'];
-      if (value is! Map || value.length!=expected.length || value['id']!=id) {
+      if (value is! Map ||
+          value.length != expected.length ||
+          value['id'] != id) {
         throw const FormatException('Registro de sincronização incompleto.');
       }
       data = {};
       for (final column in expected.entries) {
         final v = value[column.key];
         if (!value.containsKey(column.key) ||
-            (v!=null && (column.value=='INTEGER' ? v is! int : v is! String))) {
+            (v != null &&
+                (column.value == 'INTEGER' ? v is! int : v is! String))) {
           throw const FormatException('Tipo de dado incompatível.');
         }
         data[column.key] = v;
       }
     }
-    return SyncEntry(table,id,raw['clock'] as int,raw['device'] as String,raw['deleted'] as bool,data);
+    return SyncEntry(table, id, raw['clock'] as int, raw['device'] as String,
+        raw['deleted'] as bool, data);
   }
 }
 
 class SyncPacket {
-  const SyncPacket(this.id,this.base,this.device,this.kind,this.entries);
-  final String id,base,device,kind;
+  const SyncPacket(this.id, this.base, this.device, this.kind, this.entries);
+  final String id, base, device, kind;
   final List<SyncEntry> entries;
   Uint8List encode() => Uint8List.fromList(utf8.encode(jsonEncode({
-    'protocol':syncProtocol,'schema':AppDatabase.currentSchemaVersion,
-    'id':id,'base':base,'device':device,'kind':kind,
-    'entries':entries.map((e)=>e.toJson()).toList(),
-  })));
+        'protocol': syncProtocol,
+        'schema': AppDatabase.currentSchemaVersion,
+        'id': id,
+        'base': base,
+        'device': device,
+        'kind': kind,
+        'entries': entries.map((e) => e.toJson()).toList(),
+      })));
   String get digest => sha256.convert(encode()).toString();
-  static SyncPacket decode(Uint8List bytes,Map<String,Map<String,String>> columns) {
-    if (bytes.isEmpty || bytes.length>maxSyncBytes) {
+  static SyncPacket decode(
+      Uint8List bytes, Map<String, Map<String, String>> columns) {
+    if (bytes.isEmpty || bytes.length > maxSyncBytes) {
       throw const FormatException('A sincronização deve ter até 64 MB.');
     }
     final v = jsonDecode(utf8.decode(bytes));
-    if (v is! Map || v['protocol']!=syncProtocol ||
-        v['schema']!=AppDatabase.currentSchemaVersion ||
-        !['genesis','changes'].contains(v['kind']) ||
-        ['id','base','device'].any((k)=>v[k] is! String || !_identity.hasMatch(v[k] as String)) ||
-        v['entries'] is! List || (v['entries'] as List).length>100000) {
-      throw const FormatException('Versão de sincronização incompatível. Atualize os dois dispositivos.');
+    if (v is! Map ||
+        v['protocol'] != syncProtocol ||
+        v['schema'] != AppDatabase.currentSchemaVersion ||
+        !['genesis', 'changes'].contains(v['kind']) ||
+        [
+          'id',
+          'base',
+          'device'
+        ].any((k) => v[k] is! String || !_identity.hasMatch(v[k] as String)) ||
+        v['entries'] is! List ||
+        (v['entries'] as List).length > 100000) {
+      throw const FormatException(
+          'Versão de sincronização incompatível. Atualize os dois dispositivos.');
     }
-    final entries = (v['entries'] as List).map((e)=>SyncEntry.parse(e,columns)).toList();
-    if (entries.map((e)=>e.key).toSet().length!=entries.length ||
-        entries.any((e)=>e.device!=v['device'] || (v['kind']=='changes' && e.clock==0) || (v['kind']=='genesis' && (e.clock!=0 || e.deleted)))) {
+    final entries =
+        (v['entries'] as List).map((e) => SyncEntry.parse(e, columns)).toList();
+    if (entries.map((e) => e.key).toSet().length != entries.length ||
+        entries.any((e) =>
+            e.device != v['device'] ||
+            (v['kind'] == 'changes' && e.clock == 0) ||
+            (v['kind'] == 'genesis' && (e.clock != 0 || e.deleted)))) {
       throw const FormatException('Pacote de sincronização inválido.');
     }
-    return SyncPacket(v['id'] as String,v['base'] as String,v['device'] as String,v['kind'] as String,entries);
+    return SyncPacket(v['id'] as String, v['base'] as String,
+        v['device'] as String, v['kind'] as String, entries);
   }
 }

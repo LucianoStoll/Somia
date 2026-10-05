@@ -27,7 +27,7 @@ class SyncPanel extends StatelessWidget {
         const Text('A alteração mais recente prevalece. Recuperar uma versão cria uma nova alteração e preserva uma cópia dos dados atuais.'),
         if(manager.history.isEmpty)const Padding(padding:EdgeInsets.all(16),child:Text('Nenhum conflito registrado.')),
         for(final entry in manager.history)ListTile(
-          title:Text(_title(entry)),subtitle:Text('${entry.deleted?'Exclusão':'Versão anterior'} · ${backupDate(DateTime.fromMillisecondsSinceEpoch(entry.clock))}'),
+          title:Text(_title(entry)),subtitle:Text('${entry.deleted?'Exclusão':'Versão anterior'} · ${entry.clock==0?'Versão inicial':backupDate(DateTime.fromMillisecondsSinceEpoch(entry.clock))}'),
           trailing:TextButton(onPressed:()async{
             final description=entry.data?['description'] ?? entry.data?['name'];
             final amount=entry.data?['planned_amount_minor'] ?? entry.data?['amount_minor'] ?? entry.data?['initial_balance_minor'];

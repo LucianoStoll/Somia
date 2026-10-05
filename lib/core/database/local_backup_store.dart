@@ -26,9 +26,9 @@ class LocalBackupStore {
     final result = <LocalBackupCopy>[];
     await for (final entity in folder.list()) {
       if (entity is! File) continue;
-      final match =
-          RegExp(r'^(automatic|manual|beforeRestore|beforeMigration)-(\d+)-[a-f0-9-]+\.sqlite$')
-              .firstMatch(p.basename(entity.path));
+      final match = RegExp(
+              r'^(automatic|manual|beforeRestore|beforeMigration)-(\d+)-[a-f0-9-]+\.sqlite$')
+          .firstMatch(p.basename(entity.path));
       if (match == null) continue;
       final timestamp = int.tryParse(match.group(2)!);
       if (timestamp == null) continue;

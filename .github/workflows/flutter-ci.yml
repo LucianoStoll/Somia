@@ -25,6 +25,8 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
+      - name: Resolve Dart fixes
+        run: dart fix --apply
       - name: Resolve Dart formatting
         run: dart format lib test
       - name: Upload resolved sources

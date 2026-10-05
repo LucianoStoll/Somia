@@ -220,3 +220,7 @@ efetivação; por padrão usa vencimento.
 ## Schema v7 — descrição de transferências
 
 A migration v7 adiciona `transfers.description`, texto obrigatório não vazio, com padrão “Transferência” para preservar os registros anteriores. Não altera valores, contas ou datas. O formulário novo permite criar/editar a descrição e o dashboard usa esse texto nas atividades recentes. Backups anteriores continuam migrando até a versão atual; backup/restauração v7 preserva a descrição e as preferências de saldo.
+
+## v11 — sincronização manual
+
+Tabelas operacionais `sync_state`, `sync_versions`, `sync_outbox`, `sync_history`, `sync_applied` e `sync_uploads`; triggers capturam gravações das dez tabelas financeiras somente após vínculo. Captura, versão e pendência compartilham a transação financeira. Credenciais e identidade persistente do dispositivo ficam fora do SQLite. Recebimento valida o grafo e aplica dados e metadados atomicamente sem eco. Restaurar um backup limpa o vínculo. Veja [sincronização Drive](sincronizacao-drive.md).

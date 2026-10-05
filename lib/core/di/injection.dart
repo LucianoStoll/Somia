@@ -64,9 +64,11 @@ Future<void> configureDependencies(AppEnvironment environment) async {
         dispose: (manager) => manager.dispose());
     final local = getIt<BackupManager>();
     final drive = getIt<DriveBackupManager>();
-    getIt.registerSingleton<SyncManager>(SyncManager(local,drive,
-        SyncStore(database,local.store),DriveSyncApi(drive.api),
-        primaryAllowed:Platform.isAndroid),dispose:(manager)=>manager.dispose());
+    getIt.registerSingleton<SyncManager>(
+        SyncManager(local, drive, SyncStore(database, local.store),
+            DriveSyncApi(drive.api),
+            primaryAllowed: Platform.isAndroid),
+        dispose: (manager) => manager.dispose());
   }
   getIt.registerLazySingleton<AccountStatementRepository>(
       () => AccountStatementRepository(getIt<AppDatabase>()));

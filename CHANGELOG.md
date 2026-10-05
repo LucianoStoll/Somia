@@ -2,6 +2,9 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #49 validada pelo usuário em 05/10/2026; fechamento da alpha acompanhado na #54: sincronização, importação CSV #14 e revisão final.
+- #53 / #16: sincronização manual privada Google Drive Android ↔ Windows, base inicial Android e recebimento confirmado com proteção local; fila persistente, conflitos pela alteração mais recente, recuperação de versões, relógio/conta verificados e telas atualizadas com o app aberto. Migration v11 com cópia antes de atualizar; restauração desvincula a sincronização. Faturas novas têm identidade comum por cartão/mês para compras offline nos dois dispositivos.
+
 - #52 / #16: restauração local e Google Drive aplicada com o app aberto, substituição atômica e proteção dos dados atuais; telas e formulários recarregados após sucesso, sem reiniciar.
 - #51 validada pelo usuário em 05/10/2026.
 - #50 validada pelo usuário em 05/10/2026.

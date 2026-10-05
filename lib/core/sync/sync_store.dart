@@ -58,7 +58,9 @@ class SyncStore {
     'INSERT OR REPLACE INTO $table(table_name,row_id,clock,device_id,is_deleted,data) VALUES(?,?,?,?,?,?)',
     [entry.table,entry.id,entry.clock,entry.device,entry.deleted?1:0,entry.data==null?null:jsonEncode(entry.data)]);
   Future<void> _history(SyncEntry entry,String reason) => db.customStatement(
-    'INSERT OR IGNORE INTO sync_history VALUES(?,?,?,?,?,?,?,?)',
+    '''INSERT INTO sync_history VALUES(?,?,?,?,?,?,?,?)
+      ON CONFLICT(table_name,row_id,clock,device_id) DO UPDATE SET
+      reason=CASE WHEN excluded.reason='conflict' THEN 'conflict' ELSE sync_history.reason END''',
     [entry.table,entry.id,entry.clock,entry.device,entry.deleted?1:0,
       entry.data==null?null:jsonEncode(entry.data),reason,DateTime.now().millisecondsSinceEpoch]);
   Future<void> _queue(SyncPacket packet) async {

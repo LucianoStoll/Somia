@@ -123,7 +123,8 @@ class DriveCopy {
   final String md5Hash;
   final String sha256Hash;
 
-  static DriveCopy parse(Map<String, dynamic> file, {String marker = 'somiaBackup'}) {
+  static DriveCopy parse(Map<String, dynamic> file,
+      {String marker = 'somiaBackup'}) {
     final properties = file['appProperties'];
     final spaces = file['spaces'];
     final size = int.tryParse('${file['size']}');
@@ -263,7 +264,8 @@ class DriveBackupApi {
       {String marker = 'somiaBackup'}) async {
     final path = '/drive/v3/files/${Uri.encodeComponent(selected.id)}';
     final fresh = DriveCopy.parse(
-        _json(await request(session, 'GET', path, {'fields': _fields})), marker: marker);
+        _json(await request(session, 'GET', path, {'fields': _fields})),
+        marker: marker);
     if (fresh.id != selected.id ||
         fresh.sha256Hash != selected.sha256Hash ||
         fresh.size != selected.size) {
