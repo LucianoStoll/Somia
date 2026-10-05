@@ -68,7 +68,7 @@ class _FinAppState extends State<FinApp> {
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('Restaurando dados…'),
+              Text('Atualizando dados…'),
             ]),
           ))),
         ],

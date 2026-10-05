@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import 'app_database.dart';
+import 'financial_data.dart';
+import 'schema_v11.dart';
 import 'local_backup_store.dart';
 
 /// Snapshots consistentes e restauração atômica na conexão em uso.
@@ -122,10 +124,10 @@ abstract final class BackupService {
           final name = trigger.read<String>('name').replaceAll('"', '""');
           await database.customStatement('DROP TRIGGER main."$name"');
         }
-        for (final table in columns.keys) {
+        for (final table in financialTables) {
           await database.customStatement('DELETE FROM main."$table"');
         }
-        for (final entry in columns.entries) {
+        for (final entry in columns.entries.where((e) => financialTables.contains(e.key))) {
           final names = entry.value
               .map((column) => '"${column.split(':').first}"')
               .join(', ');
@@ -138,6 +140,12 @@ abstract final class BackupService {
         if (violations.isNotEmpty) {
           throw const FormatException('O backup contém vínculos inválidos.');
         }
+        // Uma restauração explícita desvincula a base. Nunca publicar o passado
+        // restaurado como exclusões/edições de uma sessão de sync anterior.
+        for (final table in columns.keys.where((n) => n.startsWith('sync_'))) {
+          await database.customStatement('DELETE FROM "$table"');
+        }
+        await database.customStatement(schemaV11[1]);
         for (final trigger in triggers) {
           await database.customStatement(trigger.read<String>('sql'));
         }
@@ -268,6 +276,17 @@ abstract final class BackupService {
       }
     }
     await _validate(pending);
+    final restored = AppDatabase(NativeDatabase(pending));
+    try {
+      await restored.transaction(() async {
+        for (final table in ['sync_outbox','sync_versions','sync_history','sync_applied','sync_uploads','sync_state']) {
+          await restored.customStatement('DELETE FROM "$table"');
+        }
+        await restored.customStatement(schemaV11[1]);
+      });
+    } finally {
+      await restored.close();
+    }
     // AppDatabase.open chama este método antes de abrir a conexão operacional.
     // VACUUM inclui o WAL e preserva inclusive mudanças feitas após agendar.
     if (await current.exists()) {

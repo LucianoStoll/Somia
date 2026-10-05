@@ -4,7 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'app_database.dart';
 import 'backup_service.dart';
 
-enum BackupKind { automatic, manual, beforeRestore }
+enum BackupKind { automatic, manual, beforeRestore, beforeMigration }
 
 class LocalBackupCopy {
   const LocalBackupCopy(this.file, this.kind, this.createdAt, this.size);
@@ -27,7 +27,7 @@ class LocalBackupStore {
     await for (final entity in folder.list()) {
       if (entity is! File) continue;
       final match =
-          RegExp(r'^(automatic|manual|beforeRestore)-(\d+)-[a-f0-9-]+\.sqlite$')
+          RegExp(r'^(automatic|manual|beforeRestore|beforeMigration)-(\d+)-[a-f0-9-]+\.sqlite$')
               .firstMatch(p.basename(entity.path));
       if (match == null) continue;
       final timestamp = int.tryParse(match.group(2)!);

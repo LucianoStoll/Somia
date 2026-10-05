@@ -1,4 +1,7 @@
 import 'dart:io';
+import '../sync/sync_manager.dart';
+import '../sync/sync_store.dart';
+import '../sync/drive_sync_api.dart';
 import '../drive/drive_backup.dart';
 import '../drive/windows_drive_auth.dart';
 import '../drive/drive_backup_manager.dart';
@@ -59,6 +62,11 @@ Future<void> configureDependencies(AppEnvironment environment) async {
                     : AndroidDriveAuth(),
                 IoDriveTransport())),
         dispose: (manager) => manager.dispose());
+    final local = getIt<BackupManager>();
+    final drive = getIt<DriveBackupManager>();
+    getIt.registerSingleton<SyncManager>(SyncManager(local,drive,
+        SyncStore(database,local.store),DriveSyncApi(drive.api),
+        primaryAllowed:Platform.isAndroid),dispose:(manager)=>manager.dispose());
   }
   getIt.registerLazySingleton<AccountStatementRepository>(
       () => AccountStatementRepository(getIt<AppDatabase>()));

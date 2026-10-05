@@ -10,6 +10,7 @@ String backupKind(BackupKind kind) => switch (kind) {
       BackupKind.automatic => 'Automático',
       BackupKind.manual => 'Manual',
       BackupKind.beforeRestore => 'Antes de restaurar',
+      BackupKind.beforeMigration => 'Antes de atualizar',
     };
 
 class LocalBackupsPanel extends StatelessWidget {

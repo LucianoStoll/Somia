@@ -97,4 +97,18 @@ class BackupManager extends ChangeNotifier {
           _notify();
         }
       });
+  Future<T> maintain<T>(Future<T> Function() action,
+      {bool refreshScreens = true}) => _run(() async {
+    restoring = true;
+    _notify();
+    try {
+      final result = await action();
+      if (refreshScreens) databaseRevision++;
+      return result;
+    } finally {
+      restoring = false;
+      _notify();
+    }
+  });
+
 }

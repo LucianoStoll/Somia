@@ -61,7 +61,8 @@ class AndroidDriveAuth implements DriveAuth {
 }
 
 class DriveResponse {
-  const DriveResponse(this.status, this.bytes);
+  const DriveResponse(this.status, this.bytes, {this.serverTime});
+  final DateTime? serverTime;
   final int status;
   final Uint8List bytes;
 }
@@ -92,7 +93,8 @@ class IoDriveTransport implements DriveTransport {
           }
           bytes.add(chunk);
         }
-        return DriveResponse(response.statusCode, bytes.takeBytes());
+        return DriveResponse(response.statusCode, bytes.takeBytes(),
+            serverTime: response.headers.date);
       })()
           .timeout(const Duration(seconds: 90));
     } on SocketException {
@@ -121,13 +123,13 @@ class DriveCopy {
   final String md5Hash;
   final String sha256Hash;
 
-  static DriveCopy parse(Map<String, dynamic> file) {
+  static DriveCopy parse(Map<String, dynamic> file, {String marker = 'somiaBackup'}) {
     final properties = file['appProperties'];
     final spaces = file['spaces'];
     final size = int.tryParse('${file['size']}');
     final created = DateTime.tryParse('${file['createdTime']}');
     if (properties is! Map ||
-        properties['somiaBackup'] != '1' ||
+        properties[marker] != '1' ||
         properties['sha256'] is! String ||
         !RegExp(r'^[a-f0-9]{64}$').hasMatch(properties['sha256'] as String) ||
         spaces is! List ||
@@ -159,7 +161,9 @@ class DriveBackupApi {
   static const _fields =
       'id,name,createdTime,size,md5Checksum,appProperties,spaces,trashed';
 
-  Future<Uint8List> _request(DriveSession session, String method, String path,
+  DateTime? serverTime;
+
+  Future<Uint8List> request(DriveSession session, String method, String path,
       Map<String, String> query,
       {Uint8List? body, String? contentType}) async {
     final response = await transport.send(
@@ -170,6 +174,7 @@ class DriveBackupApi {
           if (contentType != null) 'Content-Type': contentType,
         },
         body);
+    serverTime = response.serverTime ?? serverTime;
     if (response.status == 401) {
       await auth.clearToken(session.token);
       throw const DriveFailure(
@@ -203,7 +208,7 @@ class DriveBackupApi {
     final seen = <String>{};
     String? page;
     do {
-      final response = _json(await _request(session, 'GET', '/drive/v3/files', {
+      final response = _json(await request(session, 'GET', '/drive/v3/files', {
         'spaces': 'appDataFolder',
         'q':
             "trashed = false and appProperties has { key='somiaBackup' and value='1' }",
@@ -248,23 +253,24 @@ class DriveBackupApi {
           '--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$metadata\r\n--$boundary\r\nContent-Type: application/vnd.sqlite3\r\n\r\n'))
       ..add(bytes)
       ..add(utf8.encode('\r\n--$boundary--\r\n'));
-    await _request(session, 'POST', '/upload/drive/v3/files',
+    await request(session, 'POST', '/upload/drive/v3/files',
         {'uploadType': 'multipart', 'fields': 'id'},
         body: body.takeBytes(),
         contentType: 'multipart/related; boundary=$boundary');
   }
 
-  Future<Uint8List> download(DriveSession session, DriveCopy selected) async {
+  Future<Uint8List> download(DriveSession session, DriveCopy selected,
+      {String marker = 'somiaBackup'}) async {
     final path = '/drive/v3/files/${Uri.encodeComponent(selected.id)}';
     final fresh = DriveCopy.parse(
-        _json(await _request(session, 'GET', path, {'fields': _fields})));
+        _json(await request(session, 'GET', path, {'fields': _fields})), marker: marker);
     if (fresh.id != selected.id ||
         fresh.sha256Hash != selected.sha256Hash ||
         fresh.size != selected.size) {
       throw const DriveFailure(
           'A cópia mudou. Atualize a lista antes de restaurar.');
     }
-    final bytes = await _request(session, 'GET', path, {'alt': 'media'});
+    final bytes = await request(session, 'GET', path, {'alt': 'media'});
     if (bytes.length != fresh.size ||
         md5.convert(bytes).toString() != fresh.md5Hash ||
         sha256.convert(bytes).toString() != fresh.sha256Hash) {

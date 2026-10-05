@@ -1,5 +1,7 @@
 import '../../../core/drive/drive_backup_manager.dart';
 import 'drive_backups_panel.dart';
+import 'sync_panel.dart';
+import '../../../core/sync/sync_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +27,10 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _busy = false;
+  SyncManager? _sync;
+  void _syncChanged() { if(mounted) setState(() {}); }
+  @override
+  void dispose() { _sync?.removeListener(_syncChanged); super.dispose(); }
   BackupManager? get _manager =>
       getIt.isRegistered<BackupManager>() ? getIt<BackupManager>() : null;
 
@@ -35,11 +41,16 @@ class _SettingsPageState extends State<SettingsPage> {
       getIt<DriveBackupManager>().initialize();
     }
     _manager?.refresh().catchError((Object _) {});
+    if(getIt.isRegistered<SyncManager>()) {
+      _sync = getIt<SyncManager>();
+      _sync!.addListener(_syncChanged);
+      _sync!.refresh().catchError((Object _) {});
+    }
   }
 
   Future<void> _localAction(
       Future<void> Function() action, String message) async {
-    if (_busy) return;
+    if (_busy || (_sync?.busy ?? false)) return;
     setState(() => _busy = true);
     try {
       await action();
@@ -101,6 +112,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }, '');
 
   Future<void> _export() async {
+    if (_busy || (_sync?.busy ?? false)) return;
     setState(() => _busy = true);
     try {
       final directory = await getApplicationSupportDirectory();
@@ -131,7 +143,7 @@ class _SettingsPageState extends State<SettingsPage> {
               title: const Text('Restaurar backup?'),
               content: const Text('Os dados atuais serão substituídos agora. '
                   'Uma cópia dos dados atuais será salva automaticamente antes '
-                  'da substituição. A restauração não mescla os dados.'),
+                  'da substituição. A restauração não mescla os dados e desvincula a sincronização.'),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(context, false),
@@ -199,18 +211,18 @@ class _SettingsPageState extends State<SettingsPage> {
                           title: const Text('Exportar backup'),
                           subtitle: const Text(
                               'Salve uma cópia do banco local em outro lugar.'),
-                          onTap: _busy ? null : _export)),
+                          onTap: _busy || (_sync?.busy ?? false) ? null : _export)),
                   Card(
                       child: ListTile(
                           leading: const Icon(Icons.restore_outlined),
                           title: const Text('Restaurar backup'),
                           subtitle: const Text(
                               'Selecione um arquivo .sqlite para atualizar os dados agora.'),
-                          onTap: _busy ? null : _restore)),
+                          onTap: _busy || (_sync?.busy ?? false) ? null : _restore)),
                   if (_manager != null)
                     LocalBackupsPanel(
                         manager: _manager!,
-                        enabled: !_busy,
+                        enabled: !_busy && !(getIt.isRegistered<SyncManager>() && getIt<SyncManager>().busy),
                         onCreate: () => _localAction(() async {
                               await _manager!.create();
                             }, 'Cópia local criada com sucesso.'),
@@ -221,8 +233,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   if (getIt.isRegistered<DriveBackupManager>())
                     DriveBackupsPanel(
                         manager: getIt<DriveBackupManager>(),
-                        enabled: !_busy,
+                        enabled: !_busy && !(getIt.isRegistered<SyncManager>() && getIt<SyncManager>().busy),
                         onConfigure: _configureDrive),
+                  if(getIt.isRegistered<SyncManager>())
+                    SyncPanel(manager:getIt<SyncManager>(),enabled:!_busy),
                   if (_busy) const Center(child: CircularProgressIndicator()),
                   Card(
                       child: ListTile(
