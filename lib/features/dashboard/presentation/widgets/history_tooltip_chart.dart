@@ -112,15 +112,23 @@ class _HistoryTooltipChartState extends State<HistoryTooltipChart> {
                 media.viewInsets.bottom -
                 8);
         return CustomSingleChildLayout(
-            delegate: _TooltipLayout(offset & anchor.size, bounds),
+            delegate: _TooltipLayout(
+                Rect.fromLTWH(
+                    offset.dx,
+                    offset.dy + math.max(0, anchor.size.height - 24),
+                    anchor.size.width,
+                    math.min(24, anchor.size.height)),
+                bounds),
             child: TapRegion(
                 groupId: this,
                 onTapOutside: (_) => _hide(),
                 child: Material(
                     key: const ValueKey('history-tooltip'),
-                    elevation: 8,
+                    elevation: 0,
                     color: SomiaColors.surfaceHigh,
-                    borderRadius: BorderRadius.circular(12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: SomiaColors.outline)),
                     child: SingleChildScrollView(
                         padding: const EdgeInsets.all(14),
                         child: Column(

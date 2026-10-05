@@ -115,7 +115,8 @@ void main() {
       await size(tester, config.$1);
       await standalone(tester, history(), scale: config.$2, bottom: config.$3);
       for (final selected in [5, 10]) {
-        await tester.tap(month(selected));
+        final label = tester.getRect(month(selected));
+        await tester.tapAt(Offset(label.center.dx, label.bottom - 5));
         await tester.pumpAndSettle();
         expect(tooltip(), findsOneWidget);
         expect(
@@ -232,12 +233,18 @@ void main() {
       await tester.pumpAndSettle();
       expect(value(-2500), findsOneWidget);
       expect(value(999999), findsNothing);
+      final target = tester.getRect(month(10));
+      if (target.bottom > tester.getSize(tooltip()).height + 56) {
+        expect(tester.getRect(tooltip()).bottom,
+            lessThanOrEqualTo(target.bottom - 24));
+      }
       repo.amount = 20000;
       await cubit.load();
       await tester.pumpAndSettle();
       expect(value(20000), findsOneWidget);
       expect(value(22500), findsOneWidget);
-      await tester.tap(month(9));
+      final label = tester.getRect(month(9));
+      await tester.tapAt(Offset(label.center.dx, label.bottom - 5));
       await tester.pumpAndSettle();
       expect(value(17500), findsOneWidget);
       expect(tooltip(), findsOneWidget);
