@@ -226,7 +226,8 @@ void main() {
     expect(await readFinancial(a.db), await readFinancial(b.db));
     expect(
         (await b.db
-                .customSelect('SELECT count(DISTINCT invoice_id) n FROM card_entries')
+                .customSelect(
+                    'SELECT count(DISTINCT invoice_id) n FROM card_entries')
                 .getSingle())
             .read<int>('n'),
         1);
