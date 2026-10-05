@@ -2,6 +2,9 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #44: escala monetária e linhas alinhadas no gráfico Windows, intervalos legíveis, indicação da moeda e barras zeradas vazias; suporta janela estreita e texto ampliado.
+- #37 validada pelo usuário em 05/10/2026.
+
 - #37: tocar/clicar num mês do gráfico Receitas × Despesas mostra mês/ano, receitas, despesas e resultado do mês; balão adapta posição/tamanho, troca de mês e atualização de dados, fecha ao tocar fora ou rolar. Android e Windows, offline.
 - #38 validada pelo usuário em 05/10/2026.
 - #38: tocar no saldo abre sua composição consolidada e prevista, por moeda, com saldo inicial, receitas/despesas, transferências e cartões; painel inferior no Android e diálogo no Windows, usando o mesmo corte mensal do dashboard.
