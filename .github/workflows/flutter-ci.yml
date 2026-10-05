@@ -25,22 +25,6 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
-      - name: Resolve Dart fixes
-        run: dart fix --apply
-      - name: Resolve Dart formatting
-        run: dart format lib test
-      - name: Resolve multiline Dart fixes
-        run: |
-          dart fix --apply
-          dart format lib test
-      - name: Upload resolved sources
-        uses: actions/upload-artifact@v4
-        with:
-          name: somia-resolved-sources
-          path: |
-            lib/
-            test/
-            pubspec.lock
       - name: Check Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Static analysis

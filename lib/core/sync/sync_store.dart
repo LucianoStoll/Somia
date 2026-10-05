@@ -25,8 +25,9 @@ class SyncStore {
     final f = File('${backups.directory.path}/somia-sync-device.txt');
     if (await f.exists()) {
       final value = (await f.readAsString()).trim();
-      if (RegExp(r'^[a-zA-Z0-9-]{16,80}$').hasMatch(value))
+      if (RegExp(r'^[a-zA-Z0-9-]{16,80}$').hasMatch(value)) {
         return _device = value;
+      }
       throw const FormatException('Identidade deste dispositivo inválida.');
     }
     await backups.directory.create(recursive: true);
@@ -102,8 +103,9 @@ class SyncStore {
             DateTime.now().millisecondsSinceEpoch
           ]);
   Future<void> _queue(SyncPacket packet) async {
-    if (packet.encode().length > maxSyncBytes)
+    if (packet.encode().length > maxSyncBytes) {
       throw const FormatException('A sincronização excede 64 MB.');
+    }
     await db.customStatement('INSERT INTO sync_uploads VALUES(?,?)',
         [packet.id, utf8.decode(packet.encode())]);
   }
@@ -112,8 +114,9 @@ class SyncStore {
     await _prepare();
     final deviceId = await device();
     return db.transaction(() async {
-      if ((await state()).base != null)
+      if ((await state()).base != null) {
         throw StateError('Este dispositivo já tem uma base vinculada.');
+      }
       final base = const Uuid().v4();
       final rows = await readFinancial(db);
       final entries = [
@@ -198,8 +201,9 @@ class SyncStore {
       final base = initial
           ? packets.firstWhere((p) => p.kind == 'genesis').base
           : current.base;
-      if (base == null || packets.any((p) => p.base != base))
+      if (base == null || packets.any((p) => p.base != base)) {
         throw const FormatException('As alterações pertencem a outra base.');
+      }
       final seen = await applied();
       final versions = initial
           ? <String, SyncEntry>{}
@@ -220,8 +224,9 @@ class SyncStore {
           .read<int>('clock');
       for (final packet in packets) {
         if (seen.containsKey(packet.id)) {
-          if (seen[packet.id] != packet.digest)
+          if (seen[packet.id] != packet.digest) {
             throw const FormatException('Um pacote mudou de conteúdo.');
+          }
           continue;
         }
         for (final entry in packet.entries) {
@@ -233,12 +238,14 @@ class SyncStore {
           final previous = versions[entry.key];
           if (previous != null) {
             final order = entry.compare(previous);
-            if (order == 0 && !entry.sameData(previous))
+            if (order == 0 && !entry.sameData(previous)) {
               throw const FormatException(
                   'Versões iguais com dados diferentes.');
+            }
             if (order <= 0) {
-              if (order < 0 && !entry.sameData(previous))
+              if (order < 0 && !entry.sameData(previous)) {
                 await _history(entry, 'conflict');
+              }
               continue;
             }
             if (!entry.sameData(previous)) await _history(previous, 'conflict');
@@ -294,9 +301,10 @@ class SyncStore {
     await backups.create(db, BackupKind.beforeRestore);
     await db.transaction(() async {
       final s = await state();
-      if (s.base == null)
+      if (s.base == null) {
         throw const FormatException(
             'Vincule a base antes de recuperar uma versão.');
+      }
       final exists = await db.customSelect(
           'SELECT * FROM sync_history WHERE table_name=? AND row_id=? AND clock=? AND device_id=?',
           variables: [
@@ -305,8 +313,9 @@ class SyncStore {
             Variable(entry.clock),
             Variable(entry.device)
           ]).get();
-      if (exists.isEmpty || !_entry(exists.single).sameData(entry))
+      if (exists.isEmpty || !_entry(exists.single).sameData(entry)) {
         throw const FormatException('Versão de histórico indisponível.');
+      }
       final rows = await readFinancial(db);
       if (entry.deleted) {
         rows[entry.table]!.remove(entry.id);

@@ -4,10 +4,7 @@ Seu dinheiro, mais claro. Aplicativo de finanças pessoais para Android e Window
 
 ## Em desenvolvimento — v0.2.0-alpha (pós-MVP)
 
-Branch ativa: `v0.2.0-alpha`. A calculadora da #34 substitui o teclado monetário
-nos formulários de receitas, despesas e transferências. Veja o comportamento,
-as regras de precisão e o checklist em [Calculadora monetária](docs/calculadora-monetaria.md).
-A validação manual deste ciclo precede a PR para `main`.
+Branch ativa: `v0.2.0-alpha`. Calculadora, séries, cartões/faturas, sugestões pelo histórico, extrato diário, detalhamento de saldo e backups local/Google Drive Android/Windows já compõem este ciclo. A #53 adiciona [sincronização manual entre dispositivos](docs/sincronizacao-drive.md), com base inicial Android, fila offline e recuperação de conflitos. O fechamento é acompanhado na #54: sincronização, importação CSV e revisão final. A validação manual deste ciclo precede a PR para `main`.
 
 ## MVP — v0.1.0-alpha
 
@@ -36,7 +33,7 @@ Baixe os pacotes em [Releases](https://github.com/LucianoStoll/FinApp/releases).
 
 **Windows:** extraia todo o ZIP e execute `finapp.exe`. Mantenha as DLLs e a pasta `data` junto do executável. O pacote é compilado em modo release para Windows x64.
 
-Os dados ficam no dispositivo. Para restaurar um backup, importe em **Ajustes → Restaurar backup**, feche e abra o aplicativo. Não há sincronização automática entre Android e Windows nesta versão.
+Os dados ficam no dispositivo. Na alpha em desenvolvimento, restaure em **Ajustes → Restaurar backup**; os dados são aplicados com o app aberto. A sincronização Android/Windows da #53 usa o botão **Sincronizar agora** e a mesma conta Google. Restaurar um backup desvincula a sincronização. A versão publicada v0.1.0-alpha ainda aplica restauração ao reiniciar e não possui sincronização.
 
 ## Desenvolvimento
 

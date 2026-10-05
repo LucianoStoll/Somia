@@ -93,7 +93,7 @@ Future<void> _seed(AppDatabase db, String prefix) async {
 Future<Map<String, Object>> _data(AppDatabase db) async {
   final tables = await db
       .customSelect(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'sync_%' ORDER BY name")
       .get();
   final result = <String, Object>{};
   for (final table in tables) {

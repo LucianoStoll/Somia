@@ -34,3 +34,5 @@ O backup contém a base completa: contas, categorias, receitas/despesas, transfe
 8. Conferir cartões/faturas/séries e saldos após restauração; testar Android e Windows.
 
 A aplicação imediata importa apenas as colunas do schema conhecido, dentro de uma transação SQLite na base principal. Triggers operacionais são suspensos/recriados na mesma transação para preservar históricos de contas/categorias posteriormente arquivadas. Chaves estrangeiras são diferidas até a conclusão e conferidas antes do commit. SQL de triggers do arquivo externo nunca é instalado. Falhas revertem dados e triggers; a cópia anterior permanece disponível.
+
+Na #53, a restauração local/Drive limpa o vínculo e a fila de sincronização para não publicar dados antigos automaticamente. Receba novamente a base do Drive para retomar o vínculo. A migration v11 também preserva uma cópia **Antes de atualizar**; essas proteções não seguem a rotação diária. [Detalhes e validação](sincronizacao-drive.md).

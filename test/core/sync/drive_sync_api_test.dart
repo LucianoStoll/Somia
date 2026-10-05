@@ -72,8 +72,9 @@ void main() {
       () async {
     final api = DriveSyncApi(
         DriveBackupApi(FakeAuth(), FakeTransport((m, u, h, b) async {
-      if (u.queryParameters['alt'] == 'media')
+      if (u.queryParameters['alt'] == 'media') {
         return DriveResponse(200, packet.encode());
+      }
       return jsonResponse(file());
     })));
     expect(
