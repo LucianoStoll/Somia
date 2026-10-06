@@ -495,10 +495,15 @@ void main() {
     final partial = await row(1);
     expect(partial.amountMinor, 30000);
     expect(partial.cardBalanceMinor, 70000);
-    final empty = await row(2);
-    expect(empty.amountMinor, 0);
-    expect(empty.cardPreviousMinor, 70000);
-    expect(empty.cardBalanceMinor, 70000);
+    expect(
+        await tx.list(TransactionFilter(
+            from: DateTime(2027, 2), to: DateTime(2027, 2, 28))),
+        isEmpty);
+    final empty = (await cards.invoices(cardId, selected: DateTime(2027, 2)))
+        .firstWhere((i) => i.month == DateTime.utc(2027, 2));
+    expect(empty.chargesMinor, 0);
+    expect(empty.previousMinor, 70000);
+    expect(empty.balanceMinor, 70000);
     expect((await cards.invoice(invoiceId)).paidMinor, 10000);
     expect((await balance(asOf: DateTime.now())).currentBalanceMinor, 90000);
   });
@@ -588,10 +593,7 @@ void main() {
     expect(bill.balanceMinor, 10000);
     final rows = await SqliteTransactionsRepository(db).list(TransactionFilter(
         from: DateTime(2026, 10), to: DateTime(2026, 10, 31)));
-    expect(rows.single.amountMinor, 0);
-    expect(rows.single.cardPreviousMinor, 10000);
-    expect(rows.single.cardBalanceMinor, 10000);
-    expect(rows.single.cardEntryCount, 0);
+    expect(rows, isEmpty);
   });
 
   test(

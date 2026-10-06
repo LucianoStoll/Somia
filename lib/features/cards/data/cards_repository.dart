@@ -968,6 +968,7 @@ class CardsRepository {
             }
           }
           for (final bill in await invoices(c.id)) {
+            if (bill.chargesMinor <= 0) continue;
             if (bill.entries.isEmpty &&
                 bill.payments.isEmpty &&
                 bill.previousMinor <= 0) {

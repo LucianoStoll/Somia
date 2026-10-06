@@ -104,10 +104,13 @@ Resultados automatizados e builds conjuntos registrados na #61; ambas as issues 
 
 ## Correção #63 — fatura mensal sem acúmulo
 
-O valor principal em Despesas e Próximas faturas usa os itens líquidos da fatura do mês de vencimento: compras/parcelas, encargos e créditos vinculados. Janeiro R$500 e fevereiro R$300 mostram R$300 em fevereiro. Um mês sem novos itens mostra zero; a dívida anterior aparece separadamente. Pagamentos parciais preservam o valor original da competência, com o restante identificado em separado.
+O valor principal em Despesas e Próximas faturas usa os itens líquidos da fatura do mês de vencimento: compras/parcelas, encargos e créditos vinculados. Janeiro R$500 e fevereiro R$300 mostram R$300 em fevereiro. Um mês com valor mensal zero não aparece em Despesas; seu histórico e a dívida anterior continuam disponíveis em Cartões. Pagamentos parciais preservam o valor original da competência, com o restante identificado em separado.
 
 No detalhe, Fatura do mês e Saldo da fatura anterior são linhas distintas. Total a pagar com saldo anterior representa a dívida completa, utilizada no pagamento explícito. O atalho de efetivação em Despesas abre o detalhe quando existe saldo anterior, evitando pagar silenciosamente um total diferente do valor principal. Saldos das contas, projeções de caixa, limite, liquidações, backup e sync mantêm suas regras e dados. Sem migration; schema 13.
 
 Arquivos: repositório de cartões (valor mensal e saldo anterior separado), modelo da transação (campo derivado), lista de despesas (etiquetas e atalho), página de cartões (detalhe e próximas faturas), regressões do repositório, changelog e documento do ciclo.
 
 Validação manual: navegar entre dezembro/janeiro e meses futuros, comparar a linha com os itens da fatura, testar mês vazio com pendência anterior, pagamento parcial/agendado e dois cartões; confirmar que abrir pelo valor mostra o mesmo mês e que o total acumulado aparece identificado antes do pagamento. #63 permanece aberta até a validação do usuário.
+
+
+Ajuste adicional solicitado em 06/10/2026: ocultar em Despesas faturas cujo valor mensal exibido seria R$0,00 (itens líquidos menores ou iguais a zero), inclusive meses sem compras com saldo anterior. Não excluir dados nem ocultar o histórico de Cartões. Faturas com compras e pagamento realizado continuam no histórico mensal de despesas.
