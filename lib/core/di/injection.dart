@@ -1,3 +1,5 @@
+import '../../features/investments/domain/investment.dart';
+import '../../features/investments/data/sqlite_investments_repository.dart';
 import 'dart:io';
 import '../../features/csv_import/domain/csv_import.dart';
 import '../../features/csv_import/data/sqlite_csv_import_repository.dart';
@@ -116,6 +118,9 @@ Future<void> configureDependencies(AppEnvironment environment) async {
 
   getIt.registerLazySingleton<CsvImportRepository>(() =>
       SqliteCsvImportRepository(database, maintenance: getIt<BackupManager>()));
+
+  getIt.registerLazySingleton<InvestmentsRepository>(
+      () => SqliteInvestmentsRepository(database));
 
   // As dependências de cada feature serão registradas aqui por módulo.
 }

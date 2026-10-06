@@ -28,6 +28,8 @@ const _menu = <_MenuDestination>[
   _MenuDestination('Transferências', AppRoutes.transfersPath, Icons.swap_horiz),
   _MenuDestination(
       'Contas', AppRoutes.accountsPath, Icons.account_balance_wallet_outlined),
+  _MenuDestination(
+      'Investimentos', AppRoutes.investmentsPath, Icons.savings_outlined),
   _MenuDestination('Cartões', AppRoutes.cardsPath, Icons.credit_card_outlined),
   _MenuDestination('Categorias', AppRoutes.categoriesPath, Icons.sell_outlined),
   _MenuDestination(

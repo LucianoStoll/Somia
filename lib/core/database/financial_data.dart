@@ -12,6 +12,7 @@ const financialTables = [
   'card_entries',
   'card_payments',
   'card_entry_history',
+  'investments',
 ];
 typedef FinancialRows = Map<String, Map<String, Map<String, Object?>>>;
 
@@ -87,6 +88,8 @@ Future<void> validateFinancial(AppDatabase db) async {
     WHERE a.currency_code<>'BRL'
     UNION ALL SELECT 1 FROM card_payments p JOIN accounts a ON a.id=p.account_id
     WHERE a.currency_code<>'BRL'
+    UNION ALL SELECT 1 FROM investments v JOIN accounts a ON a.id=v.account_id
+    WHERE a.currency_code<>'BRL' OR (v.deleted_at IS NULL AND a.deleted_at IS NOT NULL)
     UNION ALL SELECT 1 FROM card_entries e
     WHERE (e.kind IN ('purchase','fee') AND e.amount_minor<0)
       OR (e.kind IN ('refund','discount') AND e.amount_minor>0) LIMIT 1''').get();

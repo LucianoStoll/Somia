@@ -114,7 +114,8 @@ class SyncPacket {
     if (v is! Map ||
         v['protocol'] != syncProtocol ||
         (v['schema'] != AppDatabase.currentSchemaVersion &&
-            v['schema'] != 11) ||
+            v['schema'] != 11 &&
+            v['schema'] != 12) ||
         !['genesis', 'changes'].contains(v['kind']) ||
         [
           'id',
@@ -126,7 +127,13 @@ class SyncPacket {
       throw const FormatException(
           'Versão de sincronização incompatível. Atualize os dois dispositivos.');
     }
-    // Historical v11 packets remain readable after both apps are upgraded.
+    if (v['schema'] < 13 &&
+        (v['entries'] as List)
+            .any((e) => e is Map && e['table'] == 'investments')) {
+      throw const FormatException(
+          'Aplicação em pacote histórico incompatível.');
+    }
+    // Historical v11/v12 packets remain readable after both apps are upgraded.
     if (v['schema'] == 11) {
       for (final e in v['entries'] as List) {
         if (e is Map &&

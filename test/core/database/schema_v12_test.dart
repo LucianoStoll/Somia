@@ -89,7 +89,7 @@ void main() {
     final packet = SyncPacket.decode(
         utf8.encode(queued.read<String>('payload')),
         await financialColumns(db));
-    expect(packet.sourceSchema, 12);
+    expect(packet.sourceSchema, AppDatabase.currentSchemaVersion);
     expect(packet.entries.single.clock, 9);
     expect(
         (await db.customSelect('SELECT clock FROM sync_state').getSingle())
