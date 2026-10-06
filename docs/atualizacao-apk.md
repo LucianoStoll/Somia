@@ -36,7 +36,7 @@ faixa de SDK (`Signer (minSdkVersion=...)`) e por esquema (`V2 Signer`,
 comparar builds consecutivas. O material privado é removido ao fim do job. O artefato antigo `somia-debug-not-updateable`
 não é um APK de atualização.
 
-O APK da versão publicada também fica em [Releases](https://github.com/LucianoStoll/FinApp/releases), junto do relatório de assinatura e dos checksums SHA-256. A publicação cria a tag no commit de `main` que passou nas verificações e inclui o pacote Windows release completo.
+O APK da versão publicada também fica em [Releases](https://github.com/LucianoStoll/Somia/releases), junto do relatório de assinatura e dos checksums SHA-256. A publicação cria a tag no commit de `main` que passou nas verificações e inclui o pacote Windows release completo.
 
 O APK de atualização estará em **Actions → Flutter CI → Artifacts →
 `somia-signed-apk`**. O `versionCode` é o número crescente da execução do

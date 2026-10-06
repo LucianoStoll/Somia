@@ -40,7 +40,7 @@ Conventional Commits:
 - `chore:`
 - `ci:`
 
-A branch de trabalho do MVP é `v0.1.0-alpha`; `main` recebe a versão validada
+A branch de trabalho pós-MVP é `v0.2.0-alpha`; `main` recebe a versão validada
 por PR ao encerrar o marco. Branches auxiliares partem da versão e retornam
 para ela por PR:
 
@@ -64,8 +64,8 @@ O CI verifica formatação, análise e testes automaticamente em pushes para
 repositories, navegação, migrations e backup/restauração. A Action também
 compila Windows e, fora de PRs, gera APK assinado com chave persistente.
 
-Testes de importação e sincronização serão adicionados quando esses módulos
-pós-MVP forem implementados.
+A suíte inclui importação CSV e sincronização manual/automática, com testes
+de duplicação, conflitos, interrupções, rollback e preservação da fila.
 
 ## Releases
 Semantic Versioning:

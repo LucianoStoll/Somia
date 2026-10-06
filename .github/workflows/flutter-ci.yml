@@ -29,19 +29,52 @@ jobs:
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Static analysis
         run: flutter analyze
+      - name: Release publication guards
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Tests
         run: flutter test
       - name: Render dashboard mobile preview
         run: flutter test test/features/dashboard/dashboard_layout_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render history tooltip previews
+        run: flutter test test/features/dashboard/history_tooltip_chart_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render Drive backup preview
+        run: flutter test test/features/settings/drive_backups_panel_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render local backup previews
+        run: flutter test test/features/settings/local_backups_panel_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render balance details preview
+        run: flutter test test/features/dashboard/balance_details_panel_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render movement form preview
         run: flutter test test/core/routing/movement_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render account and category form previews
+        run: flutter test test/core/routing/reference_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render bank catalog preview
+        run: flutter test test/core/routing/bank_selector_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render series form preview
+        run: flutter test test/core/routing/series_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render card payment preview
+        run: flutter test test/core/routing/card_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render cards page preview
+        run: flutter test test/core/routing/cards_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render category suggestions preview
+        run: flutter test test/core/routing/category_history_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render account statement preview
+        run: flutter test test/core/routing/account_statement_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render movement list preview
+        run: flutter test test/core/widgets/movement_list_row_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render CSV import preview
+        run: flutter test test/features/csv_import/csv_import_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Publish dashboard preview
         uses: actions/upload-artifact@v4
         with:
           name: somia-dashboard-preview
           path: |
             test/features/dashboard/*mobile-preview.png
+            test/features/dashboard/*desktop-preview.png
+            test/features/settings/*mobile-preview.png
+            test/features/settings/*desktop-preview.png
             test/core/routing/*mobile-preview.png
+            test/core/widgets/*mobile-preview.png
+            test/features/csv_import/*mobile-preview.png
           if-no-files-found: error
           retention-days: 30
 
@@ -205,7 +238,7 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      group: somia-release-v0.1.0-alpha
+      group: somia-release-${{ github.ref }}
       cancel-in-progress: false
     env:
       GH_TOKEN: ${{ github.token }}
@@ -217,23 +250,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="$(python3 -c "import re; from pathlib import Path; print(re.search(r'^version:\\s*(\\S+)', Path('pubspec.yaml').read_text(), re.MULTILINE).group(1).split('+')[0])")"
-          if [[ "$version" != "0.1.0-alpha" ]]; then
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           gh api "repos/$GH_REPO/releases" --paginate --slurp > "$RUNNER_TEMP/somia-releases.json"
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          releases = [item for page in json.loads((Path(os.environ['RUNNER_TEMP']) / 'somia-releases.json').read_text()) for item in page]
-          existing = next((item for item in releases if item['tag_name'] == 'v0.1.0-alpha'), None)
-          publish = existing is None or existing['draft']
-          if existing and existing['draft'] and existing['target_commitish'] != os.environ['GITHUB_SHA']:
-              raise SystemExit('Rascunho existente aponta para outro commit; publicação interrompida.')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write('publish=' + str(publish).lower() + '\n')
-          PY
+          python3 scripts/alpha_release.py
       - name: Download signed Android package
         if: steps.release.outputs.publish == 'true'
         uses: actions/download-artifact@v4
@@ -256,18 +274,30 @@ jobs:
           test -s packages/windows/finapp.exe
           test -d packages/windows/data
           mkdir -p release-assets
-          cp packages/android/app-release.apk release-assets/somia-v0.1.0-alpha-android.apk
+          cp packages/android/app-release.apk "release-assets/somia-v${SOMIA_VERSION}-android.apk"
           cp packages/android/signing-info.txt release-assets/signing-info.txt
-          (cd packages/windows && zip -qr ../../release-assets/somia-v0.1.0-alpha-windows-x64.zip .)
-          (cd release-assets && sha256sum somia-v0.1.0-alpha-android.apk somia-v0.1.0-alpha-windows-x64.zip signing-info.txt > SHA256SUMS.txt)
+          (cd packages/windows && zip -qr "../../release-assets/somia-v${SOMIA_VERSION}-windows-x64.zip" .)
+          (cd release-assets && sha256sum "somia-v${SOMIA_VERSION}-android.apk" "somia-v${SOMIA_VERSION}-windows-x64.zip" signing-info.txt > SHA256SUMS.txt)
       - name: Publish alpha release at verified commit
         if: steps.release.outputs.publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          tag=v0.1.0-alpha
+          tag="v${SOMIA_VERSION}"
+          # Never attach new binaries to a tag pointing to another commit.
+          if gh api "repos/$GH_REPO/git/ref/tags/$tag" > "$RUNNER_TEMP/somia-tag.json" 2>/dev/null; then
+            tag_type="$(python3 -c "import json; print(json.load(open('$RUNNER_TEMP/somia-tag.json'))['object']['type'])")"
+            tag_sha="$(python3 -c "import json; print(json.load(open('$RUNNER_TEMP/somia-tag.json'))['object']['sha'])")"
+            if [[ "$tag_type" == "tag" ]]; then
+              tag_sha="$(gh api "repos/$GH_REPO/git/tags/$tag_sha" --jq '.object.sha')"
+            fi
+            if [[ "$tag_sha" != "$GITHUB_SHA" ]]; then
+              echo "A tag existente aponta para outro commit; publicação interrompida."
+              exit 1
+            fi
+          fi
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --title "Somia v0.1.0-alpha" --notes-file CHANGELOG.md --prerelease --draft
+            gh release create "$tag" --target "$GITHUB_SHA" --title "Somia $tag" --notes-file "$SOMIA_RELEASE_NOTES" --prerelease --draft
           fi
           gh release upload "$tag" release-assets/* --clobber
-          gh release edit "$tag" --draft=false --prerelease --notes-file CHANGELOG.md
+          gh release edit "$tag" --draft=false --prerelease --notes-file "$SOMIA_RELEASE_NOTES"

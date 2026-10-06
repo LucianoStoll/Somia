@@ -1,3 +1,5 @@
+import '../../../core/series/movement_series.dart';
+
 enum TransactionType {
   expense('Despesa'),
   income('Receita');
@@ -13,6 +15,15 @@ enum TransactionDateField { posted, due, effective }
 class FinancialTransaction {
   const FinancialTransaction({
     required this.id,
+    this.series,
+    this.cardId,
+    this.cardInvoiceMonth,
+    this.cardInvoiceId,
+    this.cardBalanceMinor = 0,
+    this.cardScheduledMinor = 0,
+    this.cardEntryCount = 0,
+    this.cardLastPaymentId,
+    this.cardPaymentSignature = '',
     required this.description,
     required this.type,
     required this.amountMinor,
@@ -28,6 +39,12 @@ class FinancialTransaction {
   });
 
   final String id;
+  final SeriesInfo? series;
+  final String? cardId;
+  final DateTime? cardInvoiceMonth;
+  final String? cardInvoiceId, cardLastPaymentId;
+  final int cardBalanceMinor, cardScheduledMinor, cardEntryCount;
+  final String cardPaymentSignature;
   final String description;
   final TransactionType type;
   final int amountMinor;
@@ -53,6 +70,11 @@ class TransactionDraft {
     this.dueDate,
     this.effectiveDate,
     required this.isEffective,
+    this.seriesPlan,
+    this.cardId,
+    this.cardInvoiceMonth,
+    this.cardFirstInstallment = 1,
+    this.scope = SeriesScope.onlyThis,
     required this.accountId,
     this.categoryId,
   });
@@ -64,6 +86,11 @@ class TransactionDraft {
   final DateTime? dueDate;
   final DateTime? effectiveDate;
   final bool isEffective;
+  final SeriesPlan? seriesPlan;
+  final String? cardId;
+  final DateTime? cardInvoiceMonth;
+  final int cardFirstInstallment;
+  final SeriesScope scope;
   final String accountId;
   final String? categoryId;
 }

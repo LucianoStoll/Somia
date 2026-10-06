@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/core/database/backup_service.dart';
+import 'package:finapp/core/database/local_backup_store.dart';
 import 'package:finapp/core/database/schema_v1.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -95,6 +96,28 @@ void main() {
             .read<String>('name'),
         'Atual');
     await previous.close();
+  });
+
+  test('backup v1 migra e aplica sem reabrir a conexão operacional', () async {
+    final directory = await Directory.systemTemp.createTemp('somia-live-v1-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File(p.join(directory.path, 'v1.sqlite'));
+    final legacy = _LegacyV1(NativeDatabase(file));
+    await legacy.customStatement(
+        "INSERT INTO accounts (id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES ('a','Legada','cash','BRL',100,1,1)");
+    await legacy.close();
+    final current = AppDatabase(NativeDatabase.memory());
+    addTearDown(current.close);
+    await BackupService.restoreOpen(
+        current, LocalBackupStore(directory), await file.readAsBytes());
+    expect(
+        (await current
+                .customSelect('SELECT name, include_in_balance FROM accounts')
+                .getSingle())
+            .data,
+        {'name': 'Legada', 'include_in_balance': 1});
+    expect(await current.customSelect('SELECT * FROM credit_cards').get(),
+        isEmpty);
   });
 
   test('arquivo inválido não substitui o banco existente', () async {

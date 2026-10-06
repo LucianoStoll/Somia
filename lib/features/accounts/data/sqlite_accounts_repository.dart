@@ -25,8 +25,8 @@ class SqliteAccountsRepository implements AccountsRepository {
     await _db.customStatement('''
       INSERT INTO accounts
         (id, name, type, currency_code, initial_balance_minor,
-         include_in_analytics, include_in_balance, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         include_in_analytics, include_in_balance, institution_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       id,
       draft.name.trim(),
@@ -35,6 +35,7 @@ class SqliteAccountsRepository implements AccountsRepository {
       draft.initialBalanceMinor,
       draft.includeInAnalytics ? 1 : 0,
       draft.includeInBalance ? 1 : 0,
+      draft.institutionId,
       now,
       now
     ]);
@@ -48,24 +49,28 @@ class SqliteAccountsRepository implements AccountsRepository {
     if (current.currencyCode != draft.currencyCode.toUpperCase()) {
       final references = await _db.customSelect('''
         SELECT
-          (SELECT COUNT(*) FROM transactions WHERE account_id = ? AND deleted_at IS NULL) +
+          (SELECT COUNT(*) FROM transactions WHERE account_id = ?) +
           (SELECT COUNT(*) FROM transfers WHERE
-             (source_account_id = ? OR destination_account_id = ?) AND deleted_at IS NULL)
+             (source_account_id = ? OR destination_account_id = ?)) +
+          (SELECT COUNT(*) FROM credit_cards WHERE payment_account_id = ?) +
+          (SELECT COUNT(*) FROM card_payments WHERE account_id = ?)
           AS total
       ''', variables: [
+        Variable.withString(id),
+        Variable.withString(id),
         Variable.withString(id),
         Variable.withString(id),
         Variable.withString(id)
       ]).getSingle();
       if (references.read<int>('total') > 0) {
         throw StateError(
-            'Não é possível trocar a moeda de uma conta com lançamentos.');
+            'Não é possível trocar a moeda de uma conta com vínculos financeiros ou histórico.');
       }
     }
     await _db.customStatement('''
       UPDATE accounts SET name = ?, type = ?, currency_code = ?,
         initial_balance_minor = ?, include_in_analytics = ?,
-        include_in_balance = ?, updated_at = ?,
+        include_in_balance = ?, institution_id = ?, updated_at = ?,
         sync_version = sync_version + 1
       WHERE id = ? AND deleted_at IS NULL
     ''', [
@@ -75,6 +80,7 @@ class SqliteAccountsRepository implements AccountsRepository {
       draft.initialBalanceMinor,
       draft.includeInAnalytics ? 1 : 0,
       draft.includeInBalance ? 1 : 0,
+      draft.institutionId,
       EntityMetadata.nowUtcMillis(),
       id
     ]);
@@ -112,6 +118,7 @@ class SqliteAccountsRepository implements AccountsRepository {
         isArchived: row.read<int>('is_archived') == 1,
         includeInAnalytics: row.read<int>('include_in_analytics') == 1,
         includeInBalance: row.read<int>('include_in_balance') == 1,
+        institutionId: row.readNullable<String>('institution_id'),
       );
 
   void _validate(AccountDraft draft) {

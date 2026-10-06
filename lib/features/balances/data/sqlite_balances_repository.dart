@@ -27,6 +27,12 @@ Future<List<QueryRow>> balanceRows(AppDatabase db,
     Variable.withInt(asOfEnd),
     Variable.withInt(asOfEnd),
     Variable.withInt(asOfEnd),
+    Variable.withInt(asOfEnd),
+    if (end != null) Variable.withInt(end),
+    Variable.withInt(asOfEnd),
+    if (end != null) Variable.withInt(end),
+    Variable.withInt(asOfEnd),
+    if (end != null) Variable.withInt(end),
     if (end != null) Variable.withInt(end),
     Variable.withInt(asOfEnd),
     if (end != null) Variable.withInt(end),
@@ -47,6 +53,8 @@ Future<List<QueryRow>> balanceRows(AppDatabase db,
                 WHERE (f.source_account_id = a.id OR f.destination_account_id = a.id)
                   AND f.effective_at IS NOT NULL $transferEffectiveUntil
                   AND f.deleted_at IS NULL), 0)
+      - COALESCE((SELECT SUM(p.amount_minor) FROM card_payments p
+         WHERE p.account_id=a.id AND p.deleted_at IS NULL AND p.effective_at < ?),0)
       AS current_balance_minor,
       COALESCE((SELECT SUM(CASE WHEN t.type = 'income'
                       THEN t.planned_amount_minor ELSE -t.planned_amount_minor END)
@@ -60,6 +68,16 @@ Future<List<QueryRow>> balanceRows(AppDatabase db,
                 WHERE (f.source_account_id = a.id OR f.destination_account_id = a.id)
                   AND $transferPending AND f.deleted_at IS NULL
                   $transferUntil), 0)
+      - COALESCE((SELECT SUM(p.amount_minor) FROM card_payments p
+         WHERE p.account_id=a.id AND p.deleted_at IS NULL AND p.effective_at >= ?
+         ${end == null ? '' : 'AND p.effective_at < ?'}),0)
+      - COALESCE((SELECT SUM(MAX(0,
+          COALESCE((SELECT SUM(e.amount_minor) FROM card_entries e JOIN card_invoices i ON i.id=e.invoice_id
+            WHERE e.card_id=c.id AND e.deleted_at IS NULL ${end == null ? '' : 'AND i.due_at < ?'}),0)
+          - COALESCE((SELECT SUM(p.amount_minor) FROM card_payments p JOIN card_invoices i ON i.id=p.invoice_id
+            WHERE i.card_id=c.id AND p.deleted_at IS NULL
+            AND (p.effective_at < ? ${end == null ? 'OR 1=1' : 'OR p.effective_at < ?'})),0)))
+         FROM credit_cards c WHERE c.payment_account_id=a.id AND c.deleted_at IS NULL),0)
       AS pending_balance_minor
     FROM accounts a
     WHERE a.deleted_at IS NULL

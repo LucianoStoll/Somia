@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'dashboard_category_chart.dart';
+import 'history_tooltip_chart.dart';
+import 'balance_details_panel.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -143,20 +145,22 @@ class _CurrencySection extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (showCurrency)
         Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(code)),
-      _MetricCard(
-        key: ValueKey('mobile-balance-$code'),
-        wide: true,
-        label: future ? 'Saldo previsto' : 'Saldo do mês',
-        amount: future
-            ? currency.projectedBalanceMinor
-            : currency.currentBalanceMinor,
-        code: code,
-        color: SomiaColors.blue,
-        icon: Icons.account_balance_wallet_outlined,
-        detail: future
-            ? 'Saldo efetivado: ${_money(currency.currentBalanceMinor, code)}'
-            : 'Saldo projetado: ${_money(currency.projectedBalanceMinor, code)}',
-      ),
+      BalanceDetailCard(
+          currencyCode: code,
+          child: _MetricCard(
+            key: ValueKey('mobile-balance-$code'),
+            wide: true,
+            label: future ? 'Saldo previsto' : 'Saldo do mês',
+            amount: future
+                ? currency.projectedBalanceMinor
+                : currency.currentBalanceMinor,
+            code: code,
+            color: SomiaColors.blue,
+            icon: Icons.account_balance_wallet_outlined,
+            detail: future
+                ? 'Saldo efetivado: ${_money(currency.currentBalanceMinor, code)}'
+                : 'Saldo projetado: ${_money(currency.projectedBalanceMinor, code)}',
+          )),
       const SizedBox(height: 10),
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(
@@ -389,43 +393,58 @@ class _HistoryPanel extends StatelessWidget {
                     )),
                 const SizedBox(width: 7),
                 Expanded(
-                    child: Column(children: [
-                  Expanded(
-                      child: Stack(fit: StackFit.expand, children: [
-                    CustomPaint(painter: _GridPainter()),
-                    Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      for (final item in currency.history)
-                        Expanded(
-                            child: Semantics(
-                          label:
-                              '${monthNames[item.month.month - 1]}: receitas ${_money(item.incomeMinor, currency.currencyCode)}, despesas ${_money(item.expenseMinor, currency.currencyCode)}',
-                          child: ExcludeSemantics(
-                              child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  _bar(item.incomeMinor, ceiling,
-                                      SomiaColors.green),
-                                  const SizedBox(width: 3),
-                                  _bar(item.expenseMinor, ceiling,
-                                      SomiaColors.red),
-                                ]),
-                          )),
-                        )),
-                    ]),
-                  ])),
-                  const SizedBox(height: 7),
-                  Row(children: [
-                    for (final item in currency.history)
-                      Expanded(
-                          child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(_shortMonths[item.month.month - 1],
-                                  style: const TextStyle(
-                                      fontSize: 10, color: SomiaColors.muted))))
-                  ]),
-                ])),
+                    child: HistoryTooltipChart(
+                        history: currency.history,
+                        currencyCode: currency.currencyCode,
+                        builder: (target) =>
+                            Stack(fit: StackFit.expand, children: [
+                              Positioned.fill(
+                                  bottom: 22,
+                                  child: CustomPaint(painter: _GridPainter())),
+                              Row(children: [
+                                for (final item in currency.history)
+                                  Expanded(
+                                      child: target(
+                                          item,
+                                          ExcludeSemantics(
+                                              child: Padding(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(horizontal: 4),
+                                                  child: Column(children: [
+                                                    Expanded(
+                                                        child: Row(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .end,
+                                                            children: [
+                                                          _bar(
+                                                              item.incomeMinor,
+                                                              ceiling,
+                                                              SomiaColors
+                                                                  .green),
+                                                          const SizedBox(
+                                                              width: 3),
+                                                          _bar(
+                                                              item.expenseMinor,
+                                                              ceiling,
+                                                              SomiaColors.red)
+                                                        ])),
+                                                    const SizedBox(height: 7),
+                                                    FittedBox(
+                                                        fit: BoxFit.scaleDown,
+                                                        child: Text(
+                                                            _shortMonths[item
+                                                                    .month
+                                                                    .month -
+                                                                1],
+                                                            style: const TextStyle(
+                                                                fontSize: 10,
+                                                                color:
+                                                                    SomiaColors
+                                                                        .muted)))
+                                                  ])))))
+                              ]),
+                            ]))),
               ])),
         const SizedBox(height: 10),
         const Wrap(

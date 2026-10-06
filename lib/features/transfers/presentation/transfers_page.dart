@@ -1,6 +1,13 @@
+import '../../../core/series/movement_series.dart';
+import '../../../core/series/series_form.dart';
+import '../../accounts/presentation/account_identity.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/movement_form_frame.dart';
+import '../../../core/widgets/unsaved_changes_guard.dart';
+import '../../../core/widgets/movement_list_row.dart';
+import '../../../core/widgets/effectuation_feedback.dart';
+import '../../../core/widgets/monetary_calculator.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,6 +15,7 @@ import '../../../core/di/injection.dart';
 import '../../../core/filters/reference_month.dart';
 import '../../../core/widgets/month_selector.dart';
 import '../../../core/routing/somia_shell.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/effectuation_date_dialog.dart';
 import '../../accounts/domain/account.dart';
 import '../../accounts/domain/accounts_repository.dart';
@@ -42,6 +50,7 @@ class _TransfersView extends StatefulWidget {
 
 class _TransfersViewState extends State<_TransfersView> {
   bool _openedInitial = false;
+  final _changingStatus = <String>{};
   DateTimeRange? _range;
   bool _customPeriod = false;
   String? _accountId;
@@ -134,8 +143,8 @@ class _TransfersViewState extends State<_TransfersView> {
                                     for (final account in accounts)
                                       DropdownMenuItem(
                                           value: account.id,
-                                          child: Text(account.name,
-                                              overflow: TextOverflow.ellipsis))
+                                          child:
+                                              AccountOption(account: account))
                                   ],
                                   onChanged: (id) {
                                     setState(() =>
@@ -195,7 +204,7 @@ class _TransfersViewState extends State<_TransfersView> {
                                     final picked = await showDateRangePicker(
                                         context: context,
                                         firstDate: DateTime(2000),
-                                        lastDate: DateTime(2100),
+                                        lastDate: DateTime(2100, 12, 31),
                                         initialDateRange:
                                             _range ?? _monthRange);
                                     if (picked != null && mounted) {
@@ -222,9 +231,15 @@ class _TransfersViewState extends State<_TransfersView> {
   }
 
   Future<void> _edit(BuildContext context, [Transfer? item]) async {
+    final scope = item?.series == null
+        ? SeriesScope.onlyThis
+        : await chooseSeriesScope(context, deleting: false);
+    if (scope == null || !context.mounted) return;
     final cubit = context.read<TransfersCubit>();
-    final draft = await showMovementForm<TransferDraft>(context,
-        (_) => TransferForm(item: item, accounts: cubit.state.accounts));
+    final draft = await showMovementForm<TransferDraft>(
+        context,
+        (_) => TransferForm(
+            item: item, scope: scope, accounts: cubit.state.accounts));
     if (!context.mounted) return;
     if (draft == null) {
       if (item == null && widget.startCreate) context.go('/transfers');
@@ -241,11 +256,17 @@ class _TransfersViewState extends State<_TransfersView> {
   }
 
   Future<void> _delete(BuildContext context, Transfer item) async {
+    final scope = item.series == null
+        ? SeriesScope.onlyThis
+        : await chooseSeriesScope(context, deleting: true);
+    if (scope == null || !context.mounted) return;
     final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialog) => AlertDialog(
               title: const Text('Excluir transferência?'),
-              content: const Text('O valor sairá dos saldos das duas contas.'),
+              content: Text(scope == SeriesScope.thisAndNext
+                  ? 'As transferências pendentes desta posição em diante sairão da lista e das projeções das duas contas.'
+                  : 'O valor sairá dos saldos das duas contas.'),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(dialog, false),
@@ -257,22 +278,83 @@ class _TransfersViewState extends State<_TransfersView> {
             ));
     if (confirmed != true || !context.mounted) return;
     try {
-      await context.read<TransfersCubit>().delete(item.id);
+      await context.read<TransfersCubit>().delete(item.id, scope: scope);
     } catch (error) {
       if (context.mounted) _showError(context, error);
     }
   }
 
-  Future<void> _setEffective(BuildContext context, Transfer item) async {
-    final chosen =
-        await chooseEffectuationDate(context, item.dueDate ?? item.date);
-    if (chosen == null || !context.mounted) return;
+  Future<void> _markPending(Transfer item) async {
+    if (_changingStatus.contains(item.id) || item.effectiveDate == null) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    await _changeDate(item.id, item.effectiveDate!);
+  }
+
+  Future<void> _editAmount(Transfer item) async {
+    if (!mounted || _changingStatus.contains(item.id)) return;
+    setState(() => _changingStatus.add(item.id));
+    try {
+      final amount = await showMonetaryCalculator(context,
+          initialMinor: item.amountMinor,
+          currencyCode: item.currencyCode,
+          minimumMinor: 1);
+      if (!mounted || amount == null || amount == item.amountMinor) return;
+      final scope = item.series == null
+          ? SeriesScope.onlyThis
+          : await chooseSeriesScope(context, deleting: false);
+      if (scope == null || !mounted) return;
+      await context.read<TransfersCubit>().updateAmount(item.id,
+          expectedAmountMinor: item.amountMinor,
+          amountMinor: amount,
+          scope: scope);
+    } catch (error) {
+      if (mounted) _showError(context, error);
+    } finally {
+      if (mounted) setState(() => _changingStatus.remove(item.id));
+    }
+  }
+
+  Future<void> _quickEffective(Transfer item) async {
+    if (!mounted || item.isEffective || _changingStatus.contains(item.id)) {
+      return;
+    }
+    setState(() => _changingStatus.add(item.id));
+    final today = DateUtils.dateOnly(DateTime.now());
     try {
       await context
           .read<TransfersCubit>()
-          .setEffective(item.id, effective: true, effectiveDate: chosen);
+          .setEffective(item.id, effective: true, effectiveDate: today);
+      if (!mounted) return;
+      showEffectuationFeedback(context,
+          message: 'Transferência efetivada hoje.',
+          undo: () => _changeDate(item.id, today, restore: item.effectiveDate),
+          adjustDate: () => _changeDate(item.id, today, pick: true));
     } catch (error) {
-      if (context.mounted) _showError(context, error);
+      if (mounted) _showError(context, error);
+    } finally {
+      if (mounted) setState(() => _changingStatus.remove(item.id));
+    }
+  }
+
+  Future<void> _changeDate(String id, DateTime expected,
+      {DateTime? restore, bool pick = false}) async {
+    if (!mounted || _changingStatus.contains(id)) return;
+    setState(() => _changingStatus.add(id));
+    try {
+      final chosen = pick
+          ? await showDatePicker(
+              context: context,
+              initialDate: expected,
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100, 12, 31))
+          : restore;
+      if (!mounted || (pick && chosen == null)) return;
+      await context.read<TransfersCubit>().changeEffectiveDate(id,
+          expectedDate: expected, effectiveDate: chosen);
+    } catch (error) {
+      if (mounted) _showError(context, error);
+    } finally {
+      if (mounted) setState(() => _changingStatus.remove(id));
     }
   }
 
@@ -354,41 +436,50 @@ class _TransfersViewState extends State<_TransfersView> {
               itemCount: state.items.length,
               itemBuilder: (context, index) {
                 final item = state.items[index];
-                return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: const Icon(Icons.swap_horiz),
-                      title: Text(item.description,
-                          maxLines: 2, overflow: TextOverflow.ellipsis),
-                      subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                '${item.sourceAccountName} → ${item.destinationAccountName}'),
-                            Text('Lançamento ${_dateLabel(item.date)} · '
-                                'Vencimento ${_dateLabel(item.dueDate ?? item.date)} · '
-                                '${item.effectiveDate == null ? 'Pendente' : item.isEffective ? 'Efetivada ${_dateLabel(item.effectiveDate!)}' : 'Agendada ${_dateLabel(item.effectiveDate!)}'}'),
-                            Text(MoneyMinor.display(
-                                item.amountMinor, item.currencyCode)),
-                            if (!item.isEffective)
-                              TextButton.icon(
-                                  onPressed: () => _setEffective(context, item),
-                                  icon: const Icon(Icons.check_circle_outline),
-                                  label: const Text('Efetivar')),
-                          ]),
-                      trailing: PopupMenuButton<String>(
-                          tooltip: 'Ações da transferência',
-                          onSelected: (action) => action == 'edit'
-                              ? _edit(context, item)
-                              : _delete(context, item),
-                          itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                    value: 'edit', child: Text('Editar')),
-                                PopupMenuItem(
-                                    value: 'delete', child: Text('Excluir')),
-                              ]),
-                      onTap: () => _edit(context, item),
-                    ));
+                return MovementListRow(
+                  id: item.id,
+                  description: item.description,
+                  tags: [if (item.series != null) item.series!.label],
+                  account:
+                      '${item.sourceAccountName} → ${item.destinationAccountName}',
+                  amount:
+                      MoneyMinor.display(item.amountMinor, item.currencyCode),
+                  dueDate: item.dueDate ?? item.date,
+                  effectiveDate: item.effectiveDate,
+                  effective: item.isEffective,
+                  busy: _changingStatus.contains(item.id),
+                  color: SomiaColors.blue,
+                  onEdit: () => _edit(context, item),
+                  onEffective: () => _quickEffective(item),
+                  onPending: () => _markPending(item),
+                  onAmount: () => _editAmount(item),
+                  menu: PopupMenuButton<String>(
+                    key: ValueKey('movement-menu-${item.id}'),
+                    enabled: !_changingStatus.contains(item.id),
+                    tooltip: 'Ações da transferência',
+                    icon: const Icon(Icons.more_vert, size: 20),
+                    onSelected: (action) {
+                      if (action == 'edit') _edit(context, item);
+                      if (action == 'delete') _delete(context, item);
+                      if (action == 'pending') _markPending(item);
+                      if (action == 'date' && item.effectiveDate != null) {
+                        _changeDate(item.id, item.effectiveDate!, pick: true);
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Editar')),
+                      if (item.effectiveDate != null) ...[
+                        const PopupMenuItem(
+                            value: 'date', child: Text('Ajustar data')),
+                        const PopupMenuItem(
+                            value: 'pending',
+                            child: Text('Marcar como pendente')),
+                      ],
+                      const PopupMenuItem(
+                          value: 'delete', child: Text('Excluir')),
+                    ],
+                  ),
+                );
               },
             );
           })),
@@ -397,10 +488,15 @@ class _TransfersViewState extends State<_TransfersView> {
 }
 
 class TransferForm extends StatefulWidget {
-  const TransferForm({super.key, required this.accounts, this.item});
+  const TransferForm(
+      {super.key,
+      required this.accounts,
+      this.item,
+      this.scope = SeriesScope.onlyThis});
 
   final List<Account> accounts;
   final Transfer? item;
+  final SeriesScope scope;
 
   @override
   State<TransferForm> createState() => TransferFormState();
@@ -408,6 +504,13 @@ class TransferForm extends StatefulWidget {
 
 class TransferFormState extends State<TransferForm> {
   final _formKey = GlobalKey<FormState>();
+  final _series = SeriesFormController();
+  bool get _forcePending =>
+      _series.active || widget.scope == SeriesScope.thisAndNext;
+  void _seriesChanged() {
+    if (mounted) setState(() {});
+  }
+
   late final TextEditingController _amount;
   late final TextEditingController _description;
   final _descriptionFocus = FocusNode();
@@ -436,6 +539,7 @@ class TransferFormState extends State<TransferForm> {
   @override
   void initState() {
     super.initState();
+    _series.addListener(_seriesChanged);
     _description = TextEditingController(text: widget.item?.description ?? '');
     _amount = TextEditingController(
         text: MoneyMinor.plain(widget.item?.amountMinor ?? 0));
@@ -450,6 +554,7 @@ class TransferFormState extends State<TransferForm> {
 
   @override
   void dispose() {
+    _series.dispose();
     _description.dispose();
     _descriptionFocus.dispose();
     _amountFocus.dispose();
@@ -466,7 +571,7 @@ class TransferFormState extends State<TransferForm> {
                 ? _dueDate
                 : _effectiveDate ?? DateTime.now(),
         firstDate: DateTime(2000),
-        lastDate: DateTime(2100));
+        lastDate: DateTime(2100, 12, 31));
     if (picked != null && mounted) {
       setState(() {
         if (field == 'posted') {
@@ -482,8 +587,23 @@ class TransferFormState extends State<TransferForm> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    var effective = _isEffective ? _effectiveDate ?? DateTime.now() : null;
-    if (_isEffective &&
+    if (_series.active) {
+      try {
+        _series.plan!.amounts(MoneyMinor.parse(_amount.text));
+        if (_series.plan!.dateAt(_date, _series.plan!.count - 1).year > 2100 ||
+            _series.plan!.dateAt(_dueDate, _series.plan!.count - 1).year >
+                2100) {
+          throw const FormatException('A série deve terminar até o ano 2100.');
+        }
+      } on FormatException catch (error) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+        return;
+      }
+    }
+    final isEffective = !_forcePending && _isEffective;
+    var effective = isEffective ? _effectiveDate ?? DateTime.now() : null;
+    if (isEffective &&
         widget.item?.effectiveDate == null &&
         !DateUtils.isSameDay(_dueDate, DateTime.now())) {
       effective = await chooseEffectuationDate(context, _dueDate);
@@ -500,118 +620,138 @@ class TransferFormState extends State<TransferForm> {
             date: _date,
             dueDate: _dueDate,
             effectiveDate: effective,
-            isEffective: _isEffective));
+            isEffective: isEffective,
+            seriesPlan: _series.plan,
+            scope: widget.scope));
   }
 
   @override
-  Widget build(BuildContext context) => MovementFormFrame(
-        title:
-            widget.item == null ? 'Nova transferência' : 'Editar transferência',
-        onSave: _submit,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 16,
-            children: [
-              TextFormField(
-                controller: _description,
-                focusNode: _descriptionFocus,
-                autofocus:
-                    widget.item == null && usesFullScreenMovementForm(context),
-                textInputAction: TextInputAction.next,
-                scrollPadding: const EdgeInsets.all(100),
-                decoration: const InputDecoration(labelText: 'Descrição'),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Informe a descrição.'
-                    : null,
-                onFieldSubmitted: (_) {
-                  _amountFocus.requestFocus();
-                  _amount.selection = TextSelection(
-                      baseOffset: 0, extentOffset: _amount.text.length);
-                },
-              ),
-              TextFormField(
-                  controller: _amount,
-                  focusNode: _amountFocus,
-                  scrollPadding: const EdgeInsets.all(100),
-                  style: const TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.w600),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Valor'),
-                  validator: (value) {
-                    try {
-                      return MoneyMinor.parse(value ?? '') > 0
-                          ? null
-                          : 'O valor deve ser maior que zero.';
-                    } on FormatException catch (error) {
-                      return error.message;
-                    }
-                  }),
-              DropdownButtonFormField<String>(
-                key: ValueKey('source-$_sourceId'),
-                isExpanded: true,
-                initialValue: _sourceId,
-                decoration: const InputDecoration(labelText: 'Conta de origem'),
-                items: _sources
-                    .map((a) => DropdownMenuItem(
-                        value: a.id,
-                        child: Text(
-                            '${a.name} (${a.currencyCode})'
-                            '${a.isArchived ? ' · arquivada' : ''}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis)))
-                    .toList(),
-                validator: (id) =>
-                    id == null ? 'Selecione uma conta de origem.' : null,
-                onChanged: (id) => setState(() {
-                  _sourceId = id;
-                  if (!_destinations.any((a) => a.id == _destinationId)) {
-                    _destinationId = _destinations.firstOrNull?.id;
-                  }
-                }),
-              ),
-              DropdownButtonFormField<String>(
-                key: ValueKey('destination-$_sourceId'),
-                isExpanded: true,
-                initialValue: _destinationId,
-                decoration:
-                    const InputDecoration(labelText: 'Conta de destino'),
-                items: _destinations
-                    .map((a) => DropdownMenuItem(
-                        value: a.id,
-                        child: Text(
-                            '${a.name} (${a.currencyCode})'
-                            '${a.isArchived ? ' · arquivada' : ''}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis)))
-                    .toList(),
-                validator: (id) =>
-                    id == null ? 'Selecione outra conta da mesma moeda.' : null,
-                onChanged: (id) => setState(() => _destinationId = id),
-              ),
-              MovementDateFields(
-                posted: _date,
-                due: _dueDate,
-                onPosted: () => _pickDate('posted'),
-                onDue: () => _pickDate('due'),
-              ),
-              SwitchListTile(
-                  title: const Text('Efetivada'),
-                  subtitle: const Text('A data movimenta as duas contas'),
-                  value: _isEffective,
-                  onChanged: (value) => setState(() => _isEffective = value)),
-              if (_isEffective)
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Data de efetivação'),
-                    subtitle:
-                        Text(_dateLabel(_effectiveDate ?? DateTime.now())),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: () => _pickDate('effective')),
-            ],
+  Widget build(BuildContext context) => UnsavedChangesGuard(
+      value: () => (
+            _description.text,
+            _amount.text,
+            _sourceId,
+            _destinationId,
+            _date,
+            _dueDate,
+            _effectiveDate,
+            _isEffective,
+            _series.snapshot
           ),
-        ),
-      );
+      builder: (context, cancel) => MovementFormFrame(
+            onCancel: cancel,
+            title: widget.item == null
+                ? 'Nova transferência'
+                : 'Editar transferência',
+            onSave: _submit,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 16,
+                children: [
+                  TextFormField(
+                    controller: _description,
+                    focusNode: _descriptionFocus,
+                    autofocus: widget.item == null &&
+                        usesFullScreenMovementForm(context),
+                    textInputAction: TextInputAction.next,
+                    scrollPadding: const EdgeInsets.all(100),
+                    decoration: const InputDecoration(labelText: 'Descrição'),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Informe a descrição.'
+                        : null,
+                    onFieldSubmitted: (_) {
+                      _amountFocus.requestFocus();
+                      _amount.selection = TextSelection(
+                          baseOffset: 0, extentOffset: _amount.text.length);
+                    },
+                  ),
+                  MonetaryCalculatorField(
+                      controller: _amount,
+                      labelText: _series.kind == SeriesKind.installments
+                          ? (_series.amountIsTotal
+                              ? 'Valor total'
+                              : 'Valor por parcela')
+                          : 'Valor',
+                      focusNode: _amountFocus,
+                      currencyCode: widget.accounts
+                              .where((a) => a.id == _sourceId)
+                              .firstOrNull
+                              ?.currencyCode ??
+                          'BRL'),
+                  if (widget.item == null || widget.item?.series != null)
+                    SeriesFormFields(
+                        controller: _series,
+                        amount: _amount,
+                        dueDate: _dueDate,
+                        currencyCode: widget.accounts
+                                .where((a) => a.id == _sourceId)
+                                .firstOrNull
+                                ?.currencyCode ??
+                            'BRL',
+                        existing: widget.item?.series),
+                  DropdownButtonFormField<String>(
+                    key: ValueKey('source-$_sourceId'),
+                    isExpanded: true,
+                    initialValue: _sourceId,
+                    decoration:
+                        const InputDecoration(labelText: 'Conta de origem'),
+                    items: _sources
+                        .map((a) => DropdownMenuItem(
+                            value: a.id,
+                            child:
+                                AccountOption(account: a, showCurrency: true)))
+                        .toList(),
+                    validator: (id) =>
+                        id == null ? 'Selecione uma conta de origem.' : null,
+                    onChanged: (id) => setState(() {
+                      _sourceId = id;
+                      if (!_destinations.any((a) => a.id == _destinationId)) {
+                        _destinationId = _destinations.firstOrNull?.id;
+                      }
+                    }),
+                  ),
+                  DropdownButtonFormField<String>(
+                    key: ValueKey('destination-$_sourceId'),
+                    isExpanded: true,
+                    initialValue: _destinationId,
+                    decoration:
+                        const InputDecoration(labelText: 'Conta de destino'),
+                    items: _destinations
+                        .map((a) => DropdownMenuItem(
+                            value: a.id,
+                            child:
+                                AccountOption(account: a, showCurrency: true)))
+                        .toList(),
+                    validator: (id) => id == null
+                        ? 'Selecione outra conta da mesma moeda.'
+                        : null,
+                    onChanged: (id) => setState(() => _destinationId = id),
+                  ),
+                  MovementDateFields(
+                    posted: _date,
+                    due: _dueDate,
+                    onPosted: () => _pickDate('posted'),
+                    onDue: () => _pickDate('due'),
+                  ),
+                  SwitchListTile(
+                      title: const Text('Efetivada'),
+                      subtitle: const Text('A data movimenta as duas contas'),
+                      value: !_forcePending && _isEffective,
+                      onChanged: _forcePending
+                          ? null
+                          : (value) => setState(() => _isEffective = value)),
+                  if (!_forcePending && _isEffective)
+                    ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Data de efetivação'),
+                        subtitle:
+                            Text(_dateLabel(_effectiveDate ?? DateTime.now())),
+                        trailing: const Icon(Icons.calendar_today),
+                        onTap: () => _pickDate('effective')),
+                ],
+              ),
+            ),
+          ));
 }

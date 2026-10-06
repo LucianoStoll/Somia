@@ -1,3 +1,4 @@
+import '../../../core/series/movement_series.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../accounts/domain/account.dart';
@@ -72,8 +73,20 @@ class TransfersCubit extends Cubit<TransfersState> {
     if (!isClosed) await load();
   }
 
-  Future<void> delete(String id) async {
-    await _transfers.delete(id);
+  Future<void> updateAmount(String id,
+      {required int expectedAmountMinor,
+      required int amountMinor,
+      SeriesScope scope = SeriesScope.onlyThis}) async {
+    await _transfers.updateAmount(id,
+        expectedAmountMinor: expectedAmountMinor,
+        amountMinor: amountMinor,
+        scope: scope);
+    if (!isClosed) await load();
+  }
+
+  Future<void> delete(String id,
+      {SeriesScope scope = SeriesScope.onlyThis}) async {
+    await _transfers.delete(id, scope: scope);
     if (!isClosed) await load();
   }
 
@@ -81,6 +94,13 @@ class TransfersCubit extends Cubit<TransfersState> {
       {required bool effective, DateTime? effectiveDate}) async {
     await _transfers.setEffective(id,
         effective: effective, effectiveDate: effectiveDate);
+    if (!isClosed) await load();
+  }
+
+  Future<void> changeEffectiveDate(String id,
+      {required DateTime expectedDate, DateTime? effectiveDate}) async {
+    await _transfers.changeEffectiveDate(id,
+        expectedDate: expectedDate, effectiveDate: effectiveDate);
     if (!isClosed) await load();
   }
 }

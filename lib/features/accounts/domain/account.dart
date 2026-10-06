@@ -21,6 +21,7 @@ class Account {
     required this.isArchived,
     required this.includeInAnalytics,
     this.includeInBalance = true,
+    this.institutionId,
   });
 
   final String id;
@@ -33,6 +34,7 @@ class Account {
   final bool isArchived;
   final bool includeInAnalytics;
   final bool includeInBalance;
+  final String? institutionId;
 }
 
 class AccountDraft {
@@ -43,6 +45,7 @@ class AccountDraft {
     required this.initialBalanceMinor,
     required this.includeInAnalytics,
     this.includeInBalance = true,
+    this.institutionId,
   });
 
   final String name;
@@ -51,4 +54,5 @@ class AccountDraft {
   final int initialBalanceMinor;
   final bool includeInAnalytics;
   final bool includeInBalance;
+  final String? institutionId;
 }

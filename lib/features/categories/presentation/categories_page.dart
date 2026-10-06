@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../core/widgets/unsaved_changes_guard.dart';
+import '../../../core/widgets/movement_form_frame.dart';
 import '../../../core/routing/somia_shell.dart';
 import '../domain/categories_repository.dart';
 import '../domain/category.dart';
@@ -47,9 +49,9 @@ class _CategoriesViewState extends State<_CategoriesView> {
 
   Future<void> _edit([FinanceCategory? category]) async {
     final categories = context.read<CategoriesCubit>().state.categories;
-    final draft = await showDialog<CategoryDraft>(
-      context: context,
-      builder: (_) => _CategoryDialog(
+    final draft = await showMovementForm<CategoryDraft>(
+      context,
+      (_) => CategoryForm(
           category: category, categories: categories, defaultType: _filter),
     );
     if (draft == null || !mounted) return;
@@ -178,18 +180,21 @@ class _CategoriesViewState extends State<_CategoriesView> {
       );
 }
 
-class _CategoryDialog extends StatefulWidget {
-  const _CategoryDialog(
-      {required this.categories, required this.defaultType, this.category});
+class CategoryForm extends StatefulWidget {
+  const CategoryForm(
+      {super.key,
+      required this.categories,
+      required this.defaultType,
+      this.category});
   final FinanceCategory? category;
   final List<FinanceCategory> categories;
   final CategoryType defaultType;
 
   @override
-  State<_CategoryDialog> createState() => _CategoryDialogState();
+  State<CategoryForm> createState() => CategoryFormState();
 }
 
-class _CategoryDialogState extends State<_CategoryDialog> {
+class CategoryFormState extends State<CategoryForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
   late CategoryType _type;
@@ -235,106 +240,119 @@ class _CategoryDialogState extends State<_CategoryDialog> {
             (!category.isArchived || category.id == _parentId) &&
             category.id != widget.category?.id)
         .toList();
-    return AlertDialog(
-      title:
-          Text(widget.category == null ? 'Nova categoria' : 'Editar categoria'),
-      content: SizedBox(
-        width: 400,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child:
-                Column(mainAxisSize: MainAxisSize.min, spacing: 16, children: [
-              TextFormField(
-                controller: _name,
-                decoration: const InputDecoration(labelText: 'Nome'),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Informe o nome.'
-                    : null,
+    return UnsavedChangesGuard(
+        value: () => (_name.text, _type, _parentId, _iconKey, _colorArgb),
+        builder: (context, cancel) => MovementFormFrame(
+              onCancel: cancel,
+              onSave: _submit,
+              saveLabel: 'Salvar categoria',
+              title: widget.category == null
+                  ? 'Nova categoria'
+                  : widget.category!.isSubcategory
+                      ? 'Editar subcategoria'
+                      : 'Editar categoria',
+              child: Form(
+                key: _formKey,
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: 16,
+                    children: [
+                      TextFormField(
+                        controller: _name,
+                        autofocus: widget.category == null &&
+                            usesFullScreenMovementForm(context),
+                        textInputAction: TextInputAction.next,
+                        scrollPadding: const EdgeInsets.all(100),
+                        decoration: const InputDecoration(labelText: 'Nome'),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                                ? 'Informe o nome.'
+                                : null,
+                      ),
+                      DropdownButtonFormField<CategoryType>(
+                        isExpanded: true,
+                        initialValue: _type,
+                        decoration: const InputDecoration(labelText: 'Tipo'),
+                        items: CategoryType.values
+                            .map((type) => DropdownMenuItem(
+                                  value: type,
+                                  child: Text(type.label),
+                                ))
+                            .toList(),
+                        onChanged: (type) {
+                          if (type != null) {
+                            setState(() {
+                              _type = type;
+                              _parentId = null;
+                            });
+                          }
+                        },
+                      ),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        key: ValueKey(_type),
+                        initialValue: _parentId,
+                        decoration: const InputDecoration(
+                            labelText: 'Categoria principal'),
+                        hint: const Text('Nenhuma (categoria principal)'),
+                        items: [
+                          const DropdownMenuItem(
+                              value: '', child: Text('Nenhuma')),
+                          for (final parent in parents)
+                            DropdownMenuItem(
+                                value: parent.id,
+                                child: Text(parent.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis)),
+                        ],
+                        onChanged: (id) => setState(() =>
+                            _parentId = id == null || id.isEmpty ? null : id),
+                      ),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _iconKey,
+                        decoration: const InputDecoration(labelText: 'Ícone'),
+                        items: _icons.entries
+                            .map((entry) => DropdownMenuItem(
+                                  value: entry.key,
+                                  child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(entry.value),
+                                        const SizedBox(width: 8),
+                                        Text(entry.key),
+                                      ]),
+                                ))
+                            .toList(),
+                        onChanged: (key) {
+                          if (key != null) setState(() => _iconKey = key);
+                        },
+                      ),
+                      DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        initialValue: _colorArgb,
+                        decoration: const InputDecoration(labelText: 'Cor'),
+                        items: _colors.entries
+                            .map((entry) => DropdownMenuItem(
+                                  value: entry.key,
+                                  child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.circle,
+                                            color: Color(entry.key)),
+                                        const SizedBox(width: 8),
+                                        Text(entry.value),
+                                      ]),
+                                ))
+                            .toList(),
+                        onChanged: (color) {
+                          if (color != null) {
+                            setState(() => _colorArgb = color);
+                          }
+                        },
+                      ),
+                    ]),
               ),
-              DropdownButtonFormField<CategoryType>(
-                isExpanded: true,
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Tipo'),
-                items: CategoryType.values
-                    .map((type) => DropdownMenuItem(
-                          value: type,
-                          child: Text(type.label),
-                        ))
-                    .toList(),
-                onChanged: (type) {
-                  if (type != null) {
-                    setState(() {
-                      _type = type;
-                      _parentId = null;
-                    });
-                  }
-                },
-              ),
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                key: ValueKey(_type),
-                initialValue: _parentId,
-                decoration:
-                    const InputDecoration(labelText: 'Categoria principal'),
-                hint: const Text('Nenhuma (categoria principal)'),
-                items: [
-                  const DropdownMenuItem(value: '', child: Text('Nenhuma')),
-                  for (final parent in parents)
-                    DropdownMenuItem(
-                        value: parent.id,
-                        child: Text(parent.name,
-                            maxLines: 1, overflow: TextOverflow.ellipsis)),
-                ],
-                onChanged: (id) => setState(
-                    () => _parentId = id == null || id.isEmpty ? null : id),
-              ),
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                initialValue: _iconKey,
-                decoration: const InputDecoration(labelText: 'Ícone'),
-                items: _icons.entries
-                    .map((entry) => DropdownMenuItem(
-                          value: entry.key,
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(entry.value),
-                            const SizedBox(width: 8),
-                            Text(entry.key),
-                          ]),
-                        ))
-                    .toList(),
-                onChanged: (key) {
-                  if (key != null) setState(() => _iconKey = key);
-                },
-              ),
-              DropdownButtonFormField<int>(
-                isExpanded: true,
-                initialValue: _colorArgb,
-                decoration: const InputDecoration(labelText: 'Cor'),
-                items: _colors.entries
-                    .map((entry) => DropdownMenuItem(
-                          value: entry.key,
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.circle, color: Color(entry.key)),
-                            const SizedBox(width: 8),
-                            Text(entry.value),
-                          ]),
-                        ))
-                    .toList(),
-                onChanged: (color) {
-                  if (color != null) setState(() => _colorArgb = color);
-                },
-              ),
-            ]),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar')),
-        FilledButton(onPressed: _submit, child: const Text('Salvar')),
-      ],
-    );
+            ));
   }
 }

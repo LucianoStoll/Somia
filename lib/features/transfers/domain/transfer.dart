@@ -1,6 +1,9 @@
+import '../../../core/series/movement_series.dart';
+
 class Transfer {
   const Transfer({
     required this.id,
+    this.series,
     this.description = 'Transferência',
     required this.sourceAccountId,
     required this.sourceAccountName,
@@ -15,6 +18,7 @@ class Transfer {
   });
 
   final String id;
+  final SeriesInfo? series;
   final String description;
   final String sourceAccountId;
   final String sourceAccountName;
@@ -38,6 +42,8 @@ class TransferDraft {
     this.dueDate,
     this.effectiveDate,
     required this.isEffective,
+    this.seriesPlan,
+    this.scope = SeriesScope.onlyThis,
   });
 
   final String description;
@@ -48,6 +54,8 @@ class TransferDraft {
   final DateTime? dueDate;
   final DateTime? effectiveDate;
   final bool isEffective;
+  final SeriesPlan? seriesPlan;
+  final SeriesScope scope;
 }
 
 enum TransferDateField { posted, due, effective }

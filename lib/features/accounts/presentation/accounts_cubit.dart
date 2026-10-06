@@ -65,7 +65,8 @@ class AccountsCubit extends Cubit<AccountsState> {
           currencyCode: account.currencyCode,
           initialBalanceMinor: account.initialBalanceMinor,
           includeInAnalytics: account.includeInAnalytics,
-          includeInBalance: !account.includeInBalance),
+          includeInBalance: !account.includeInBalance,
+          institutionId: account.institutionId),
       id: account.id);
 
   Future<void> setArchived(Account account) async {

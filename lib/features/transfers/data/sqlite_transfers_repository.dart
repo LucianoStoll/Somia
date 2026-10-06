@@ -1,3 +1,5 @@
+import '../../../core/series/series_store.dart';
+import '../../../core/series/movement_series.dart';
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
@@ -12,6 +14,7 @@ class SqliteTransfersRepository implements TransfersRepository {
 
   static const _select = '''
     SELECT f.id, f.description, f.source_account_id, f.destination_account_id,
+      f.series_id, f.series_index, f.series_kind, f.series_count, f.series_unit, f.series_interval,
       f.amount_minor, f.posted_at, f.due_at, f.effective_at,
       source.name AS source_name, destination.name AS destination_name,
       source.currency_code AS currency_code
@@ -25,19 +28,81 @@ class SqliteTransfersRepository implements TransfersRepository {
     final rows = await _db.customSelect('''
       $_select WHERE f.deleted_at IS NULL
       ${accountId == null ? '' : 'AND (f.source_account_id = ? OR f.destination_account_id = ?)'}
-      ORDER BY f.due_at DESC, f.id DESC
-    ''',
-        variables: accountId == null
-            ? const []
-            : [
-                Variable.withString(accountId),
-                Variable.withString(accountId),
-              ]).get();
+      ORDER BY CASE WHEN f.effective_at < ? THEN 0 ELSE 1 END, f.due_at DESC, f.id DESC
+    ''', variables: [
+      if (accountId != null) ...[
+        Variable.withString(accountId),
+        Variable.withString(accountId),
+      ],
+      Variable.withInt(_dayMillis(DateTime.now().add(const Duration(days: 1)))),
+    ]).get();
     return rows.map(_map).toList();
   }
 
   @override
-  Future<Transfer> create(TransferDraft draft) => _db.transaction(() async {
+  Future<Transfer> create(TransferDraft draft) async {
+    final plan = draft.seriesPlan;
+    if (plan == null) return _createSingle(draft);
+    plan.validate();
+    if (plan.dateAt(draft.date, plan.count - 1).year > 2100 ||
+        plan.dateAt(draft.dueDate ?? draft.date, plan.count - 1).year > 2100) {
+      throw const FormatException('A série deve terminar até o ano 2100.');
+    }
+    final id = await SeriesStore(_db, 'transfers')
+        .create(plan, draft.amountMinor, (index, amount) async {
+      final date = plan.dateAt(draft.date, index);
+      final due = plan.dateAt(draft.dueDate ?? draft.date, index);
+      if (date.year > 2100 || due.year > 2100) {
+        throw const FormatException('A série deve terminar até o ano 2100.');
+      }
+      return (await _createSingle(TransferDraft(
+              description: draft.description,
+              sourceAccountId: draft.sourceAccountId,
+              destinationAccountId: draft.destinationAccountId,
+              amountMinor: amount,
+              date: date,
+              dueDate: due,
+              isEffective: false)))
+          .id;
+    });
+    return _find(id);
+  }
+
+  @override
+  Future<Transfer> update(String id, TransferDraft draft) =>
+      _db.transaction(() async {
+        final store = SeriesStore(_db, 'transfers');
+        final original = await store.row(id);
+        if (draft.scope == SeriesScope.onlyThis ||
+            SeriesStore.info(original) == null) {
+          return _updateSingle(id, draft);
+        }
+        final targets = await store.targets(id, draft.scope);
+        for (final row in targets) {
+          final date =
+              SeriesStore.shiftedDate(row, original, 'posted_at', draft.date);
+          final due = SeriesStore.shiftedDate(
+              row, original, 'due_at', draft.dueDate ?? draft.date);
+          if (date.year > 2100 || due.year > 2100) {
+            throw const FormatException(
+                'A série deve terminar até o ano 2100.');
+          }
+          await _updateSingle(
+              row.read<String>('id'),
+              TransferDraft(
+                  description: draft.description,
+                  sourceAccountId: draft.sourceAccountId,
+                  destinationAccountId: draft.destinationAccountId,
+                  amountMinor: draft.amountMinor,
+                  date: date,
+                  dueDate: due,
+                  isEffective: false));
+        }
+        return _find(id);
+      });
+
+  Future<Transfer> _createSingle(TransferDraft draft) =>
+      _db.transaction(() async {
         _validateDraft(draft);
         await _validateAccounts(draft);
         final id = EntityMetadata.newId();
@@ -65,8 +130,7 @@ class SqliteTransfersRepository implements TransfersRepository {
         return _find(id);
       });
 
-  @override
-  Future<Transfer> update(String id, TransferDraft draft) =>
+  Future<Transfer> _updateSingle(String id, TransferDraft draft) =>
       _db.transaction(() async {
         _validateDraft(draft);
         final current = await _find(id);
@@ -113,15 +177,49 @@ class SqliteTransfersRepository implements TransfersRepository {
       });
 
   @override
-  Future<void> delete(String id) => _db.transaction(() async {
-        await _find(id);
-        final now = EntityMetadata.nowUtcMillis();
-        await _db.customStatement('''
-      UPDATE transfers SET deleted_at = ?, updated_at = ?,
-        sync_version = sync_version + 1
-      WHERE id = ? AND deleted_at IS NULL
-    ''', [now, now, id]);
+  Future<void> updateAmount(String id,
+          {required int expectedAmountMinor,
+          required int amountMinor,
+          SeriesScope scope = SeriesScope.onlyThis}) =>
+      _db.transaction(() async {
+        final store = SeriesStore(_db, 'transfers');
+        final original = await store.row(id);
+        if (original.read<int>('amount_minor') != expectedAmountMinor) {
+          throw StateError(
+              'O valor já mudou. Atualize a lista e tente novamente.');
+        }
+        final targets = await store.targets(id, scope);
+        for (final row in targets) {
+          await _updateAmountSingle(row.read<String>('id'),
+              expectedAmountMinor: row.read<int>('amount_minor'),
+              amountMinor: amountMinor);
+        }
       });
+
+  Future<void> _updateAmountSingle(String id,
+      {required int expectedAmountMinor, required int amountMinor}) async {
+    if (amountMinor <= 0 || amountMinor > 9000000000000000) {
+      throw const FormatException(
+          'Informe um valor maior que zero e dentro do limite.');
+    }
+    final changed = await _db.customUpdate('''
+      UPDATE transfers SET amount_minor = ?,
+        updated_at = ?, sync_version = sync_version + 1
+      WHERE id = ? AND deleted_at IS NULL AND amount_minor = ?
+    ''', variables: [
+      Variable.withInt(amountMinor),
+      Variable.withInt(EntityMetadata.nowUtcMillis()),
+      Variable.withString(id),
+      Variable.withInt(expectedAmountMinor),
+    ]);
+    if (changed != 1) {
+      throw StateError('O valor já mudou. Atualize a lista e tente novamente.');
+    }
+  }
+
+  @override
+  Future<void> delete(String id, {SeriesScope scope = SeriesScope.onlyThis}) =>
+      SeriesStore(_db, 'transfers').delete(id, scope);
 
   @override
   Future<void> setEffective(String id,
@@ -141,6 +239,27 @@ class SqliteTransfersRepository implements TransfersRepository {
     ]);
     if (changed != 1) {
       throw StateError('A transferência já mudou de estado. Atualize a lista.');
+    }
+  }
+
+  @override
+  Future<void> changeEffectiveDate(String id,
+      {required DateTime expectedDate, DateTime? effectiveDate}) async {
+    final changed = await _db.customUpdate('''
+      UPDATE transfers SET effective_at = ?,
+        updated_at = ?, sync_version = sync_version + 1
+      WHERE id = ? AND deleted_at IS NULL AND effective_at = ?
+    ''', variables: [
+      effectiveDate == null
+          ? const Variable<int>(null)
+          : Variable.withInt(_dayMillis(effectiveDate)),
+      Variable.withInt(EntityMetadata.nowUtcMillis()),
+      Variable.withString(id),
+      Variable.withInt(_dayMillis(expectedDate)),
+    ]);
+    if (changed != 1) {
+      throw StateError(
+          'O movimento já mudou. Atualize a lista antes de tentar novamente.');
     }
   }
 
@@ -202,6 +321,7 @@ class SqliteTransfersRepository implements TransfersRepository {
 
   Transfer _map(QueryRow row) => Transfer(
         id: row.read<String>('id'),
+        series: SeriesStore.info(row),
         description: row.read<String>('description'),
         sourceAccountId: row.read<String>('source_account_id'),
         sourceAccountName: row.read<String>('source_name'),

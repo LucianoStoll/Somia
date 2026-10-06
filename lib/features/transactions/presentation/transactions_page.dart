@@ -1,6 +1,16 @@
+import '../data/category_history_repository.dart';
+import '../../cards/data/cards_repository.dart';
+import '../../cards/domain/credit_card.dart';
+import '../../../core/series/movement_series.dart';
+import '../../../core/series/series_form.dart';
+import '../../accounts/presentation/account_identity.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/movement_form_frame.dart';
+import '../../../core/widgets/unsaved_changes_guard.dart';
+import '../../../core/widgets/movement_list_row.dart';
+import '../../../core/widgets/effectuation_feedback.dart';
+import '../../../core/widgets/monetary_calculator.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -160,7 +170,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+      lastDate: DateTime(2100, 12, 31),
       initialDateRange: _range ??
           DateTimeRange(start: DateTime(now.year, now.month, 1), end: now),
     );
@@ -174,17 +184,27 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   Future<void> _edit([FinancialTransaction? item]) async {
+    final scope = item?.series == null
+        ? SeriesScope.onlyThis
+        : await chooseSeriesScope(context, deleting: false);
+    if (scope == null || !mounted) return;
     final cubit = context.read<TransactionsCubit>();
     final state = cubit.state;
+    final cards = getIt.isRegistered<CardsRepository>()
+        ? await getIt<CardsRepository>().list()
+        : <CreditCard>[];
+    if (!mounted) return;
     final draft = await showMovementForm<TransactionDraft>(
       context,
       (_) => TransactionForm(
           item: item,
+          scope: scope,
           fixedType: widget.sectionType,
           initialType: (widget.sectionType == TransactionType.income ||
                   widget.initialCreateType == 'income')
               ? TransactionType.income
               : TransactionType.expense,
+          cards: cards,
           accounts: state.accounts,
           categories: state.categories),
     );
@@ -206,11 +226,17 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   Future<void> _delete(FinancialTransaction item) async {
+    final scope = item.series == null
+        ? SeriesScope.onlyThis
+        : await chooseSeriesScope(context, deleting: true);
+    if (scope == null || !mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
         title: const Text('Excluir lançamento?'),
-        content: Text('“${item.description}” sairá da lista e dos saldos.'),
+        content: Text(scope == SeriesScope.thisAndNext
+            ? 'As ocorrências pendentes desta posição em diante sairão da lista e das projeções.'
+            : '“${item.description}” sairá da lista e dos saldos.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(dialog, false),
@@ -223,49 +249,85 @@ class _TransactionsViewState extends State<_TransactionsView> {
     );
     if (confirmed != true || !mounted) return;
     try {
-      await context.read<TransactionsCubit>().delete(item.id);
+      await context.read<TransactionsCubit>().delete(item.id, scope: scope);
     } catch (error) {
       if (mounted) _showError(error);
     }
   }
 
-  Future<void> _setEffective(FinancialTransaction item, bool effective) async {
-    if (_changingStatus.contains(item.id)) return;
-    final chosen = effective
-        ? await chooseEffectuationDate(context, item.dueDate ?? item.date)
-        : null;
-    if (effective && chosen == null || !mounted) return;
+  Future<void> _markPending(FinancialTransaction item) async {
+    if (item.effectiveDate == null) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    await _changeDate(item.id, item.effectiveDate!);
+  }
+
+  Future<void> _editAmount(FinancialTransaction item) async {
+    if (!mounted || _changingStatus.contains(item.id)) return;
     setState(() => _changingStatus.add(item.id));
-    final cubit = context.read<TransactionsCubit>();
     try {
-      await cubit.setEffective(item.id,
-          effective: effective, effectiveDate: chosen);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(effective
-            ? (chosen!.isAfter(DateUtils.dateOnly(DateTime.now()))
-                ? 'Lançamento agendado.'
-                : 'Lançamento efetivado.')
-            : 'Lançamento voltou a pendente.'),
-        action: item.effectiveDate != null && effective
-            ? null
-            : SnackBarAction(
-                label: 'Desfazer',
-                onPressed: () async {
-                  try {
-                    await cubit.setEffective(item.id,
-                        effective: !effective,
-                        effectiveDate: item.effectiveDate);
-                  } catch (error) {
-                    if (mounted) _showError(error);
-                  }
-                }),
-      ));
+      final amount = await showMonetaryCalculator(context,
+          initialMinor: item.amountMinor,
+          currencyCode: item.currencyCode,
+          minimumMinor: 1);
+      if (!mounted || amount == null || amount == item.amountMinor) return;
+      final scope = item.series == null
+          ? SeriesScope.onlyThis
+          : await chooseSeriesScope(context, deleting: false);
+      if (scope == null || !mounted) return;
+      await context.read<TransactionsCubit>().updateAmount(item.id,
+          expectedAmountMinor: item.amountMinor,
+          amountMinor: amount,
+          scope: scope);
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
       if (mounted) setState(() => _changingStatus.remove(item.id));
+    }
+  }
+
+  Future<void> _quickEffective(FinancialTransaction item) async {
+    if (!mounted || item.isEffective || _changingStatus.contains(item.id)) {
+      return;
+    }
+    setState(() => _changingStatus.add(item.id));
+    final today = DateUtils.dateOnly(DateTime.now());
+    try {
+      await context
+          .read<TransactionsCubit>()
+          .setEffective(item.id, effective: true, effectiveDate: today);
+      if (!mounted) return;
+      showEffectuationFeedback(context,
+          message: item.type == TransactionType.income
+              ? 'Receita recebida hoje.'
+              : 'Despesa paga hoje.',
+          undo: () => _changeDate(item.id, today, restore: item.effectiveDate),
+          adjustDate: () => _changeDate(item.id, today, pick: true));
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) setState(() => _changingStatus.remove(item.id));
+    }
+  }
+
+  Future<void> _changeDate(String id, DateTime expected,
+      {DateTime? restore, bool pick = false}) async {
+    if (!mounted || _changingStatus.contains(id)) return;
+    setState(() => _changingStatus.add(id));
+    try {
+      final chosen = pick
+          ? await showDatePicker(
+              context: context,
+              initialDate: expected,
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100, 12, 31))
+          : restore;
+      if (!mounted || (pick && chosen == null)) return;
+      await context.read<TransactionsCubit>().changeEffectiveDate(id,
+          expectedDate: expected, effectiveDate: chosen);
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) setState(() => _changingStatus.remove(id));
     }
   }
 
@@ -409,8 +471,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                         for (final account in state.accounts)
                           DropdownMenuItem(
                               value: account.id,
-                              child: Text(account.name,
-                                  maxLines: 1, overflow: TextOverflow.ellipsis))
+                              child: AccountOption(account: account))
                       ],
                       onChanged: (id) {
                         setState(() => _accountId = id == '' ? null : id);
@@ -535,77 +596,215 @@ class _TransactionsViewState extends State<_TransactionsView> {
             )),
       );
 
-  Widget _itemTile(FinancialTransaction item) => Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: ListTile(
-          leading: CircleAvatar(
-              backgroundColor: (item.type == TransactionType.income
-                      ? SomiaColors.green
-                      : SomiaColors.red)
-                  .withValues(alpha: 0.16),
-              child: Icon(
-                  item.type == TransactionType.income
-                      ? Icons.arrow_upward
-                      : Icons.arrow_downward,
-                  color: item.type == TransactionType.income
-                      ? SomiaColors.green
-                      : SomiaColors.red)),
-          title: Text(item.description,
-              maxLines: 2, overflow: TextOverflow.ellipsis),
-          subtitle:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Lançamento ${_dateLabel(item.date)} · '
-                'Vencimento ${_dateLabel(item.dueDate ?? item.date)} · '
-                '${item.effectiveDate == null ? 'Pendente' : item.isEffective ? 'Efetivada ${_dateLabel(item.effectiveDate!)}' : 'Agendada ${_dateLabel(item.effectiveDate!)}'}'
-                ' · ${item.accountName}'
-                '${item.categoryName == null ? '' : ' · ${item.categoryName}'}'),
-            if (!item.isEffective)
-              TextButton.icon(
-                onPressed: _changingStatus.contains(item.id)
-                    ? null
-                    : () => _setEffective(item, true),
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Efetivar'),
-              ),
-          ]),
-          trailing: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                    '${item.type == TransactionType.income ? '+' : '-'}'
-                    '${MoneyMinor.display(item.amountMinor, item.currencyCode)}',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: item.type == TransactionType.income
-                            ? SomiaColors.green
-                            : SomiaColors.red)),
-                SizedBox(
-                    height: 32,
-                    child: PopupMenuButton<String>(
-                      tooltip: 'Ações do lançamento',
-                      icon: const Icon(Icons.more_horiz, size: 20),
-                      padding: EdgeInsets.zero,
-                      onSelected: (action) {
-                        if (action == 'edit') _edit(item);
-                        if (action == 'delete') _delete(item);
-                        if (action == 'pending') _setEffective(item, false);
-                      },
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(
-                            value: 'edit', child: Text('Editar')),
-                        if (item.isEffective)
-                          const PopupMenuItem(
-                              value: 'pending',
-                              child: Text('Marcar como pendente')),
-                        const PopupMenuItem(
-                            value: 'delete', child: Text('Excluir')),
-                      ],
-                    )),
-              ]),
-          onTap: () => _edit(item),
-        ),
-      );
+  void _openInvoice(FinancialTransaction item) => context.go(
+      '/cards?card=${item.cardId}&month=${item.cardInvoiceMonth!.toIso8601String()}');
+
+  Future<void> _invoiceAction(String id, Future<void> Function() action) async {
+    if (!mounted || _changingStatus.contains(id)) return;
+    setState(() => _changingStatus.add(id));
+    try {
+      await action();
+      if (mounted) await context.read<TransactionsCubit>().load();
+    } catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) setState(() => _changingStatus.remove(id));
+    }
+  }
+
+  Future<void> _quickInvoice(FinancialTransaction item) =>
+      _invoiceAction(item.id, () async {
+        final repo = getIt<CardsRepository>();
+        final settlement = await repo.settleInvoice(item.cardInvoiceId!,
+            expectedBalance: item.cardBalanceMinor,
+            expectedScheduled: item.cardScheduledMinor,
+            expectedSignature: item.cardPaymentSignature,
+            expectedAccountId: item.accountId,
+            date: DateUtils.dateOnly(DateTime.now()));
+        if (!mounted) return;
+        showEffectuationFeedback(context,
+            message: 'Fatura paga hoje.',
+            undo: () =>
+                _invoiceAction(item.id, () => repo.undoSettlement(settlement)),
+            adjustDate: () => _invoiceAction(item.id, () async {
+                  final date = await showDatePicker(
+                      context: context,
+                      initialDate: settlement.date,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100, 12, 31));
+                  if (date != null) {
+                    await repo.changeSettlementDate(settlement, date);
+                  }
+                }));
+      });
+
+  Future<void> _undoInvoice(FinancialTransaction item) =>
+      _invoiceAction(item.id, () async {
+        final repo = getIt<CardsRepository>();
+        final bill = await repo.invoice(item.cardInvoiceId!);
+        if (!mounted) return;
+        if (CardsRepository.paymentSignature(bill) !=
+            item.cardPaymentSignature) {
+          throw StateError(
+              'A fatura mudou. Atualize a lista antes de desfazer.');
+        }
+        final payment =
+            bill.payments.firstWhere((p) => p.id == item.cardLastPaymentId);
+        final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (dialog) => AlertDialog(
+                  title: const Text('Desfazer último pagamento?'),
+                  content: Text(
+                      'O pagamento de ${MoneyMinor.display(payment.amountMinor, 'BRL')} em ${_dateLabel(payment.date)}, pela conta ${payment.accountName}, será removido. Os pagamentos anteriores serão preservados.'),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(dialog, false),
+                        child: const Text('Cancelar')),
+                    FilledButton(
+                        onPressed: () => Navigator.pop(dialog, true),
+                        child: const Text('Desfazer')),
+                  ],
+                ));
+        if (confirmed == true) {
+          await repo.undoInvoicePayment(
+              bill.id, payment.id, item.cardPaymentSignature);
+        }
+      });
+
+  Widget _invoiceTile(FinancialTransaction item) {
+    final busy = _changingStatus.contains(item.id);
+    final canUndo = item.isEffective && item.cardLastPaymentId != null;
+    return MovementListRow(
+        id: item.id,
+        description: item.description,
+        account: item.accountName,
+        amount: '-${MoneyMinor.display(item.amountMinor, 'BRL')}',
+        dueDate: item.dueDate!,
+        effectiveDate: item.effectiveDate,
+        effective: item.isEffective,
+        busy: busy,
+        color: SomiaColors.red,
+        effectiveLabel: 'Pagar fatura hoje',
+        pendingIcon: Icons.schedule,
+        highlightLabel:
+            'Fecha dia ${item.date.day.toString().padLeft(2, '0')}/${const [
+          'jan',
+          'fev',
+          'mar',
+          'abr',
+          'mai',
+          'jun',
+          'jul',
+          'ago',
+          'set',
+          'out',
+          'nov',
+          'dez'
+        ][item.date.month - 1]}.',
+        pendingLabel: 'Desfazer último pagamento',
+        tags: [
+          if (_categoryId != null || _subcategoryId != null) 'Fatura completa',
+          if (!item.isEffective && item.cardBalanceMinor != item.amountMinor)
+            'Restante ${MoneyMinor.display(item.cardBalanceMinor, 'BRL')}',
+          if (item.cardScheduledMinor > 0)
+            'Agendado ${MoneyMinor.display(item.cardScheduledMinor, 'BRL')}',
+          if (item.cardBalanceMinor < 0)
+            'Crédito ${MoneyMinor.display(-item.cardBalanceMinor, 'BRL')}',
+        ],
+        onEdit: () => _openInvoice(item),
+        onAmount: () => _openInvoice(item),
+        onEffective: () => _quickInvoice(item),
+        onPending: canUndo ? () => _undoInvoice(item) : null,
+        menu: PopupMenuButton<String>(
+            key: ValueKey('movement-menu-${item.id}'),
+            enabled: !busy,
+            tooltip: 'Ações da fatura',
+            icon: const Icon(Icons.more_vert, size: 20),
+            onSelected: (action) {
+              if (action == 'open') _openInvoice(item);
+              if (action == 'pay') _quickInvoice(item);
+              if (action == 'undo') _undoInvoice(item);
+            },
+            itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'open', child: Text('Ver fatura')),
+                  if (!item.isEffective)
+                    const PopupMenuItem(
+                        value: 'pay', child: Text('Pagar fatura hoje')),
+                  if (canUndo)
+                    const PopupMenuItem(
+                        value: 'undo',
+                        child: Text('Desfazer último pagamento')),
+                ]));
+  }
+
+  Widget _itemTile(FinancialTransaction item) {
+    if (item.cardInvoiceId != null) return _invoiceTile(item);
+    final categories = context.read<TransactionsCubit>().state.categories;
+    final category =
+        categories.where((c) => c.id == item.categoryId).firstOrNull;
+    final parent =
+        categories.where((c) => c.id == category?.parentId).firstOrNull;
+    final busy = _changingStatus.contains(item.id);
+    return MovementListRow(
+      id: item.id,
+      description: item.description,
+      account: item.accountName,
+      amount:
+          '${item.type == TransactionType.income ? '+' : '-'}${MoneyMinor.display(item.amountMinor, item.currencyCode)}',
+      dueDate: item.dueDate ?? item.date,
+      effectiveDate: item.effectiveDate,
+      effective: item.isEffective,
+      busy: busy,
+      color: item.type == TransactionType.income
+          ? SomiaColors.green
+          : SomiaColors.red,
+      effectiveLabel: item.cardId != null
+          ? 'Abrir fatura'
+          : item.type == TransactionType.income
+              ? 'Receber hoje'
+              : 'Pagar hoje',
+      tags: [
+        if (item.cardId != null) 'Compra no cartão',
+        if (item.series != null) item.series!.label,
+        if (parent != null) parent.name,
+        if (item.categoryName != null) item.categoryName!
+      ],
+      onEffective: () {
+        if (item.cardId != null) {
+          context.go(
+              '/cards?card=${item.cardId}&month=${item.cardInvoiceMonth!.toIso8601String()}');
+        } else {
+          _quickEffective(item);
+        }
+      },
+      onPending: () => _markPending(item),
+      onAmount: () => _editAmount(item),
+      onEdit: () => _edit(item),
+      menu: PopupMenuButton<String>(
+        key: ValueKey('movement-menu-${item.id}'),
+        enabled: !busy,
+        tooltip: 'Ações do lançamento',
+        icon: const Icon(Icons.more_vert, size: 20),
+        onSelected: (action) {
+          if (action == 'edit') _edit(item);
+          if (action == 'delete') _delete(item);
+          if (action == 'pending') _markPending(item);
+          if (action == 'date' && item.effectiveDate != null) {
+            _changeDate(item.id, item.effectiveDate!, pick: true);
+          }
+        },
+        itemBuilder: (_) => [
+          const PopupMenuItem(value: 'edit', child: Text('Editar')),
+          if (item.effectiveDate != null) ...[
+            const PopupMenuItem(value: 'date', child: Text('Ajustar data')),
+            const PopupMenuItem(
+                value: 'pending', child: Text('Marcar como pendente')),
+          ],
+          const PopupMenuItem(value: 'delete', child: Text('Excluir')),
+        ],
+      ),
+    );
+  }
 }
 
 class TransactionForm extends StatefulWidget {
@@ -613,12 +812,18 @@ class TransactionForm extends StatefulWidget {
       {super.key,
       required this.accounts,
       required this.categories,
+      this.cards = const [],
+      this.initialCardId,
       this.item,
+      this.scope = SeriesScope.onlyThis,
       this.fixedType,
       this.initialType = TransactionType.expense});
   final FinancialTransaction? item;
+  final SeriesScope scope;
   final TransactionType? fixedType;
   final TransactionType initialType;
+  final String? initialCardId;
+  final List<CreditCard> cards;
   final List<Account> accounts;
   final List<FinanceCategory> categories;
 
@@ -628,6 +833,15 @@ class TransactionForm extends StatefulWidget {
 
 class TransactionFormState extends State<TransactionForm> {
   final _formKey = GlobalKey<FormState>();
+  final _series = SeriesFormController();
+  bool get _forcePending =>
+      _cardId != null ||
+      _series.active ||
+      widget.scope == SeriesScope.thisAndNext;
+  void _seriesChanged() {
+    if (mounted) setState(() {});
+  }
+
   late final TextEditingController _description;
   late final TextEditingController _amount;
   final _descriptionFocus = FocusNode();
@@ -638,12 +852,194 @@ class TransactionFormState extends State<TransactionForm> {
   DateTime? _effectiveDate;
   late bool _isEffective;
   String? _accountId;
+  String? _cardId;
+  DateTime? _cardMonth;
+  final _firstInstallment = TextEditingController(text: '1');
   String? _categoryId;
   String? _subcategoryId;
+  bool _categoryChosenManually = false;
+  bool _categoryFromHistory = false;
+  Map<String, String> _categoryHistory = {};
+  List<HistorySuggestion> _historySuggestions = [];
+  final Set<String> _hiddenSuggestions = {};
+  bool _showSuggestions = false;
+  int _historyRequest = 0;
+
+  void _descriptionChanged() {
+    _applyCategoryHistory();
+    if (mounted && widget.item == null) {
+      setState(() => _showSuggestions = true);
+    }
+  }
+
+  List<HistorySuggestion> get _matchingSuggestions {
+    final query = CategoryHistoryRepository.normalize(_description.text);
+    if (!_showSuggestions || query.isEmpty || widget.item != null) {
+      return [];
+    }
+    return _historySuggestions
+        .where((s) =>
+            !_hiddenSuggestions.contains(s.id) &&
+            (widget.initialCardId == null || s.cardId != null) &&
+            CategoryHistoryRepository.normalize(s.description).contains(query))
+        .take(8)
+        .toList();
+  }
+
+  void _selectSuggestion(HistorySuggestion suggestion) {
+    final account = widget.accounts
+        .where((a) => a.id == suggestion.accountId && !a.isArchived)
+        .firstOrNull;
+    final card = widget.cards
+        .where((c) => c.id == suggestion.cardId && !c.isArchived)
+        .firstOrNull;
+    if (account == null || (suggestion.cardId != null && card == null)) {
+      return;
+    }
+    _categoryChosenManually = true;
+    _description.text = suggestion.description;
+    _amount.text = MoneyMinor.plain(suggestion.amountMinor);
+    final category = widget.categories
+        .where((c) =>
+            c.id == suggestion.categoryId &&
+            !c.isArchived &&
+            c.type.name == _type.name)
+        .firstOrNull;
+    final parent = category?.parentId == null
+        ? category
+        : widget.categories
+            .where((c) => c.id == category!.parentId && !c.isArchived)
+            .firstOrNull;
+    setState(() {
+      _accountId = account.id;
+      _cardId = card?.id;
+      _cardMonth = null;
+      _categoryId = parent?.id;
+      _subcategoryId =
+          parent != null && category?.parentId != null ? category?.id : null;
+      _categoryFromHistory = parent != null;
+      _showSuggestions = false;
+      if (card != null) {
+        _series.change(() {
+          if (_series.kind == SeriesKind.recurring) {
+            _series.kind = SeriesKind.single;
+          }
+          _series.unit = SeriesUnit.month;
+          _series.interval.text = '1';
+        });
+      }
+    });
+    _descriptionFocus.unfocus();
+  }
+
+  Widget _suggestionsPanel() => Material(
+      color: SomiaColors.surfaceHigh,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 240),
+          child: ListView.builder(
+              shrinkWrap: true,
+              primary: false,
+              itemCount: _matchingSuggestions.length,
+              itemBuilder: (_, index) {
+                final suggestion = _matchingSuggestions[index];
+                return ListTile(
+                    key: ValueKey('history-suggestion-${suggestion.id}'),
+                    leading: Icon(
+                        suggestion.cardId == null
+                            ? Icons.history
+                            : Icons.credit_card,
+                        color: _type == TransactionType.income
+                            ? SomiaColors.green
+                            : SomiaColors.red),
+                    title: Text(suggestion.description,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(suggestion.accountName,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: SizedBox(
+                        width: 140,
+                        child: Row(children: [
+                          Expanded(
+                              child: Text(
+                                  MoneyMinor.display(suggestion.amountMinor,
+                                      suggestion.currencyCode),
+                                  textAlign: TextAlign.right,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis)),
+                          IconButton(
+                              tooltip: 'Ocultar sugestão',
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => setState(
+                                  () => _hiddenSuggestions.add(suggestion.id)))
+                        ])),
+                    onTap: () => _selectSuggestion(suggestion));
+              })));
+
+  Future<void>? _historyLoading;
+
+  Future<void> _loadCategoryHistory() async {
+    if (widget.item != null ||
+        !getIt.isRegistered<CategoryHistoryRepository>()) {
+      return;
+    }
+    final request = ++_historyRequest;
+    final type = _type;
+    try {
+      final history = await getIt<CategoryHistoryRepository>().load(type);
+      if (!mounted || request != _historyRequest || type != _type) {
+        return;
+      }
+      _categoryHistory = history;
+      _applyCategoryHistory();
+      final suggestions =
+          await getIt<CategoryHistoryRepository>().suggestions(type);
+      if (!mounted || request != _historyRequest || type != _type) {
+        return;
+      }
+      setState(() => _historySuggestions = suggestions);
+    } catch (_) {
+      // A sugestão é opcional; o cadastro manual continua disponível.
+    }
+  }
+
+  void _applyCategoryHistory() {
+    if (!mounted || widget.item != null || _categoryChosenManually) {
+      return;
+    }
+    final id = _categoryHistory[
+        CategoryHistoryRepository.normalize(_description.text)];
+    final category = widget.categories
+        .where((c) => c.id == id && !c.isArchived && c.type.name == _type.name)
+        .firstOrNull;
+    final parent = category?.parentId == null
+        ? category
+        : widget.categories
+            .where((c) =>
+                c.id == category!.parentId &&
+                c.parentId == null &&
+                !c.isArchived &&
+                c.type.name == _type.name)
+            .firstOrNull;
+    final rootId = parent?.id;
+    final childId =
+        parent != null && category?.parentId != null ? category?.id : null;
+    if (_categoryId == rootId &&
+        _subcategoryId == childId &&
+        _categoryFromHistory == (rootId != null)) {
+      return;
+    }
+    setState(() {
+      _categoryId = rootId;
+      _subcategoryId = childId;
+      _categoryFromHistory = rootId != null;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    _series.addListener(_seriesChanged);
     final item = widget.item;
     _description = TextEditingController(text: item?.description ?? '');
     _amount =
@@ -653,12 +1049,18 @@ class TransactionFormState extends State<TransactionForm> {
     _dueDate = item?.dueDate ?? _date;
     _effectiveDate = item?.effectiveDate;
     _isEffective = item == null || item.effectiveDate != null;
-    _accountId = item?.accountId ?? _availableAccounts.firstOrNull?.id;
+    _cardId = item?.cardId ?? widget.initialCardId;
+    _cardMonth = item?.cardInvoiceMonth;
+    _accountId = item?.cardId == null
+        ? item?.accountId ?? _availableAccounts.firstOrNull?.id
+        : _availableAccounts.firstOrNull?.id;
     final selected = widget.categories
         .where((category) => category.id == item?.categoryId)
         .firstOrNull;
     _categoryId = selected?.parentId ?? selected?.id;
     _subcategoryId = selected?.parentId == null ? null : selected?.id;
+    _description.addListener(_descriptionChanged);
+    _historyLoading = _loadCategoryHistory();
   }
 
   List<Account> get _availableAccounts => widget.accounts
@@ -668,8 +1070,11 @@ class TransactionFormState extends State<TransactionForm> {
 
   @override
   void dispose() {
+    _firstInstallment.dispose();
     _descriptionFocus.dispose();
     _amountFocus.dispose();
+    _series.dispose();
+    _description.removeListener(_descriptionChanged);
     _description.dispose();
     _amount.dispose();
     super.dispose();
@@ -684,7 +1089,7 @@ class TransactionFormState extends State<TransactionForm> {
                 ? _dueDate
                 : _effectiveDate ?? DateTime.now(),
         firstDate: DateTime(2000),
-        lastDate: DateTime(2100));
+        lastDate: DateTime(2100, 12, 31));
     if (picked != null && mounted) {
       setState(() {
         if (field == 'posted') {
@@ -698,10 +1103,69 @@ class TransactionFormState extends State<TransactionForm> {
     }
   }
 
+  CreditCard? get _selectedCard =>
+      widget.cards.where((c) => c.id == _cardId).firstOrNull;
+  DateTime get _invoiceMonth =>
+      _cardMonth ??
+      _selectedCard?.invoiceMonthFor(_date) ??
+      DateTime(_date.year, _date.month);
+  Future<void> _pickInvoiceMonth() async {
+    final chosen = await showDatePicker(
+        context: context,
+        initialDate: _invoiceMonth,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100, 12, 31),
+        helpText: 'Mês da fatura (vencimento)');
+    if (chosen != null && mounted) {
+      setState(() => _cardMonth = DateTime(chosen.year, chosen.month));
+    }
+  }
+
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    var effective = _isEffective ? _effectiveDate ?? DateTime.now() : null;
-    if (_isEffective &&
+    await _historyLoading;
+    if (!mounted || !_formKey.currentState!.validate()) return;
+    if (_series.active) {
+      try {
+        _series.plan!.amounts(MoneyMinor.parse(_amount.text));
+        if (_series.plan!.dateAt(_date, _series.plan!.count - 1).year > 2100 ||
+            _series.plan!.dateAt(_dueDate, _series.plan!.count - 1).year >
+                2100) {
+          throw const FormatException('A série deve terminar até o ano 2100.');
+        }
+      } on FormatException catch (error) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+        return;
+      }
+    }
+    if (_cardId != null && _selectedCard?.availableMinor != null) {
+      final total = _series.plan
+              ?.amounts(MoneyMinor.parse(_amount.text))
+              .fold(0, (a, b) => a + b) ??
+          MoneyMinor.parse(_amount.text);
+      final extra =
+          widget.item == null ? total : total - widget.item!.amountMinor;
+      if (extra > _selectedCard!.availableMinor! + _selectedCard!.creditMinor) {
+        final ok = await showDialog<bool>(
+            context: context,
+            builder: (dialog) => AlertDialog(
+                    title: const Text('Limite disponível excedido'),
+                    content: const Text(
+                        'Esta compra ultrapassa o limite cadastrado. Deseja continuar?'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialog, false),
+                          child: const Text('Cancelar')),
+                      FilledButton(
+                          onPressed: () => Navigator.pop(dialog, true),
+                          child: const Text('Continuar'))
+                    ]));
+        if (ok != true || !mounted) return;
+      }
+    }
+    final isEffective = !_forcePending && _isEffective;
+    var effective = isEffective ? _effectiveDate ?? DateTime.now() : null;
+    if (isEffective &&
         widget.item?.effectiveDate == null &&
         !DateUtils.isSameDay(_dueDate, DateTime.now())) {
       effective = await chooseEffectuationDate(context, _dueDate);
@@ -717,8 +1181,13 @@ class TransactionFormState extends State<TransactionForm> {
           date: _date,
           dueDate: _dueDate,
           effectiveDate: effective,
-          isEffective: _isEffective,
-          accountId: _accountId!,
+          isEffective: isEffective,
+          seriesPlan: _series.plan,
+          scope: widget.scope,
+          cardId: _cardId,
+          cardInvoiceMonth: _cardMonth,
+          cardFirstInstallment: int.tryParse(_firstInstallment.text) ?? 1,
+          accountId: _cardId ?? _accountId!,
           categoryId: _subcategoryId ?? _categoryId,
         ));
   }
@@ -738,151 +1207,319 @@ class TransactionFormState extends State<TransactionForm> {
             (!category.isArchived || category.id == _subcategoryId))
         .toList();
     final kind = _type == TransactionType.income ? 'receita' : 'despesa';
-    return MovementFormFrame(
-      title: widget.item == null ? 'Nova $kind' : 'Editar $kind',
-      onSave: _submit,
-      child: Form(
-        key: _formKey,
-        child: Column(mainAxisSize: MainAxisSize.min, spacing: 16, children: [
-          TextFormField(
-              controller: _description,
-              focusNode: _descriptionFocus,
-              autofocus:
-                  widget.item == null && usesFullScreenMovementForm(context),
-              textInputAction: TextInputAction.next,
-              onFieldSubmitted: (_) {
-                _amountFocus.requestFocus();
-                _amount.selection = TextSelection(
-                    baseOffset: 0, extentOffset: _amount.text.length);
-              },
-              scrollPadding: const EdgeInsets.all(100),
-              decoration: const InputDecoration(labelText: 'Descrição'),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Informe a descrição.'
-                  : null),
-          TextFormField(
-              controller: _amount,
-              focusNode: _amountFocus,
-              scrollPadding: const EdgeInsets.all(100),
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Valor'),
-              validator: (value) {
-                try {
-                  return MoneyMinor.parse(value ?? '') > 0
-                      ? null
-                      : 'O valor deve ser maior que zero.';
-                } on FormatException catch (error) {
-                  return error.message;
-                }
-              }),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: _accountId,
-            decoration: const InputDecoration(labelText: 'Conta'),
-            items: _availableAccounts
-                .map((account) => DropdownMenuItem(
-                      value: account.id,
-                      child: Text(
-                          '${account.name}${account.isArchived ? ' (arquivada)' : ''}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ))
-                .toList(),
-            validator: (value) =>
-                value == null ? 'Cadastre uma conta ativa.' : null,
-            onChanged: (id) => setState(() => _accountId = id),
-          ),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            key: ValueKey('category-${_type.name}'),
-            initialValue: _categoryId,
-            decoration: const InputDecoration(labelText: 'Categoria'),
-            items: [
-              const DropdownMenuItem(value: '', child: Text('Sem categoria')),
-              for (final category in roots)
-                DropdownMenuItem(
-                    value: category.id,
-                    child: Text(
-                        '${category.name}'
-                        '${category.isArchived ? ' (arquivada)' : ''}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis))
-            ],
-            onChanged: (id) => setState(() {
-              _categoryId = id == null || id.isEmpty ? null : id;
-              _subcategoryId = null;
-            }),
-          ),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            key: ValueKey('subcategory-${_type.name}-$_categoryId'),
-            initialValue: _subcategoryId,
-            decoration: const InputDecoration(labelText: 'Subcategoria'),
-            items: [
-              const DropdownMenuItem(value: '', child: Text('Nenhuma')),
-              for (final category in children)
-                DropdownMenuItem(
-                    value: category.id,
-                    child: Text(
-                        '${category.name}'
-                        '${category.isArchived ? ' (arquivada)' : ''}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis))
-            ],
-            onChanged: _categoryId == null
-                ? null
-                : (id) => setState(() =>
-                    _subcategoryId = id == null || id.isEmpty ? null : id),
-          ),
-          MovementDateFields(
-            posted: _date,
-            due: _dueDate,
-            onPosted: () => _pickDate('posted'),
-            onDue: () => _pickDate('due'),
-          ),
-          SwitchListTile(
-            title: Text(_type == TransactionType.income ? 'Recebido' : 'Pago'),
-            subtitle:
-                const Text('A data determina quando entra no saldo atual'),
-            value: _isEffective,
-            onChanged: (value) => setState(() => _isEffective = value),
-          ),
-          if (_isEffective)
-            ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Data de efetivação'),
-                subtitle: Text(_dateLabel(_effectiveDate ?? DateTime.now())),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () => _pickDate('effective')),
-          if (widget.fixedType == null)
-            ExpansionTile(
-              title: const Text('Mais detalhes'),
-              tilePadding: EdgeInsets.zero,
-              children: [
-                DropdownButtonFormField<TransactionType>(
-                  isExpanded: true,
-                  initialValue: _type,
-                  decoration: const InputDecoration(labelText: 'Tipo'),
-                  items: TransactionType.values
-                      .map((type) => DropdownMenuItem(
-                          value: type, child: Text(type.label)))
-                      .toList(),
-                  onChanged: (type) {
-                    if (type != null) {
-                      setState(() {
-                        _type = type;
-                        _categoryId = null;
-                        _subcategoryId = null;
-                      });
-                    }
-                  },
-                ),
-              ],
+    return UnsavedChangesGuard(
+        value: () => (
+              _description.text,
+              _amount.text,
+              _type,
+              _date,
+              _dueDate,
+              _effectiveDate,
+              _isEffective,
+              _accountId,
+              _categoryId,
+              _subcategoryId,
+              _series.snapshot,
+              _cardId,
+              _cardMonth,
+              _firstInstallment.text
             ),
-        ]),
-      ),
-    );
+        builder: (context, cancel) => MovementFormFrame(
+              onCancel: cancel,
+              title: widget.item == null ? 'Nova $kind' : 'Editar $kind',
+              onSave: _submit,
+              child: Form(
+                key: _formKey,
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: 16,
+                    children: [
+                      TextFormField(
+                          controller: _description,
+                          focusNode: _descriptionFocus,
+                          autofocus: widget.item == null &&
+                              usesFullScreenMovementForm(context),
+                          textInputAction: TextInputAction.next,
+                          onFieldSubmitted: (_) {
+                            _amountFocus.requestFocus();
+                            _amount.selection = TextSelection(
+                                baseOffset: 0,
+                                extentOffset: _amount.text.length);
+                          },
+                          scrollPadding: const EdgeInsets.all(100),
+                          decoration: InputDecoration(
+                              labelText: 'Descrição',
+                              helperText: _categoryFromHistory
+                                  ? 'Categoria preenchida pelo histórico.'
+                                  : null),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                                  ? 'Informe a descrição.'
+                                  : null),
+                      if (_matchingSuggestions.isNotEmpty) _suggestionsPanel(),
+                      MonetaryCalculatorField(
+                          controller: _amount,
+                          labelText: _series.kind == SeriesKind.installments
+                              ? (_series.amountIsTotal
+                                  ? 'Valor total'
+                                  : 'Valor por parcela')
+                              : 'Valor',
+                          focusNode: _amountFocus,
+                          currencyCode: _availableAccounts
+                                  .where((a) => a.id == _accountId)
+                                  .firstOrNull
+                                  ?.currencyCode ??
+                              'BRL'),
+                      if (widget.item == null || widget.item?.series != null)
+                        SeriesFormFields(
+                            key: ValueKey('series-card-${_cardId != null}'),
+                            controller: _series,
+                            amount: _amount,
+                            dueDate: _cardId == null
+                                ? _dueDate
+                                : _selectedCard?.dueFor(_invoiceMonth) ??
+                                    _dueDate,
+                            currencyCode: _availableAccounts
+                                    .where((a) => a.id == _accountId)
+                                    .firstOrNull
+                                    ?.currencyCode ??
+                                'BRL',
+                            cardMode: _cardId != null,
+                            existing: widget.item?.series),
+                      if (_type == TransactionType.expense &&
+                          widget.initialCardId == null &&
+                          widget.item == null &&
+                          widget.cards.any((c) => !c.isArchived))
+                        KeyedSubtree(
+                            key: ValueKey('payment-kind-${_cardId != null}'),
+                            child: DropdownButtonFormField<bool>(
+                                key: const ValueKey('payment-method'),
+                                initialValue: _cardId != null,
+                                decoration: const InputDecoration(
+                                    labelText: 'Forma de pagamento'),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: false, child: Text('Conta')),
+                                  DropdownMenuItem(
+                                      value: true, child: Text('Cartão'))
+                                ],
+                                onChanged: (value) => setState(() {
+                                      _cardId = value == true
+                                          ? widget.cards
+                                              .where((c) => !c.isArchived)
+                                              .first
+                                              .id
+                                          : null;
+                                      _cardMonth = null;
+                                      _series.change(() {
+                                        if (value == true) {
+                                          if (_series.kind ==
+                                              SeriesKind.recurring) {
+                                            _series.kind = SeriesKind.single;
+                                          }
+                                          _series.unit = SeriesUnit.month;
+                                          _series.interval.text = '1';
+                                        }
+                                      });
+                                    }))),
+                      if (_cardId != null) ...[
+                        DropdownButtonFormField<String>(
+                            key: ValueKey('card-choice-$_cardId'),
+                            initialValue: _cardId,
+                            isExpanded: true,
+                            decoration:
+                                const InputDecoration(labelText: 'Cartão'),
+                            items: [
+                              for (final card in widget.cards.where(
+                                  (c) => !c.isArchived || c.id == _cardId))
+                                DropdownMenuItem(
+                                    value: card.id, child: Text(card.name))
+                            ],
+                            onChanged: widget.item != null
+                                ? null
+                                : (value) => setState(() {
+                                      _cardId = value;
+                                      _cardMonth = null;
+                                    })),
+                        ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Fatura (mês do vencimento)'),
+                            subtitle: Text(
+                                '${_invoiceMonth.month.toString().padLeft(2, '0')}/${_invoiceMonth.year}${_cardMonth == null ? ' · Automática pelo fechamento' : ''}'),
+                            trailing: IconButton(
+                                tooltip: 'Voltar à fatura automática',
+                                onPressed: () =>
+                                    setState(() => _cardMonth = null),
+                                icon: const Icon(Icons.restart_alt)),
+                            onTap: _pickInvoiceMonth),
+                        if (widget.item == null)
+                          TextFormField(
+                              controller: _firstInstallment,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                  labelText: 'Primeira parcela a cadastrar',
+                                  helperText: _series.active
+                                      ? 'Ex.: 4 para cadastrar apenas da 4ª em diante. A quantidade acima é a restante.'
+                                      : 'Use 1 para compra à vista. Para apenas a última parcela, informe seu número.'),
+                              validator: (v) {
+                                final n = int.tryParse(v ?? '');
+                                return n == null ||
+                                        n < 1 ||
+                                        n +
+                                                (_series.active
+                                                    ? int.tryParse(_series
+                                                            .count.text) ??
+                                                        0
+                                                    : 1) -
+                                                1 >
+                                            1000
+                                    ? 'Numeração entre 1 e 1000.'
+                                    : null;
+                              }),
+                        const Text(
+                            'A compra não debita a conta. Registre o pagamento na fatura.'),
+                      ],
+                      if (_cardId == null)
+                        DropdownButtonFormField<String>(
+                          key: ValueKey('account-choice-$_accountId'),
+                          isExpanded: true,
+                          initialValue: _accountId,
+                          decoration: const InputDecoration(labelText: 'Conta'),
+                          items: _availableAccounts
+                              .map((account) => DropdownMenuItem(
+                                    value: account.id,
+                                    child: AccountOption(account: account),
+                                  ))
+                              .toList(),
+                          validator: (value) => value == null
+                              ? 'Cadastre uma conta ativa.'
+                              : null,
+                          onChanged: (id) => setState(() => _accountId = id),
+                        ),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        key: ValueKey('category-${_type.name}-$_categoryId'),
+                        initialValue: _categoryId,
+                        decoration:
+                            const InputDecoration(labelText: 'Categoria'),
+                        items: [
+                          const DropdownMenuItem(
+                              value: '', child: Text('Sem categoria')),
+                          for (final category in roots)
+                            DropdownMenuItem(
+                                value: category.id,
+                                child: Text(
+                                    '${category.name}'
+                                    '${category.isArchived ? ' (arquivada)' : ''}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis))
+                        ],
+                        onChanged: (id) => setState(() {
+                          _categoryChosenManually = true;
+                          _categoryFromHistory = false;
+                          _categoryId = id == null || id.isEmpty ? null : id;
+                          _subcategoryId = null;
+                        }),
+                      ),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        key: ValueKey(
+                            'subcategory-${_type.name}-$_categoryId-$_subcategoryId'),
+                        initialValue: _subcategoryId,
+                        decoration:
+                            const InputDecoration(labelText: 'Subcategoria'),
+                        items: [
+                          const DropdownMenuItem(
+                              value: '', child: Text('Nenhuma')),
+                          for (final category in children)
+                            DropdownMenuItem(
+                                value: category.id,
+                                child: Text(
+                                    '${category.name}'
+                                    '${category.isArchived ? ' (arquivada)' : ''}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis))
+                        ],
+                        onChanged: _categoryId == null
+                            ? null
+                            : (id) => setState(() {
+                                  _categoryChosenManually = true;
+                                  _categoryFromHistory = false;
+                                  _subcategoryId =
+                                      id == null || id.isEmpty ? null : id;
+                                }),
+                      ),
+                      if (_cardId == null)
+                        MovementDateFields(
+                          posted: _date,
+                          due: _dueDate,
+                          onPosted: () => _pickDate('posted'),
+                          onDue: () => _pickDate('due'),
+                        ),
+                      if (_cardId != null)
+                        ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Data da compra'),
+                            subtitle: Text(_dateLabel(_date)),
+                            trailing: const Icon(Icons.calendar_today),
+                            onTap: () => _pickDate('posted')),
+                      if (_cardId == null)
+                        SwitchListTile(
+                          title: Text(_type == TransactionType.income
+                              ? 'Recebido'
+                              : 'Pago'),
+                          subtitle: const Text(
+                              'A data determina quando entra no saldo atual'),
+                          value: !_forcePending && _isEffective,
+                          onChanged: _forcePending
+                              ? null
+                              : (value) => setState(() => _isEffective = value),
+                        ),
+                      if (!_forcePending && _isEffective)
+                        ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Data de efetivação'),
+                            subtitle: Text(
+                                _dateLabel(_effectiveDate ?? DateTime.now())),
+                            trailing: const Icon(Icons.calendar_today),
+                            onTap: () => _pickDate('effective')),
+                      if (widget.fixedType == null)
+                        ExpansionTile(
+                          title: const Text('Mais detalhes'),
+                          tilePadding: EdgeInsets.zero,
+                          children: [
+                            DropdownButtonFormField<TransactionType>(
+                              isExpanded: true,
+                              initialValue: _type,
+                              decoration:
+                                  const InputDecoration(labelText: 'Tipo'),
+                              items: TransactionType.values
+                                  .map((type) => DropdownMenuItem(
+                                      value: type, child: Text(type.label)))
+                                  .toList(),
+                              onChanged: (type) {
+                                if (type != null) {
+                                  setState(() {
+                                    _type = type;
+                                    if (type == TransactionType.income) {
+                                      _cardId = null;
+                                    }
+                                    _categoryId = null;
+                                    _subcategoryId = null;
+                                    _categoryChosenManually = false;
+                                    _categoryFromHistory = false;
+                                    _categoryHistory = {};
+                                    _historySuggestions = [];
+                                    _showSuggestions = true;
+                                  });
+                                  _historyLoading = _loadCategoryHistory();
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                    ]),
+              ),
+            ));
   }
 }

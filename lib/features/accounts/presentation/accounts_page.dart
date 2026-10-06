@@ -1,11 +1,17 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../core/widgets/unsaved_changes_guard.dart';
+import '../../../core/widgets/movement_form_frame.dart';
+import '../../../core/widgets/monetary_calculator.dart';
 import '../../../core/filters/reference_month.dart';
 import '../../../core/widgets/month_selector.dart';
 import '../../../core/routing/somia_shell.dart';
-import '../../../core/theme/app_theme.dart';
+import '../domain/bank_institution.dart';
+import 'account_identity.dart';
+import 'bank_selector.dart';
 import '../domain/account.dart';
 import '../domain/accounts_repository.dart';
 import '../domain/money_minor.dart';
@@ -25,9 +31,9 @@ class _AccountsView extends StatelessWidget {
   const _AccountsView();
 
   Future<void> _edit(BuildContext context, [Account? account]) async {
-    final draft = await showDialog<AccountDraft>(
-      context: context,
-      builder: (_) => _AccountDialog(account: account),
+    final draft = await showMovementForm<AccountDraft>(
+      context,
+      (_) => AccountForm(account: account),
     );
     if (draft == null || !context.mounted) return;
     try {
@@ -201,16 +207,12 @@ class _AccountsView extends StatelessWidget {
                                 )),
                           ]),
                       isThreeLine: true,
-                      leading: CircleAvatar(
-                          backgroundColor:
-                              SomiaColors.blue.withValues(alpha: 0.17),
-                          child: Icon(
-                              account.type == AccountType.cash
-                                  ? Icons.account_balance_wallet_outlined
-                                  : Icons.account_balance_outlined,
-                              color: SomiaColors.blue)),
+                      leading: AccountAvatar(
+                          institutionId: account.institutionId,
+                          type: account.type),
                       dense: false,
-                      onTap: () => _edit(context, account),
+                      onTap: () => context
+                          .go('/accounts/${Uri.encodeComponent(account.id)}'),
                     ),
                   );
                 },
@@ -221,15 +223,15 @@ class _AccountsView extends StatelessWidget {
       );
 }
 
-class _AccountDialog extends StatefulWidget {
-  const _AccountDialog({this.account});
+class AccountForm extends StatefulWidget {
+  const AccountForm({super.key, this.account});
   final Account? account;
 
   @override
-  State<_AccountDialog> createState() => _AccountDialogState();
+  State<AccountForm> createState() => AccountFormState();
 }
 
-class _AccountDialogState extends State<_AccountDialog> {
+class AccountFormState extends State<AccountForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
   late final TextEditingController _currency;
@@ -237,6 +239,7 @@ class _AccountDialogState extends State<_AccountDialog> {
   late AccountType _type;
   late bool _includeInAnalytics;
   late bool _includeInBalance;
+  String? _institutionId;
 
   @override
   void initState() {
@@ -247,6 +250,7 @@ class _AccountDialogState extends State<_AccountDialog> {
     _initialBalance = TextEditingController(
       text: MoneyMinor.plain(account?.initialBalanceMinor ?? 0),
     );
+    _institutionId = account?.institutionId;
     _type = account?.type ?? AccountType.checking;
     _includeInAnalytics = account?.includeInAnalytics ?? true;
     _includeInBalance = account?.includeInBalance ?? true;
@@ -271,28 +275,59 @@ class _AccountDialogState extends State<_AccountDialog> {
         initialBalanceMinor: MoneyMinor.parse(_initialBalance.text),
         includeInAnalytics: _includeInAnalytics,
         includeInBalance: _includeInBalance,
+        institutionId: _institutionId,
       ),
     );
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: Text(widget.account == null ? 'Nova conta' : 'Editar conta'),
-        content: SizedBox(
-          width: 400,
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
+  Widget build(BuildContext context) => UnsavedChangesGuard(
+      value: () => (
+            _name.text,
+            _currency.text,
+            _initialBalance.text,
+            _type,
+            _includeInAnalytics,
+            _includeInBalance,
+            _institutionId
+          ),
+      builder: (context, cancel) => MovementFormFrame(
+            onCancel: cancel,
+            onSave: _submit,
+            saveLabel: 'Salvar conta',
+            title: widget.account == null ? 'Nova conta' : 'Editar conta',
+            child: Form(
+              key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 spacing: 16,
                 children: [
                   TextFormField(
                     controller: _name,
+                    autofocus: widget.account == null &&
+                        usesFullScreenMovementForm(context),
+                    textInputAction: TextInputAction.next,
+                    scrollPadding: const EdgeInsets.all(100),
                     decoration: const InputDecoration(labelText: 'Nome'),
                     validator: (value) => value == null || value.trim().isEmpty
                         ? 'Informe o nome.'
                         : null,
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: AccountAvatar(
+                        institutionId: _institutionId, type: _type),
+                    title: const Text('Instituição'),
+                    subtitle: Text(BankInstitution.find(_institutionId)?.name ??
+                        'Ícone padrão'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      FocusScope.of(context).unfocus();
+                      final id =
+                          await showBankSelector(context, _institutionId);
+                      if (id == null || !mounted) return;
+                      setState(() => _institutionId = id.isEmpty ? null : id);
+                    },
                   ),
                   DropdownButtonFormField<AccountType>(
                     isExpanded: true,
@@ -310,6 +345,8 @@ class _AccountDialogState extends State<_AccountDialog> {
                   ),
                   TextFormField(
                     controller: _currency,
+                    textInputAction: TextInputAction.next,
+                    onChanged: (_) => setState(() {}),
                     textCapitalization: TextCapitalization.characters,
                     decoration:
                         const InputDecoration(labelText: 'Moeda (ISO 4217)'),
@@ -318,22 +355,11 @@ class _AccountDialogState extends State<_AccountDialog> {
                             ? null
                             : 'Use três letras, como BRL.',
                   ),
-                  TextFormField(
+                  MonetaryCalculatorField(
                     controller: _initialBalance,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
-                    decoration:
-                        const InputDecoration(labelText: 'Saldo inicial'),
-                    validator: (value) {
-                      try {
-                        MoneyMinor.parse(value ?? '');
-                        return null;
-                      } on FormatException catch (error) {
-                        return error.message;
-                      }
-                    },
+                    labelText: 'Saldo inicial',
+                    minimumMinor: null,
+                    currencyCode: _currency.text.trim().toUpperCase(),
                   ),
                   SwitchListTile(
                     title: const Text('Incluir no saldo do mês'),
@@ -352,13 +378,5 @@ class _AccountDialogState extends State<_AccountDialog> {
                 ],
               ),
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar')),
-          FilledButton(onPressed: _submit, child: const Text('Salvar')),
-        ],
-      );
+          ));
 }

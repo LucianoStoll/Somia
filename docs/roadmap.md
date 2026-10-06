@@ -67,35 +67,95 @@ O ciclo `v0.1.0-alpha` foi aprovado em 01/10/2026, sem bugs relatados no checkli
 
 Issues de acompanhamento concluídas: #30, #31, #32, #35 e #33. Fechamento/release: #10.
 
-## Pós-MVP — UX financeira
-- [ ] Calculadora monetária integrada como entrada padrão para campos de valor
-- [ ] Operações básicas: soma, subtração, multiplicação e divisão
-- [ ] Teclas numéricas, `00`, separador decimal, limpar, apagar e confirmar
-- [ ] Preservar valor anterior ao cancelar/voltar
-- [ ] Precisão monetária sem erros de ponto flutuante
-- [ ] Componente global reutilizável em lançamentos e módulos futuros
+## Pós-MVP — UX financeira / v0.2.0-alpha
+
+Ciclo `v0.2.0-alpha` iniciado a partir do MVP em `main` e validado integralmente em 06/10/2026.
+A #34 foi validada pelo usuário e concluída em 01/10/2026.
+As #42 e #43 foram validadas pelo usuário e concluídas em 01/10/2026.
+As #39 e #40 foram validadas pelo usuário e concluídas em 01/10/2026.
+A #41 foi validada pelo usuário e concluída em 02/10/2026.
+A #46 foi concluída e validada, assim como as entregas #47–#56 deste ciclo.
+O fechamento do ciclo e a PR para `main` acontecem após concluir e validar o escopo da versão.
+- [x] Calculadora monetária integrada como entrada padrão para campos de valor
+- [x] Operações básicas: soma, subtração, multiplicação e divisão
+- [x] Teclas numéricas, `00`, separador decimal, limpar, apagar e confirmar
+- [x] Preservar valor anterior ao cancelar/voltar
+- [x] Precisão monetária sem erros de ponto flutuante
+- [x] Componente global reutilizável em lançamentos e módulos futuros
+
+### Entrega #42 — listas e efetivação rápida
+- [x] Linhas compactas com status, conta, descrição, valor, datas e etiquetas
+- [x] Receber/pagar/transferir hoje pelo ícone
+- [x] Desfazer restaura a efetivação anterior, incluindo agendamentos
+- [x] Ajustar data pelo feedback ou menu
+- [x] Áreas independentes e proteção contra repetição/ação antiga
+- [x] Validação manual pelo usuário em 01/10/2026
+
+### Entrega #43 — editar valor na lista
+
+- [x] Calculadora integrada ao toque no valor de receita, despesa e transferência.
+- [x] Atualização isolada do valor, preservando vínculos, datas e efetivação.
+- [x] Cancelar/voltar mantém o original; ações de valor e status independentes.
+- [x] Ajustes #42: feedback por 5 segundos, remover efetivação pelo ícone de receita/despesa e efetivados no topo.
+- [x] Validação manual aprovada pelo usuário em 01/10/2026 — roteiro em `docs/edicao-valor-lista.md`.
+
+### Entrega #39 — Voltar no Android
+
+- [x] Voltar fecha sobreposições antes de sair da seção.
+- [x] Seções retornam ao Resumo; somente o Resumo libera saída padrão.
+- [x] Confirmação de descarte em receitas, despesas, transferências, contas e categorias.
+- [x] Cancelar descarte mantém os campos; salvar mantém o fluxo de persistência.
+- [x] Validação manual Android/Windows aprovada em 01/10/2026 — `docs/voltar-android.md`.
+
+### Entrega #40 — formulários de contas e categorias
+
+- [x] Componente compartilhado com os lançamentos, incluindo rolagem e rodapé.
+- [x] Android em tela cheia; Windows com janela adaptada.
+- [x] Preservar campos, validações e confirmação de descarte da #39.
+- [x] Calculadora no saldo inicial, permitindo zero e valores negativos.
+- [x] Validação manual aprovada em 01/10/2026 — `docs/formularios-contas-categorias.md`.
+
+### Entrega #41 — instituições e logos offline
+
+- [x] Busca e seleção de banco na criação/edição, com nome personalizado.
+- [x] Assets locais e ícone padrão para dinheiro/carteira/banco ausente.
+- [x] Logo na lista de contas e nos seletores de receitas, despesas e transferências.
+- [x] Migration v8 e backup preservando a instituição escolhida.
+- [x] Validação manual aprovada em 02/10/2026 — `docs/catalogo-bancos.md`.
+
+### Entrega #46 — recorrências e parcelamentos
+
+- [x] Frequências diária/semanal/mensal/anual e intervalos personalizados.
+- [x] Séries por quantidade, geradas pendentes nos três tipos de lançamento.
+- [x] Parcelamento por total ou valor da parcela, centavos exatos e calendário ancorado.
+- [x] Editar/excluir isolado ou próximos, preservando anteriores e efetivados/agendados.
+- [x] Migration v9, atomicidade e backup compatível.
+- [x] Validação manual aprovada em 02/10/2026 — #46 encerrada.
 
 ## Fase 3 — Núcleo financeiro avançado
 - [ ] Competência e regras contábeis avançadas (lançamento/vencimento/efetivação já disponíveis no MVP)
 - [ ] Análises avançadas de previsto x realizado (saldo básico já disponível)
-- [ ] Recorrências e parcelamentos
+- [x] Recorrências e parcelamentos — #46 validada.
 - [ ] Liquidações parciais
 - [ ] Rateio
 - [ ] Reembolsos/pessoas
 - [ ] Tags/estabelecimentos
 - [ ] Regras automáticas
-- [ ] Autocompletar/modelos
+- [x] Sugestões por descrição e categorias (#48); modelos avançados futuros
 - [ ] Edição em lote, desfazer/refazer, lixeira
 - [ ] Agendamentos/projeções
 
 ## Fase 4 — Cartões
-- [ ] Cartões/limites
-- [ ] Faturas
-- [ ] Compras parceladas
-- [ ] Pagamentos/antecipações
-- [ ] Saldo credor/estornos
+
+Entrega #47 (epic #12) concluída e validada. Cadastro, compras, faturas, limite e liquidações implementados. Regras e roteiro em `docs/cartoes-faturas.md`. Compras internacionais, adicionais e importação ficam para entregas próprias.
+
+- [x] Cartões/limites
+- [x] Faturas
+- [x] Compras parceladas
+- [x] Pagamentos/antecipações
+- [x] Saldo credor/estornos
 - [ ] Compras internacionais
-- [ ] Competência x caixa
+- [x] Competência x caixa
 
 ## Fase 5 — Planejamento
 - [ ] Orçamentos/versionamento/acúmulo
@@ -120,7 +180,7 @@ Issues de acompanhamento concluídas: #30, #31, #32, #35 e #33. Fechamento/relea
 - [ ] Relatórios/gráficos
 - [ ] Relatórios salvos/filtros globais
 - [ ] Fechamento/snapshots
-- [ ] CSV/Excel/PDF
+- [x] Importação CSV de receitas/despesas (#56); Excel/PDF futuros
 - [ ] OFX futuro
 - [ ] Conciliação
 - [ ] Pacote portátil
@@ -129,7 +189,7 @@ Issues de acompanhamento concluídas: #30, #31, #32, #35 e #33. Fechamento/relea
 
 ## Fase 8 — Robustez
 - [ ] Anexos (20 MB)
-- [ ] Backup diário/3 versões
+- [x] Backup diário/3 versões
 - [x] Restauração local validada no MVP; evoluir proteção e automação nos próximos ciclos
 - [ ] Logs/diagnóstico
 - [ ] Telemetria opt-in
@@ -137,20 +197,20 @@ Issues de acompanhamento concluídas: #30, #31, #32, #35 e #33. Fechamento/relea
 - [ ] Evoluir testes automatizados
 
 ## Fase 9 — Sync Engine
-- [ ] SyncProvider/change tracking
-- [ ] Sync com app aberto
-- [ ] Sync ao abrir/após mudanças
-- [ ] Last Write Wins + histórico
-- [ ] Status/pendências/histórico
+- [x] SyncProvider/change tracking
+- [x] Sync com app aberto
+- [x] Sync ao abrir/após mudanças
+- [x] Last Write Wins + histórico
+- [x] Status/pendências/histórico
 - [ ] Anexos Automático/Wi-Fi/Manual
-- [ ] Primeira sincronização
-- [ ] Bloqueio de merge de bases independentes
+- [x] Primeira sincronização
+- [x] Bloqueio de merge de bases independentes
 - [ ] Migração entre provedores
 
 ## Fase 10 — Google Drive e integrações
-- [ ] Google OAuth
-- [ ] GoogleDriveSyncProvider
-- [ ] Android ↔ Windows
+- [x] Google OAuth
+- [x] GoogleDriveSyncProvider
+- [x] Android ↔ Windows
 - [ ] Central de privacidade
 - [ ] Provedores futuros
 - [ ] APIs de cotações
@@ -167,3 +227,21 @@ Issues de acompanhamento concluídas: #30, #31, #32, #35 e #33. Fechamento/relea
 ## Releases
 
 Semantic Versioning: 0.x-alpha para desenvolvimento inicial, 0.x-beta para estabilização e 1.0.0 para primeira versão estável. Cada release terá tag, changelog e issues/PRs relacionados.
+
+## Fechamento da v0.2.0-alpha — #54
+
+- [x] Backups local/Drive Android/Windows e restauração com app aberto (#49–#52), validados.
+- [x] Sincronização #53 manual e #55 automática, validadas.
+- [x] Importação CSV #56/#14 com prévia, mapeamento, conta, duplicatas e categorias, validada em 06/10/2026.
+- [x] Revisão final #54, correções da build 202 e validação do usuário em 06/10/2026.
+- [x] Documentação final, pacotes e validação; publicação autorizada em 06/10/2026.
+- [ ] PR para main e release v0.2.0-alpha; registrar conclusão na #54.
+
+Rateio/reembolso (#11) permanece para ciclo posterior. [Fluxo e validação da sincronização](sincronizacao-drive.md).
+
+
+## Próximo ciclo — v0.3.0-alpha
+
+Criar branch a partir do commit integrado de `main`, sem alterar a tag/branch histórica v0.2.0-alpha. Atualizar pubspec/changelog/documentação somente na nova branch; CI segue gerando pacotes, publicação apenas ao integrar o próximo ciclo validado em main.
+
+Escopo a definir com o usuário. Candidatos já registrados: rateio/reembolsos (#11), planejamento/metas (#13), evolução de CSV/relatórios/conciliação (#14), patrimônio/dívidas (#15), cartões internacionais/adicionais (#12) e anexos sincronizados (#16). Criar a versão não autoriza implementar automaticamente esses itens.

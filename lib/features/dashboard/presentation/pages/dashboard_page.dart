@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -16,22 +15,10 @@ import '../../domain/dashboard_repository.dart';
 import '../../domain/entities/dashboard_summary.dart';
 import '../dashboard_cubit.dart';
 import '../widgets/mobile_dashboard.dart';
+import '../widgets/desktop_history_chart.dart';
+import '../widgets/balance_details_panel.dart';
 import '../widgets/dashboard_category_chart.dart';
 
-const _shortMonths = [
-  'Jan',
-  'Fev',
-  'Mar',
-  'Abr',
-  'Mai',
-  'Jun',
-  'Jul',
-  'Ago',
-  'Set',
-  'Out',
-  'Nov',
-  'Dez'
-];
 const _chartColors = [
   SomiaColors.blue,
   SomiaColors.red,
@@ -209,18 +196,20 @@ class _DashboardViewState extends State<_DashboardView>
         const gap = 12.0;
         final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
         final tiles = [
-          _metric(
-              context,
-              future ? 'Saldo previsto' : 'Saldo total',
-              future
-                  ? currency.projectedBalanceMinor
-                  : currency.currentBalanceMinor,
-              code,
-              Icons.account_balance_wallet_outlined,
-              SomiaColors.blue,
-              future
-                  ? 'Saldo efetivado: ${MoneyMinor.display(currency.currentBalanceMinor, code)}'
-                  : 'Saldo projetado: ${MoneyMinor.display(currency.projectedBalanceMinor, code)}'),
+          BalanceDetailCard(
+              currencyCode: code,
+              child: _metric(
+                  context,
+                  future ? 'Saldo previsto' : 'Saldo total',
+                  future
+                      ? currency.projectedBalanceMinor
+                      : currency.currentBalanceMinor,
+                  code,
+                  Icons.account_balance_wallet_outlined,
+                  SomiaColors.blue,
+                  future
+                      ? 'Saldo efetivado: ${MoneyMinor.display(currency.currentBalanceMinor, code)}'
+                      : 'Saldo projetado: ${MoneyMinor.display(currency.projectedBalanceMinor, code)}')),
           _metric(
               context,
               'Receitas',
@@ -237,14 +226,17 @@ class _DashboardViewState extends State<_DashboardView>
               Icons.arrow_downward_rounded,
               SomiaColors.red,
               'Efetivados e previstos'),
-          _metric(
-              context,
-              'Saldo projetado',
-              currency.projectedBalanceMinor,
-              code,
-              Icons.bar_chart_rounded,
-              SomiaColors.blue,
-              MoneyMinor.display(currency.monthlyResultMinor, code)),
+          BalanceDetailCard(
+              key: ValueKey('desktop-projected-$code'),
+              currencyCode: code,
+              child: _metric(
+                  context,
+                  'Saldo projetado',
+                  currency.projectedBalanceMinor,
+                  code,
+                  Icons.bar_chart_rounded,
+                  SomiaColors.blue,
+                  MoneyMinor.display(currency.monthlyResultMinor, code))),
         ];
         return Wrap(spacing: gap, runSpacing: gap, children: [
           for (final tile in tiles) SizedBox(width: width, child: tile)
@@ -373,51 +365,7 @@ class _DashboardViewState extends State<_DashboardView>
                   height: 190,
                   child: Center(child: Text('Histórico mensal indisponível.')))
             else
-              SizedBox(
-                  height: 190,
-                  child: LayoutBuilder(builder: (context, box) {
-                    final maximum = currency.history.fold<int>(
-                        0,
-                        (value, item) => math.max(value,
-                            math.max(item.incomeMinor, item.expenseMinor)));
-                    return Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          for (final item in currency.history)
-                            Expanded(
-                                child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 3),
-                                    child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          Expanded(
-                                              child: Row(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.end,
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                _bar(item.incomeMinor, maximum,
-                                                    SomiaColors.green),
-                                                const SizedBox(width: 3),
-                                                _bar(item.expenseMinor, maximum,
-                                                    SomiaColors.red),
-                                              ])),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                              _shortMonths[
-                                                  item.month.month - 1],
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall
-                                                  ?.copyWith(
-                                                      color:
-                                                          SomiaColors.muted)),
-                                        ])))
-                        ]);
-                  })),
+              DesktopHistoryChart(currency: currency),
             const SizedBox(height: 12),
             const Wrap(alignment: WrapAlignment.center, spacing: 18, children: [
               _LegendDot('Receitas', SomiaColors.green),
@@ -429,17 +377,6 @@ class _DashboardViewState extends State<_DashboardView>
                   .textTheme
                   .bodySmall
                   ?.copyWith(color: SomiaColors.muted)));
-
-  Widget _bar(int amount, int maximum, Color color) => Flexible(
-      child: FractionallySizedBox(
-          heightFactor:
-              maximum <= 0 ? 0.02 : (amount / maximum).clamp(0.02, 1.0),
-          alignment: Alignment.bottomCenter,
-          child: Container(
-              decoration: BoxDecoration(
-                  color: color,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(4))))));
 
   Widget _categoryPanel(
           BuildContext context, DashboardCurrencySummary currency) =>

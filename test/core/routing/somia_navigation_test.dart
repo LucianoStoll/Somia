@@ -1,4 +1,15 @@
+import 'dart:io';
+import 'package:drift/native.dart';
+import 'package:finapp/core/database/app_database.dart';
+import 'package:finapp/core/database/backup_manager.dart';
+import 'package:finapp/core/database/local_backup_store.dart';
+import 'package:finapp/core/database/backup_service.dart';
+import 'package:finapp/features/accounts/data/sqlite_accounts_repository.dart';
+import 'package:finapp/features/accounts/data/account_statement_repository.dart';
+import 'account_statement_page_test.dart' as statements;
+import 'package:finapp/core/series/movement_series.dart';
 import 'package:finapp/app/app.dart';
+import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/core/di/injection.dart';
 import 'package:finapp/core/filters/reference_month.dart';
 import 'package:finapp/features/transfers/domain/transfer.dart';
@@ -13,7 +24,16 @@ import 'package:finapp/features/dashboard/domain/entities/dashboard_summary.dart
 import 'package:finapp/features/transactions/domain/financial_transaction.dart';
 import 'package:finapp/features/transactions/domain/transactions_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+class _LiveUiBackupManager extends BackupManager {
+  _LiveUiBackupManager(super.database, super.store);
+  @override
+  Future<void> daily() async {}
+  @override
+  Future<void> refresh() async {}
+}
 
 class _DashboardStub implements DashboardRepository {
   @override
@@ -22,8 +42,10 @@ class _DashboardStub implements DashboardRepository {
 }
 
 class _AccountsStub implements AccountsRepository {
+  List<Account> items = [];
   @override
-  Future<List<Account>> list({DateTime? asOf, DateTime? through}) async => [];
+  Future<List<Account>> list({DateTime? asOf, DateTime? through}) async =>
+      items;
   @override
   Future<Account> create(AccountDraft draft) => throw UnimplementedError();
   @override
@@ -101,7 +123,17 @@ class _TransactionsStub implements TransactionsRepository {
           {required bool effective, DateTime? effectiveDate}) =>
       throw UnimplementedError();
   @override
-  Future<void> delete(String id) => throw UnimplementedError();
+  Future<void> changeEffectiveDate(String id,
+      {required DateTime expectedDate, DateTime? effectiveDate}) async {}
+  @override
+  Future<void> updateAmount(String id,
+      {required int expectedAmountMinor,
+      required int amountMinor,
+      SeriesScope scope = SeriesScope.onlyThis}) async {}
+
+  @override
+  Future<void> delete(String id, {SeriesScope scope = SeriesScope.onlyThis}) =>
+      throw UnimplementedError();
 }
 
 class _TransfersStub implements TransfersRepository {
@@ -139,12 +171,242 @@ class _TransfersStub implements TransfersRepository {
           {required bool effective, DateTime? effectiveDate}) =>
       throw UnimplementedError();
   @override
-  Future<void> delete(String id) => throw UnimplementedError();
+  Future<void> changeEffectiveDate(String id,
+      {required DateTime expectedDate, DateTime? effectiveDate}) async {}
+  @override
+  Future<void> updateAmount(String id,
+      {required int expectedAmountMinor,
+      required int amountMinor,
+      SeriesScope scope = SeriesScope.onlyThis}) async {}
+
+  @override
+  Future<void> delete(String id, {SeriesScope scope = SeriesScope.onlyThis}) =>
+      throw UnimplementedError();
 }
 
 void main() {
   setUp(() => referenceMonth.select(DateTime(2026, 9)));
   tearDown(() => referenceMonth.select(DateTime.now()));
+
+  Future<void> openBackTest(WidgetTester tester,
+      {TargetPlatform platform = TargetPlatform.android,
+      Size size = const Size(390, 844)}) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    getIt.registerSingleton<DashboardRepository>(_DashboardStub());
+    getIt.registerSingleton<TransactionsRepository>(_TransactionsStub());
+    getIt.registerSingleton<TransfersRepository>(_TransfersStub());
+    getIt.registerSingleton<AccountsRepository>(_AccountsStub());
+    getIt.registerSingleton<CategoriesRepository>(_CategoriesStub());
+    addTearDown(() async {
+      appRouter.go('/');
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      await getIt.reset();
+    });
+    appRouter.go('/');
+    await tester.pumpWidget(MaterialApp.router(
+        routerConfig: appRouter,
+        theme: AppTheme.dark.copyWith(platform: platform)));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+      'restauração com app aberto descarta formulário e recarrega contas',
+      (tester) async {
+    late Directory dir;
+    late AppDatabase db;
+    late _LiveUiBackupManager manager;
+    late Uint8List bytes;
+    await tester.runAsync(() async {
+      dir = await Directory.systemTemp.createTemp('somia-live-ui-');
+      db = AppDatabase(NativeDatabase.memory());
+      await db.customStatement(
+          "INSERT INTO accounts (id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES ('a','Restaurada','cash','BRL',0,1,1)");
+      bytes = await BackupService.export(db, dir);
+      await db.customStatement("UPDATE accounts SET name='Anterior'");
+      manager = _LiveUiBackupManager(db, LocalBackupStore(dir));
+    });
+    getIt.registerSingleton<BackupManager>(manager);
+    getIt.registerSingleton<AccountsRepository>(SqliteAccountsRepository(db));
+    addTearDown(() async {
+      appRouter.go('/');
+      await getIt.reset();
+      manager.dispose();
+      await db.close();
+      await dir.delete(recursive: true);
+    });
+    appRouter.go('/accounts');
+    await tester.pumpWidget(const FinApp());
+    await tester.pumpAndSettle();
+    expect(find.text('Anterior'), findsOneWidget);
+    await tester.tap(find.text('Nova conta'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() => manager.restore(bytes));
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/settings');
+    expect(find.text('Backup restaurado. Os dados já estão atualizados.'),
+        findsOneWidget);
+    appRouter.go('/accounts');
+    await tester.pumpAndSettle();
+    expect(find.text('Restaurada'), findsOneWidget);
+    expect(find.text('Anterior'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  for (final size in [const Size(390, 844), const Size(915, 412)]) {
+    testWidgets(
+        'Android $size: Voltar retorna ao Resumo em todas as seções e só então permite sair',
+        (tester) async {
+      await openBackTest(tester, size: size);
+      for (final path in [
+        '/income',
+        '/expenses',
+        '/transfers',
+        '/accounts',
+        '/categories',
+        '/settings',
+        '/transactions'
+      ]) {
+        appRouter.go(path);
+        await tester.pumpAndSettle();
+        expect(await appRouter.routerDelegate.popRoute(), true);
+        await tester.pumpAndSettle();
+        expect(appRouter.routeInformationProvider.value.uri.path, '/');
+        // false devolve ao Android a saída padrão, sem remover a rota Resumo.
+        expect(await appRouter.routerDelegate.popRoute(), false);
+        await tester.pumpAndSettle();
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets(
+      'conta abre extrato e Voltar Android retorna à lista antes do Resumo',
+      (tester) async {
+    await openBackTest(tester);
+    (getIt<AccountsRepository>() as _AccountsStub).items = [statements.account];
+    getIt.registerSingleton<AccountStatementRepository>(
+        statements.FakeStatementRepository());
+    appRouter.go('/accounts');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mercado Pago'));
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/accounts/a');
+    expect(find.text('Detalhes da conta'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/accounts');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/');
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
+      'Android: drawer, balão + e filtros fecham antes de sair da seção',
+      (tester) async {
+    await openBackTest(tester);
+    for (final path in ['/', '/expenses']) {
+      appRouter.go(path);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Abrir menu'));
+      await tester.pumpAndSettle();
+      expect(await appRouter.routerDelegate.popRoute(), true);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Fechar menu'), findsNothing);
+      expect(appRouter.routeInformationProvider.value.uri.path, path);
+    }
+    await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
+    await tester.pumpAndSettle();
+    expect(await appRouter.routerDelegate.popRoute(), true);
+    await tester.pumpAndSettle();
+    expect(find.text('Receita'), findsNothing);
+    expect(appRouter.routeInformationProvider.value.uri.path, '/expenses');
+    await tester.tap(find.text('Filtros'));
+    await tester.pumpAndSettle();
+    expect(await appRouter.routerDelegate.popRoute(), true);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Fechar filtros'), findsNothing);
+    expect(appRouter.routeInformationProvider.value.uri.path, '/expenses');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/');
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
+      'Android: navegador principal mantém tratamento nativo do Voltar ao alternar seções',
+      (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final signals = <bool>[];
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'SystemNavigator.setFrameworkHandlesBack') {
+        signals.add(call.arguments as bool);
+      }
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+    await openBackTest(tester);
+    for (final path in [
+      '/income',
+      '/transfers',
+      '/expenses',
+      '/transfers',
+      '/accounts',
+      '/transfers'
+    ]) {
+      appRouter.go(path);
+      await tester.pumpAndSettle();
+      expect(signals, isNotEmpty);
+      expect(signals.last, true,
+          reason: 'O Android deve entregar Voltar ao Flutter em $path');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(appRouter.routeInformationProvider.value.uri.path, '/');
+      expect(signals.last, false,
+          reason: 'O Resumo deve liberar a saída nativa');
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Windows mantém navegação sem retorno automático ao Resumo',
+      (tester) async {
+    await openBackTest(tester,
+        platform: TargetPlatform.windows, size: const Size(1280, 900));
+    appRouter.go('/accounts');
+    await tester.pumpAndSettle();
+    expect(await appRouter.routerDelegate.popRoute(), false);
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/accounts');
+  });
+  for (final path in ['/accounts', '/categories']) {
+    testWidgets(
+        '$path: Voltar/Cancelar protege cadastro alterado e preserva campos ao continuar',
+        (tester) async {
+      await openBackTest(tester);
+      appRouter.go(path);
+      await tester.pumpAndSettle();
+      await tester.tap(
+          find.text(path == '/accounts' ? 'Nova conta' : 'Nova categoria'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, 'Novo nome');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Descartar alterações?'), findsOneWidget);
+      await tester.tap(find.text('Continuar editando'));
+      await tester.pumpAndSettle();
+      expect(find.text('Novo nome'), findsOneWidget);
+      expect(appRouter.routeInformationProvider.value.uri.path, path);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Descartar'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(appRouter.routeInformationProvider.value.uri.path, path);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('mês compartilhado e filtros avançados nas três abas',
       (tester) async {
@@ -298,7 +560,7 @@ void main() {
     expect(find.text('Mercado'), findsOneWidget);
     expect(find.text('Salário'), findsNothing);
     expect(transactions.requestedTypes.last, TransactionType.expense);
-    expect(find.text('Efetivar'), findsOneWidget);
+    expect(find.byTooltip('Pagar hoje'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
     await tester.pumpAndSettle();

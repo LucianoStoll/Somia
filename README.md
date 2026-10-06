@@ -2,6 +2,12 @@
 
 Seu dinheiro, mais claro. Aplicativo de finanças pessoais para Android e Windows, com dados locais e funcionamento offline.
 
+## v0.2.0-alpha — ciclo validado
+
+O ciclo pós-MVP foi validado pelo usuário em 06/10/2026. Inclui calculadora, séries, cartões/faturas, sugestões pelo histórico, extrato diário, detalhamento de saldo, backups local/Google Drive Android/Windows, [sincronização manual](docs/sincronizacao-drive.md) e [automática com app aberto](docs/sincronizacao-automatica.md), e [importação CSV](docs/importacao-csv.md). Consulte as [notas da versão](docs/releases/v0.2.0-alpha.md) e o [inventário completo de alterações](docs/releases/v0.2.0-alpha-files.md).
+
+O próximo ciclo será `v0.3.0-alpha`, criado a partir do merge desta versão em `main`. Funcionalidades futuras precisam de escopo aprovado; não estão incluídas automaticamente.
+
 ## MVP — v0.1.0-alpha
 
 Primeiro ciclo implementado e validado pelo usuário em 01/10/2026, incluindo o checklist final #33 e os ajustes #35. A versão é uma pré-release para uso e evolução do MVP.
@@ -23,17 +29,17 @@ Os totais de receitas/despesas e os gráficos usam a data de efetivação quando
 
 ## Instalação
 
-Baixe os pacotes em [Releases](https://github.com/LucianoStoll/FinApp/releases).
+Baixe os pacotes em [Releases](https://github.com/LucianoStoll/Somia/releases).
 
 **Android:** instale o APK assinado sobre a instalação existente, sem desinstalar. O identificador permanece `com.example.finapp`; a chave persistente e o número crescente da compilação permitem atualizar preservando os dados. Versão e compilação aparecem nos Ajustes. Consulte o [guia de atualização e backup](docs/atualizacao-apk.md).
 
 **Windows:** extraia todo o ZIP e execute `finapp.exe`. Mantenha as DLLs e a pasta `data` junto do executável. O pacote é compilado em modo release para Windows x64.
 
-Os dados ficam no dispositivo. Para restaurar um backup, importe em **Ajustes → Restaurar backup**, feche e abra o aplicativo. Não há sincronização automática entre Android e Windows nesta versão.
+Os dados ficam no dispositivo. Na v0.2.0-alpha, restaure em **Ajustes → Restaurar backup**; os dados são aplicados com o app aberto. A sincronização Android/Windows da #53 usa o botão **Sincronizar agora** e a mesma conta Google. Restaurar um backup desvincula a sincronização. A versão publicada v0.1.0-alpha ainda aplica restauração ao reiniciar e não possui sincronização.
 
 ## Desenvolvimento
 
-Flutter/Dart, Drift/SQLite, BLoC/Cubit, go_router e get_it, organizados em `core` e `features`. Valores monetários são armazenados como inteiros em unidades menores. O nome técnico do pacote/repositório continua FinApp.
+Flutter/Dart, Drift/SQLite, BLoC/Cubit, go_router e get_it, organizados em `core` e `features`. Valores monetários são armazenados como inteiros em unidades menores. O pacote técnico Flutter permanece `finapp`; o repositório é `LucianoStoll/Somia`.
 
 ```sh
 flutter pub get
@@ -42,7 +48,7 @@ flutter analyze
 flutter test
 ```
 
-A CI executa formatação, análise, testes no Linux e Windows, prévias de interface, build Windows release e APK assinado. Após merge do ciclo validado em `main`, publica a pré-release `v0.1.0-alpha` com os pacotes e checksums. Cada pacote usa o número da execução como compilação.
+A CI executa formatação, análise, testes no Linux e Windows, prévias de interface, build Windows release e APK assinado. Após merge do ciclo validado em `main`, publica a pré-release correspondente ao `pubspec.yaml`, com notas próprias, pacotes e checksums. Releases publicadas não são sobrescritas. Cada pacote usa o número da execução como compilação.
 
 ## Documentação
 
@@ -55,4 +61,4 @@ A CI executa formatação, análise, testes no Linux e Windows, prévias de inte
 - [Identidade visual](docs/identidade-visual.md)
 - [Atualização Android e backup](docs/atualizacao-apk.md)
 
-Cartões, recorrências, calculadora monetária, planejamento, relatórios avançados, backup automático e sincronização pertencem aos próximos ciclos.
+Cartões, recorrências, calculadora, backup automático, sincronização e CSV já foram entregues nesta versão. Planejamento, rateio/reembolsos, anexos, relatórios avançados e conciliação continuam no backlog.

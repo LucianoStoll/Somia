@@ -1,3 +1,5 @@
+import '../../../balances/domain/balance_details.dart';
+
 class DashboardCurrencySummary {
   const DashboardCurrencySummary(
       {required this.currencyCode,
@@ -7,8 +9,10 @@ class DashboardCurrencySummary {
       required this.expenseMinor,
       this.expensesByCategory = const [],
       this.history = const [],
-      this.accounts = const []});
+      this.accounts = const [],
+      this.balanceDetails});
 
+  final BalanceDetails? balanceDetails;
   final String currencyCode;
   final int currentBalanceMinor;
   final int projectedBalanceMinor;

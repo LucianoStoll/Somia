@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
+import '../di/injection.dart';
+import '../database/backup_manager.dart';
 import '../widgets/somia_brand.dart';
 import 'app_router.dart';
 
@@ -26,6 +28,7 @@ const _menu = <_MenuDestination>[
   _MenuDestination('Transferências', AppRoutes.transfersPath, Icons.swap_horiz),
   _MenuDestination(
       'Contas', AppRoutes.accountsPath, Icons.account_balance_wallet_outlined),
+  _MenuDestination('Cartões', AppRoutes.cardsPath, Icons.credit_card_outlined),
   _MenuDestination('Categorias', AppRoutes.categoriesPath, Icons.sell_outlined),
   _MenuDestination(
       'Configurações', AppRoutes.settingsPath, Icons.settings_outlined),
@@ -42,6 +45,44 @@ class SomiaMenuButton extends StatelessWidget {
       tooltip: 'Abrir menu',
       icon: const Icon(Icons.menu),
       onPressed: () => _mobileScaffoldKey.currentState?.openDrawer());
+}
+
+/// Na rota da seção, sobreposições continuam recebendo Voltar antes dela.
+class SomiaSectionBackScope extends StatelessWidget {
+  const SomiaSectionBackScope(
+      {super.key, required this.location, required this.child});
+  final String location;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final manager =
+        getIt.isRegistered<BackupManager>() ? getIt<BackupManager>() : null;
+    Widget scope() => PopScope<Object?>(
+          canPop: !(manager?.restoring ?? false) &&
+              (Theme.of(context).platform != TargetPlatform.android ||
+                  location == AppRoutes.dashboardPath),
+          onPopInvokedWithResult: (didPop, result) {
+            if ((manager?.restoring ?? false) ||
+                didPop ||
+                Theme.of(context).platform != TargetPlatform.android) {
+              return;
+            }
+            final scaffold = _mobileScaffoldKey.currentState;
+            if (scaffold?.isDrawerOpen ?? false) {
+              scaffold!.closeDrawer();
+            } else if (location != AppRoutes.dashboardPath) {
+              context.go(location.startsWith('${AppRoutes.accountsPath}/')
+                  ? AppRoutes.accountsPath
+                  : AppRoutes.dashboardPath);
+            }
+          },
+          child: child,
+        );
+    return manager == null
+        ? scope()
+        : AnimatedBuilder(animation: manager, builder: (context, _) => scope());
+  }
 }
 
 class SomiaShell extends StatelessWidget {
@@ -122,7 +163,10 @@ class _SomiaMenu extends StatelessWidget {
                         minLeadingWidth: 0,
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: compact ? 18 : 14),
-                        selected: location == destination.path,
+                        selected: location == destination.path ||
+                            (destination.path == AppRoutes.accountsPath &&
+                                location
+                                    .startsWith('${AppRoutes.accountsPath}/')),
                         selectedTileColor: SomiaColors.surfaceHigh,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),

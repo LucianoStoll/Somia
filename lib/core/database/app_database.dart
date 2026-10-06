@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:uuid/uuid.dart';
 
 import 'schema_v1.dart';
 import 'schema_v2.dart';
@@ -12,6 +15,11 @@ import 'schema_v4.dart';
 import 'schema_v5.dart';
 import 'schema_v6.dart';
 import 'schema_v7.dart';
+import 'schema_v8.dart';
+import 'schema_v9.dart';
+import 'schema_v10.dart';
+import 'schema_v11.dart';
+import 'financial_data.dart';
 import 'backup_service.dart';
 
 /// Banco local do MVP. As migrations SQL ficam estáveis por versão; as DAOs
@@ -19,20 +27,104 @@ import 'backup_service.dart';
 class AppDatabase extends GeneratedDatabase {
   AppDatabase(super.executor);
 
+  // Keep financial notifications separate from Drift invalidation, which can
+  // also occur after rollback. Zones isolate concurrent and nested transactions.
+  final _financialChanges = StreamController<void>.broadcast();
+  final _writeZoneKey = Object();
+  Stream<void> get financialChanges => _financialChanges.stream;
+  static final _financialWrite = RegExp(
+      r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
+      caseSensitive: false);
+
+  @override
+  Future<void> customStatement(String statement, [List<Object?>? args]) async {
+    await super.customStatement(statement, args);
+    _recordFinancialWrite(statement);
+  }
+
+  void _recordFinancialWrite(String statement) {
+    final table =
+        _financialWrite.firstMatch(statement)?.group(1)?.toLowerCase();
+    if (table != null && financialTables.contains(table)) {
+      final writes = Zone.current[_writeZoneKey] as _FinancialWrites?;
+      if (writes != null) {
+        writes.changed = true;
+      } else {
+        _financialChanges.add(null);
+      }
+    }
+  }
+
+  @override
+  Future<int> customUpdate(String query,
+      {List<Variable> variables = const [],
+      Set<ResultSetImplementation>? updates,
+      UpdateKind? updateKind}) async {
+    final changed = await super.customUpdate(query,
+        variables: variables, updates: updates, updateKind: updateKind);
+    if (changed > 0) _recordFinancialWrite(query);
+    return changed;
+  }
+
+  @override
+  Future<T> transaction<T>(Future<T> Function() action,
+      {bool requireNew = false}) async {
+    final parent = Zone.current[_writeZoneKey] as _FinancialWrites?;
+    final writes = _FinancialWrites();
+    final result = await super.transaction(
+        () => runZoned(action, zoneValues: {_writeZoneKey: writes}),
+        requireNew: requireNew);
+    if (writes.changed) {
+      if (parent != null) {
+        parent.changed = true;
+      } else {
+        _financialChanges.add(null);
+      }
+    }
+    return result;
+  }
+
+  @override
+  Future<void> close() async {
+    await super.close();
+    await _financialChanges.close();
+  }
+
   factory AppDatabase.open() => AppDatabase(
         LazyDatabase(() async {
           final directory = await getApplicationSupportDirectory();
           await directory.create(recursive: true);
-          await BackupService.applyPendingRestore(directory);
           final file = File(p.join(directory.path, 'finapp.sqlite'));
+          await protectBeforeMigration(file, directory);
+          await BackupService.prepareForOpen(directory);
           return NativeDatabase.createInBackground(file);
         }),
       );
 
+  /// Preserve a consistent copy before opening an older published database.
+  static Future<void> protectBeforeMigration(
+      File file, Directory directory) async {
+    if (!await file.exists()) return;
+    final previous = sqlite.sqlite3.open(file.path);
+    try {
+      final version =
+          previous.select('PRAGMA user_version').single['user_version'] as int;
+      if (version > 0 && version < currentSchemaVersion) {
+        final folder = Directory(p.join(directory.path, 'somia-backups'));
+        await folder.create(recursive: true);
+        final snapshot = p.join(folder.path,
+            'beforeMigration-${DateTime.now().microsecondsSinceEpoch}-${const Uuid().v4()}.sqlite');
+        previous.execute('VACUUM INTO ?', [snapshot]);
+      }
+    } finally {
+      previous.close();
+    }
+  }
+
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 7;
+  static const currentSchemaVersion = 11;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -50,10 +142,15 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV4,
             ...schemaV5,
             ...schemaV6,
-            ...schemaV7
+            ...schemaV7,
+            ...schemaV8,
+            ...schemaV9,
+            ...schemaV10,
+            ...schemaV11
           ]) {
             await customStatement(statement);
           }
+          await installSyncTriggers(this);
         },
         onUpgrade: (m, from, to) async {
           for (var version = from + 1; version <= to; version++) {
@@ -64,12 +161,17 @@ class AppDatabase extends GeneratedDatabase {
               5 => schemaV5,
               6 => schemaV6,
               7 => schemaV7,
+              8 => schemaV8,
+              9 => schemaV9,
+              10 => schemaV10,
+              11 => schemaV11,
               _ => throw StateError('Migration v$version não implementada'),
             };
             for (final statement in statements) {
               await customStatement(statement);
             }
           }
+          await installSyncTriggers(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -83,4 +185,8 @@ class AppDatabase extends GeneratedDatabase {
           }
         },
       );
+}
+
+class _FinancialWrites {
+  bool changed = false;
 }

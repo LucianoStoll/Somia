@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../accounts/domain/account.dart';
+import '../../balances/data/sqlite_balance_details.dart';
 import '../../balances/data/sqlite_balances_repository.dart';
 import '../domain/dashboard_repository.dart';
 import '../domain/entities/dashboard_summary.dart';
@@ -20,6 +21,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         final monthEnd = DateTime.utc(month.year, month.month + 1, 0);
         final balances = await SqliteBalancesRepository(_db)
             .calculate(asOf: monthEnd, through: monthEnd);
+        final details = await loadBalanceDetails(_db, month, balances);
         // Efetivados pertencem ao mês da efetivação; pendentes, ao vencimento.
         // A data de lançamento não define os totais nem os gráficos.
         final totals = <String, (int, int)>{};
@@ -31,7 +33,13 @@ class SqliteDashboardRepository implements DashboardRepository {
         AND COALESCE(t.effective_at, t.due_at) >= ? AND COALESCE(t.effective_at, t.due_at) < ?
       GROUP BY a.currency_code, t.type
     ''', variables: [Variable.withInt(start), Variable.withInt(end)]).get();
-        for (final row in period) {
+        final cardPeriod = await _db.customSelect('''
+          SELECT 'BRL' AS currency_code, 'expense' AS type, SUM(e.amount_minor) AS amount_minor
+          FROM card_entries e JOIN card_invoices i ON i.id=e.invoice_id
+          WHERE e.deleted_at IS NULL AND e.kind <> 'opening' AND i.due_at >= ? AND i.due_at < ?
+          HAVING COUNT(*) > 0
+        ''', variables: [Variable.withInt(start), Variable.withInt(end)]).get();
+        for (final row in [...period, ...cardPeriod]) {
           final currency = row.read<String>('currency_code');
           final previous = totals[currency] ?? (0, 0);
           final amount = row.read<int>('amount_minor');
@@ -53,11 +61,29 @@ class SqliteDashboardRepository implements DashboardRepository {
       ORDER BY amount_minor DESC, category_name
     ''', variables: [Variable.withInt(start), Variable.withInt(end)]).get();
         final categoryTotals = <String, List<DashboardCategoryExpense>>{};
-        for (final row in categoryRows) {
+        final cardCategories = await _db.customSelect('''
+          SELECT 'BRL' AS currency_code, COALESCE(parent.name,c.name,'Sem categoria') AS category_name,
+            SUM(e.amount_minor) AS amount_minor FROM card_entries e JOIN card_invoices i ON i.id=e.invoice_id
+          LEFT JOIN categories c ON c.id=e.category_id LEFT JOIN categories parent ON parent.id=c.parent_id
+          WHERE e.deleted_at IS NULL AND e.kind <> 'opening' AND i.due_at >= ? AND i.due_at < ?
+          GROUP BY COALESCE(parent.name,c.name,'Sem categoria')
+        ''', variables: [Variable.withInt(start), Variable.withInt(end)]).get();
+        for (final row in [...categoryRows, ...cardCategories]) {
           categoryTotals
               .putIfAbsent(row.read<String>('currency_code'), () => [])
               .add(DashboardCategoryExpense(row.read<String>('category_name'),
                   row.read<int>('amount_minor')));
+        }
+        for (final code in categoryTotals.keys.toList()) {
+          final grouped = <String, int>{};
+          for (final category in categoryTotals[code]!) {
+            grouped.update(category.name, (v) => v + category.amountMinor,
+                ifAbsent: () => category.amountMinor);
+          }
+          categoryTotals[code] = [
+            for (final e in grouped.entries)
+              if (e.value > 0) DashboardCategoryExpense(e.key, e.value)
+          ]..sort((a, b) => b.amountMinor.compareTo(a.amountMinor));
         }
         final historyStart =
             DateTime.utc(month.year, month.month - 5).millisecondsSinceEpoch;
@@ -75,7 +101,17 @@ class SqliteDashboardRepository implements DashboardRepository {
           Variable.withInt(end)
         ]).get();
         final monthly = <String, Map<String, (int, int)>>{};
-        for (final row in historyRows) {
+        final cardHistory = await _db.customSelect('''
+          SELECT 'BRL' AS currency_code, 'expense' AS type,
+            strftime('%Y-%m',i.due_at/1000,'unixepoch') AS month_key, SUM(e.amount_minor) AS amount_minor
+          FROM card_entries e JOIN card_invoices i ON i.id=e.invoice_id
+          WHERE e.deleted_at IS NULL AND e.kind <> 'opening' AND i.due_at >= ? AND i.due_at < ?
+          GROUP BY month_key
+        ''', variables: [
+          Variable.withInt(historyStart),
+          Variable.withInt(end)
+        ]).get();
+        for (final row in [...historyRows, ...cardHistory]) {
           final code = row.read<String>('currency_code');
           final key = row.read<String>('month_key');
           final byMonth = monthly.putIfAbsent(code, () => {});
@@ -119,6 +155,7 @@ class SqliteDashboardRepository implements DashboardRepository {
           for (final currency in currencies)
             DashboardCurrencySummary(
                 currencyCode: currency,
+                balanceDetails: details[currency],
                 currentBalanceMinor: byCurrency[currency]?.currentMinor ?? 0,
                 projectedBalanceMinor:
                     byCurrency[currency]?.projectedMinor ?? 0,
@@ -151,6 +188,12 @@ class SqliteDashboardRepository implements DashboardRepository {
           t.due_at AS event_at, t.effective_at, t.created_at
         FROM transactions t JOIN accounts a ON a.id = t.account_id
         WHERE t.deleted_at IS NULL AND a.deleted_at IS NULL
+        UNION ALL
+        SELECT e.id, 'expense', e.description, 'Cartão ' || c.name,
+          'BRL', e.amount_minor, i.due_at, NULL, e.created_at
+        FROM card_entries e JOIN credit_cards c ON c.id=e.card_id
+        JOIN card_invoices i ON i.id=e.invoice_id
+        WHERE e.deleted_at IS NULL AND e.kind='purchase'
         UNION ALL
         SELECT f.id, 'transfer' AS type, f.description AS description,
           source.name || ' → ' || destination.name AS account_label,

@@ -1,0 +1,182 @@
+import 'dart:io';
+import 'package:drift/native.dart';
+import 'package:finapp/core/database/app_database.dart';
+import 'package:finapp/core/database/backup_manager.dart';
+import 'package:finapp/core/database/local_backup_store.dart';
+import 'package:finapp/core/drive/drive_backup.dart';
+import 'package:finapp/core/drive/drive_backup_manager.dart';
+import 'package:finapp/core/drive/windows_drive_auth.dart';
+import 'package:finapp/core/theme/app_theme.dart';
+import 'package:finapp/features/settings/presentation/drive_backups_panel.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import '../../core/drive/drive_backup_test.dart'
+    show FakeAuth, FakeTransport, jsonResponse;
+
+class ConfigurationAuth extends FakeAuth implements ConfigurableDriveAuth {
+  @override
+  bool configured = false;
+  int cancelled = 0;
+  @override
+  void cancel() {
+    cancelled++;
+  }
+
+  @override
+  Future<void> configure(Uint8List json) async {
+    configured = true;
+    email = null;
+  }
+}
+
+class PanelManager extends DriveBackupManager {
+  PanelManager()
+      : super(
+            BackupManager(AppDatabase(NativeDatabase.memory()),
+                LocalBackupStore(Directory.systemTemp)),
+            DriveBackupApi(
+                FakeAuth(),
+                FakeTransport((method, uri, headers, body) async =>
+                    jsonResponse({'files': []}))));
+  int restored = 0;
+  int uploads = 0;
+  @override
+  Future<void> restore(DriveCopy copy) async {
+    restored++;
+  }
+
+  @override
+  Future<void> upload() async {
+    uploads++;
+  }
+}
+
+void main() {
+  late PanelManager manager;
+  setUp(() {
+    manager = PanelManager()
+      ..email = 'luciano@example.com'
+      ..copies = [
+        DriveCopy(
+            id: 'copy',
+            name: 'somia.sqlite',
+            createdAt: DateTime(2026, 10, 5, 12),
+            size: 98304,
+            md5Hash: '',
+            sha256Hash: '')
+      ];
+  });
+  tearDown(() async {
+    manager.dispose();
+    manager.local.dispose();
+    await manager.local.database.close();
+  });
+  testWidgets('envio manual e restauração confirmada com fonte ampliada',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark,
+        builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(1.5)),
+            child: child!),
+        home: Scaffold(
+            body: SingleChildScrollView(
+                child: DriveBackupsPanel(manager: manager)))));
+    await tester.tap(find.text('Enviar backup'));
+    await tester.pumpAndSettle();
+    expect(manager.uploads, 1);
+    final restore = find.byTooltip('Restaurar cópia do Drive');
+    await tester.ensureVisible(restore);
+    await tester.pumpAndSettle();
+    await tester.tap(restore);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(manager.restored, 0);
+    await tester.tap(restore);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Restaurar'));
+    await tester.pumpAndSettle();
+    expect(manager.restored, 1);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
+      'Windows configura cliente antes de conectar e oferece cancelamento',
+      (tester) async {
+    final auth = ConfigurationAuth();
+    final local = manager.local;
+    final desktop = DriveBackupManager(
+        local,
+        DriveBackupApi(
+            auth,
+            FakeTransport((method, uri, headers, body) async =>
+                jsonResponse({'files': []}))));
+    addTearDown(desktop.dispose);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: DriveBackupsPanel(
+                manager: desktop,
+                onConfigure: () => desktop.configure(Uint8List(0))))));
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Conectar conta Google'))
+            .onPressed,
+        isNull);
+    await tester.tap(find.text('Configurar Google Drive'));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Conectar conta Google'))
+            .onPressed,
+        isNotNull);
+    desktop.busy = true;
+    desktop.connecting = true;
+    desktop.notifyListeners();
+    await tester.pump();
+    await tester.tap(find.text('Cancelar conexão'));
+    await tester.pump();
+    expect(auth.cancelled, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+    testWidgets('prévia mobile do Drive', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final fonts = Directory(
+          '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts');
+      final font = FontLoader('Roboto'), icons = FontLoader('MaterialIcons');
+      for (final f in fonts.listSync().whereType<File>()) {
+        if (f.path.endsWith('Roboto-Regular.ttf') ||
+            f.path.endsWith('Roboto-Bold.ttf')) {
+          font.addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
+        }
+        if (f.path.endsWith('MaterialIcons-Regular.otf')) {
+          icons
+              .addFont(Future.value(ByteData.sublistView(f.readAsBytesSync())));
+        }
+      }
+      await font.load();
+      await icons.load();
+      await tester.pumpWidget(MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.dark,
+          home: Scaffold(
+              appBar: AppBar(title: const Text('Ajustes')),
+              body: SingleChildScrollView(
+                  child: DriveBackupsPanel(manager: manager)))));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp),
+          matchesGoldenFile('drive-backup-mobile-preview.png'));
+    });
+  }
+}
