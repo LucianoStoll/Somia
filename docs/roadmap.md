@@ -69,12 +69,12 @@ Issues de acompanhamento concluídas: #30, #31, #32, #35 e #33. Fechamento/relea
 
 ## Pós-MVP — UX financeira / v0.2.0-alpha
 
-Branch ativa: `v0.2.0-alpha`, iniciada a partir do MVP validado em `main`.
+Ciclo `v0.2.0-alpha` iniciado a partir do MVP em `main` e validado integralmente em 06/10/2026.
 A #34 foi validada pelo usuário e concluída em 01/10/2026.
 As #42 e #43 foram validadas pelo usuário e concluídas em 01/10/2026.
 As #39 e #40 foram validadas pelo usuário e concluídas em 01/10/2026.
 A #41 foi validada pelo usuário e concluída em 02/10/2026.
-A #46 é a entrega atual autorizada: recorrências e parcelamentos, primeira entrega da #11.
+A #46 foi concluída e validada, assim como as entregas #47–#56 deste ciclo.
 O fechamento do ciclo e a PR para `main` acontecem após concluir e validar o escopo da versão.
 - [x] Calculadora monetária integrada como entrada padrão para campos de valor
 - [x] Operações básicas: soma, subtração, multiplicação e divisão
@@ -141,21 +141,21 @@ O fechamento do ciclo e a PR para `main` acontecem após concluir e validar o es
 - [ ] Reembolsos/pessoas
 - [ ] Tags/estabelecimentos
 - [ ] Regras automáticas
-- [ ] Autocompletar/modelos
+- [x] Sugestões por descrição e categorias (#48); modelos avançados futuros
 - [ ] Edição em lote, desfazer/refazer, lixeira
 - [ ] Agendamentos/projeções
 
 ## Fase 4 — Cartões
 
-Entrega ativa: #47 (epic #12). Cadastro, compras, faturas, limite e liquidações implementados; CI e validação manual pendentes. Regras e roteiro em `docs/cartoes-faturas.md`. Compras internacionais, adicionais e importação ficam para entregas próprias.
+Entrega #47 (epic #12) concluída e validada. Cadastro, compras, faturas, limite e liquidações implementados. Regras e roteiro em `docs/cartoes-faturas.md`. Compras internacionais, adicionais e importação ficam para entregas próprias.
 
-- [ ] Cartões/limites
-- [ ] Faturas
-- [ ] Compras parceladas
-- [ ] Pagamentos/antecipações
-- [ ] Saldo credor/estornos
+- [x] Cartões/limites
+- [x] Faturas
+- [x] Compras parceladas
+- [x] Pagamentos/antecipações
+- [x] Saldo credor/estornos
 - [ ] Compras internacionais
-- [ ] Competência x caixa
+- [x] Competência x caixa
 
 ## Fase 5 — Planejamento
 - [ ] Orçamentos/versionamento/acúmulo
@@ -180,7 +180,7 @@ Entrega ativa: #47 (epic #12). Cadastro, compras, faturas, limite e liquidaçõe
 - [ ] Relatórios/gráficos
 - [ ] Relatórios salvos/filtros globais
 - [ ] Fechamento/snapshots
-- [ ] CSV/Excel/PDF
+- [x] Importação CSV de receitas/despesas (#56); Excel/PDF futuros
 - [ ] OFX futuro
 - [ ] Conciliação
 - [ ] Pacote portátil
@@ -189,7 +189,7 @@ Entrega ativa: #47 (epic #12). Cadastro, compras, faturas, limite e liquidaçõe
 
 ## Fase 8 — Robustez
 - [ ] Anexos (20 MB)
-- [ ] Backup diário/3 versões
+- [x] Backup diário/3 versões
 - [x] Restauração local validada no MVP; evoluir proteção e automação nos próximos ciclos
 - [ ] Logs/diagnóstico
 - [ ] Telemetria opt-in
@@ -197,20 +197,20 @@ Entrega ativa: #47 (epic #12). Cadastro, compras, faturas, limite e liquidaçõe
 - [ ] Evoluir testes automatizados
 
 ## Fase 9 — Sync Engine
-- [ ] SyncProvider/change tracking
-- [ ] Sync com app aberto
-- [ ] Sync ao abrir/após mudanças
-- [ ] Last Write Wins + histórico
-- [ ] Status/pendências/histórico
+- [x] SyncProvider/change tracking
+- [x] Sync com app aberto
+- [x] Sync ao abrir/após mudanças
+- [x] Last Write Wins + histórico
+- [x] Status/pendências/histórico
 - [ ] Anexos Automático/Wi-Fi/Manual
-- [ ] Primeira sincronização
-- [ ] Bloqueio de merge de bases independentes
+- [x] Primeira sincronização
+- [x] Bloqueio de merge de bases independentes
 - [ ] Migração entre provedores
 
 ## Fase 10 — Google Drive e integrações
-- [ ] Google OAuth
-- [ ] GoogleDriveSyncProvider
-- [ ] Android ↔ Windows
+- [x] Google OAuth
+- [x] GoogleDriveSyncProvider
+- [x] Android ↔ Windows
 - [ ] Central de privacidade
 - [ ] Provedores futuros
 - [ ] APIs de cotações
@@ -231,9 +231,17 @@ Semantic Versioning: 0.x-alpha para desenvolvimento inicial, 0.x-beta para estab
 ## Fechamento da v0.2.0-alpha — #54
 
 - [x] Backups local/Drive Android/Windows e restauração com app aberto (#49–#52), validados.
-- [ ] Sincronização #53 (manual) e #55 (automática com app aberto); ambas aguardam validação manual.
-- [ ] Importação CSV #14 com prévia, mapeamento, conta, duplicatas e sugestões de categoria.
-- [ ] Revisão final de atualização, dados, saldos, datas, séries, cartões, backup, rede e conflitos.
-- [ ] Documentação final, pacotes e validação; somente então PR para main e release.
+- [x] Sincronização #53 manual e #55 automática, validadas.
+- [x] Importação CSV #56/#14 com prévia, mapeamento, conta, duplicatas e categorias, validada em 06/10/2026.
+- [x] Revisão final #54, correções da build 202 e validação do usuário em 06/10/2026.
+- [x] Documentação final, pacotes e validação; publicação autorizada em 06/10/2026.
+- [ ] PR para main e release v0.2.0-alpha; registrar conclusão na #54.
 
 Rateio/reembolso (#11) permanece para ciclo posterior. [Fluxo e validação da sincronização](sincronizacao-drive.md).
+
+
+## Próximo ciclo — v0.3.0-alpha
+
+Criar branch a partir do commit integrado de `main`, sem alterar a tag/branch histórica v0.2.0-alpha. Atualizar pubspec/changelog/documentação somente na nova branch; CI segue gerando pacotes, publicação apenas ao integrar o próximo ciclo validado em main.
+
+Escopo a definir com o usuário. Candidatos já registrados: rateio/reembolsos (#11), planejamento/metas (#13), evolução de CSV/relatórios/conciliação (#14), patrimônio/dívidas (#15), cartões internacionais/adicionais (#12) e anexos sincronizados (#16). Criar a versão não autoriza implementar automaticamente esses itens.

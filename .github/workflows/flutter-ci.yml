@@ -29,6 +29,8 @@ jobs:
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Static analysis
         run: flutter analyze
+      - name: Release publication guards
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Tests
         run: flutter test
       - name: Render dashboard mobile preview
@@ -236,7 +238,7 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      group: somia-release-v0.1.0-alpha
+      group: somia-release-${{ github.ref }}
       cancel-in-progress: false
     env:
       GH_TOKEN: ${{ github.token }}
@@ -248,23 +250,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="$(python3 -c "import re; from pathlib import Path; print(re.search(r'^version:\\s*(\\S+)', Path('pubspec.yaml').read_text(), re.MULTILINE).group(1).split('+')[0])")"
-          if [[ "$version" != "0.1.0-alpha" ]]; then
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           gh api "repos/$GH_REPO/releases" --paginate --slurp > "$RUNNER_TEMP/somia-releases.json"
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          releases = [item for page in json.loads((Path(os.environ['RUNNER_TEMP']) / 'somia-releases.json').read_text()) for item in page]
-          existing = next((item for item in releases if item['tag_name'] == 'v0.1.0-alpha'), None)
-          publish = existing is None or existing['draft']
-          if existing and existing['draft'] and existing['target_commitish'] != os.environ['GITHUB_SHA']:
-              raise SystemExit('Rascunho existente aponta para outro commit; publicação interrompida.')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write('publish=' + str(publish).lower() + '\n')
-          PY
+          python3 scripts/alpha_release.py
       - name: Download signed Android package
         if: steps.release.outputs.publish == 'true'
         uses: actions/download-artifact@v4
@@ -287,18 +274,30 @@ jobs:
           test -s packages/windows/finapp.exe
           test -d packages/windows/data
           mkdir -p release-assets
-          cp packages/android/app-release.apk release-assets/somia-v0.1.0-alpha-android.apk
+          cp packages/android/app-release.apk "release-assets/somia-v${SOMIA_VERSION}-android.apk"
           cp packages/android/signing-info.txt release-assets/signing-info.txt
-          (cd packages/windows && zip -qr ../../release-assets/somia-v0.1.0-alpha-windows-x64.zip .)
-          (cd release-assets && sha256sum somia-v0.1.0-alpha-android.apk somia-v0.1.0-alpha-windows-x64.zip signing-info.txt > SHA256SUMS.txt)
+          (cd packages/windows && zip -qr "../../release-assets/somia-v${SOMIA_VERSION}-windows-x64.zip" .)
+          (cd release-assets && sha256sum "somia-v${SOMIA_VERSION}-android.apk" "somia-v${SOMIA_VERSION}-windows-x64.zip" signing-info.txt > SHA256SUMS.txt)
       - name: Publish alpha release at verified commit
         if: steps.release.outputs.publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          tag=v0.1.0-alpha
+          tag="v${SOMIA_VERSION}"
+          # Never attach new binaries to a tag pointing to another commit.
+          if gh api "repos/$GH_REPO/git/ref/tags/$tag" > "$RUNNER_TEMP/somia-tag.json" 2>/dev/null; then
+            tag_type="$(python3 -c "import json; print(json.load(open('$RUNNER_TEMP/somia-tag.json'))['object']['type'])")"
+            tag_sha="$(python3 -c "import json; print(json.load(open('$RUNNER_TEMP/somia-tag.json'))['object']['sha'])")"
+            if [[ "$tag_type" == "tag" ]]; then
+              tag_sha="$(gh api "repos/$GH_REPO/git/tags/$tag_sha" --jq '.object.sha')"
+            fi
+            if [[ "$tag_sha" != "$GITHUB_SHA" ]]; then
+              echo "A tag existente aponta para outro commit; publicação interrompida."
+              exit 1
+            fi
+          fi
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "$GITHUB_SHA" --title "Somia v0.1.0-alpha" --notes-file CHANGELOG.md --prerelease --draft
+            gh release create "$tag" --target "$GITHUB_SHA" --title "Somia $tag" --notes-file "$SOMIA_RELEASE_NOTES" --prerelease --draft
           fi
           gh release upload "$tag" release-assets/* --clobber
-          gh release edit "$tag" --draft=false --prerelease --notes-file CHANGELOG.md
+          gh release edit "$tag" --draft=false --prerelease --notes-file "$SOMIA_RELEASE_NOTES"

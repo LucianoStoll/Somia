@@ -25,11 +25,11 @@ A verificação compartilhada confere hierarquia/tipos de categorias, moedas de 
 
 ## Limites e fechamento
 
-A execução automatizada verifica lógica e builds; não substitui instalação física em Android/Windows, autorização Google real, suspensão do sistema ou interrupção elétrica. #53 e #55 contam com validação real do usuário. As correções desta revisão precisam da conferência manual nos dispositivos. #56 continua pendente. A publicação automática do workflow atual está restrita à versão 0.1.0-alpha; preparar versão/tag/release 0.2.0-alpha somente na etapa de publicação após validação do marco.
+A execução automatizada verifica lógica e builds; não substitui instalação física em Android/Windows, autorização Google real, suspensão do sistema ou interrupção elétrica. #53 e #55 contam com validação real do usuário. Em 06/10/2026 o usuário aprovou #54 e #56, incluindo as correções nos dispositivos e a importação CSV. A preparação final parametriza a publicação pela versão; PR/tag/release são autorizados depois dessa aprovação.
 
 Checklist restante:
 
-- [ ] Atualizar o APK sem desinstalar e conferir os dados anteriores.
-- [ ] Conferir restauração válida e rejeição de arquivo inconsistente nos dispositivos.
-- [ ] Validar a importação #56 quando conveniente.
+- [x] Atualizar o APK sem desinstalar e conferir os dados anteriores.
+- [x] Conferir restauração válida e rejeição de arquivo inconsistente nos dispositivos.
+- [x] Importação #56 validada em 06/10/2026; sugestão de reutilizar data segue no backlog da #14.
 - [ ] Após aprovação final, preparar PR para main e release da versão correta.

@@ -1,6 +1,8 @@
 # Changelog
 
-## v0.2.0-alpha — em desenvolvimento (pós-MVP)
+## v0.2.0-alpha — 2026-10-06 (pós-MVP)
+
+Escopo validado pelo usuário, incluindo #54 e #56 em 06/10/2026. [Notas consolidadas](docs/releases/v0.2.0-alpha.md) e [inventário de arquivos/commits](docs/releases/v0.2.0-alpha-files.md). Publicação por versão, com notas próprias, pacotes verificados e proteção contra sobrescrever releases publicadas ou tags de outro commit.
 
 - #54: restauração e sincronização compartilham a verificação de consistência financeira; backups com tipos, hierarquia, moedas ou vínculos de cartão inválidos são rejeitados sem substituir os dados atuais.
 - #54: troca de moeda também bloqueada para contas vinculadas a cartões, pagamentos e lançamentos excluídos, preservando o histórico.

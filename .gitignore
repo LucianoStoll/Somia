@@ -27,3 +27,7 @@ windows/flutter/ephemeral/
 # OS
 .DS_Store
 Thumbs.db
+
+# Python release tooling
+__pycache__/
+*.pyc
