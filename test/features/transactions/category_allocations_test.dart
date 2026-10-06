@@ -213,6 +213,21 @@ void main() {
     expect(summary.expenseMinor, entry.amountMinor - 1);
     expect(summary.expensesByCategory.fold(0, (s, p) => s + p.amountMinor),
         entry.amountMinor - 1);
+    final invoice = await cards.invoice(entry.invoiceId);
+    await cards.pay(invoice.id, account, entry.amountMinor - 1, invoice.dueAt);
+    final paidSummary =
+        (await SqliteDashboardRepository(db).load(entry.invoiceMonth))
+            .currencies
+            .single;
+    expect(paidSummary.expenseMinor, summary.expenseMinor);
+    expect(paidSummary.expensesByCategory.fold(0, (s, p) => s + p.amountMinor),
+        summary.expenseMinor);
+    expect(
+        (await SqliteAccountsRepository(db).list()).single.currentBalanceMinor,
+        50000 - entry.amountMinor + 1);
+    expect((await repo.list()).where((m) => m.cardInvoiceId == invoice.id),
+        hasLength(1));
+    await validateFinancial(db);
   });
   test('backup financeiro e sync conservam partes e rejeitam soma corrompida',
       () async {

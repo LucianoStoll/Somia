@@ -219,8 +219,8 @@ class _AllocationEditorState extends State<AllocationEditor> {
               ),
             Text(
               percentage
-                  ? 'Distribuído: ${MoneyMinor.plain(weights.fold(0, (s, p) => s + p.amountMinor))}% / 100%'
-                  : 'Distribuído: ${MoneyMinor.display(weights.fold(0, (s, p) => s + p.amountMinor), widget.currencyCode)} / ${MoneyMinor.display(widget.total, widget.currencyCode)}',
+                  ? 'Distribuído: ${MoneyMinor.plain(weights.fold(0, (s, p) => s + p.amountMinor))}% / 100%\nDiferença: ${MoneyMinor.plain(10000 - weights.fold(0, (s, p) => s + p.amountMinor))}%'
+                  : 'Distribuído: ${MoneyMinor.display(weights.fold(0, (s, p) => s + p.amountMinor), widget.currencyCode)} / ${MoneyMinor.display(widget.total, widget.currencyCode)}\nDiferença: ${MoneyMinor.display(widget.total - weights.fold(0, (s, p) => s + p.amountMinor), widget.currencyCode)}',
             ),
             if (field.hasError)
               Text(

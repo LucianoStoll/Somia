@@ -6,7 +6,7 @@ Entrega da `v0.3.0-alpha`, epic #11; melhorias de formulário relacionadas à #5
 
 Ao criar ou editar uma receita, despesa ou compra no cartão, ative **Dividir entre categorias**. Escolha pelo menos duas categorias/subcategorias distintas, do mesmo tipo do lançamento. Use **Por valor** ou **Por percentual** e adicione/remova partes conforme necessário, até 100 partes.
 
-Por valor, as partes devem somar exatamente o total. **Redistribuir pelo total** ajusta os valores proporcionalmente quando o total mudar. Por percentual, a soma precisa ser 100%, com até duas casas decimais. O app converte para unidades monetárias menores e distribui os centavos restantes pelas maiores frações; empates seguem a ordem das partes.
+O formulário mostra o total distribuído e a diferença para o total/100%. Por valor, as partes devem somar exatamente o total. **Redistribuir pelo total** ajusta os valores proporcionalmente quando o total mudar. Por percentual, a soma precisa ser 100%, com até duas casas decimais. O app converte para unidades monetárias menores e distribui os centavos restantes pelas maiores frações; empates seguem a ordem das partes.
 
 Salvar mantém um único lançamento. O rateio aparece na edição, nas etiquetas da lista, nos detalhes das compras e no extrato. Categoria/subcategoria única continuam disponíveis quando o rateio estiver desativado. Cancelar mantém os dados originais; alterações de partes participam da proteção de formulário não salvo.
 
@@ -41,7 +41,7 @@ Na atualização, os snapshots da fila/histórico de sincronização ganham o ca
 | Cartões | `credit_card.dart`, `cards_repository.dart`, `cards_page.dart`: partes nas compras/parcelas, edição, estorno e exibição. |
 | Análises | `sqlite_dashboard_repository.dart`, `account_statement_repository.dart`: distribuição dos gráficos e identificação no extrato. |
 | Categorias | `sqlite_categories_repository.dart`: proteção do tipo das categorias já usadas em rateios. |
-| Testes / CI | `category_allocations_test.dart`, `schema_v12_test.dart`, `allocation_editor_test.dart` e workflow: regressões financeiras, migration/fila, formulários e prévias mobile/desktop. |
+| Testes / CI | `category_allocations_test.dart`, `schema_v12_test.dart`, `allocation_editor_test.dart`, regressões dos formulários de séries/cartões e workflow: regressões financeiras, migration/fila, formulários e prévias mobile/desktop. |
 | Documentação | Este roteiro, changelog, README e documento do ciclo. |
 
 ## Validação manual pendente

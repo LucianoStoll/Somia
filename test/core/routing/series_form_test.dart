@@ -85,12 +85,24 @@ void main() {
             find.byKey(const ValueKey('series-interval')), '2');
         expect(
             tester
-                .widget<SwitchListTile>(find.byType(SwitchListTile).first)
+                .widget<SwitchListTile>(find.widgetWithText(
+                    SwitchListTile,
+                    kind == 'income'
+                        ? 'Recebido'
+                        : kind == 'expense'
+                            ? 'Pago'
+                            : 'Efetivada'))
                 .value,
             isFalse);
         expect(
             tester
-                .widget<SwitchListTile>(find.byType(SwitchListTile).first)
+                .widget<SwitchListTile>(find.widgetWithText(
+                    SwitchListTile,
+                    kind == 'income'
+                        ? 'Recebido'
+                        : kind == 'expense'
+                            ? 'Pago'
+                            : 'Efetivada'))
                 .onChanged,
             isNull);
         await tester.tap(find.text('Salvar lançamento'));
