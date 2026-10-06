@@ -149,18 +149,27 @@ class _CardsPageState extends State<CardsPage> {
             scope: scope,
             item: entry == null ? null : _repo.movement(entry, card)));
     if (draft == null || !mounted) return;
+    if (entry != null) {
+      try {
+        final hasPayments = await _repo.purchaseHasPayments(
+            entry.id, draft.scope,
+            invoiceMonth: draft.cardInvoiceMonth, purchaseDate: draft.date);
+        if (!mounted) return;
+        if (hasPayments &&
+            !await _confirm('Corrigir compra em fatura com pagamento?',
+                'Os pagamentos realizados ou agendados permanecerão vinculados às faturas atuais. A correção recalculará a dívida ou o crédito do cartão, sem alterar o saldo pago pela conta.')) {
+          return;
+        }
+      } catch (e) {
+        if (mounted) cardError(context, e);
+        return;
+      }
+    }
+    if (!mounted) return;
     await _run(() async {
       if (entry == null) {
         await _repo.createPurchase(draft);
       } else {
-        if (await _repo.purchaseHasPayments(entry.id, draft.scope,
-                invoiceMonth: draft.cardInvoiceMonth,
-                purchaseDate: draft.date) &&
-            (!mounted ||
-                !await _confirm('Corrigir compra em fatura com pagamento?',
-                    'Os pagamentos realizados ou agendados permanecerão vinculados às faturas atuais. A correção recalculará a dívida ou o crédito do cartão, sem alterar o saldo pago pela conta.'))) {
-          return;
-        }
         await _repo.editPurchase(entry.id, draft);
       }
     });
