@@ -16,7 +16,7 @@ Salvar mantém um único lançamento. O rateio aparece na edição, nas etiqueta
 - Saldo, totais mensais e pagamento da fatura continuam usando o valor do lançamento original uma única vez.
 - O gráfico de despesas por categoria distribui os valores; subcategorias são agrupadas na categoria principal. Filtros de categoria encontram também partes do rateio. A lista de despesas mantém uma linha por fatura de cartão.
 - Percentuais são preservados ao reabrir a edição, alterar o total pela lista e criar parcelas. Rateios por valor usam proporção das partes existentes em alterações rápidas de total.
-- Recorrências repetem a classificação em cada ocorrência; parcelas redistribuem as partes por valor da parcela, mantendo a soma exata de cada ocorrência. Edição em série segue a proteção já existente de efetivados/faturas com pagamento.
+- Recorrências repetem a classificação em cada ocorrência; parcelas redistribuem as partes por valor da parcela, mantendo a soma exata de cada ocorrência. Em séries de conta, a edição mantém a proteção de ocorrências efetivadas. Compras do cartão seguem a correção da #61: parcelas pagas/agendadas podem ser corrigidas com confirmação, preservando os pagamentos.
 - Em valores muito pequenos, algumas partes podem ficar com zero centavos, preservando categorias/percentuais e a soma total.
 - Estornos de cartão recebem distribuição proporcional e valores de classificação com sinal negativo nos gráficos; antecipação preserva as partes da compra.
 - Categorias arquivadas do histórico podem ser mantidas ao editar. Novos vínculos exigem categorias ativas. Trocar o tipo de uma categoria usada em rateios é bloqueado.

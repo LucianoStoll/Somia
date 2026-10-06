@@ -88,7 +88,7 @@ Relato de 06/10/2026: compra lançada incorretamente numa fatura já paga não p
 | `lib/features/cards/presentation/cards_page.dart` | Confirmação da edição paga e mensagem de exclusão com preservação das liquidações. |
 | `test/features/cards/cards_repository_test.dart` | Datas/faturas pagas, rateio, caixa/crédito, exclusão/backup, agendamentos e rollback de valores estornados. |
 | `test/core/routing/cards_page_test.dart` | Confirmação/cancelamento da edição nos layouts Android/Windows. |
-| `docs/cartoes-faturas.md`, `CHANGELOG.md`, `docs/ciclos/v0.3.0-alpha.md` | Regras atualizadas, inventário e validação conjunta com #60. |
+| `docs/cartoes-faturas.md`, `docs/rateio-categorias.md`, `CHANGELOG.md`, `docs/ciclos/v0.3.0-alpha.md` | Regras atualizadas, inventário e validação conjunta com #60. |
 
 Validação manual conjunta com #60:
 
