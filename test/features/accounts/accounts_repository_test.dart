@@ -129,4 +129,60 @@ void main() {
     final accounts = await SqliteAccountsRepository(db).list();
     expect(accounts.single.currentBalanceMinor, 730);
   });
+
+  for (final reference in ['card', 'payment', 'deletedTransaction']) {
+    test('moeda preservada com vínculo financeiro: $reference', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repo = SqliteAccountsRepository(db);
+      final account = await repo.create(draft);
+      if (reference == 'deletedTransaction') {
+        await db.customStatement(
+          """INSERT INTO transactions
+          (id,description,type,planned_amount_minor,competence_at,account_id,
+           created_at,updated_at,deleted_at)
+          VALUES ('old','Histórico','expense',100,1,?,1,1,2)""",
+          [account.id],
+        );
+      } else {
+        final other = await repo.create(draft);
+        await db.customStatement(
+          """INSERT INTO credit_cards
+          (id,name,payment_account_id,closing_day,due_day,created_at,updated_at)
+          VALUES ('card','Cartão',?,25,5,1,1)""",
+          [reference == 'card' ? account.id : other.id],
+        );
+        if (reference == 'payment') {
+          await db.customStatement("""INSERT INTO card_invoices
+            (id,card_id,month_at,closing_at,due_at,created_at,updated_at)
+            VALUES ('invoice','card',1,1,2,1,1)""");
+          await db.customStatement(
+            """INSERT INTO card_payments
+            (id,invoice_id,account_id,amount_minor,effective_at,created_at,updated_at)
+            VALUES ('payment','invoice',?,100,1,1,1)""",
+            [account.id],
+          );
+        }
+      }
+      await expectLater(
+        repo.update(
+          account.id,
+          const AccountDraft(
+            name: 'Outra moeda',
+            type: AccountType.cash,
+            currencyCode: 'USD',
+            initialBalanceMinor: 12345,
+            includeInAnalytics: true,
+          ),
+        ),
+        throwsStateError,
+      );
+      final preserved = (await repo.list()).singleWhere(
+        (a) => a.id == account.id,
+      );
+      expect(preserved.currencyCode, 'BRL');
+      expect(preserved.name, draft.name);
+      await repo.update(account.id, draft);
+    });
+  }
 }

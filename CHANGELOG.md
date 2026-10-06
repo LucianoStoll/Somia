@@ -2,6 +2,10 @@
 
 ## v0.2.0-alpha — em desenvolvimento (pós-MVP)
 
+- #54: restauração e sincronização compartilham a verificação de consistência financeira; backups com tipos, hierarquia, moedas ou vínculos de cartão inválidos são rejeitados sem substituir os dados atuais.
+- #54: troca de moeda também bloqueada para contas vinculadas a cartões, pagamentos e lançamentos excluídos, preservando o histórico.
+- #53 validada pelo usuário em 05/10/2026.
+
 - #56 / #14: importação CSV por conta com mapeamento, prévia, seleção e identificação de duplicados, categorias pelo nome/histórico, datas e centavos validados e gravação atômica. Lançamentos sem efetivação entram pendentes; nenhum dado é substituído.
 
 - Ajustes: escolha entre sincronizar a cada alteração salva ou agrupar alterações, com preferência persistente e notificações após commit.

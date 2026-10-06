@@ -4,7 +4,10 @@ import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/core/database/backup_manager.dart';
 import 'package:finapp/core/database/backup_service.dart';
+import 'package:finapp/core/database/financial_data.dart';
 import 'package:finapp/core/database/local_backup_store.dart';
+import 'package:finapp/core/sync/sync_store.dart';
+import 'package:finapp/features/balances/data/sqlite_balances_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FailingDatabase extends AppDatabase {
@@ -226,4 +229,123 @@ void main() {
         manager.restore(Uint8List.fromList([1, 2, 3])), throwsFormatException);
     expect(await _data(db), before);
   });
+
+  test(
+    'ledger completo mantém saldos no backup e na sincronização repetida',
+    () async {
+      final cutoff = DateTime(2026, 10, 5);
+      final expected = await readFinancial(source);
+      final balances = await balanceRows(source, asOf: cutoff, through: cutoff);
+      await manager.restore(await BackupService.export(source, dir));
+      expect(await readFinancial(db), expected);
+      expect(
+        (await balanceRows(
+          db,
+          asOf: cutoff,
+          through: cutoff,
+        ))
+            .map((r) => r.data),
+        balances.map((r) => r.data),
+      );
+      final sender = SyncStore(source, LocalBackupStore(dir));
+      final receiver = SyncStore(db, LocalBackupStore(dir));
+      final packet = await sender.createBase('same@example.com');
+      await receiver.apply([packet], joinEmail: 'same@example.com');
+      await sender.ack(packet);
+      expect(await readFinancial(db), expected);
+      expect(await receiver.apply([packet]), isFalse);
+      expect((await receiver.state()).pending, 0);
+      expect(
+        (await balanceRows(
+          db,
+          asOf: cutoff,
+          through: cutoff,
+        ))
+            .map((r) => r.data),
+        balances.map((r) => r.data),
+      );
+      await validateFinancial(db);
+    },
+  );
+
+  final invalidCases = <String, String>{
+    'tipo da categoria do lançamento':
+        "UPDATE categories SET type='income' WHERE id='new-child'",
+    'hierarquia da categoria':
+        "UPDATE categories SET parent_id='new-child' WHERE id='new-parent'",
+    'moedas da transferência':
+        "UPDATE accounts SET currency_code='USD' WHERE id='new-b'",
+    'cartão da fatura':
+        "UPDATE card_entries SET card_id='other-card' WHERE id='new-entry'",
+    'categoria da compra':
+        "UPDATE card_entries SET category_id='income' WHERE id='new-entry'",
+    'moeda da conta do cartão':
+        "UPDATE accounts SET currency_code='USD' WHERE id='new-a'",
+    'moeda da conta do pagamento':
+        "UPDATE card_payments SET account_id='usd' WHERE id='new-payment'",
+    'sinal da compra':
+        "UPDATE card_entries SET amount_minor=-900 WHERE id='new-entry'",
+  };
+  for (final entry in invalidCases.entries) {
+    test(
+      'backup inconsistente rejeitado sem alterar dados: ${entry.key}',
+      () async {
+        final before = await _data(db);
+        final triggers = await db
+            .customSelect(
+              "SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name",
+            )
+            .get();
+        await source.customStatement("""INSERT INTO accounts
+        (id,name,type,currency_code,initial_balance_minor,created_at,updated_at)
+        VALUES ('usd','USD','cash','USD',0,1,1)""");
+        await source.customStatement("""INSERT INTO categories
+        (id,name,type,created_at,updated_at)
+        VALUES ('income','Receita','income',1,1)""");
+        await source.customStatement("""INSERT INTO credit_cards
+        (id,name,payment_account_id,closing_day,due_day,created_at,updated_at)
+        VALUES ('other-card','Outro cartão','new-a',25,5,1,1)""");
+        // Um SQLite externo pode ser íntegro mesmo sem os triggers de negócio.
+        for (final trigger in await source
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type='trigger'",
+            )
+            .get()) {
+          await source.customStatement(
+            'DROP TRIGGER "${trigger.read<String>('name')}"',
+          );
+        }
+        await source.customStatement(entry.value);
+        expect(
+          await source.customSelect('PRAGMA foreign_key_check').get(),
+          isEmpty,
+        );
+        await expectLater(validateFinancial(source), throwsFormatException);
+        final bytes = await BackupService.export(source, dir);
+        await expectLater(
+          BackupService.validateBytes(bytes, dir),
+          throwsFormatException,
+        );
+        await expectLater(
+          BackupService.stageRestore(bytes, dir),
+          throwsFormatException,
+        );
+        await expectLater(manager.restore(bytes), throwsFormatException);
+        expect(await _data(db), before);
+        expect(manager.databaseRevision, 0);
+        expect(manager.restoring, isFalse);
+        expect(manager.busy, isFalse);
+        expect(await BackupService.hasPendingRestore(dir), isFalse);
+        expect(
+          (await db
+                  .customSelect(
+                    "SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name",
+                  )
+                  .get())
+              .map((r) => r.data),
+          triggers.map((r) => r.data),
+        );
+      },
+    );
+  }
 }

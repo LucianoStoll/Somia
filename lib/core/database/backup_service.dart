@@ -136,11 +136,7 @@ abstract final class BackupService {
               .customStatement('INSERT INTO main."${entry.key}" ($names) '
                   'SELECT $names FROM restore_source."${entry.key}"');
         }
-        final violations =
-            await database.customSelect('PRAGMA main.foreign_key_check').get();
-        if (violations.isNotEmpty) {
-          throw const FormatException('O backup contém vínculos inválidos.');
-        }
+        await validateFinancial(database);
         // Uma restauração explícita desvincula a base. Nunca publicar o passado
         // restaurado como exclusões/edições de uma sessão de sync anterior.
         for (final table in columns.keys.where((n) => n.startsWith('sync_'))) {
@@ -224,11 +220,6 @@ abstract final class BackupService {
           integrity.single.read<String>('integrity_check') != 'ok') {
         throw const FormatException('O backup está corrompido.');
       }
-      final violations =
-          await database.customSelect('PRAGMA foreign_key_check').get();
-      if (violations.isNotEmpty) {
-        throw const FormatException('O backup contém vínculos inválidos.');
-      }
       final tables = await database
           .customSelect(
             "SELECT name FROM sqlite_master WHERE type = 'table'",
@@ -255,6 +246,7 @@ abstract final class BackupService {
               'A estrutura do backup não é compatível com o Somia.');
         }
       }
+      await validateFinancial(database);
     } finally {
       await database.close();
     }

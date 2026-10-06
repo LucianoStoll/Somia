@@ -69,7 +69,7 @@ Future<void> replaceFinancial(AppDatabase db, FinancialRows rows) async {
 Future<void> validateFinancial(AppDatabase db) async {
   if ((await db.customSelect('PRAGMA foreign_key_check').get()).isNotEmpty) {
     throw const FormatException(
-        'A sincronização contém vínculos incompletos. Tente novamente após sincronizar o outro dispositivo.');
+        'Os dados recebidos contêm vínculos incompletos. Os dados atuais foram preservados.');
   }
   final invalid = await db.customSelect('''SELECT 1 FROM categories c
     JOIN categories p ON p.id=c.parent_id
@@ -79,10 +79,19 @@ Future<void> validateFinancial(AppDatabase db) async {
     UNION ALL SELECT 1 FROM transfers t JOIN accounts a ON a.id=t.source_account_id
     JOIN accounts b ON b.id=t.destination_account_id WHERE a.currency_code<>b.currency_code
     UNION ALL SELECT 1 FROM card_entries e JOIN card_invoices i ON i.id=e.invoice_id
-    WHERE e.card_id<>i.card_id LIMIT 1''').get();
+    WHERE e.card_id<>i.card_id
+    UNION ALL SELECT 1 FROM card_entries e JOIN categories c ON c.id=e.category_id
+    WHERE c.type<>'expense'
+    UNION ALL SELECT 1 FROM credit_cards c JOIN accounts a ON a.id=c.payment_account_id
+    WHERE a.currency_code<>'BRL'
+    UNION ALL SELECT 1 FROM card_payments p JOIN accounts a ON a.id=p.account_id
+    WHERE a.currency_code<>'BRL'
+    UNION ALL SELECT 1 FROM card_entries e
+    WHERE (e.kind IN ('purchase','fee') AND e.amount_minor<0)
+      OR (e.kind IN ('refund','discount') AND e.amount_minor>0) LIMIT 1''').get();
   if (invalid.isNotEmpty) {
     throw const FormatException(
-        'As alterações conflitantes não formam dados financeiros válidos. Os dados atuais foram preservados.');
+        'Os dados recebidos não formam registros financeiros válidos. Os dados atuais foram preservados.');
   }
 }
 

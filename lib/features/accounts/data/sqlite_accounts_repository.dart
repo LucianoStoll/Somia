@@ -49,18 +49,22 @@ class SqliteAccountsRepository implements AccountsRepository {
     if (current.currencyCode != draft.currencyCode.toUpperCase()) {
       final references = await _db.customSelect('''
         SELECT
-          (SELECT COUNT(*) FROM transactions WHERE account_id = ? AND deleted_at IS NULL) +
+          (SELECT COUNT(*) FROM transactions WHERE account_id = ?) +
           (SELECT COUNT(*) FROM transfers WHERE
-             (source_account_id = ? OR destination_account_id = ?) AND deleted_at IS NULL)
+             (source_account_id = ? OR destination_account_id = ?)) +
+          (SELECT COUNT(*) FROM credit_cards WHERE payment_account_id = ?) +
+          (SELECT COUNT(*) FROM card_payments WHERE account_id = ?)
           AS total
       ''', variables: [
+        Variable.withString(id),
+        Variable.withString(id),
         Variable.withString(id),
         Variable.withString(id),
         Variable.withString(id)
       ]).getSingle();
       if (references.read<int>('total') > 0) {
         throw StateError(
-            'Não é possível trocar a moeda de uma conta com lançamentos.');
+            'Não é possível trocar a moeda de uma conta com vínculos financeiros ou histórico.');
       }
     }
     await _db.customStatement('''

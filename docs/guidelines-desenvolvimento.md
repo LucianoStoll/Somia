@@ -64,8 +64,8 @@ O CI verifica formatação, análise e testes automaticamente em pushes para
 repositories, navegação, migrations e backup/restauração. A Action também
 compila Windows e, fora de PRs, gera APK assinado com chave persistente.
 
-Testes de importação e sincronização serão adicionados quando esses módulos
-pós-MVP forem implementados.
+A suíte inclui importação CSV e sincronização manual/automática, com testes
+de duplicação, conflitos, interrupções, rollback e preservação da fila.
 
 ## Releases
 Semantic Versioning:
