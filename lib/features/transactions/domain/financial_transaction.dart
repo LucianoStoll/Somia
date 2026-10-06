@@ -1,3 +1,4 @@
+import '../../../core/allocations/category_allocation.dart';
 import '../../../core/series/movement_series.dart';
 
 enum TransactionType {
@@ -24,6 +25,7 @@ class FinancialTransaction {
     this.cardEntryCount = 0,
     this.cardLastPaymentId,
     this.cardPaymentSignature = '',
+    this.allocations = const [],
     required this.description,
     required this.type,
     required this.amountMinor,
@@ -45,6 +47,7 @@ class FinancialTransaction {
   final String? cardInvoiceId, cardLastPaymentId;
   final int cardBalanceMinor, cardScheduledMinor, cardEntryCount;
   final String cardPaymentSignature;
+  final List<CategoryAllocation> allocations;
   final String description;
   final TransactionType type;
   final int amountMinor;
@@ -63,6 +66,7 @@ class FinancialTransaction {
 
 class TransactionDraft {
   const TransactionDraft({
+    this.allocations = const [],
     required this.description,
     required this.type,
     required this.amountMinor,
@@ -78,6 +82,8 @@ class TransactionDraft {
     required this.accountId,
     this.categoryId,
   });
+
+  final List<CategoryAllocation> allocations;
 
   final String description;
   final TransactionType type;

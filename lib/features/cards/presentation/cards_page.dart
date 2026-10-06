@@ -341,7 +341,7 @@ class _CardsPageState extends State<CardsPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
       title: Text(e.description),
       subtitle: Text(
-          '${e.label} · ${e.categoryName ?? 'Sem categoria'}\nCompra: ${cardDateLabel(e.postedAt)}'),
+          '${e.label} · ${e.allocations.isEmpty ? e.categoryName ?? 'Sem categoria' : 'Rateio · ${e.allocations.length} categorias'}\nCompra: ${cardDateLabel(e.postedAt)}'),
       isThreeLine: true,
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(cardMoney(e.amountMinor)),

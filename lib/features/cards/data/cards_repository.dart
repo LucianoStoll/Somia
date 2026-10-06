@@ -1,3 +1,6 @@
+import '../../../core/allocations/category_allocation.dart';
+import '../../../core/allocations/allocation_store.dart';
+
 import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart';
@@ -207,11 +210,13 @@ class CardsRepository {
       required int amount,
       required DateTime date,
       String? categoryId,
+      List<CategoryAllocation> allocations = const [],
       String kind = 'purchase',
       int index = 0,
       int count = 1,
       String? sourceId,
       String? id}) async {
+    CategoryAllocation.validate(allocations, amount.abs());
     _money(amount, signed: true);
     _date(date);
     final invoice = await _one('card_invoices', invoiceId);
@@ -220,8 +225,8 @@ class CardsRepository {
     }
     final now = EntityMetadata.nowUtcMillis();
     await db.customStatement(
-        '''INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,installment_index,installment_count,description,category_id,kind,amount_minor,posted_at,source_id,created_at,updated_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+        '''INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,installment_index,installment_count,description,category_id,kind,amount_minor,posted_at,source_id,created_at,updated_at,allocations_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         [
           id ?? EntityMetadata.newId(),
           cardId,
@@ -236,7 +241,8 @@ class CardsRepository {
           cardDay(date),
           sourceId,
           now,
-          now
+          now,
+          CategoryAllocation.encode(allocations),
         ]);
   }
 
@@ -249,6 +255,10 @@ class CardsRepository {
             draft.description.trim().isEmpty) {
           throw const FormatException('Informe uma despesa válida.');
         }
+        CategoryAllocation.validate(draft.allocations, draft.amountMinor);
+        if (draft.allocations.isNotEmpty && draft.categoryId != null)
+          throw const FormatException('Use categoria única ou rateio.');
+        await validateAllocationReferences(db, draft.allocations, 'expense');
         await _category(draft.categoryId);
         _money(draft.amountMinor);
         _date(draft.date);
@@ -284,6 +294,10 @@ class CardsRepository {
               amount: amounts[index],
               date: draft.date,
               categoryId: draft.categoryId,
+              allocations: CategoryAllocation.distribute(
+                draft.allocations,
+                amounts[index],
+              ),
               index: firstIndex - 1 + index,
               count: firstIndex - 1 + amounts.length,
               id: index == 0 ? firstId : null);
@@ -312,6 +326,9 @@ class CardsRepository {
             dueAt: cardDate(r.read<int>('due_at')),
             invoiceMonth: cardDate(r.read<int>('month_at')),
             categoryId: r.readNullable<String>('category_id'),
+            allocations: CategoryAllocation.decode(
+              r.read<String>('allocations_json'),
+            ),
             categoryName: r.readNullable<String>('category_name'),
             sourceId: r.readNullable<String>('source_id')))
         .toList();
@@ -486,6 +503,15 @@ class CardsRepository {
   Future<void> editPurchase(String id, TransactionDraft draft) =>
       db.transaction(() async {
         final original = await entry(id);
+        CategoryAllocation.validate(draft.allocations, draft.amountMinor);
+        if (draft.allocations.isNotEmpty && draft.categoryId != null)
+          throw const FormatException('Use categoria única ou rateio.');
+        await validateAllocationReferences(
+          db,
+          draft.allocations,
+          'expense',
+          historicalIds: original.allocations.map((p) => p.categoryId).toSet(),
+        );
         if (draft.type != TransactionType.expense ||
             draft.cardId != original.cardId ||
             draft.description.trim().isEmpty) {
@@ -514,8 +540,9 @@ class CardsRepository {
           }
           await _history(e, 'edit', target, draft.amountMinor);
           await db.customStatement(
-              'UPDATE card_entries SET description=?,amount_minor=?,posted_at=?,category_id=?,invoice_id=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+              'UPDATE card_entries SET allocations_json=?,description=?,amount_minor=?,posted_at=?,category_id=?,invoice_id=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
               [
+                CategoryAllocation.encode(draft.allocations),
                 draft.description.trim(),
                 draft.amountMinor,
                 cardDay(draft.date),
@@ -538,8 +565,15 @@ class CardsRepository {
         for (final e in targets) {
           await _history(e, 'edit', e.invoiceId, amount);
           await db.customStatement(
-              'UPDATE card_entries SET amount_minor=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
-              [amount, now, e.id]);
+              'UPDATE card_entries SET allocations_json=?,amount_minor=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+              [
+                CategoryAllocation.encode(
+                  CategoryAllocation.distribute(e.allocations, amount),
+                ),
+                amount,
+                now,
+                e.id
+              ]);
         }
       });
   Future<void> deletePurchase(String id, SeriesScope scope) =>
@@ -590,6 +624,8 @@ class CardsRepository {
             amount: -amount,
             date: date,
             categoryId: original.categoryId,
+            allocations:
+                CategoryAllocation.distribute(original.allocations, amount),
             kind: 'refund',
             sourceId: original.purchaseId);
       });
@@ -708,6 +744,7 @@ class CardsRepository {
           accountId: c.id,
           accountName: 'Cartão ${c.name}',
           categoryId: e.categoryId,
+          allocations: e.allocations,
           categoryName: e.categoryName,
           currencyCode: 'BRL',
           series: e.count > 1
@@ -899,7 +936,12 @@ class CardsRepository {
               continue;
             }
             if (filter.categoryId != null &&
-                !bill.entries.any((e) => categories.contains(e.categoryId))) {
+                !bill.entries.any(
+                  (e) =>
+                      categories.contains(e.categoryId) ||
+                      e.allocations
+                          .any((p) => categories.contains(p.categoryId)),
+                )) {
               continue;
             }
             final effective = bill.balanceMinor <= 0;

@@ -77,17 +77,32 @@ class SyncEntry {
 }
 
 class SyncPacket {
-  const SyncPacket(this.id, this.base, this.device, this.kind, this.entries);
+  const SyncPacket(
+    this.id,
+    this.base,
+    this.device,
+    this.kind,
+    this.entries, {
+    this.sourceSchema = AppDatabase.currentSchemaVersion,
+  });
+  final int sourceSchema;
   final String id, base, device, kind;
   final List<SyncEntry> entries;
   Uint8List encode() => Uint8List.fromList(utf8.encode(jsonEncode({
         'protocol': syncProtocol,
-        'schema': AppDatabase.currentSchemaVersion,
+        'schema': sourceSchema,
         'id': id,
         'base': base,
         'device': device,
         'kind': kind,
-        'entries': entries.map((e) => e.toJson()).toList(),
+        'entries': entries.map((e) {
+          final value = e.toJson();
+          if (sourceSchema == 11 && e.data != null) {
+            value['data'] = Map<String, Object?>.of(e.data!)
+              ..remove('allocations_json');
+          }
+          return value;
+        }).toList(),
       })));
   String get digest => sha256.convert(encode()).toString();
   static SyncPacket decode(
@@ -98,7 +113,8 @@ class SyncPacket {
     final v = jsonDecode(utf8.decode(bytes));
     if (v is! Map ||
         v['protocol'] != syncProtocol ||
-        v['schema'] != AppDatabase.currentSchemaVersion ||
+        (v['schema'] != AppDatabase.currentSchemaVersion &&
+            v['schema'] != 11) ||
         !['genesis', 'changes'].contains(v['kind']) ||
         [
           'id',
@@ -110,6 +126,18 @@ class SyncPacket {
       throw const FormatException(
           'Versão de sincronização incompatível. Atualize os dois dispositivos.');
     }
+    // Historical v11 packets remain readable after both apps are upgraded.
+    if (v['schema'] == 11) {
+      for (final e in v['entries'] as List) {
+        if (e is Map &&
+            ['transactions', 'card_entries'].contains(e['table']) &&
+            e['data'] is Map) {
+          if ((e['data'] as Map).containsKey('allocations_json'))
+            throw const FormatException('Registro v11 incompatível.');
+          (e['data'] as Map)['allocations_json'] = '[]';
+        }
+      }
+    }
     final entries =
         (v['entries'] as List).map((e) => SyncEntry.parse(e, columns)).toList();
     if (entries.map((e) => e.key).toSet().length != entries.length ||
@@ -119,7 +147,13 @@ class SyncPacket {
             (v['kind'] == 'genesis' && (e.clock != 0 || e.deleted)))) {
       throw const FormatException('Pacote de sincronização inválido.');
     }
-    return SyncPacket(v['id'] as String, v['base'] as String,
-        v['device'] as String, v['kind'] as String, entries);
+    return SyncPacket(
+      v['id'] as String,
+      v['base'] as String,
+      v['device'] as String,
+      v['kind'] as String,
+      entries,
+      sourceSchema: v['schema'] as int,
+    );
   }
 }

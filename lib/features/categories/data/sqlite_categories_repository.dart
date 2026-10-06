@@ -43,7 +43,16 @@ class SqliteCategoriesRepository implements CategoriesRepository {
 
   @override
   Future<FinanceCategory> update(String id, CategoryDraft draft) async {
-    await _find(id);
+    final original = await _find(id);
+    if (original.type != draft.type) {
+      final used = await _db.customSelect(
+        '''SELECT 1 FROM transactions t,json_each(t.allocations_json) p WHERE json_extract(p.value,'\$.categoryId')=?
+        UNION ALL SELECT 1 FROM card_entries e,json_each(e.allocations_json) p WHERE json_extract(p.value,'\$.categoryId')=? LIMIT 1''',
+        variables: [Variable.withString(id), Variable.withString(id)],
+      ).get();
+      if (used.isNotEmpty)
+        throw StateError('Preserve o tipo da categoria usada em rateios.');
+    }
     await _validate(draft, id: id);
     await _db.customStatement('''
       UPDATE categories SET name = ?, type = ?, parent_id = ?, icon_key = ?,

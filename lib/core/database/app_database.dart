@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -19,6 +20,7 @@ import 'schema_v8.dart';
 import 'schema_v9.dart';
 import 'schema_v10.dart';
 import 'schema_v11.dart';
+import 'schema_v12.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -124,7 +126,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 11;
+  static const currentSchemaVersion = 12;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -146,7 +148,8 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV8,
             ...schemaV9,
             ...schemaV10,
-            ...schemaV11
+            ...schemaV11,
+            ...schemaV12,
           ]) {
             await customStatement(statement);
           }
@@ -165,10 +168,37 @@ class AppDatabase extends GeneratedDatabase {
               9 => schemaV9,
               10 => schemaV10,
               11 => schemaV11,
+              12 => schemaV12,
               _ => throw StateError('Migration v$version não implementada'),
             };
             for (final statement in statements) {
               await customStatement(statement);
+            }
+          }
+          if (from < 12) {
+            // Requeue unsent v11 packets with new identities: an earlier upload
+            // may already exist remotely with the original content hash.
+            final uploads =
+                await customSelect('SELECT * FROM sync_uploads').get();
+            for (final row in uploads) {
+              final packet = jsonDecode(row.read<String>('payload'))
+                  as Map<String, dynamic>;
+              packet['schema'] = 12;
+              packet['id'] = const Uuid().v4();
+              for (final entry in packet['entries'] as List) {
+                if (['transactions', 'card_entries'].contains(entry['table']) &&
+                    entry['data'] != null) {
+                  entry['data']['allocations_json'] = '[]';
+                }
+              }
+              await customStatement(
+                'UPDATE sync_uploads SET packet_id=?,payload=? WHERE packet_id=?',
+                [
+                  packet['id'],
+                  jsonEncode(packet),
+                  row.read<String>('packet_id')
+                ],
+              );
             }
           }
           await installSyncTriggers(this);

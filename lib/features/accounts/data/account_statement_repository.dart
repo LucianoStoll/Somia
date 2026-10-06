@@ -55,10 +55,12 @@ class AccountStatementRepository {
               amountMinor: income ? amount : -amount,
               kind: income ? StatementKind.income : StatementKind.expense,
               effective: effective,
-              detail: [
-                r.readNullable<String>('parent_name'),
-                r.readNullable<String>('category_name')
-              ].whereType<String>().join(' / '));
+              detail: r.read<String>('allocations_json') != '[]'
+                  ? 'Rateio entre categorias'
+                  : [
+                      r.readNullable<String>('parent_name'),
+                      r.readNullable<String>('category_name')
+                    ].whereType<String>().join(' / '));
           forecast.add(e);
           if (effective) actual.add(e);
         }

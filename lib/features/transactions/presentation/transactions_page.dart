@@ -1,3 +1,5 @@
+import '../../../core/allocations/category_allocation.dart';
+import '../../../core/allocations/allocation_editor.dart';
 import '../data/category_history_repository.dart';
 import '../../cards/data/cards_repository.dart';
 import '../../cards/domain/credit_card.dart';
@@ -157,7 +159,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
     context.read<TransactionsCubit>().load(TransactionFilter(
           type: _type,
           accountId: _accountId,
-          categoryId: _subcategoryId ?? _categoryId,
+          allocations: _rateioEnabled ? _allocations : const [],
+          categoryId: _rateioEnabled ? null : _subcategoryId ?? _categoryId,
           status: _status,
           from: _range?.start,
           to: _range?.end,
@@ -766,6 +769,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
       tags: [
         if (item.cardId != null) 'Compra no cartão',
         if (item.series != null) item.series!.label,
+        if (item.allocations.isNotEmpty)
+          'Rateio · ${item.allocations.length} categorias',
         if (parent != null) parent.name,
         if (item.categoryName != null) item.categoryName!
       ],
@@ -857,6 +862,12 @@ class TransactionFormState extends State<TransactionForm> {
   final _firstInstallment = TextEditingController(text: '1');
   String? _categoryId;
   String? _subcategoryId;
+  bool _rateioEnabled = false;
+  List<CategoryAllocation> _allocations = [];
+  void _amountChanged() {
+    if (mounted) setState(() {});
+  }
+
   bool _categoryChosenManually = false;
   bool _categoryFromHistory = false;
   Map<String, String> _categoryHistory = {};
@@ -1044,6 +1055,9 @@ class TransactionFormState extends State<TransactionForm> {
     _description = TextEditingController(text: item?.description ?? '');
     _amount =
         TextEditingController(text: MoneyMinor.plain(item?.amountMinor ?? 0));
+    _allocations = List.of(item?.allocations ?? const []);
+    _rateioEnabled = _allocations.isNotEmpty;
+    _amount.addListener(_amountChanged);
     _type = item?.type ?? widget.initialType;
     _date = item?.date ?? DateTime.now();
     _dueDate = item?.dueDate ?? _date;
@@ -1076,6 +1090,7 @@ class TransactionFormState extends State<TransactionForm> {
     _series.dispose();
     _description.removeListener(_descriptionChanged);
     _description.dispose();
+    _amount.removeListener(_amountChanged);
     _amount.dispose();
     super.dispose();
   }
@@ -1219,6 +1234,8 @@ class TransactionFormState extends State<TransactionForm> {
               _accountId,
               _categoryId,
               _subcategoryId,
+              _rateioEnabled,
+              CategoryAllocation.encode(_allocations),
               _series.snapshot,
               _cardId,
               _cardMonth,
@@ -1396,59 +1413,83 @@ class TransactionFormState extends State<TransactionForm> {
                               : null,
                           onChanged: (id) => setState(() => _accountId = id),
                         ),
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        key: ValueKey('category-${_type.name}-$_categoryId'),
-                        initialValue: _categoryId,
-                        decoration:
-                            const InputDecoration(labelText: 'Categoria'),
-                        items: [
-                          const DropdownMenuItem(
-                              value: '', child: Text('Sem categoria')),
-                          for (final category in roots)
-                            DropdownMenuItem(
-                                value: category.id,
-                                child: Text(
-                                    '${category.name}'
-                                    '${category.isArchived ? ' (arquivada)' : ''}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis))
-                        ],
-                        onChanged: (id) => setState(() {
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Dividir entre categorias'),
+                        subtitle: const Text(
+                          'Rateio por valor ou percentual, sem duplicar o lançamento.',
+                        ),
+                        value: _rateioEnabled,
+                        onChanged: (v) => setState(() {
+                          _rateioEnabled = v;
                           _categoryChosenManually = true;
-                          _categoryFromHistory = false;
-                          _categoryId = id == null || id.isEmpty ? null : id;
-                          _subcategoryId = null;
+                          if (!v) _allocations = [];
                         }),
                       ),
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        key: ValueKey(
-                            'subcategory-${_type.name}-$_categoryId-$_subcategoryId'),
-                        initialValue: _subcategoryId,
-                        decoration:
-                            const InputDecoration(labelText: 'Subcategoria'),
-                        items: [
-                          const DropdownMenuItem(
-                              value: '', child: Text('Nenhuma')),
-                          for (final category in children)
-                            DropdownMenuItem(
-                                value: category.id,
-                                child: Text(
-                                    '${category.name}'
-                                    '${category.isArchived ? ' (arquivada)' : ''}',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis))
-                        ],
-                        onChanged: _categoryId == null
-                            ? null
-                            : (id) => setState(() {
-                                  _categoryChosenManually = true;
-                                  _categoryFromHistory = false;
-                                  _subcategoryId =
-                                      id == null || id.isEmpty ? null : id;
-                                }),
-                      ),
+                      if (_rateioEnabled)
+                        AllocationEditor(
+                          key: ValueKey('allocation-$_type'),
+                          categories: widget.categories,
+                          type: _type.name,
+                          total: MoneyMinor.parse(_amount.text),
+                          initial: _allocations,
+                          onChanged: (v) => _allocations = v,
+                        ),
+                      if (!_rateioEnabled)
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          key: ValueKey('category-${_type.name}-$_categoryId'),
+                          initialValue: _categoryId,
+                          decoration:
+                              const InputDecoration(labelText: 'Categoria'),
+                          items: [
+                            const DropdownMenuItem(
+                                value: '', child: Text('Sem categoria')),
+                            for (final category in roots)
+                              DropdownMenuItem(
+                                  value: category.id,
+                                  child: Text(
+                                      '${category.name}'
+                                      '${category.isArchived ? ' (arquivada)' : ''}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis))
+                          ],
+                          onChanged: (id) => setState(() {
+                            _categoryChosenManually = true;
+                            _categoryFromHistory = false;
+                            _categoryId = id == null || id.isEmpty ? null : id;
+                            _subcategoryId = null;
+                          }),
+                        ),
+                      if (!_rateioEnabled)
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          key: ValueKey(
+                              'subcategory-${_type.name}-$_categoryId-$_subcategoryId'),
+                          initialValue: _subcategoryId,
+                          decoration:
+                              const InputDecoration(labelText: 'Subcategoria'),
+                          items: [
+                            const DropdownMenuItem(
+                                value: '', child: Text('Nenhuma')),
+                            for (final category in children)
+                              DropdownMenuItem(
+                                  value: category.id,
+                                  child: Text(
+                                      '${category.name}'
+                                      '${category.isArchived ? ' (arquivada)' : ''}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis))
+                          ],
+                          onChanged: _categoryId == null
+                              ? null
+                              : (id) => setState(() {
+                                    _categoryChosenManually = true;
+                                    _categoryFromHistory = false;
+                                    _subcategoryId =
+                                        id == null || id.isEmpty ? null : id;
+                                  }),
+                        ),
                       if (_cardId == null)
                         MovementDateFields(
                           posted: _date,
@@ -1501,6 +1542,8 @@ class TransactionFormState extends State<TransactionForm> {
                                 if (type != null) {
                                   setState(() {
                                     _type = type;
+                                    _rateioEnabled = false;
+                                    _allocations = [];
                                     if (type == TransactionType.income) {
                                       _cardId = null;
                                     }

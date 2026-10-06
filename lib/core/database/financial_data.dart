@@ -1,4 +1,5 @@
 import 'app_database.dart';
+import '../allocations/category_allocation.dart';
 
 const financialTables = [
   'accounts',
@@ -89,6 +90,31 @@ Future<void> validateFinancial(AppDatabase db) async {
     UNION ALL SELECT 1 FROM card_entries e
     WHERE (e.kind IN ('purchase','fee') AND e.amount_minor<0)
       OR (e.kind IN ('refund','discount') AND e.amount_minor>0) LIMIT 1''').get();
+  final categories = {
+    for (final r
+        in await db.customSelect('SELECT id,type FROM categories').get())
+      r.read<String>('id'): r.read<String>('type'),
+  };
+  for (final table in ['transactions', 'card_entries']) {
+    for (final row in await db.customSelect('SELECT * FROM $table').get()) {
+      final parts = CategoryAllocation.decode(
+        row.read<String>('allocations_json'),
+      );
+      final total = row
+          .read<int>(
+            table == 'transactions' ? 'planned_amount_minor' : 'amount_minor',
+          )
+          .abs();
+      CategoryAllocation.validate(parts, total);
+      final type =
+          table == 'transactions' ? row.read<String>('type') : 'expense';
+      if ((parts.isNotEmpty &&
+              row.readNullable<String>('category_id') != null) ||
+          parts.any((p) => categories[p.categoryId] != type)) {
+        throw const FormatException('Categorias do rateio incompatíveis.');
+      }
+    }
+  }
   if (invalid.isNotEmpty) {
     throw const FormatException(
         'Os dados recebidos não formam registros financeiros válidos. Os dados atuais foram preservados.');
@@ -105,7 +131,10 @@ Future<void> installSyncTriggers(AppDatabase db) async {
           ? 'NULL'
           : 'json_object(${columns[table]!.keys.map((n) => "'$n',NEW.\"$n\"").join(',')})';
       await db.customStatement(
-          '''CREATE TRIGGER IF NOT EXISTS sync_${table}_${action.toLowerCase()}
+        'DROP TRIGGER IF EXISTS sync_${table}_${action.toLowerCase()}',
+      );
+      await db.customStatement(
+        '''CREATE TRIGGER IF NOT EXISTS sync_${table}_${action.toLowerCase()}
         AFTER $action ON "$table"
         WHEN (SELECT capture_enabled FROM sync_state WHERE id=1)=1
         BEGIN
@@ -120,7 +149,8 @@ Future<void> installSyncTriggers(AppDatabase db) async {
             (SELECT device_id FROM sync_state WHERE id=1),${isDelete ? 1 : 0},$data);
           INSERT OR REPLACE INTO sync_outbox
             SELECT * FROM sync_versions WHERE table_name='$table' AND row_id=$source.id;
-        END''');
+        END''',
+      );
     }
   }
 }

@@ -1,3 +1,5 @@
+import '../../../core/allocations/category_allocation.dart';
+import '../../../core/allocations/allocation_store.dart';
 import '../../cards/data/cards_repository.dart';
 import '../../../core/series/series_store.dart';
 import '../../../core/series/movement_series.dart';
@@ -15,7 +17,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   static const _select = '''
     SELECT t.id, t.description, t.type, t.planned_amount_minor,
       t.series_id, t.series_index, t.series_kind, t.series_count, t.series_unit, t.series_interval,
-      t.posted_at, t.due_at, t.effective_at, t.account_id, t.category_id,
+      t.posted_at, t.due_at, t.effective_at, t.account_id, t.category_id, t.allocations_json,
       a.name AS account_name, a.currency_code,
       c.name AS category_name
     FROM transactions t
@@ -39,7 +41,11 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       variables.add(Variable.withString(filter.accountId!));
     }
     if (filter.categoryId != null) {
-      where.add('(t.category_id = ? OR c.parent_id = ?)');
+      where.add(
+        '''(t.category_id = ? OR c.parent_id = ? OR EXISTS (SELECT 1 FROM json_each(t.allocations_json) part JOIN categories ac ON ac.id=json_extract(part.value,'\$.categoryId') WHERE ac.id=? OR ac.parent_id=?))''',
+      );
+      variables.add(Variable.withString(filter.categoryId!));
+      variables.add(Variable.withString(filter.categoryId!));
       variables.add(Variable.withString(filter.categoryId!));
       variables.add(Variable.withString(filter.categoryId!));
     }
@@ -90,8 +96,9 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       final repo = CardsRepository(_db);
       return repo.findMovement(await repo.createPurchase(draft));
     }
+    _validateDraft(draft);
     final plan = draft.seriesPlan;
-    if (plan == null) return _createSingle(draft);
+    if (plan == null) return _db.transaction(() => _createSingle(draft));
     plan.validate();
     if (plan.dateAt(draft.date, plan.count - 1).year > 2100 ||
         plan.dateAt(draft.dueDate ?? draft.date, plan.count - 1).year > 2100) {
@@ -109,6 +116,10 @@ class SqliteTransactionsRepository implements TransactionsRepository {
               type: draft.type,
               accountId: draft.accountId,
               categoryId: draft.categoryId,
+              allocations: CategoryAllocation.distribute(
+                draft.allocations,
+                amount,
+              ),
               amountMinor: amount,
               date: date,
               dueDate: due,
@@ -156,6 +167,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
                   type: draft.type,
                   accountId: draft.accountId,
                   categoryId: draft.categoryId,
+                  allocations: draft.allocations,
                   amountMinor: draft.amountMinor,
                   date: date,
                   dueDate: due,
@@ -167,6 +179,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   Future<FinancialTransaction> _createSingle(TransactionDraft draft) async {
     _validateDraft(draft);
     await _validateReferences(draft);
+    await validateAllocationReferences(_db, draft.allocations, draft.type.name);
     final id = EntityMetadata.newId();
     final now = EntityMetadata.nowUtcMillis();
     final day = _dayMillis(draft.date);
@@ -178,8 +191,8 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       INSERT INTO transactions
         (id, description, type, planned_amount_minor, actual_amount_minor,
          competence_at, posted_at, due_at, effective_at, account_id, category_id,
-         created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         created_at, updated_at, allocations_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       id,
       draft.description.trim(),
@@ -193,7 +206,8 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       draft.accountId,
       draft.categoryId,
       now,
-      now
+      now,
+      CategoryAllocation.encode(draft.allocations),
     ]);
     return _find(id);
   }
@@ -202,6 +216,14 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       String id, TransactionDraft draft) async {
     _validateDraft(draft);
     final original = await _find(id);
+    await validateAllocationReferences(
+      _db,
+      draft.allocations,
+      draft.type.name,
+      historicalIds: original.type == draft.type
+          ? original.allocations.map((p) => p.categoryId).toSet()
+          : {},
+    );
     final accountChanged = original.accountId != draft.accountId;
     final categoryChanged = original.categoryId != draft.categoryId;
     final typeChanged = original.type != draft.type;
@@ -213,6 +235,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     // Não revalida conta/categoria arquivada ao editar só descrição, data ou
     // valor de um lançamento histórico; mudar o vínculo exige entidade ativa.
     final fields = <String>[
+      'allocations_json = ?',
       'description = ?',
       'planned_amount_minor = ?',
       'actual_amount_minor = ?',
@@ -225,6 +248,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     ];
     final day = _dayMillis(draft.date);
     final args = <Object?>[
+      CategoryAllocation.encode(draft.allocations),
       draft.description.trim(),
       draft.amountMinor,
       draft.isEffective ? draft.amountMinor : null,
@@ -287,12 +311,18 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       throw const FormatException(
           'Informe um valor maior que zero e dentro do limite.');
     }
+    final original = await _find(id);
+    final parts = CategoryAllocation.distribute(
+      original.allocations,
+      amountMinor,
+    );
     final changed = await _db.customUpdate('''
-      UPDATE transactions SET planned_amount_minor = ?,
+      UPDATE transactions SET allocations_json = ?, planned_amount_minor = ?,
         actual_amount_minor = CASE WHEN effective_at IS NULL THEN NULL ELSE ? END,
         updated_at = ?, sync_version = sync_version + 1
       WHERE id = ? AND deleted_at IS NULL AND planned_amount_minor = ?
     ''', variables: [
+      Variable.withString(CategoryAllocation.encode(parts)),
       Variable.withInt(amountMinor),
       Variable.withInt(amountMinor),
       Variable.withInt(EntityMetadata.nowUtcMillis()),
@@ -403,6 +433,10 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   }
 
   void _validateDraft(TransactionDraft draft) {
+    CategoryAllocation.validate(draft.allocations, draft.amountMinor);
+    if (draft.allocations.isNotEmpty && draft.categoryId != null) {
+      throw const FormatException('Use categoria única ou rateio.');
+    }
     if (draft.description.trim().isEmpty) {
       throw const FormatException('Informe a descrição.');
     }
@@ -420,6 +454,9 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   FinancialTransaction _map(QueryRow row) => FinancialTransaction(
         id: row.read<String>('id'),
+        allocations: CategoryAllocation.decode(
+          row.read<String>('allocations_json'),
+        ),
         series: SeriesStore.info(row),
         description: row.read<String>('description'),
         type: TransactionType.values.byName(row.read<String>('type')),
