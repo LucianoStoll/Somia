@@ -86,3 +86,5 @@ A #62 permanece aberta até validação manual. Esta entrega não encerra toda a
 - `test/features/investments/investments_repository_test.dart`
 
 A conferência integrada também ajusta os testes existentes de fechamento do detalhamento de saldo para comparar o número de barreiras com a tela inicial, preservando as verificações de fechamento/reabertura e ausência da rota do painel. Arquivo: `test/features/dashboard/balance_details_panel_test.dart`.
+
+Durante o salvamento, Voltar/Cancelar e envios repetidos ficam bloqueados até concluir a operação. Cobertura específica em `investments_page_test.dart`; componente compartilhado mantém o comportamento anterior por padrão (`allowCancel=true`). Arquivo: `lib/core/widgets/unsaved_changes_guard.dart`.

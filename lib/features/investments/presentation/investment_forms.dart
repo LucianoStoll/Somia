@@ -104,6 +104,7 @@ class _InvestmentFormState extends State<InvestmentForm> {
 
   @override
   Widget build(BuildContext context) => UnsavedChangesGuard(
+        allowCancel: !_busy,
         value: () => _value,
         builder: (context, cancel) => MovementFormFrame(
           title:
@@ -391,6 +392,7 @@ class _InvestmentOperationFormState extends State<InvestmentOperationForm> {
 
   @override
   Widget build(BuildContext context) => UnsavedChangesGuard(
+        allowCancel: !_busy,
         value: () => _value,
         builder: (context, cancel) => MovementFormFrame(
           title: widget.action.label,

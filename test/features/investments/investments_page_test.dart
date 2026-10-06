@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,6 +47,7 @@ class _Repo implements InvestmentsRepository {
   final saved = <InvestmentDraft>[];
   final changes = <int>[];
   bool failSave = false;
+  Completer<void>? saving;
   @override
   Future<InvestmentOverview> load({DateTime? date}) async => overview;
   @override
@@ -54,6 +56,7 @@ class _Repo implements InvestmentsRepository {
       throw const FormatException(
           'Esta conta já está vinculada a uma aplicação.');
     }
+    await saving?.future;
     saved.add(draft);
   }
 
@@ -123,6 +126,27 @@ Future<void> _fonts() async {
 }
 
 void main() {
+  testWidgets('salvamento bloqueia Voltar e envio duplicado até concluir',
+      (tester) async {
+    final pending = Completer<void>();
+    final repo = _Repo()..saving = pending;
+    await _open(
+        tester, InvestmentForm(repository: repo, overview: repo.overview));
+    await tester.enterText(find.byType(TextFormField).first, 'CDB Seguro');
+    await tester.tap(find.text('Salvar aplicação'));
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Salvando…'), findsOneWidget);
+    expect(find.text('Descartar alterações?'), findsNothing);
+    await tester.tap(find.text('Salvando…'));
+    await tester.pump();
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(repo.saved, hasLength(1));
+    expect(find.text('Abrir'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
     testWidgets('cadastro e calculadora ${platform.name}', (tester) async {
       await _fonts();
