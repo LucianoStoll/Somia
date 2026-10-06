@@ -235,13 +235,13 @@ Semantic Versioning: 0.x-alpha para desenvolvimento inicial, 0.x-beta para estab
 - [x] Importação CSV #56/#14 com prévia, mapeamento, conta, duplicatas e categorias, validada em 06/10/2026.
 - [x] Revisão final #54, correções da build 202 e validação do usuário em 06/10/2026.
 - [x] Documentação final, pacotes e validação; publicação autorizada em 06/10/2026.
-- [ ] PR para main e release v0.2.0-alpha; registrar conclusão na #54.
+- [x] Integração pelo [PR #57](https://github.com/LucianoStoll/Somia/pull/57), [release v0.2.0-alpha](https://github.com/LucianoStoll/Somia/releases/tag/v0.2.0-alpha) e conclusão da #54.
 
 Rateio/reembolso (#11) permanece para ciclo posterior. [Fluxo e validação da sincronização](sincronizacao-drive.md).
 
 
-## Próximo ciclo — v0.3.0-alpha
+## Ciclo atual — v0.3.0-alpha
 
-Criar branch a partir do commit integrado de `main`, sem alterar a tag/branch histórica v0.2.0-alpha. Atualizar pubspec/changelog/documentação somente na nova branch; CI segue gerando pacotes, publicação apenas ao integrar o próximo ciclo validado em main.
+Branch `v0.3.0-alpha` criada a partir do commit integrado de `main` (`8eca99824e0b506d0791c15239adb51cfd480201`), com pubspec, identificação do app, changelog e documentação atualizados. Acompanhamento na [#58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](ciclos/v0.3.0-alpha.md). CI segue gerando pacotes; publicação somente ao integrar o próximo ciclo validado em main.
 
 Escopo a definir com o usuário. Candidatos já registrados: rateio/reembolsos (#11), planejamento/metas (#13), evolução de CSV/relatórios/conciliação (#14), patrimônio/dívidas (#15), cartões internacionais/adicionais (#12) e anexos sincronizados (#16). Criar a versão não autoriza implementar automaticamente esses itens.

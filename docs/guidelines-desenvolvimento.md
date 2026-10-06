@@ -40,7 +40,7 @@ Conventional Commits:
 - `chore:`
 - `ci:`
 
-A branch de trabalho pós-MVP é `v0.2.0-alpha`; `main` recebe a versão validada
+A branch de trabalho atual é `v0.3.0-alpha`; `main` recebe a versão validada
 por PR ao encerrar o marco. Branches auxiliares partem da versão e retornam
 para ela por PR:
 

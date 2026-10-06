@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.0-alpha — em desenvolvimento
+
+Ciclo criado em 06/10/2026 a partir da v0.2.0-alpha integrada pelo [PR #57](https://github.com/LucianoStoll/Somia/pull/57). Planejamento e acompanhamento na [#58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](docs/ciclos/v0.3.0-alpha.md).
+
+- Versão atualizada no pubspec e na identificação local do app.
+- README, fluxo de contribuição, guidelines e roadmap atualizados para a nova branch.
+- Escopo funcional ainda a definir com o usuário; a base preserva todas as entregas validadas da v0.2.0-alpha.
+
 ## v0.2.0-alpha — 2026-10-06 (pós-MVP)
 
 Escopo validado pelo usuário, incluindo #54 e #56 em 06/10/2026. [Notas consolidadas](docs/releases/v0.2.0-alpha.md) e [inventário de arquivos/commits](docs/releases/v0.2.0-alpha-files.md). Publicação por versão, com notas próprias, pacotes verificados e proteção contra sobrescrever releases publicadas ou tags de outro commit.

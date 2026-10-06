@@ -11,14 +11,14 @@ flutter pub get
 
 ## Branches e integração
 
-O MVP `v0.1.0-alpha` está concluído. O ciclo pós-MVP é desenvolvido em
-`v0.2.0-alpha`. A branch `main` recebe a versão validada por pull request ao
+Os ciclos `v0.1.0-alpha` e `v0.2.0-alpha` estão concluídos. O ciclo atual é desenvolvido em
+`v0.3.0-alpha`, acompanhado na [#58](https://github.com/LucianoStoll/Somia/issues/58). A branch `main` recebe a versão validada por pull request ao
 final do marco.
 
 Para uma contribuição isolada, crie uma branch a partir da versão atual:
 
 ```sh
-git switch v0.2.0-alpha
+git switch v0.3.0-alpha
 git pull --ff-only
 git switch -c feature/issue-<numero>-descricao
 ```

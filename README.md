@@ -2,11 +2,15 @@
 
 Seu dinheiro, mais claro. Aplicativo de finanças pessoais para Android e Windows, com dados locais e funcionamento offline.
 
-## v0.2.0-alpha — ciclo validado
+## v0.3.0-alpha — em desenvolvimento
+
+Branch atual: `v0.3.0-alpha`, iniciada a partir da versão anterior integrada em `main`. Planejamento na [issue #58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](docs/ciclos/v0.3.0-alpha.md). O escopo funcional será definido com o usuário.
+
+## v0.2.0-alpha — publicada e validada
 
 O ciclo pós-MVP foi validado pelo usuário em 06/10/2026. Inclui calculadora, séries, cartões/faturas, sugestões pelo histórico, extrato diário, detalhamento de saldo, backups local/Google Drive Android/Windows, [sincronização manual](docs/sincronizacao-drive.md) e [automática com app aberto](docs/sincronizacao-automatica.md), e [importação CSV](docs/importacao-csv.md). Consulte as [notas da versão](docs/releases/v0.2.0-alpha.md) e o [inventário completo de alterações](docs/releases/v0.2.0-alpha-files.md).
 
-O próximo ciclo será `v0.3.0-alpha`, criado a partir do merge desta versão em `main`. Funcionalidades futuras precisam de escopo aprovado; não estão incluídas automaticamente.
+A [release v0.2.0-alpha](https://github.com/LucianoStoll/Somia/releases/tag/v0.2.0-alpha) reúne os pacotes Android e Windows validados. Funcionalidades futuras precisam de escopo aprovado.
 
 ## MVP — v0.1.0-alpha
 
