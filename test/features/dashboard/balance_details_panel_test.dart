@@ -193,6 +193,49 @@ void main() {
     expect(find.byKey(const ValueKey('balance-details-panel')), findsNothing);
     expect(find.byType(DashboardPage), findsOneWidget);
   });
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    testWidgets(
+        'arrastar título fecha e permite reabrir sem barreira $platform',
+        (tester) async {
+      await open(tester, platform: platform);
+      final card = find.byKey(const ValueKey('balance-detail-BRL')).first;
+      for (var attempt = 0; attempt < 3; attempt++) {
+        await tester.tap(card);
+        await tester.pumpAndSettle();
+        final sheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
+        expect(sheet.enableDrag, isFalse);
+        await tester.drag(
+            find.text('Detalhamento do saldo'), const Offset(0, 180));
+        await tester.pumpAndSettle();
+        expect(
+            find.byKey(const ValueKey('balance-details-panel')), findsNothing);
+        expect(find.byType(ModalBarrier), findsNothing);
+        expect(find.byType(BottomSheet), findsNothing);
+        expect(find.byType(DashboardPage), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    });
+    testWidgets('arraste curto não fecha e conteúdo continua rolando $platform',
+        (tester) async {
+      await open(tester, platform: platform);
+      await tester.tap(find.byKey(const ValueKey('balance-detail-BRL')).first);
+      await tester.pumpAndSettle();
+      final title = find.text('Detalhamento do saldo');
+      final gesture = await tester.startGesture(tester.getCenter(title));
+      await gesture.moveBy(const Offset(0, 30));
+      await tester.pump(const Duration(milliseconds: 300));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(
+          find.byKey(const ValueKey('balance-details-panel')), findsOneWidget);
+      await scrollTo(tester, 'balance-projected');
+      expect(find.byKey(const ValueKey('balance-projected')), findsOneWidget);
+      await tester.tap(find.byTooltip('Fechar detalhamento'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ModalBarrier), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets('moeda selecionada e saldo negativo preservados', (tester) async {
     await open(tester,
         platform: TargetPlatform.windows, size: const Size(1280, 900));

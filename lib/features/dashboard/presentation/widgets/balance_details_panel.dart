@@ -35,7 +35,12 @@ Future<void> showBalanceDetails(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
-        showDragHandle: true,
+        // Keep dismissal on the normal route-pop path: dragging the stock
+        // sheet can leave its transition/barrier behind on Android.
+        enableDrag: false,
+        showDragHandle: false,
+        backgroundColor: SomiaColors.surface,
+        barrierColor: Colors.black54,
         builder: (_) => SizedBox(
             height: MediaQuery.sizeOf(context).height * 0.86, child: content));
   } else {
@@ -88,17 +93,7 @@ class _Details extends StatelessWidget {
                       ]);
                 }));
         return Column(key: const ValueKey('balance-details-panel'), children: [
-          Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 12, 8),
-              child: Row(children: [
-                Expanded(
-                    child: Text('Detalhamento do saldo',
-                        style: Theme.of(context).textTheme.titleLarge)),
-                IconButton(
-                    tooltip: 'Fechar detalhamento',
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close))
-              ])),
+          const _DetailsHeader(),
           if (state.loading) const LinearProgressIndicator(),
           Expanded(
               child: SingleChildScrollView(
@@ -189,4 +184,61 @@ class _Details extends StatelessWidget {
                       ])))
         ]);
       });
+}
+
+class _DetailsHeader extends StatefulWidget {
+  const _DetailsHeader();
+
+  @override
+  State<_DetailsHeader> createState() => _DetailsHeaderState();
+}
+
+class _DetailsHeaderState extends State<_DetailsHeader> {
+  double _dragDistance = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final platform = Theme.of(context).platform;
+    final mobile =
+        platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+    final header = Column(mainAxisSize: MainAxisSize.min, children: [
+      if (mobile)
+        Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    borderRadius: BorderRadius.circular(2)))),
+      Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 12, 8),
+          child: Row(children: [
+            Expanded(
+                child: Text('Detalhamento do saldo',
+                    style: Theme.of(context).textTheme.titleLarge)),
+            IconButton(
+                tooltip: 'Fechar detalhamento',
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close))
+          ]))
+    ]);
+    if (!mobile) return header;
+    return GestureDetector(
+        key: const ValueKey('balance-details-drag-header'),
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragStart: (_) => _dragDistance = 0,
+        onVerticalDragUpdate: (event) =>
+            _dragDistance += event.primaryDelta ?? 0,
+        onVerticalDragCancel: () => _dragDistance = 0,
+        onVerticalDragEnd: (event) {
+          final dismiss = _dragDistance >= 48 ||
+              (_dragDistance > 0 && (event.primaryVelocity ?? 0) >= 700);
+          _dragDistance = 0;
+          if (dismiss && ModalRoute.of(context)?.isCurrent == true) {
+            Navigator.of(context).pop();
+          }
+        },
+        child: header);
+  }
 }
