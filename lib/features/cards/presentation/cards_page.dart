@@ -270,7 +270,7 @@ class _CardsPageState extends State<CardsPage> {
         : SeriesScope.onlyThis;
     if (scope == null || !mounted) return;
     if (!await _confirm('Excluir registro?',
-            'O registro sairá da fatura e dos cálculos. Faturas com pagamentos preservam suas compras; use estorno para corrigi-las.') ||
+            'O registro sairá da fatura e dos cálculos. Pagamentos já registrados serão mantidos e o saldo será recalculado. Para um reembolso real, use estorno.') ||
         !mounted) {
       return;
     }

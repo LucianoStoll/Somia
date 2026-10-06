@@ -214,7 +214,7 @@ void main() {
         70000);
   });
   test(
-      'edição exclusiva e próximos preserva anteriores e faturas com pagamentos',
+      'edição exclusiva e próximos preserva anteriores e pagamentos registrados',
       () async {
     final repo = SqliteTransactionsRepository(db);
     await repo.create(draft(amount: 30000, count: 3));
@@ -227,11 +227,15 @@ void main() {
         scope: SeriesScope.thisAndNext);
     expect((await cards.entry(entries.first.id)).amountMinor, 10000);
     expect((await cards.entry(entries[1].id)).amountMinor, 12000);
-    expect((await cards.entry(entries.last.id)).amountMinor, 10000);
-    await expectLater(
-        repo.updateAmount('card:${entries.last.id}',
-            expectedAmountMinor: 10000, amountMinor: 11000),
-        throwsStateError);
+    expect((await cards.entry(entries.last.id)).amountMinor, 12000);
+    await repo.updateAmount('card:${entries.last.id}',
+        expectedAmountMinor: 12000, amountMinor: 11000);
+    expect(
+        (await cards.invoice(entries.last.invoiceId))
+            .payments
+            .single
+            .amountMinor,
+        1000);
     await repo.update('card:${entries[1].id}',
         draft(amount: 12000, month: DateTime(2026, 5)));
     expect(
@@ -313,6 +317,39 @@ void main() {
           expectedAccountId: account.id,
           date: DateTime.now());
 
+  test('corrige compra na fatura paga sem alterar pagamentos ou saldo da conta',
+      () async {
+    final tx = SqliteTransactionsRepository(db);
+    final correctId = await cards.createPurchase(draft(amount: 10000));
+    final old = await cards.entry(correctId);
+    await cards.pay(old.invoiceId, account.id, 10000, DateTime(2026, 2, 5));
+    final before = await balance(asOf: DateTime(2026, 2, 28));
+    final wrongId = await cards.createPurchase(draft(amount: 2500));
+    final payment = (await cards.invoice(old.invoiceId)).payments.single;
+    await tx.update(
+        'card:$wrongId',
+        draft(
+            amount: 3000,
+            date: DateTime(2026, 2, 12),
+            month: DateTime(2026, 3)));
+    final moved = await cards.entry(wrongId);
+    expect(moved.postedAt, DateTime.utc(2026, 2, 12));
+    expect(moved.invoiceMonth, DateTime.utc(2026, 3));
+    expect(moved.amountMinor, 3000);
+    final previous = await cards.invoice(old.invoiceId);
+    expect(previous.balanceMinor, 0);
+    expect(previous.payments.single.id, payment.id);
+    expect(previous.payments.single.amountMinor, 10000);
+    expect((await balance(asOf: DateTime(2026, 2, 28))).currentBalanceMinor,
+        before.currentBalanceMinor);
+    expect(await cards.entryHistory(wrongId), hasLength(1));
+    final anotherWrong = await cards.createPurchase(draft(amount: 1500));
+    await tx.delete('card:$anotherWrong');
+    expect((await cards.invoice(old.invoiceId)).balanceMinor, 0);
+    expect((await cards.invoice(old.invoiceId)).payments.single.id, payment.id);
+    expect(
+        (await cards.entryHistory(anotherWrong)).single, contains('Exclusão'));
+  });
   test('lista agrupa compras e mantém total após pagamento parcial', () async {
     final tx = SqliteTransactionsRepository(db);
     final first = await cards.createPurchase(draft(amount: 10000));

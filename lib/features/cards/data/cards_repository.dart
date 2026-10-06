@@ -484,17 +484,13 @@ class CardsRepository {
       throw StateError('Use ajustes da fatura para este registro.');
     }
     if (scope == SeriesScope.onlyThis) {
-      if (await _locked(original.invoiceId)) {
-        throw StateError(
-            'Fatura possui pagamentos. Use estorno para preservar o histórico.');
-      }
       return [original];
     }
     final found = <CardEntry>[];
     for (final e in await entries(cardId: original.cardId)) {
       if (e.purchaseId == original.purchaseId &&
           e.index >= original.index &&
-          !(await _locked(e.invoiceId))) {
+          e.kind == 'purchase') {
         found.add(e);
       }
     }
@@ -526,19 +522,16 @@ class CardsRepository {
           await _category(draft.categoryId);
         }
         final targets = await _targets(id, draft.scope);
+        final month = draft.cardInvoiceMonth ??
+            (await find(original.cardId)).invoiceMonthFor(draft.date);
         final now = EntityMetadata.nowUtcMillis();
         for (final e in targets) {
           var target = e.invoiceId;
-          if (draft.cardInvoiceMonth != null &&
-              cardDay(draft.cardInvoiceMonth!) !=
-                  cardDay(original.invoiceMonth)) {
+          if (cardDay(month) != cardDay(original.invoiceMonth)) {
             target = await ensureInvoice(
                 e.cardId,
-                DateTime.utc(draft.cardInvoiceMonth!.year,
-                    draft.cardInvoiceMonth!.month + e.index - original.index));
-            if (await _locked(target)) {
-              throw StateError('Fatura de destino possui pagamentos.');
-            }
+                DateTime.utc(
+                    month.year, month.month + e.index - original.index));
           }
           await _history(e, 'edit', target, draft.amountMinor);
           await db.customStatement(
@@ -593,6 +586,7 @@ class CardsRepository {
             throw StateError(
                 'Compra possui estorno ou antecipação. Preserve o histórico e use um estorno para cancelar o saldo restante.');
           }
+          await _history(e, 'delete', e.invoiceId, 0);
           await db.customStatement(
               'UPDATE card_entries SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
               [now, now, e.id]);
@@ -711,7 +705,7 @@ class CardsRepository {
     return rows.map((r) {
       final date = cardDate(r.read<int>('changed_at'));
       final month = cardDate(r.read<int>('month_at'));
-      return '${date.day}/${date.month}/${date.year}: ${r.read<String>('action') == 'anticipate' ? 'Antecipação' : 'Edição'} para ${month.month}/${month.year}';
+      return '${date.day}/${date.month}/${date.year}: ${r.read<String>('action') == 'anticipate' ? 'Antecipação' : r.read<String>('action') == 'delete' ? 'Exclusão' : 'Edição'} para ${month.month}/${month.year}';
     }).toList();
   }
 

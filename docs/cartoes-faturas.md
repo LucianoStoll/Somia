@@ -58,5 +58,13 @@ Importação, compras internacionais e adicionais permanecem na epic #12 para en
 8. Agendar pagamento futuro: atual e limite não mudam; previsão evita duplicação. Desfazer e conferir restauração.
 9. Antecipar parcelas selecionadas com desconto; verificar novas faturas e histórico.
 10. Estornar parcialmente uma compra paga e pagar a maior; conferir crédito e próximas faturas.
-11. Editar/excluir isolado/próximos, preservando faturas com pagamentos; cancelar/Voltar sem alterações.
+11. Editar/excluir isolado/próximos, preservando os pagamentos registrados; cancelar/Voltar sem alterações.
 12. Exportar/restaurar backup e conferir cartões, faturas, parcelas, pagamentos e limite.
+
+## Correção de compras em faturas com pagamentos — 06/10/2026
+
+Uma compra cadastrada no mês errado pode ser editada, movida para outra fatura ou excluída mesmo quando a fatura possui pagamentos. A correção altera apenas a compra: os pagamentos mantêm identificador, valor, conta e data. Os saldos das faturas e as projeções são recalculados; eventual pagamento excedente permanece como crédito. Edições e exclusões são registradas no histórico. Estornos e antecipações vinculados continuam impedindo exclusão para preservar seus vínculos.
+
+Ao escolher fatura automática na edição, o mês é recalculado pela data da compra e pelo fechamento do cartão. A opção de editar esta e as próximas aplica a correção às parcelas seguintes, preservando as anteriores e todos os pagamentos. Para devolução/reembolso real, permanece a ação Estornar.
+
+Regressão: compra inserida indevidamente após a quitação, mudança de data/valor/fatura, exclusão do lançamento errado, preservação do pagamento e do saldo realizado da conta; edição das próximas com pagamento agendado.
