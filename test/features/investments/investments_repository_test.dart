@@ -310,6 +310,11 @@ void main() {
     await expectLater(db.transaction(() => replaceFinancial(db, duplicate)),
         throwsA(isA<Exception>()));
     expect(await readFinancial(db), before);
+    final invalidDate = await readFinancial(db);
+    invalidDate['investments']!.values.single['maturity_at'] = 'data inválida';
+    await expectLater(db.transaction(() => replaceFinancial(db, invalidDate)),
+        throwsA(isA<Exception>()));
+    expect(await readFinancial(db), before);
     await repo.recordReturn(item.id, amountMinor: 1, date: date);
     expect((await repo.load()).investedMinor, 101);
   });

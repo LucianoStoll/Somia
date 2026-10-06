@@ -7,7 +7,9 @@ const schemaV13 = <String>[
     kind TEXT NOT NULL CHECK (kind IN ('cdb', 'cdi', 'savings')),
     institution TEXT NOT NULL DEFAULT '',
     notes TEXT NOT NULL DEFAULT '',
-    maturity_at INTEGER,
+    maturity_at INTEGER CHECK (maturity_at IS NULL OR
+      (typeof(maturity_at)='integer' AND maturity_at >= -2208988800000
+        AND maturity_at < 4133980800000)),
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,

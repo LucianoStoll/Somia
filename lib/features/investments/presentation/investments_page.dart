@@ -170,8 +170,8 @@ class _InvestmentsView extends StatelessWidget {
                                         ),
                                         const SizedBox(height: 8),
                                         const Text(
-                                          'Inclui as aplicações uma única vez, mesmo quando estão fora do saldo do mês. '
-                                          'Bens e dívidas terão seu próprio módulo.',
+                                          'Soma os saldos das contas em reais, incluindo as aplicações '
+                                          'e as contas fora do saldo do mês.',
                                         ),
                                       ],
                                     ),

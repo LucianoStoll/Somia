@@ -159,6 +159,7 @@ void main() {
               : const Size(1000, 800));
       expect(find.byType(MonetaryCalculatorField), findsOneWidget);
       await tester.enterText(find.byType(TextFormField).first, 'CDB Teste');
+      await tester.pump();
       if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
         await expectLater(
             find.byType(MaterialApp),
