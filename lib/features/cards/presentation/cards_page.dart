@@ -153,6 +153,14 @@ class _CardsPageState extends State<CardsPage> {
       if (entry == null) {
         await _repo.createPurchase(draft);
       } else {
+        if (await _repo.purchaseHasPayments(entry.id, draft.scope,
+                invoiceMonth: draft.cardInvoiceMonth,
+                purchaseDate: draft.date) &&
+            (!mounted ||
+                !await _confirm('Corrigir compra em fatura com pagamento?',
+                    'Os pagamentos realizados ou agendados permanecerão vinculados às faturas atuais. A correção recalculará a dívida ou o crédito do cartão, sem alterar o saldo pago pela conta.'))) {
+          return;
+        }
         await _repo.editPurchase(entry.id, draft);
       }
     });
@@ -270,7 +278,7 @@ class _CardsPageState extends State<CardsPage> {
         : SeriesScope.onlyThis;
     if (scope == null || !mounted) return;
     if (!await _confirm('Excluir registro?',
-            'O registro sairá da fatura e dos cálculos. Pagamentos já registrados serão mantidos e o saldo será recalculado. Para um reembolso real, use estorno.') ||
+            'O registro sairá da fatura e dos cálculos. Os pagamentos realizados ou agendados serão preservados; o saldo restante ou crédito do cartão será recalculado. Para um reembolso real, use estorno. Compras com estorno ou antecipação devem preservar seus vínculos.') ||
         !mounted) {
       return;
     }

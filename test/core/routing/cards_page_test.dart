@@ -3,6 +3,8 @@ import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/core/di/injection.dart';
 import 'package:finapp/core/filters/reference_month.dart';
+import 'package:finapp/core/series/movement_series.dart';
+import 'package:finapp/features/transactions/domain/financial_transaction.dart';
 import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/features/accounts/domain/account.dart';
 import 'package:finapp/features/accounts/domain/accounts_repository.dart';
@@ -31,6 +33,22 @@ class _Categories extends Fake implements CategoriesRepository {
 class _Cards extends CardsRepository {
   _Cards() : super(AppDatabase(NativeDatabase.memory()));
   (String, String, int, DateTime, int, int)? payment;
+  TransactionDraft? edited;
+  String? deleted;
+  @override
+  Future<bool> purchaseHasPayments(String id, SeriesScope scope,
+          {DateTime? invoiceMonth, DateTime? purchaseDate}) async =>
+      true;
+  @override
+  Future<void> editPurchase(String id, TransactionDraft draft) async {
+    edited = draft;
+  }
+
+  @override
+  Future<void> deletePurchase(String id, SeriesScope scope) async {
+    deleted = id;
+  }
+
   @override
   Future<List<CreditCard>> list() async => [
         const CreditCard(
@@ -132,6 +150,47 @@ void main() {
   }
 
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
+    testWidgets(
+        'corrigir compra paga pede confirmação e cancelar preserva dados $platform',
+        (tester) async {
+      await open(tester, platform);
+      Future<void> edit() async {
+        final title = find.text('Compra parcelada com descrição longa');
+        await tester.scrollUntilVisible(title, 200);
+        await tester.pumpAndSettle();
+        final tile =
+            find.ancestor(of: title, matching: find.byType(ListTile)).first;
+        final menu = find.descendant(
+            of: tile, matching: find.byType(PopupMenuButton<String>));
+        await tester.ensureVisible(menu);
+        await tester.tap(menu);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Editar / mudar fatura'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Somente esta'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+            find.byType(TextFormField).first, 'Compra corrigida');
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Salvar lançamento'));
+        await tester.pumpAndSettle();
+        expect(find.text('Corrigir compra em fatura com pagamento?'),
+            findsOneWidget);
+      }
+
+      await edit();
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(repo.edited, isNull);
+      await edit();
+      await tester.tap(find.text('Confirmar'));
+      await tester.pumpAndSettle();
+      expect(repo.edited!.description, 'Compra corrigida');
+      expect(repo.edited!.cardId, 'nu');
+      expect(repo.payment, isNull);
+      expect(tester.takeException(), isNull);
+    });
     testWidgets(
         'fatura e caixa distinguem datas; pagamento vinculado $platform',
         (tester) async {

@@ -497,6 +497,41 @@ class CardsRepository {
     return found;
   }
 
+  /// A correction changes purchases, never the invoice's cash payments.
+  Future<bool> purchaseHasPayments(String id, SeriesScope scope,
+      {DateTime? invoiceMonth, DateTime? purchaseDate}) async {
+    final original = await entry(id);
+    final targetMonth = invoiceMonth ??
+        (await find(original.cardId))
+            .invoiceMonthFor(purchaseDate ?? original.postedAt);
+    for (final e in await _targets(id, scope)) {
+      if (await _locked(e.invoiceId)) return true;
+      final month = DateTime.utc(
+          targetMonth.year, targetMonth.month + e.index - original.index);
+      final paid = await _rows(
+          'SELECT p.id FROM card_payments p JOIN card_invoices i ON i.id=p.invoice_id WHERE i.card_id=? AND i.month_at=? AND p.deleted_at IS NULL LIMIT 1',
+          [e.cardId, cardDay(month)]);
+      if (paid.isNotEmpty) return true;
+    }
+    return false;
+  }
+
+  Future<void> _validateRefundCoverage(
+      List<CardEntry> targets, int amount) async {
+    for (final purchase in targets.map((e) => e.purchaseId).toSet()) {
+      final rows = await _rows(
+          "SELECT COALESCE(SUM(CASE WHEN kind='purchase' AND purchase_id=? THEN amount_minor ELSE 0 END),0) AS bought, COALESCE(SUM(CASE WHEN kind='refund' AND source_id=? THEN -amount_minor ELSE 0 END),0) AS refunded FROM card_entries WHERE deleted_at IS NULL",
+          [purchase, purchase]);
+      final edited = targets.where((e) => e.purchaseId == purchase);
+      final total = rows.single.read<int>('bought') +
+          edited.fold(0, (sum, e) => sum + amount - e.amountMinor);
+      if (total < rows.single.read<int>('refunded')) {
+        throw StateError(
+            'O valor da compra não pode ficar abaixo do total já estornado.');
+      }
+    }
+  }
+
   Future<void> editPurchase(String id, TransactionDraft draft) =>
       db.transaction(() async {
         final original = await entry(id);
@@ -522,6 +557,7 @@ class CardsRepository {
           await _category(draft.categoryId);
         }
         final targets = await _targets(id, draft.scope);
+        await _validateRefundCoverage(targets, draft.amountMinor);
         final month = draft.cardInvoiceMonth ??
             (await find(original.cardId)).invoiceMonthFor(draft.date);
         final now = EntityMetadata.nowUtcMillis();
@@ -556,6 +592,7 @@ class CardsRepository {
           throw StateError('O valor mudou. Atualize a lista.');
         }
         final targets = await _targets(id, scope);
+        await _validateRefundCoverage(targets, amount);
         final now = EntityMetadata.nowUtcMillis();
         for (final e in targets) {
           await _history(e, 'edit', e.invoiceId, amount);
@@ -705,7 +742,12 @@ class CardsRepository {
     return rows.map((r) {
       final date = cardDate(r.read<int>('changed_at'));
       final month = cardDate(r.read<int>('month_at'));
-      return '${date.day}/${date.month}/${date.year}: ${r.read<String>('action') == 'anticipate' ? 'Antecipação' : r.read<String>('action') == 'delete' ? 'Exclusão' : 'Edição'} para ${month.month}/${month.year}';
+      final action = switch (r.read<String>('action')) {
+        'anticipate' => 'Antecipação',
+        'delete' => 'Exclusão',
+        _ => 'Edição',
+      };
+      return '${date.day}/${date.month}/${date.year}: $action para ${month.month}/${month.year}';
     }).toList();
   }
 

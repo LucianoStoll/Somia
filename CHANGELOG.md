@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- #61: corrigir/excluir compras em faturas com pagamentos reais/agendados, inclusive mudança de data/fatura, preservando caixa e liquidações. Confirmação, histórico de exclusão e proteção de estornos. Validação conjunta com #60 pendente.
+
 - #60: rateio por categoria/subcategoria, por valor ou percentual, em receitas/despesas/compras; centavos exatos, séries/parcelas/estornos, gráficos e filtros sem duplicação. Migration v12 com validação de backup/sync e preservação de pacotes históricos. [Regras e validação](docs/rateio-categorias.md); validação manual pendente.
 
 Ciclo criado em 06/10/2026 a partir da v0.2.0-alpha integrada pelo [PR #57](https://github.com/LucianoStoll/Somia/pull/57). Planejamento e acompanhamento na [#58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](docs/ciclos/v0.3.0-alpha.md).

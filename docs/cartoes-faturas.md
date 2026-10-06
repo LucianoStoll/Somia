@@ -14,7 +14,7 @@ Formulário de Despesas escolhe Conta ou Cartão, mantendo descrição, calculad
 
 Fatura é identificada pelo **mês do vencimento**. Fechamento anterior ao vencimento; quando dia do vencimento <= fechamento, fecha no mês anterior. Dias inexistentes usam último dia disponível. Compra no próprio dia de fechamento entra na próxima fatura. Datas reais podem ser ajustadas por fatura, mantendo a ordem dos ciclos; ajustes não redistribuem automaticamente compras já registradas. Compra pode mudar de fatura manualmente.
 
-Editar/excluir somente esta ou esta e próximas preserva anteriores e faturas com pagamentos, inclusive agendados. Para corrigir compra numa fatura paga/parcial, use estorno. Compras com estorno ou antecipação registrada também preservam o histórico na exclusão; cancele seu saldo restante por estorno. Não converter um lançamento de conta existente em compra de cartão; crie a compra correta para manter histórico. Alterar dias do cadastro vale para faturas ainda não materializadas; existentes conservam datas reais.
+Editar/excluir somente esta ou esta e próximas preserva parcelas anteriores e os pagamentos realizados/agendados. Compras em faturas pagas/parciais podem ser corrigidas; a confirmação explica que os pagamentos permanecem nas faturas de origem e que a dívida/crédito será recalculada. O escopo de próximas inclui também parcelas em faturas com pagamento. O campo Data da compra altera a data do lançamento; o seletor de mês da fatura controla a transferência entre faturas, inclusive para destino com pagamento. Compras com estorno ou antecipação registrada também preservam o histórico na exclusão; cancele seu saldo restante por estorno. Não converter um lançamento de conta existente em compra de cartão; crie a compra correta para manter histórico. Alterar dias do cadastro vale para faturas ainda não materializadas; existentes conservam datas reais.
 
 ## Fatura na lista de despesas
 
@@ -61,6 +61,7 @@ Importação, compras internacionais e adicionais permanecem na epic #12 para en
 11. Editar/excluir isolado/próximos, preservando os pagamentos registrados; cancelar/Voltar sem alterações.
 12. Exportar/restaurar backup e conferir cartões, faturas, parcelas, pagamentos e limite.
 
+
 ## Correção de compras em faturas com pagamentos — 06/10/2026
 
 Uma compra cadastrada no mês errado pode ser editada, movida para outra fatura ou excluída mesmo quando a fatura possui pagamentos. A correção altera apenas a compra: os pagamentos mantêm identificador, valor, conta e data. Os saldos das faturas e as projeções são recalculados; eventual pagamento excedente permanece como crédito. Edições e exclusões são registradas no histórico. Estornos e antecipações vinculados continuam impedindo exclusão para preservar seus vínculos.
@@ -68,3 +69,34 @@ Uma compra cadastrada no mês errado pode ser editada, movida para outra fatura 
 Ao escolher fatura automática na edição, o mês é recalculado pela data da compra e pelo fechamento do cartão. A opção de editar esta e as próximas aplica a correção às parcelas seguintes, preservando as anteriores e todos os pagamentos. Para devolução/reembolso real, permanece a ação Estornar.
 
 Regressão: compra inserida indevidamente após a quitação, mudança de data/valor/fatura, exclusão do lançamento errado, preservação do pagamento e do saldo realizado da conta; edição das próximas com pagamento agendado.
+
+
+## Correção #61 — compra em fatura com pagamento
+
+Relato de 06/10/2026: compra lançada incorretamente numa fatura já paga não permitia editar, mudar data/fatura ou excluir. A trava por existência de pagamento foi removida dos fluxos de correção de compras; antecipações e ajustes de datas de fechamento mantêm suas regras próprias.
+
+- Pagamento é um registro independente: nenhuma correção/exclusão altera seu valor, conta, data ou fatura vinculada. Isso inclui agendamentos. Alterar a compra não movimenta novamente o caixa.
+- Mudança de valor/fatura recalcula dívida, crédito, limite e gráficos. Excluir uma compra de fatura paga pode gerar saldo credor; o app não simula um reembolso bancário.
+- Edição em fatura com pagamentos na origem ou no destino pede confirmação. Cancelar não grava a compra. Exclusão pede confirmação e mantém tombstone e histórico da exclusão (fatura/valor anterior).
+- Parcelas anteriores ao item escolhido permanecem intactas. Somente esta afeta uma parcela; esta e próximas corrige todas as seguintes, inclusive pagas/agendadas, preservando as liquidações.
+- Estornos e antecipações vinculadas continuam impedindo exclusão direta. Reduzir o total da compra abaixo do que já foi estornado é rejeitado atomicamente, tanto no formulário quanto na alteração rápida.
+- Nenhuma migration adicional: a tabela de histórico existente aceita a ação de exclusão e já participa de backup/sync. Mantém schema v12 da #60.
+
+| Arquivo alterado | Finalidade |
+| --- | --- |
+| `lib/features/cards/data/cards_repository.dart` | Correção com pagamentos, escopo das parcelas, verificação para confirmação, proteção de estornos e histórico de exclusão. |
+| `lib/features/cards/presentation/cards_page.dart` | Confirmação da edição paga e mensagem de exclusão com preservação das liquidações. |
+| `test/features/cards/cards_repository_test.dart` | Datas/faturas pagas, rateio, caixa/crédito, exclusão/backup, agendamentos e rollback de valores estornados. |
+| `test/core/routing/cards_page_test.dart` | Confirmação/cancelamento da edição nos layouts Android/Windows. |
+| `docs/cartoes-faturas.md`, `CHANGELOG.md`, `docs/ciclos/v0.3.0-alpha.md` | Regras atualizadas, inventário e validação conjunta com #60. |
+
+Validação manual conjunta com #60:
+
+- [ ] Na fatura paga, criar uma compra incorreta, editar descrição/valor/data/rateio e mudar o mês da fatura.
+- [ ] Cancelar a confirmação da correção; conferir que os dados e pagamentos não mudaram.
+- [ ] Confirmar a correção; conferir ambas as faturas, saldo da conta, limite, crédito, gráfico e histórico.
+- [ ] Excluir uma compra sem estorno/antecipação em fatura paga; conferir crédito e pagamento preservado.
+- [ ] Corrigir/excluir somente esta e próximas em compra parcelada com liquidações reais/agendadas.
+- [ ] Conferir que estornos/antecipações continuam protegidos e que backup/sync transportam correções e exclusões.
+
+Resultados automatizados e builds conjuntos registrados na #61; ambas as issues aguardam validação manual.
