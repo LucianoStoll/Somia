@@ -58,7 +58,7 @@ Testes novos cobrem vínculo sem duplicação, transferências, rendimentos, aju
 7. Arquivar/reativar; conferir formulário com teclado, calculadora, texto ampliado e janela estreita.
 8. Exportar/restaurar backup e sincronizar os cadastros e movimentos entre os dispositivos atualizados.
 
-A #62 permanece aberta até validação manual. Esta entrega não encerra toda a epic #15 nem publica a release do ciclo.
+A #62 foi validada pelo usuário em 06/10/2026 e encerrada como concluída. Esta entrega não encerra toda a epic #15 nem publica a release do ciclo.
 
 ## Inventário da entrega
 
@@ -90,3 +90,6 @@ A conferência integrada também ajusta os testes existentes de fechamento do de
 Durante o salvamento, Voltar/Cancelar e envios repetidos ficam bloqueados até concluir a operação. Cobertura específica em `investments_page_test.dart`; componente compartilhado mantém o comportamento anterior por padrão (`allowCancel=true`). Arquivo: `lib/core/widgets/unsaved_changes_guard.dart`.
 
 A validação de vencimento rejeita tipos inválidos e datas fora de 1900–2100 também na restauração/sync, com rollback. A revisão visual simplifica o texto do resumo e gera as prévias após renderizar o nome preenchido.
+
+
+Validação manual confirmada pelo usuário em 06/10/2026, após a build 220. Demais entregas de patrimônio permanecem na #15.

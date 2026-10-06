@@ -475,6 +475,34 @@ void main() {
     expect(
         (await cards.entryHistory(anotherWrong)).single, contains('Exclusão'));
   });
+  test('fatura mensal não acumula anteriores na virada do ano', () async {
+    final tx = SqliteTransactionsRepository(db);
+    await cards.createPurchase(draft(amount: 50000, month: DateTime(2026, 12)));
+    final id = await cards
+        .createPurchase(draft(amount: 30000, month: DateTime(2027, 1)));
+    final invoiceId = (await cards.entry(id)).invoiceId;
+    Future<FinancialTransaction> row(int month) async =>
+        (await tx.list(TransactionFilter(
+                from: DateTime(2027, month), to: DateTime(2027, month + 1, 0))))
+            .single;
+    final january = await row(1);
+    expect(january.amountMinor, 30000);
+    expect(january.cardPreviousMinor, 50000);
+    expect(january.cardBalanceMinor, 80000);
+    // Janeiro preserva o pagamento da própria fatura e o saldo total,
+    // mas seu valor principal continua sendo a competência mensal.
+    await cards.pay(invoiceId, account.id, 10000, DateTime(2026, 10, 1));
+    final partial = await row(1);
+    expect(partial.amountMinor, 30000);
+    expect(partial.cardBalanceMinor, 70000);
+    final empty = await row(2);
+    expect(empty.amountMinor, 0);
+    expect(empty.cardPreviousMinor, 70000);
+    expect(empty.cardBalanceMinor, 70000);
+    expect((await cards.invoice(invoiceId)).paidMinor, 10000);
+    expect((await balance(asOf: DateTime.now())).currentBalanceMinor, 90000);
+  });
+
   test('lista agrupa compras e mantém total após pagamento parcial', () async {
     final tx = SqliteTransactionsRepository(db);
     final first = await cards.createPurchase(draft(amount: 10000));

@@ -150,6 +150,17 @@ void main() {
   }
 
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
+    testWidgets('próxima fatura mostra mês sem acumular anterior $platform',
+        (tester) async {
+      await open(tester, platform);
+      await tester.scrollUntilVisible(find.text('11/2026'), 200);
+      await tester.pumpAndSettle();
+      final tile = tester.widget<ListTile>(find.ancestor(
+          of: find.text('11/2026'), matching: find.byType(ListTile)));
+      expect((tile.trailing! as Text).data, cardMoney(0));
+      expect((tile.subtitle! as Text).data, contains(cardMoney(85050)));
+      expect(tester.takeException(), isNull);
+    });
     testWidgets(
         'corrigir compra paga pede confirmação e cancelar preserva dados $platform',
         (tester) async {

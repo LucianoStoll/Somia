@@ -2,7 +2,9 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
-- #62: CDB/conta remunerada CDI/poupança, contas existentes sem duplicação, aportes/resgates como transferências, rendimento manual e conferência do saldo bancário com ajuste e histórico. Migration v13 com backup/sync e fila pendente preservados. [Regras e roteiro](docs/investimentos.md); em validação técnica.
+- #63: valor principal da fatura na lista de despesas e próximas faturas considera apenas os itens do mês, sem acumular anteriores. Saldo anterior e total da dívida identificados separadamente; com saldo anterior, o atalho abre o detalhamento antes de pagar.
+
+- #62: CDB/conta remunerada CDI/poupança, contas existentes sem duplicação, aportes/resgates como transferências, rendimento manual e conferência do saldo bancário com ajuste e histórico. Migration v13 com backup/sync e fila pendente preservados. [Regras e roteiro](docs/investimentos.md); validada pelo usuário em 06/10/2026.
 
 - #61: corrigir/excluir compras em faturas com pagamentos reais/agendados, inclusive mudança de data/fatura, preservando caixa e liquidações. Confirmação, histórico de exclusão e proteção de estornos. Validada pelo usuário junto à #60 em 06/10/2026.
 

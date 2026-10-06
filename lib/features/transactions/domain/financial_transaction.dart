@@ -21,6 +21,7 @@ class FinancialTransaction {
     this.cardInvoiceMonth,
     this.cardInvoiceId,
     this.cardBalanceMinor = 0,
+    this.cardPreviousMinor = 0,
     this.cardScheduledMinor = 0,
     this.cardEntryCount = 0,
     this.cardLastPaymentId,
@@ -45,7 +46,10 @@ class FinancialTransaction {
   final String? cardId;
   final DateTime? cardInvoiceMonth;
   final String? cardInvoiceId, cardLastPaymentId;
-  final int cardBalanceMinor, cardScheduledMinor, cardEntryCount;
+  final int cardBalanceMinor,
+      cardPreviousMinor,
+      cardScheduledMinor,
+      cardEntryCount;
   final String cardPaymentSignature;
   final List<CategoryAllocation> allocations;
   final String description;

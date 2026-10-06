@@ -616,6 +616,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
 
   Future<void> _quickInvoice(FinancialTransaction item) =>
       _invoiceAction(item.id, () async {
+        if (item.cardPreviousMinor != 0) {
+          _openInvoice(item);
+          return;
+        }
         final repo = getIt<CardsRepository>();
         final settlement = await repo.settleInvoice(item.cardInvoiceId!,
             expectedBalance: item.cardBalanceMinor,
@@ -706,8 +710,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
         pendingLabel: 'Desfazer último pagamento',
         tags: [
           if (_categoryId != null || _subcategoryId != null) 'Fatura completa',
+          if (item.cardPreviousMinor != 0)
+            'Anterior ${MoneyMinor.display(item.cardPreviousMinor, 'BRL')}',
           if (!item.isEffective && item.cardBalanceMinor != item.amountMinor)
-            'Restante ${MoneyMinor.display(item.cardBalanceMinor, 'BRL')}',
+            '${item.cardPreviousMinor != 0 ? 'Total em aberto' : 'Restante'} ${MoneyMinor.display(item.cardBalanceMinor, 'BRL')}',
           if (item.cardScheduledMinor > 0)
             'Agendado ${MoneyMinor.display(item.cardScheduledMinor, 'BRL')}',
           if (item.cardBalanceMinor < 0)
