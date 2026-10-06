@@ -74,9 +74,11 @@ class SomiaSectionBackScope extends StatelessWidget {
             if (scaffold?.isDrawerOpen ?? false) {
               scaffold!.closeDrawer();
             } else if (location != AppRoutes.dashboardPath) {
-              context.go(location.startsWith('${AppRoutes.accountsPath}/')
-                  ? AppRoutes.accountsPath
-                  : AppRoutes.dashboardPath);
+              context.go(location == AppRoutes.assetsPath
+                  ? AppRoutes.investmentsPath
+                  : location.startsWith('${AppRoutes.accountsPath}/')
+                      ? AppRoutes.accountsPath
+                      : AppRoutes.dashboardPath);
             }
           },
           child: child,
@@ -166,6 +168,8 @@ class _SomiaMenu extends StatelessWidget {
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: compact ? 18 : 14),
                         selected: location == destination.path ||
+                            (destination.path == AppRoutes.investmentsPath &&
+                                location == AppRoutes.assetsPath) ||
                             (destination.path == AppRoutes.accountsPath &&
                                 location
                                     .startsWith('${AppRoutes.accountsPath}/')),

@@ -147,6 +147,12 @@ class _InvestmentsView extends StatelessWidget {
                               padding:
                                   const EdgeInsets.fromLTRB(16, 12, 16, 100),
                               children: [
+                                OutlinedButton.icon(
+                                  onPressed: () =>
+                                      context.go(AppRoutes.assetsPath),
+                                  icon: const Icon(Icons.home_work_outlined),
+                                  label: const Text('Bens e patrimônio'),
+                                ),
                                 Card(
                                   child: Padding(
                                     padding: const EdgeInsets.all(20),

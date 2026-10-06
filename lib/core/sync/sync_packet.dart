@@ -115,7 +115,8 @@ class SyncPacket {
         v['protocol'] != syncProtocol ||
         (v['schema'] != AppDatabase.currentSchemaVersion &&
             v['schema'] != 11 &&
-            v['schema'] != 12) ||
+            v['schema'] != 12 &&
+            v['schema'] != 13) ||
         !['genesis', 'changes'].contains(v['kind']) ||
         [
           'id',
@@ -126,6 +127,11 @@ class SyncPacket {
         (v['entries'] as List).length > 100000) {
       throw const FormatException(
           'Versão de sincronização incompatível. Atualize os dois dispositivos.');
+    }
+    if (v['schema'] < 14 &&
+        (v['entries'] as List).any((e) =>
+            e is Map && ['assets', 'asset_valuations'].contains(e['table']))) {
+      throw const FormatException('Bem em pacote histórico incompatível.');
     }
     if (v['schema'] < 13 &&
         (v['entries'] as List)

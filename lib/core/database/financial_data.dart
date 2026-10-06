@@ -13,6 +13,8 @@ const financialTables = [
   'card_payments',
   'card_entry_history',
   'investments',
+  'assets',
+  'asset_valuations',
 ];
 typedef FinancialRows = Map<String, Map<String, Map<String, Object?>>>;
 
@@ -69,6 +71,9 @@ Future<void> replaceFinancial(AppDatabase db, FinancialRows rows) async {
 }
 
 Future<void> validateFinancial(AppDatabase db) async {
+  final now = DateTime.now();
+  final today =
+      DateTime.utc(now.year, now.month, now.day).millisecondsSinceEpoch;
   if ((await db.customSelect('PRAGMA foreign_key_check').get()).isNotEmpty) {
     throw const FormatException(
         'Os dados recebidos contêm vínculos incompletos. Os dados atuais foram preservados.');
@@ -90,6 +95,11 @@ Future<void> validateFinancial(AppDatabase db) async {
     WHERE a.currency_code<>'BRL'
     UNION ALL SELECT 1 FROM investments v JOIN accounts a ON a.id=v.account_id
     WHERE a.currency_code<>'BRL' OR (v.deleted_at IS NULL AND a.deleted_at IS NOT NULL)
+    UNION ALL SELECT 1 FROM asset_valuations v JOIN assets a ON a.id=v.asset_id
+    WHERE v.deleted_at IS NULL AND (a.deleted_at IS NOT NULL OR v.assessed_at<a.acquired_at OR v.assessed_at>$today
+      OR (v.debt_minor>0 AND length(trim(v.creditor))=0))
+    UNION ALL SELECT 1 FROM assets a WHERE a.deleted_at IS NULL AND (a.acquired_at>$today OR NOT EXISTS
+      (SELECT 1 FROM asset_valuations v WHERE v.asset_id=a.id AND v.deleted_at IS NULL))
     UNION ALL SELECT 1 FROM card_entries e
     WHERE (e.kind IN ('purchase','fee') AND e.amount_minor<0)
       OR (e.kind IN ('refund','discount') AND e.amount_minor>0) LIMIT 1''').get();

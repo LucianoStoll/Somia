@@ -65,7 +65,7 @@ void main() {
     expect(
         (await db.customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        13);
+        AppDatabase.currentSchemaVersion);
     expect(await db.customSelect('SELECT * FROM investments').get(), isEmpty);
     expect(
         (await db
@@ -79,7 +79,7 @@ void main() {
     final packet = SyncPacket.decode(
         utf8.encode(queued.read<String>('payload')),
         await financialColumns(db));
-    expect(packet.sourceSchema, 13);
+    expect(packet.sourceSchema, AppDatabase.currentSchemaVersion);
     expect(packet.entries.single.data, row);
     expect(packet.entries.single.clock, 9);
     await db.customStatement(

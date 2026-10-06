@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- #64: veículos, imóveis e outros bens, aquisição, avaliações e saldo de financiamento manuais com histórico. Resumo de contas BRL, bens e dívidas sem duplicar investimentos. Retirada reversível preserva financiamento em aberto. Schema 14, backups/sync históricos v11–v13 e fila pendente migrada. [Regras e roteiro](docs/bens-patrimonio.md); aguarda validação manual.
+
 - #63: ocultar em Despesas faturas com valor mensal zerado, preservando histórico em Cartões.
 
 - #63: valor principal da fatura na lista de despesas e próximas faturas considera apenas os itens do mês, sem acumular anteriores. Saldo anterior e total da dívida identificados separadamente; com saldo anterior, o atalho abre o detalhamento antes de pagar.
