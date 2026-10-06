@@ -106,6 +106,13 @@ Future<void> validateFinancial(AppDatabase db) async {
           )
           .abs();
       CategoryAllocation.validate(parts, total);
+      if (table == 'transactions' &&
+          parts.isNotEmpty &&
+          row.readNullable<int>('actual_amount_minor') != null &&
+          row.read<int>('actual_amount_minor') != total) {
+        throw const FormatException(
+            'Valor efetivado incompatível com o rateio.');
+      }
       final type =
           table == 'transactions' ? row.read<String>('type') : 'expense';
       if ((parts.isNotEmpty &&

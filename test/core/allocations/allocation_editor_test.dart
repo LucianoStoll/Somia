@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/core/widgets/movement_form_frame.dart';
