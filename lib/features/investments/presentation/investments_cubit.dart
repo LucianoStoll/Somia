@@ -20,16 +20,18 @@ class InvestmentsCubit extends Cubit<InvestmentsState> {
     emit(InvestmentsState(overview: state.overview, loading: true));
     try {
       final overview = await repository.load();
-      if (!isClosed && request == _request)
+      if (!isClosed && request == _request) {
         emit(InvestmentsState(overview: overview));
+      }
     } catch (_) {
-      if (!isClosed && request == _request)
+      if (!isClosed && request == _request) {
         emit(
           InvestmentsState(
             overview: state.overview,
             error: 'Não foi possível carregar as aplicações.',
           ),
         );
+      }
     }
   }
 }

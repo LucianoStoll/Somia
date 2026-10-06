@@ -85,11 +85,12 @@ class _InvestmentFormState extends State<InvestmentForm> {
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _busy = false;
           _error = investmentError(e);
         });
+      }
     }
   }
 
@@ -223,8 +224,9 @@ class _InvestmentFormState extends State<InvestmentForm> {
                             initialDate: _maturity ?? DateTime.now(),
                             firstDate: DateTime(1900),
                             lastDate: DateTime(2100, 12, 31));
-                        if (date != null && mounted)
+                        if (date != null && mounted) {
                           setState(() => _maturity = date);
+                        }
                       }),
                   const SizedBox(height: 20),
                   TextFormField(
@@ -362,11 +364,12 @@ class _InvestmentOperationFormState extends State<InvestmentOperationForm> {
       }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _busy = false;
           _error = investmentError(e);
         });
+      }
     }
   }
 

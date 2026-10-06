@@ -84,3 +84,5 @@ A #62 permanece aberta até validação manual. Esta entrega não encerra toda a
 - `test/core/database/schema_v13_test.dart`
 - `test/features/investments/investments_page_test.dart`
 - `test/features/investments/investments_repository_test.dart`
+
+A conferência integrada também ajusta os testes existentes de fechamento do detalhamento de saldo para comparar o número de barreiras com a tela inicial, preservando as verificações de fechamento/reabertura e ausência da rota do painel. Arquivo: `test/features/dashboard/balance_details_panel_test.dart`.

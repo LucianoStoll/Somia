@@ -50,9 +50,10 @@ class _Repo implements InvestmentsRepository {
   Future<InvestmentOverview> load({DateTime? date}) async => overview;
   @override
   Future<void> save(InvestmentDraft draft, {String? id}) async {
-    if (failSave)
+    if (failSave) {
       throw const FormatException(
           'Esta conta já está vinculada a uma aplicação.');
+    }
     saved.add(draft);
   }
 

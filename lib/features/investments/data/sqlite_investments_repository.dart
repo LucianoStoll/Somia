@@ -174,8 +174,9 @@ class SqliteInvestmentsRepository implements InvestmentsRepository {
       AND currency_code='BRL' AND is_archived=0 AND deleted_at IS NULL''',
       variables: [Variable(id)],
     ).get();
-    if (rows.isEmpty)
+    if (rows.isEmpty) {
       throw const FormatException('Selecione uma conta ativa em reais.');
+    }
   }
 
   @override
@@ -270,11 +271,12 @@ class SqliteInvestmentsRepository implements InvestmentsRepository {
       ),
     );
     // Reconciliação não presume que toda diferença seja rendimento/gasto.
-    if (adjustment)
+    if (adjustment) {
       await db.customStatement(
         'UPDATE transactions SET ignore_analytics=1 WHERE id=?',
         [tx.id],
       );
+    }
   }
 
   @override

@@ -87,9 +87,10 @@ class _InvestmentsView extends StatelessWidget {
       await cubit.repository.setArchived(item.id, !archived);
       await cubit.load();
     } catch (e) {
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(investmentError(e))));
+      }
     }
   }
 

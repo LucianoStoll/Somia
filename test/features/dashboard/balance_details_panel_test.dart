@@ -198,6 +198,8 @@ void main() {
         'arrastar título fecha e permite reabrir sem barreira $platform',
         (tester) async {
       await open(tester, platform: platform);
+      final initialBarriers =
+          tester.widgetList<ModalBarrier>(find.byType(ModalBarrier)).length;
       final card = find.byKey(const ValueKey('balance-detail-BRL')).first;
       for (var attempt = 0; attempt < 3; attempt++) {
         await tester.tap(card);
@@ -209,7 +211,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(
             find.byKey(const ValueKey('balance-details-panel')), findsNothing);
-        expect(find.byType(ModalBarrier), findsNothing);
+        expect(find.byType(ModalBarrier), findsNWidgets(initialBarriers));
         expect(find.byType(BottomSheet), findsNothing);
         expect(find.byType(DashboardPage), findsOneWidget);
         expect(tester.takeException(), isNull);
@@ -218,6 +220,8 @@ void main() {
     testWidgets('arraste curto não fecha e conteúdo continua rolando $platform',
         (tester) async {
       await open(tester, platform: platform);
+      final initialBarriers =
+          tester.widgetList<ModalBarrier>(find.byType(ModalBarrier)).length;
       await tester.tap(find.byKey(const ValueKey('balance-detail-BRL')).first);
       await tester.pumpAndSettle();
       final title = find.text('Detalhamento do saldo');
@@ -232,7 +236,7 @@ void main() {
       expect(find.byKey(const ValueKey('balance-projected')), findsOneWidget);
       await tester.tap(find.byTooltip('Fechar detalhamento'));
       await tester.pumpAndSettle();
-      expect(find.byType(ModalBarrier), findsNothing);
+      expect(find.byType(ModalBarrier), findsNWidgets(initialBarriers));
       expect(tester.takeException(), isNull);
     });
   }
