@@ -575,7 +575,7 @@ void main() {
     await expectLater(cards.undoSettlement(action), throwsStateError);
   });
 
-  test('conta arquivada falha atomicamente e saldo trazido aparece no mês',
+  test('conta arquivada falha atomicamente e saldo anterior fica separado',
       () async {
     final e = await cards.entry(await cards.createPurchase(draft()));
     await cards.pay(e.invoiceId, other.id, 4000, DateTime(2090, 2, 5));
@@ -588,7 +588,9 @@ void main() {
     expect(bill.balanceMinor, 10000);
     final rows = await SqliteTransactionsRepository(db).list(TransactionFilter(
         from: DateTime(2026, 10), to: DateTime(2026, 10, 31)));
-    expect(rows.single.amountMinor, 10000);
+    expect(rows.single.amountMinor, 0);
+    expect(rows.single.cardPreviousMinor, 10000);
+    expect(rows.single.cardBalanceMinor, 10000);
     expect(rows.single.cardEntryCount, 0);
   });
 
