@@ -181,6 +181,7 @@ class _AllocationEditorState extends State<AllocationEditor> {
                         changed();
                       },
                     ),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(

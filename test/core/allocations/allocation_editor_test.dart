@@ -38,21 +38,22 @@ void main() {
     late StateSetter change;
     List<CategoryAllocation> result = [];
     await tester.pumpWidget(MaterialApp(
+        debugShowCheckedModeBanner: false,
         home: Scaffold(body: StatefulBuilder(builder: (context, setState) {
-      change = setState;
-      return SingleChildScrollView(
-          child: Form(
-              key: form,
-              child: AllocationEditor(
-                  categories: categories,
-                  type: 'expense',
-                  total: total,
-                  initial: const [
-                    CategoryAllocation('a', 6001),
-                    CategoryAllocation('b', 4000)
-                  ],
-                  onChanged: (v) => result = v)));
-    }))));
+          change = setState;
+          return SingleChildScrollView(
+              child: Form(
+                  key: form,
+                  child: AllocationEditor(
+                      categories: categories,
+                      type: 'expense',
+                      total: total,
+                      initial: const [
+                        CategoryAllocation('a', 6001),
+                        CategoryAllocation('b', 4000)
+                      ],
+                      onChanged: (v) => result = v)));
+        }))));
     expect(form.currentState!.validate(), isTrue);
     await tester.tap(find.text('Por percentual'));
     await tester.pumpAndSettle();
@@ -119,6 +120,7 @@ void main() {
           isArchived: false,
           includeInAnalytics: true);
       await tester.pumpWidget(MaterialApp(
+          debugShowCheckedModeBanner: false,
           theme: AppTheme.dark.copyWith(platform: platform),
           home: Scaffold(
               body: Builder(
