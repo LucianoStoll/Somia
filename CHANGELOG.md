@@ -6,7 +6,7 @@ Ciclo criado em 06/10/2026 a partir da v0.2.0-alpha integrada pelo [PR #57](http
 
 - Versão atualizada no pubspec e na identificação local do app.
 - README, fluxo de contribuição, guidelines e roadmap atualizados para a nova branch.
-- Escopo funcional ainda a definir com o usuário; a base preserva todas as entregas validadas da v0.2.0-alpha.
+- Escopo aprovado em 06/10/2026: conclusão das epics #11–#16 e frente de experiência/telas/campos #59. Sequência, dependências e critérios documentados; funcionalidades ainda em planejamento. A base preserva todas as entregas validadas da v0.2.0-alpha.
 
 ## v0.2.0-alpha — 2026-10-06 (pós-MVP)
 

@@ -237,11 +237,11 @@ Semantic Versioning: 0.x-alpha para desenvolvimento inicial, 0.x-beta para estab
 - [x] Documentação final, pacotes e validação; publicação autorizada em 06/10/2026.
 - [x] Integração pelo [PR #57](https://github.com/LucianoStoll/Somia/pull/57), [release v0.2.0-alpha](https://github.com/LucianoStoll/Somia/releases/tag/v0.2.0-alpha) e conclusão da #54.
 
-Rateio/reembolso (#11) permanece para ciclo posterior. [Fluxo e validação da sincronização](sincronizacao-drive.md).
+Rateio/reembolso (#11) integra agora o ciclo v0.3.0-alpha. [Fluxo e validação da sincronização](sincronizacao-drive.md).
 
 
 ## Ciclo atual — v0.3.0-alpha
 
 Branch `v0.3.0-alpha` criada a partir do commit integrado de `main` (`8eca99824e0b506d0791c15239adb51cfd480201`), com pubspec, identificação do app, changelog e documentação atualizados. Acompanhamento na [#58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](ciclos/v0.3.0-alpha.md). CI segue gerando pacotes; publicação somente ao integrar o próximo ciclo validado em main.
 
-Escopo a definir com o usuário. Candidatos já registrados: rateio/reembolsos (#11), planejamento/metas (#13), evolução de CSV/relatórios/conciliação (#14), patrimônio/dívidas (#15), cartões internacionais/adicionais (#12) e anexos sincronizados (#16). Criar a versão não autoriza implementar automaticamente esses itens.
+Escopo aprovado pelo usuário em 06/10/2026: concluir todas as pendências das epics #11–#16 e melhorar experiência, telas e campos no Android/Windows (#59). Sequência de entregas: transações avançadas → cartões → planejamento → patrimônio/dívidas/investimentos → relatórios/importação/conciliação → anexos sincronizados. A melhoria de experiência acompanha cada etapa e recebe revisão integrada ao fim. Dependências e critérios estão no [documento do ciclo](ciclos/v0.3.0-alpha.md).

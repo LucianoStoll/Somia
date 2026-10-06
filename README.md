@@ -4,7 +4,7 @@ Seu dinheiro, mais claro. Aplicativo de finanças pessoais para Android e Window
 
 ## v0.3.0-alpha — em desenvolvimento
 
-Branch atual: `v0.3.0-alpha`, iniciada a partir da versão anterior integrada em `main`. Planejamento na [issue #58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](docs/ciclos/v0.3.0-alpha.md). O escopo funcional será definido com o usuário.
+Branch atual: `v0.3.0-alpha`, iniciada a partir da versão anterior integrada em `main`. Planejamento na [issue #58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](docs/ciclos/v0.3.0-alpha.md). Escopo aprovado: concluir as epics #11–#16 e aprimorar experiência, telas e campos no Android/Windows ([#59](https://github.com/LucianoStoll/Somia/issues/59)). As entregas e validações serão acompanhadas por funcionalidade.
 
 ## v0.2.0-alpha — publicada e validada
 
@@ -65,4 +65,4 @@ A CI executa formatação, análise, testes no Linux e Windows, prévias de inte
 - [Identidade visual](docs/identidade-visual.md)
 - [Atualização Android e backup](docs/atualizacao-apk.md)
 
-Cartões, recorrências, calculadora, backup automático, sincronização e CSV já foram entregues nesta versão. Planejamento, rateio/reembolsos, anexos, relatórios avançados e conciliação continuam no backlog.
+Cartões, recorrências, calculadora, backup automático, sincronização e CSV já foram entregues nesta versão. Planejamento, rateio/reembolsos, anexos, relatórios avançados, conciliação e as demais pendências das epics #11–#16 estão planejados para a v0.3.0-alpha.
