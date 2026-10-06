@@ -56,6 +56,8 @@ A CI executa formatação, análise, testes no Linux e Windows, prévias de inte
 
 ## Documentação
 
+- [Rateio por categoria — alpha 3.0](docs/rateio-categorias.md)
+
 - [Changelog](CHANGELOG.md)
 - [Roadmap e próximos ciclos](docs/roadmap.md)
 - [Visão e escopo](docs/requisitos.md)

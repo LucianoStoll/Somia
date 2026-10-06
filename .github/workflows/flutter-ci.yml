@@ -63,6 +63,8 @@ jobs:
         run: flutter test test/core/widgets/movement_list_row_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render CSV import preview
         run: flutter test test/features/csv_import/csv_import_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render allocation previews
+        run: flutter test test/core/allocations/allocation_editor_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Publish dashboard preview
         uses: actions/upload-artifact@v4
         with:
@@ -73,6 +75,8 @@ jobs:
             test/features/settings/*mobile-preview.png
             test/features/settings/*desktop-preview.png
             test/core/routing/*mobile-preview.png
+            test/core/allocations/*mobile-preview.png
+            test/core/allocations/*desktop-preview.png
             test/core/widgets/*mobile-preview.png
             test/features/csv_import/*mobile-preview.png
           if-no-files-found: error

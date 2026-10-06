@@ -13,10 +13,12 @@ class AllocationEditor extends StatefulWidget {
     required this.total,
     required this.initial,
     required this.onChanged,
+    this.currencyCode = 'BRL',
   });
   final List<FinanceCategory> categories;
   final String type;
   final int total;
+  final String currencyCode;
   final List<CategoryAllocation> initial;
   final ValueChanged<List<CategoryAllocation>> onChanged;
   @override
@@ -30,10 +32,16 @@ class _AllocationEditorState extends State<AllocationEditor> {
   @override
   void initState() {
     super.initState();
+    percentage = widget.initial.isNotEmpty &&
+        widget.initial.every((p) => p.percentageBasisPoints != null);
     historical = widget.initial.map((p) => p.categoryId).toSet();
     rows = widget.initial.isEmpty
         ? [_Part(null, 0), _Part(null, 0)]
-        : [for (final p in widget.initial) _Part(p.categoryId, p.amountMinor)];
+        : [
+            for (final p in widget.initial)
+              _Part(p.categoryId,
+                  percentage ? p.percentageBasisPoints! : p.amountMinor)
+          ];
     for (final r in rows) {
       r.value.addListener(changed);
     }
@@ -69,7 +77,8 @@ class _AllocationEditorState extends State<AllocationEditor> {
 
   List<CategoryAllocation> get weights => [
         for (final r in rows)
-          CategoryAllocation(r.category ?? '', _parse(r.value.text)),
+          CategoryAllocation(r.category ?? '', _parse(r.value.text),
+              percentageBasisPoints: percentage ? _parse(r.value.text) : null),
       ];
   List<CategoryAllocation> get parts =>
       percentage && weights.fold(0, (s, p) => s + p.amountMinor) == 10000
@@ -189,6 +198,7 @@ class _AllocationEditorState extends State<AllocationEditor> {
                               : MonetaryCalculatorField(
                                   controller: rows[i].value,
                                   labelText: 'Valor da parte ${i + 1}',
+                                  currencyCode: widget.currencyCode,
                                 ),
                         ),
                         IconButton(
@@ -210,7 +220,7 @@ class _AllocationEditorState extends State<AllocationEditor> {
             Text(
               percentage
                   ? 'Distribuído: ${MoneyMinor.plain(weights.fold(0, (s, p) => s + p.amountMinor))}% / 100%'
-                  : 'Distribuído: ${MoneyMinor.plain(weights.fold(0, (s, p) => s + p.amountMinor))} / ${MoneyMinor.plain(widget.total)}',
+                  : 'Distribuído: ${MoneyMinor.display(weights.fold(0, (s, p) => s + p.amountMinor), widget.currencyCode)} / ${MoneyMinor.display(widget.total, widget.currencyCode)}',
             ),
             if (field.hasError)
               Text(

@@ -132,8 +132,9 @@ class SyncPacket {
         if (e is Map &&
             ['transactions', 'card_entries'].contains(e['table']) &&
             e['data'] is Map) {
-          if ((e['data'] as Map).containsKey('allocations_json'))
+          if ((e['data'] as Map).containsKey('allocations_json')) {
             throw const FormatException('Registro v11 incompatível.');
+          }
           (e['data'] as Map)['allocations_json'] = '[]';
         }
       }

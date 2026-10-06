@@ -159,8 +159,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
     context.read<TransactionsCubit>().load(TransactionFilter(
           type: _type,
           accountId: _accountId,
-          allocations: _rateioEnabled ? _allocations : const [],
-          categoryId: _rateioEnabled ? null : _subcategoryId ?? _categoryId,
+          categoryId: _subcategoryId ?? _categoryId,
           status: _status,
           from: _range?.start,
           to: _range?.end,
@@ -1203,7 +1202,8 @@ class TransactionFormState extends State<TransactionForm> {
           cardInvoiceMonth: _cardMonth,
           cardFirstInstallment: int.tryParse(_firstInstallment.text) ?? 1,
           accountId: _cardId ?? _accountId!,
-          categoryId: _subcategoryId ?? _categoryId,
+          allocations: _rateioEnabled ? _allocations : const [],
+          categoryId: _rateioEnabled ? null : _subcategoryId ?? _categoryId,
         ));
   }
 
@@ -1431,6 +1431,13 @@ class TransactionFormState extends State<TransactionForm> {
                           key: ValueKey('allocation-$_type'),
                           categories: widget.categories,
                           type: _type.name,
+                          currencyCode: _cardId != null
+                              ? 'BRL'
+                              : _availableAccounts
+                                      .where((a) => a.id == _accountId)
+                                      .firstOrNull
+                                      ?.currencyCode ??
+                                  'BRL',
                           total: MoneyMinor.parse(_amount.text),
                           initial: _allocations,
                           onChanged: (v) => _allocations = v,

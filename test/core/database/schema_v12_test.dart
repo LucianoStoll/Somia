@@ -15,7 +15,7 @@ class LegacyV11 extends LegacyV10 {
   int get schemaVersion => 11;
   @override
   MigrationStrategy get migration => MigrationStrategy(onCreate: (m) async {
-        await super.migration.onCreate!(m);
+        await super.migration.onCreate(m);
         for (final sql in schemaV11) {
           await customStatement(sql);
         }

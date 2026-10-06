@@ -1,5 +1,5 @@
 /// Atomic allocation payloads travel with the parent entity in backup/sync.
-const schemaV12 = <String>[
+final schemaV12 = <String>[
   "ALTER TABLE transactions ADD COLUMN allocations_json TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE card_entries ADD COLUMN allocations_json TEXT NOT NULL DEFAULT '[]'",
   for (final table in ['sync_versions', 'sync_outbox', 'sync_history'])

@@ -100,6 +100,20 @@ void main() {
             const [CategoryAllocation('a', 0), CategoryAllocation('b', 0)], 1),
         throwsFormatException);
   });
+  test('percentuais são preservados ao alterar valor e reabrir rateio',
+      () async {
+    final parts = CategoryAllocation.distribute([
+      CategoryAllocation(first, 6000, percentageBasisPoints: 6000),
+      CategoryAllocation(second, 4000, percentageBasisPoints: 4000)
+    ], 10001);
+    final item = await repo.create(draft(parts: parts));
+    await repo.updateAmount(item.id,
+        expectedAmountMinor: 10001, amountMinor: 20002);
+    final changed = (await repo.list()).single;
+    expect(changed.allocations.map((p) => p.amountMinor), [12001, 8001]);
+    expect(
+        changed.allocations.map((p) => p.percentageBasisPoints), [6000, 4000]);
+  });
   test('saldo e total únicos, gráfico distribuído, filtros e edição rápida',
       () async {
     final item = await repo.create(draft(paid: true));

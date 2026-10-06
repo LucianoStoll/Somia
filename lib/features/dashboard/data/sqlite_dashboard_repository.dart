@@ -49,7 +49,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         }
         final categoryRows = await _db.customSelect('''
       WITH allocated AS (SELECT t.*, json_extract(part.value,'\$.categoryId') AS allocation_category, json_extract(part.value,'\$.amountMinor') AS allocation_amount FROM transactions t JOIN json_each(t.allocations_json) part
-        UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor) FROM transactions t WHERE t.allocations_json='[]')
+        UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor) FROM transactions t WHERE json_array_length(t.allocations_json)=0)
       SELECT a.currency_code, COALESCE(parent.name, c.name, 'Sem categoria')
         AS category_name, SUM(t.allocation_amount) AS amount_minor
       FROM allocated t JOIN accounts a ON a.id = t.account_id
@@ -65,7 +65,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         final categoryTotals = <String, List<DashboardCategoryExpense>>{};
         final cardCategories = await _db.customSelect('''
           WITH allocated AS (SELECT e.*,json_extract(part.value,'\$.categoryId') AS allocation_category,CASE WHEN e.amount_minor<0 THEN -json_extract(part.value,'\$.amountMinor') ELSE json_extract(part.value,'\$.amountMinor') END AS allocation_amount FROM card_entries e JOIN json_each(e.allocations_json) part
-            UNION ALL SELECT e.*,e.category_id,e.amount_minor FROM card_entries e WHERE e.allocations_json='[]')
+            UNION ALL SELECT e.*,e.category_id,e.amount_minor FROM card_entries e WHERE json_array_length(e.allocations_json)=0)
           SELECT 'BRL' AS currency_code, COALESCE(parent.name,c.name,'Sem categoria') AS category_name,
             SUM(e.allocation_amount) AS amount_minor FROM allocated e JOIN card_invoices i ON i.id=e.invoice_id
           LEFT JOIN categories c ON c.id=e.allocation_category LEFT JOIN categories parent ON parent.id=c.parent_id

@@ -256,8 +256,9 @@ class CardsRepository {
           throw const FormatException('Informe uma despesa válida.');
         }
         CategoryAllocation.validate(draft.allocations, draft.amountMinor);
-        if (draft.allocations.isNotEmpty && draft.categoryId != null)
+        if (draft.allocations.isNotEmpty && draft.categoryId != null) {
           throw const FormatException('Use categoria única ou rateio.');
+        }
         await validateAllocationReferences(db, draft.allocations, 'expense');
         await _category(draft.categoryId);
         _money(draft.amountMinor);
@@ -504,8 +505,9 @@ class CardsRepository {
       db.transaction(() async {
         final original = await entry(id);
         CategoryAllocation.validate(draft.allocations, draft.amountMinor);
-        if (draft.allocations.isNotEmpty && draft.categoryId != null)
+        if (draft.allocations.isNotEmpty && draft.categoryId != null) {
           throw const FormatException('Use categoria única ou rateio.');
+        }
         await validateAllocationReferences(
           db,
           draft.allocations,

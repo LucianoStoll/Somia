@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:drift/drift.dart';
+import '../../../core/allocations/category_allocation.dart';
 import '../../../core/database/app_database.dart';
 import '../../cards/domain/credit_card.dart';
 import '../domain/account_statement.dart';
@@ -55,12 +56,14 @@ class AccountStatementRepository {
               amountMinor: income ? amount : -amount,
               kind: income ? StatementKind.income : StatementKind.expense,
               effective: effective,
-              detail: r.read<String>('allocations_json') != '[]'
-                  ? 'Rateio entre categorias'
-                  : [
-                      r.readNullable<String>('parent_name'),
-                      r.readNullable<String>('category_name')
-                    ].whereType<String>().join(' / '));
+              detail:
+                  CategoryAllocation.decode(r.read<String>('allocations_json'))
+                          .isNotEmpty
+                      ? 'Rateio entre categorias'
+                      : [
+                          r.readNullable<String>('parent_name'),
+                          r.readNullable<String>('category_name')
+                        ].whereType<String>().join(' / '));
           forecast.add(e);
           if (effective) actual.add(e);
         }

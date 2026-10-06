@@ -50,8 +50,9 @@ class SqliteCategoriesRepository implements CategoriesRepository {
         UNION ALL SELECT 1 FROM card_entries e,json_each(e.allocations_json) p WHERE json_extract(p.value,'\$.categoryId')=? LIMIT 1''',
         variables: [Variable.withString(id), Variable.withString(id)],
       ).get();
-      if (used.isNotEmpty)
+      if (used.isNotEmpty) {
         throw StateError('Preserve o tipo da categoria usada em rateios.');
+      }
     }
     await _validate(draft, id: id);
     await _db.customStatement('''
