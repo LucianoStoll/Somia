@@ -13,6 +13,7 @@ import 'package:finapp/features/categories/domain/category.dart';
 import 'package:finapp/features/cards/data/cards_repository.dart';
 import 'package:finapp/features/cards/domain/credit_card.dart';
 import 'package:finapp/features/cards/presentation/cards_page.dart';
+import 'package:finapp/features/cards/presentation/card_forms.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
