@@ -166,6 +166,7 @@ class _CurrencySection extends StatelessWidget {
         Expanded(
             child: _MetricCard(
           key: ValueKey('mobile-income-$code'),
+          onTap: () => context.go(AppRoutes.incomePath),
           label: 'Receitas',
           amount: currency.incomeMinor,
           code: code,
@@ -177,6 +178,7 @@ class _CurrencySection extends StatelessWidget {
         Expanded(
             child: _MetricCard(
           key: ValueKey('mobile-expense-$code'),
+          onTap: () => context.go(AppRoutes.expensesPath),
           label: 'Despesas',
           amount: currency.expenseMinor,
           code: code,
@@ -201,6 +203,7 @@ class _MetricCard extends StatelessWidget {
   const _MetricCard(
       {super.key,
       this.wide = false,
+      this.onTap,
       required this.label,
       required this.amount,
       required this.code,
@@ -208,6 +211,7 @@ class _MetricCard extends StatelessWidget {
       required this.icon,
       required this.detail});
   final bool wide;
+  final VoidCallback? onTap;
   final String label;
   final int amount;
   final String code;
@@ -242,7 +246,7 @@ class _MetricCard extends StatelessWidget {
     final caption = Text(detail,
         style: TextStyle(
             fontSize: 11, color: wide ? SomiaColors.blue : SomiaColors.muted));
-    return Container(
+    final content = Container(
       constraints: BoxConstraints(minHeight: wide ? 108 : 128),
       padding: EdgeInsets.all(wide ? 14 : 12),
       decoration: BoxDecoration(
@@ -289,6 +293,15 @@ class _MetricCard extends StatelessWidget {
               caption,
             ]),
     );
+    return onTap == null
+        ? content
+        : Semantics(
+            button: true,
+            label: 'Abrir $label',
+            child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(16),
+                child: content));
   }
 }
 

@@ -21,7 +21,10 @@ Widget row(
         effective: effective,
         busy: busy,
         color: SomiaColors.red,
-        tags: const ['Investimentos e patrimônio', 'Financiamento'],
+        categoryTags: const [
+          MovementTag('Investimentos e patrimônio', Color(0xFF79D9B6)),
+          MovementTag('Financiamento', Color(0xFFB9A8EB))
+        ],
         onEdit: edit ?? () {},
         onEffective: status ?? () {},
         onAmount: amount,
@@ -94,6 +97,36 @@ void main() {
     expect(find.text('Editar'), findsOneWidget);
     expect(edits, 1);
     expect(statuses, 1);
+  });
+  testWidgets('etiquetas preservam cores e linha curta é compacta',
+      (tester) async {
+    await open(
+        tester,
+        MovementListRow(
+            id: 'compact',
+            description: 'Salário',
+            account: 'Banco',
+            amount: 'R\$ 1.314,56',
+            dueDate: DateTime(2026, 10, 6),
+            effectiveDate: null,
+            effective: true,
+            color: SomiaColors.green,
+            categoryTags: const [
+              MovementTag('Renda', Color(0xFF79D9B6)),
+              MovementTag('Salário', Color(0xFFB9A8EB))
+            ],
+            onEdit: () {},
+            onEffective: () {},
+            menu: const SizedBox(width: 48, height: 48)),
+        const Size(390, 844),
+        1);
+    expect(tester.getSize(find.byType(MovementListRow)).height,
+        lessThanOrEqualTo(100));
+    expect(tester.widget<Text>(find.text('Renda')).style!.color,
+        const Color(0xFF79D9B6));
+    expect(tester.widget<Text>(find.text('Salário').last).style!.color,
+        const Color(0xFFB9A8EB));
+    expect(tester.takeException(), isNull);
   });
   testWidgets('efetivado e ocupado não efetivam novamente', (tester) async {
     var calls = 0;

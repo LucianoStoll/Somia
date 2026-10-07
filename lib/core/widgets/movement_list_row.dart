@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
+class MovementTag {
+  const MovementTag(this.label, this.color);
+  final String label;
+  final Color color;
+}
+
 /// Áreas de toque separadas para status, edição, valor e menu.
 class MovementListRow extends StatelessWidget {
   const MovementListRow(
@@ -18,6 +24,7 @@ class MovementListRow extends StatelessWidget {
       required this.onEffective,
       required this.menu,
       this.tags = const [],
+      this.categoryTags = const [],
       this.highlightLabel,
       this.pendingIcon = Icons.radio_button_unchecked,
       this.busy = false,
@@ -31,6 +38,7 @@ class MovementListRow extends StatelessWidget {
   final bool effective, busy;
   final Color color;
   final List<String> tags;
+  final List<MovementTag> categoryTags;
   final String? highlightLabel;
   final IconData pendingIcon;
   final VoidCallback onEdit, onEffective;
@@ -85,7 +93,7 @@ class MovementListRow extends StatelessWidget {
           style: const TextStyle(color: SomiaColors.muted, fontSize: 12)),
       const SizedBox(height: 2),
       Text(description,
-          maxLines: 2,
+          maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
       if (highlightLabel != null) ...[
@@ -101,17 +109,20 @@ class MovementListRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis)),
       ],
-      if (tags.isNotEmpty) ...[
+      if (tags.isNotEmpty || categoryTags.isNotEmpty) ...[
         const SizedBox(height: 5),
         Wrap(spacing: 5, runSpacing: 4, children: [
-          for (final tag in tags)
+          for (final tag in [
+            ...categoryTags,
+            ...tags.map((label) => MovementTag(label, SomiaColors.muted))
+          ])
             Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                    color: SomiaColors.surfaceHigh,
+                    color: tag.color.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(5)),
-                child: Text(tag,
-                    style: const TextStyle(fontSize: 11),
+                child: Text(tag.label,
+                    style: TextStyle(fontSize: 11, color: tag.color),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis))
         ]),
@@ -124,10 +135,16 @@ class MovementListRow extends StatelessWidget {
             key: ValueKey('movement-amount-$id'),
             onTap: busy ? null : onAmount ?? onEdit,
             child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      Tooltip(
+                          message:
+                              'Vencimento ${_date(dueDate)}${effectiveDate == null ? '' : ' · $status ${_date(effectiveDate!)}'}',
+                          child: Text(_date(effectiveDate ?? dueDate),
+                              style: const TextStyle(
+                                  fontSize: 11, color: SomiaColors.muted))),
                       Text(amount,
                           softWrap: true,
                           textAlign: TextAlign.right,
@@ -135,21 +152,12 @@ class MovementListRow extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                               color: color,
                               fontSize: 15)),
-                      Text('Venc. ${_date(dueDate)}',
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                              fontSize: 11, color: SomiaColors.muted)),
-                      if (effectiveDate != null)
-                        Text('$status ${_date(effectiveDate!)}',
-                            textAlign: TextAlign.right,
-                            style: const TextStyle(
-                                fontSize: 11, color: SomiaColors.muted)),
                     ]))));
     return Material(
-        color: SomiaColors.surface.withValues(alpha: 0.45),
+        color: Colors.transparent,
         child: Column(children: [
           Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
               child:
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 statusButton,
@@ -161,7 +169,7 @@ class MovementListRow extends StatelessWidget {
                       key: ValueKey('movement-edit-$id'),
                       onTap: busy ? null : onEdit,
                       child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 4),
                           child: details));
                   if (stacked) {
                     return Column(

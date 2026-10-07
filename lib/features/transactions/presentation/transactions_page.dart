@@ -1,3 +1,5 @@
+import '../../categories/presentation/category_visuals.dart';
+import '../../../core/widgets/compact_movement_field.dart';
 import '../../../core/allocations/category_allocation.dart';
 import '../../../core/allocations/allocation_editor.dart';
 import '../data/category_history_repository.dart';
@@ -776,8 +778,12 @@ class _TransactionsViewState extends State<_TransactionsView> {
         if (item.series != null) item.series!.label,
         if (item.allocations.isNotEmpty)
           'Rateio · ${item.allocations.length} categorias',
-        if (parent != null) parent.name,
-        if (item.categoryName != null) item.categoryName!
+      ],
+      categoryTags: [
+        if (parent != null)
+          MovementTag(parent.name, categoryDisplayColor(parent)),
+        if (category != null)
+          MovementTag(category.name, categoryDisplayColor(category))
       ],
       onEffective: () {
         if (item.cardId != null) {
@@ -1249,13 +1255,14 @@ class TransactionFormState extends State<TransactionForm> {
             ),
         builder: (context, cancel) => MovementFormFrame(
               onCancel: cancel,
+              compact: true,
               title: widget.item == null ? 'Nova $kind' : 'Editar $kind',
               onSave: _submit,
               child: Form(
                 key: _formKey,
                 child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    spacing: 16,
+                    spacing: 8,
                     children: [
                       TextFormField(
                           controller: _description,
@@ -1271,6 +1278,7 @@ class TransactionFormState extends State<TransactionForm> {
                           },
                           scrollPadding: const EdgeInsets.all(100),
                           decoration: InputDecoration(
+                              prefixIcon: const Icon(Icons.notes_outlined),
                               labelText: 'Descrição',
                               helperText: _categoryFromHistory
                                   ? 'Categoria preenchida pelo histórico.'
@@ -1293,22 +1301,6 @@ class TransactionFormState extends State<TransactionForm> {
                                   .firstOrNull
                                   ?.currencyCode ??
                               'BRL'),
-                      if (widget.item == null || widget.item?.series != null)
-                        SeriesFormFields(
-                            key: ValueKey('series-card-${_cardId != null}'),
-                            controller: _series,
-                            amount: _amount,
-                            dueDate: _cardId == null
-                                ? _dueDate
-                                : _selectedCard?.dueFor(_invoiceMonth) ??
-                                    _dueDate,
-                            currencyCode: _availableAccounts
-                                    .where((a) => a.id == _accountId)
-                                    .firstOrNull
-                                    ?.currencyCode ??
-                                'BRL',
-                            cardMode: _cardId != null,
-                            existing: widget.item?.series),
                       if (_type == TransactionType.expense &&
                           widget.initialCardId == null &&
                           widget.item == null &&
@@ -1375,32 +1367,6 @@ class TransactionFormState extends State<TransactionForm> {
                                     setState(() => _cardMonth = null),
                                 icon: const Icon(Icons.restart_alt)),
                             onTap: _pickInvoiceMonth),
-                        if (widget.item == null)
-                          TextFormField(
-                              controller: _firstInstallment,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                  labelText: 'Primeira parcela a cadastrar',
-                                  helperText: _series.active
-                                      ? 'Ex.: 4 para cadastrar apenas da 4ª em diante. A quantidade acima é a restante.'
-                                      : 'Use 1 para compra à vista. Para apenas a última parcela, informe seu número.'),
-                              validator: (v) {
-                                final n = int.tryParse(v ?? '');
-                                return n == null ||
-                                        n < 1 ||
-                                        n +
-                                                (_series.active
-                                                    ? int.tryParse(_series
-                                                            .count.text) ??
-                                                        0
-                                                    : 1) -
-                                                1 >
-                                            1000
-                                    ? 'Numeração entre 1 e 1000.'
-                                    : null;
-                              }),
-                        const Text(
-                            'A compra não debita a conta. Registre o pagamento na fatura.'),
                       ],
                       if (_cardId == null)
                         DropdownButtonFormField<String>(
@@ -1419,12 +1385,147 @@ class TransactionFormState extends State<TransactionForm> {
                               : null,
                           onChanged: (id) => setState(() => _accountId = id),
                         ),
+                      if (!_rateioEnabled)
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          key: ValueKey('category-${_type.name}-$_categoryId'),
+                          initialValue: _categoryId,
+                          decoration:
+                              const InputDecoration(labelText: 'Categoria'),
+                          items: [
+                            const DropdownMenuItem(
+                                value: '', child: Text('Sem categoria')),
+                            for (final category in roots)
+                              DropdownMenuItem(
+                                  value: category.id,
+                                  child: Row(children: [
+                                    Icon(Icons.label_outline,
+                                        size: 18,
+                                        color: categoryDisplayColor(category)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: Text(
+                                            '${category.name}${category.isArchived ? ' (arquivada)' : ''}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis))
+                                  ]))
+                          ],
+                          onChanged: (id) => setState(() {
+                            _categoryChosenManually = true;
+                            _categoryFromHistory = false;
+                            _categoryId = id == null || id.isEmpty ? null : id;
+                            _subcategoryId = null;
+                          }),
+                        ),
+                      if (!_rateioEnabled)
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          key: ValueKey(
+                              'subcategory-${_type.name}-$_categoryId-$_subcategoryId'),
+                          initialValue: _subcategoryId,
+                          decoration:
+                              const InputDecoration(labelText: 'Subcategoria'),
+                          items: [
+                            const DropdownMenuItem(
+                                value: '', child: Text('Nenhuma')),
+                            for (final category in children)
+                              DropdownMenuItem(
+                                  value: category.id,
+                                  child: Row(children: [
+                                    Icon(Icons.label_outline,
+                                        size: 18,
+                                        color: categoryDisplayColor(category)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: Text(
+                                            '${category.name}${category.isArchived ? ' (arquivada)' : ''}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis))
+                                  ]))
+                          ],
+                          onChanged: _categoryId == null
+                              ? null
+                              : (id) => setState(() {
+                                    _categoryChosenManually = true;
+                                    _categoryFromHistory = false;
+                                    _subcategoryId =
+                                        id == null || id.isEmpty ? null : id;
+                                  }),
+                        ),
+                      if (_cardId == null)
+                        CompactMovementDate(
+                            label: 'Vencimento',
+                            date: _dueDate,
+                            onTap: () => _pickDate('due')),
+                      if (_cardId != null)
+                        ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Data da compra'),
+                            subtitle: Text(_dateLabel(_date)),
+                            trailing: const Icon(Icons.calendar_today),
+                            onTap: () => _pickDate('posted')),
+                      if (_cardId == null)
+                        SwitchListTile(
+                          title: Text(_type == TransactionType.income
+                              ? 'Recebido'
+                              : 'Pago'),
+                          value: !_forcePending && _isEffective,
+                          onChanged: _forcePending
+                              ? null
+                              : (value) => setState(() => _isEffective = value),
+                        ),
+                      if (!_forcePending && _isEffective)
+                        CompactMovementDate(
+                            label: 'Data de efetivação',
+                            date: _effectiveDate ?? DateTime.now(),
+                            onTap: () => _pickDate('effective')),
+                      const Divider(),
+                      const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('Mais opções')),
+                      if (widget.item == null || widget.item?.series != null)
+                        SeriesFormFields(
+                            key: ValueKey('series-card-${_cardId != null}'),
+                            controller: _series,
+                            amount: _amount,
+                            dueDate: _cardId == null
+                                ? _dueDate
+                                : _selectedCard?.dueFor(_invoiceMonth) ??
+                                    _dueDate,
+                            currencyCode: _availableAccounts
+                                    .where((a) => a.id == _accountId)
+                                    .firstOrNull
+                                    ?.currencyCode ??
+                                'BRL',
+                            cardMode: _cardId != null,
+                            existing: widget.item?.series),
+                      if (_cardId != null && widget.item == null)
+                        TextFormField(
+                            controller: _firstInstallment,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                                labelText: 'Primeira parcela a cadastrar',
+                                helperText: _series.active
+                                    ? 'Ex.: 4 para cadastrar apenas da 4ª em diante. A quantidade acima é a restante.'
+                                    : 'Use 1 para compra à vista. Para apenas a última parcela, informe seu número.'),
+                            validator: (v) {
+                              final n = int.tryParse(v ?? '');
+                              return n == null ||
+                                      n < 1 ||
+                                      n +
+                                              (_series.active
+                                                  ? int.tryParse(
+                                                          _series.count.text) ??
+                                                      0
+                                                  : 1) -
+                                              1 >
+                                          1000
+                                  ? 'Numeração entre 1 e 1000.'
+                                  : null;
+                            }),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Dividir entre categorias'),
-                        subtitle: const Text(
-                          'Rateio por valor ou percentual, sem duplicar o lançamento.',
-                        ),
                         value: _rateioEnabled,
                         onChanged: (v) => setState(() {
                           _rateioEnabled = v;
@@ -1448,95 +1549,11 @@ class TransactionFormState extends State<TransactionForm> {
                           initial: _allocations,
                           onChanged: (v) => _allocations = v,
                         ),
-                      if (!_rateioEnabled)
-                        DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          key: ValueKey('category-${_type.name}-$_categoryId'),
-                          initialValue: _categoryId,
-                          decoration:
-                              const InputDecoration(labelText: 'Categoria'),
-                          items: [
-                            const DropdownMenuItem(
-                                value: '', child: Text('Sem categoria')),
-                            for (final category in roots)
-                              DropdownMenuItem(
-                                  value: category.id,
-                                  child: Text(
-                                      '${category.name}'
-                                      '${category.isArchived ? ' (arquivada)' : ''}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis))
-                          ],
-                          onChanged: (id) => setState(() {
-                            _categoryChosenManually = true;
-                            _categoryFromHistory = false;
-                            _categoryId = id == null || id.isEmpty ? null : id;
-                            _subcategoryId = null;
-                          }),
-                        ),
-                      if (!_rateioEnabled)
-                        DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          key: ValueKey(
-                              'subcategory-${_type.name}-$_categoryId-$_subcategoryId'),
-                          initialValue: _subcategoryId,
-                          decoration:
-                              const InputDecoration(labelText: 'Subcategoria'),
-                          items: [
-                            const DropdownMenuItem(
-                                value: '', child: Text('Nenhuma')),
-                            for (final category in children)
-                              DropdownMenuItem(
-                                  value: category.id,
-                                  child: Text(
-                                      '${category.name}'
-                                      '${category.isArchived ? ' (arquivada)' : ''}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis))
-                          ],
-                          onChanged: _categoryId == null
-                              ? null
-                              : (id) => setState(() {
-                                    _categoryChosenManually = true;
-                                    _categoryFromHistory = false;
-                                    _subcategoryId =
-                                        id == null || id.isEmpty ? null : id;
-                                  }),
-                        ),
                       if (_cardId == null)
-                        MovementDateFields(
-                          posted: _date,
-                          due: _dueDate,
-                          onPosted: () => _pickDate('posted'),
-                          onDue: () => _pickDate('due'),
-                        ),
-                      if (_cardId != null)
-                        ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Data da compra'),
-                            subtitle: Text(_dateLabel(_date)),
-                            trailing: const Icon(Icons.calendar_today),
+                        CompactMovementDate(
+                            label: 'Lançamento',
+                            date: _date,
                             onTap: () => _pickDate('posted')),
-                      if (_cardId == null)
-                        SwitchListTile(
-                          title: Text(_type == TransactionType.income
-                              ? 'Recebido'
-                              : 'Pago'),
-                          subtitle: const Text(
-                              'A data determina quando entra no saldo atual'),
-                          value: !_forcePending && _isEffective,
-                          onChanged: _forcePending
-                              ? null
-                              : (value) => setState(() => _isEffective = value),
-                        ),
-                      if (!_forcePending && _isEffective)
-                        ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Data de efetivação'),
-                            subtitle: Text(
-                                _dateLabel(_effectiveDate ?? DateTime.now())),
-                            trailing: const Icon(Icons.calendar_today),
-                            onTap: () => _pickDate('effective')),
                       if (widget.fixedType == null)
                         ExpansionTile(
                           title: const Text('Mais detalhes'),

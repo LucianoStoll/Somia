@@ -1,3 +1,5 @@
+import 'package:go_router/go_router.dart';
+import 'package:finapp/core/routing/somia_shell.dart';
 import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
@@ -133,20 +135,38 @@ void main() {
     await repo.db.close();
   });
   Future<void> open(WidgetTester tester, TargetPlatform platform,
-      {double scale = 1}) async {
+      {double scale = 1, bool detail = true}) async {
     tester.view.physicalSize = platform == TargetPlatform.android
         ? const Size(390, 844)
         : const Size(1280, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(MaterialApp(
-        theme: AppTheme.dark.copyWith(platform: platform),
-        builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(scale)),
-            child: child!),
-        home: const CardsPage()));
+    final router = GoRouter(
+        initialLocation: detail ? '/cards?card=nu' : '/cards',
+        routes: [
+          GoRoute(
+              path: '/cards',
+              builder: (context, state) => SomiaSectionBackScope(
+                  location: '/cards',
+                  child: CardsPage(
+                      key: ValueKey(state.uri.toString()),
+                      cardId: state.uri.queryParameters['card']))),
+          for (final path in ['/income', '/expenses', '/transfers'])
+            GoRoute(
+                path: path,
+                builder: (_, state) =>
+                    Scaffold(body: Text(state.uri.toString())))
+        ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(
+      routerConfig: router,
+      theme: AppTheme.dark.copyWith(platform: platform),
+      builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(scale)),
+          child: child!),
+    ));
     await tester.pumpAndSettle();
   }
 
@@ -231,6 +251,58 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
+    testWidgets('lista abre detalhes e extrato agrupa dias $platform',
+        (tester) async {
+      await open(tester, platform, detail: false);
+      expect(find.text('Detalhes do cartão'), findsNothing);
+      expect(find.text('Compra parcelada com descrição longa'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('card-open-nu')));
+      await tester.pumpAndSettle();
+      expect(find.text('Detalhes do cartão'), findsOneWidget);
+      await tester.ensureVisible(find.text('Extrato'));
+      await tester.tap(find.text('Extrato'));
+      await tester.pumpAndSettle();
+      final purchaseDay = find.byKey(
+          ValueKey('card-statement-day-${cardDay(DateTime(2026, 9, 1))}'));
+      final paymentDay = find.byKey(
+          ValueKey('card-statement-day-${cardDay(DateTime(2026, 10, 2))}'));
+      await tester.scrollUntilVisible(purchaseDay, 160);
+      expect(purchaseDay, findsOneWidget);
+      expect(paymentDay, findsOneWidget);
+      expect(tester.getTopLeft(paymentDay).dy,
+          lessThan(tester.getTopLeft(purchaseDay).dy));
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('card-open-nu')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('balão na aba Cartões abre os três fluxos $platform',
+        (tester) async {
+      for (final action in [
+        ('Receita', '/income?create=1'),
+        ('Despesa', '/expenses?create=1'),
+        ('Transferência', '/transfers?create=1')
+      ]) {
+        await open(tester, platform, detail: false);
+        await tester
+            .tap(find.byTooltip('Adicionar lançamento ou transferência'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(action.$1));
+        await tester.pumpAndSettle();
+        expect(find.text(action.$2), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    });
+  }
+  testWidgets('Voltar Android do detalhe retorna aos cartões', (tester) async {
+    await open(tester, TargetPlatform.android);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('card-open-nu')), findsOneWidget);
+    expect(find.text('Detalhes do cartão'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('cartões tolera fonte ampliada no Android', (tester) async {
     await open(tester, TargetPlatform.android, scale: 1.5);
     expect(tester.takeException(), isNull);
@@ -250,6 +322,17 @@ void main() {
       await open(tester, TargetPlatform.android);
       await expectLater(find.byType(Scaffold).last,
           matchesGoldenFile('cards-mobile-preview.png'));
+      await tester.ensureVisible(find.text('Extrato'));
+      await tester.tap(find.text('Extrato'));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(Scaffold).last,
+          matchesGoldenFile('card-statement-mobile-preview.png'));
+      await open(tester, TargetPlatform.android, detail: false);
+      await expectLater(find.byType(Scaffold).last,
+          matchesGoldenFile('card-list-mobile-preview.png'));
+      await open(tester, TargetPlatform.windows);
+      await expectLater(find.byType(Scaffold).last,
+          matchesGoldenFile('cards-desktop-preview.png'));
       expect(tester.takeException(), isNull);
     });
   }

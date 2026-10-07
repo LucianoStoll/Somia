@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- Experiência (#59): ícones compartilhados no balão “+”, atalho em Cartões, lista/detalhe/extrato diário de cartões, lançamentos compactos com cores de categorias, atalhos do resumo e formulários em linhas simples. Entrega conjunta para validação; regras em `docs/experiencia-uso.md`.
+
 - #65: dívidas e empréstimos em BRL, vínculo com bem, amortização manual vinculada a despesas existentes, saldo atual/projetado e histórico reversível. Integração ao patrimônio sem duplicação, schema 15 e backup/sync v11–v14. [Regras e roteiro](docs/dividas-emprestimos.md); aguarda validação manual.
 
 - #64: veículos, imóveis e outros bens, aquisição, avaliações e saldo de financiamento manuais com histórico. Resumo de contas BRL, bens e dívidas sem duplicar investimentos. Retirada reversível preserva financiamento em aberto. Schema 14, backups/sync históricos v11–v13 e fila pendente migrada. [Regras e roteiro](docs/bens-patrimonio.md); validada pelo usuário em 06/10/2026.

@@ -38,7 +38,16 @@ class _LiveUiBackupManager extends BackupManager {
 class _DashboardStub implements DashboardRepository {
   @override
   Future<DashboardSummary> load(DateTime month) async =>
-      DashboardSummary(month: month, currencies: const [], recent: const []);
+      DashboardSummary(month: month, currencies: const [
+        DashboardCurrencySummary(
+            currencyCode: 'BRL',
+            currentBalanceMinor: 10000,
+            projectedBalanceMinor: 10000,
+            incomeMinor: 20000,
+            expenseMinor: 10000,
+            accounts: [],
+            history: [])
+      ], recent: const []);
 }
 
 class _AccountsStub implements AccountsRepository {
@@ -210,6 +219,58 @@ void main() {
         theme: AppTheme.dark.copyWith(platform: platform)));
     await tester.pumpAndSettle();
   }
+
+  for (final size in [const Size(390, 844), const Size(1280, 900)]) {
+    testWidgets('cards do resumo abrem abas preservando mês $size',
+        (tester) async {
+      await openBackTest(tester, size: size);
+      referenceMonth.select(DateTime(2027, 2));
+      await tester.pumpAndSettle();
+      for (final path in ['/income', '/expenses']) {
+        appRouter.go('/');
+        await tester.pumpAndSettle();
+        final key = size.width < 800
+            ? (path == '/income' ? 'mobile-income-BRL' : 'mobile-expense-BRL')
+            : 'dashboard-link-$path';
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+        expect(appRouter.routeInformationProvider.value.uri.path, path);
+        expect(referenceMonth.value, DateTime(2027, 2));
+        expect(
+            (getIt<TransactionsRepository>() as _TransactionsStub)
+                .requestedFilters
+                .last
+                .from,
+            DateTime(2027, 2));
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets('balão usa mesmos ícones e cores do menu lateral',
+      (tester) async {
+    await openBackTest(tester);
+    await tester.tap(find.byTooltip('Abrir menu'));
+    await tester.pumpAndSettle();
+    final icons = <Icon>[];
+    for (final path in ['/income', '/expenses', '/transfers']) {
+      icons.add(tester
+          .widget<ListTile>(find.byKey(ValueKey('menu-$path')))
+          .leading! as Icon);
+    }
+    await tester.tap(find.byTooltip('Fechar menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
+    await tester.pumpAndSettle();
+    final labels = ['Receita', 'Despesa', 'Transferência'];
+    for (var i = 0; i < labels.length; i++) {
+      final icon = tester
+          .widget<ListTile>(find.widgetWithText(ListTile, labels[i]))
+          .leading! as Icon;
+      expect(icon.icon, icons[i].icon);
+      expect(icon.color, icons[i].color);
+    }
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
       'restauração com app aberto descarta formulário e recarrega contas',

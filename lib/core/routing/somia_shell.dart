@@ -18,14 +18,24 @@ class _MenuDestination {
   final Color color;
 }
 
+abstract final class MovementIdentity {
+  static const incomeIcon = Icons.arrow_circle_up_outlined;
+  static const expenseIcon = Icons.arrow_circle_down_outlined;
+  static const transferIcon = Icons.swap_horiz;
+  static const incomeColor = SomiaColors.green;
+  static const expenseColor = SomiaColors.red;
+  static const transferColor = SomiaColors.muted;
+}
+
 const _menu = <_MenuDestination>[
   _MenuDestination(
       'Resumo', AppRoutes.dashboardPath, Icons.home_outlined, SomiaColors.blue),
   _MenuDestination('Receitas', AppRoutes.incomePath,
-      Icons.arrow_circle_up_outlined, SomiaColors.green),
+      MovementIdentity.incomeIcon, MovementIdentity.incomeColor),
   _MenuDestination('Despesas', AppRoutes.expensesPath,
-      Icons.arrow_circle_down_outlined, SomiaColors.red),
-  _MenuDestination('Transferências', AppRoutes.transfersPath, Icons.swap_horiz),
+      MovementIdentity.expenseIcon, MovementIdentity.expenseColor),
+  _MenuDestination('Transferências', AppRoutes.transfersPath,
+      MovementIdentity.transferIcon, MovementIdentity.transferColor),
   _MenuDestination(
       'Contas', AppRoutes.accountsPath, Icons.account_balance_wallet_outlined),
   _MenuDestination(
@@ -74,12 +84,16 @@ class SomiaSectionBackScope extends StatelessWidget {
             if (scaffold?.isDrawerOpen ?? false) {
               scaffold!.closeDrawer();
             } else if (location != AppRoutes.dashboardPath) {
-              context.go((location == AppRoutes.assetsPath ||
-                      location == AppRoutes.debtsPath)
-                  ? AppRoutes.investmentsPath
-                  : location.startsWith('${AppRoutes.accountsPath}/')
-                      ? AppRoutes.accountsPath
-                      : AppRoutes.dashboardPath);
+              context.go(location == AppRoutes.cardsPath &&
+                      GoRouterState.of(context).uri.queryParameters['card'] !=
+                          null
+                  ? AppRoutes.cardsPath
+                  : (location == AppRoutes.assetsPath ||
+                          location == AppRoutes.debtsPath)
+                      ? AppRoutes.investmentsPath
+                      : location.startsWith('${AppRoutes.accountsPath}/')
+                          ? AppRoutes.accountsPath
+                          : AppRoutes.dashboardPath);
             }
           },
           child: child,
@@ -216,15 +230,20 @@ class SomiaQuickActions extends StatelessWidget {
           PopupMenuItem(
               value: 'income',
               child: ListTile(
-                  leading: Icon(Icons.south_west), title: Text('Receita'))),
+                  leading: Icon(MovementIdentity.incomeIcon,
+                      color: MovementIdentity.incomeColor),
+                  title: Text('Receita'))),
           PopupMenuItem(
               value: 'expense',
               child: ListTile(
-                  leading: Icon(Icons.north_east), title: Text('Despesa'))),
+                  leading: Icon(MovementIdentity.expenseIcon,
+                      color: MovementIdentity.expenseColor),
+                  title: Text('Despesa'))),
           PopupMenuItem(
               value: 'transfer',
               child: ListTile(
-                  leading: Icon(Icons.swap_horiz),
+                  leading: Icon(MovementIdentity.transferIcon,
+                      color: MovementIdentity.transferColor),
                   title: Text('Transferência'))),
         ],
       );

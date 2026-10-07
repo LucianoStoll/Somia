@@ -127,6 +127,32 @@ void main() {
     });
   }
 
+  for (final kind in ['expense', 'transfer']) {
+    testWidgets('formulário $kind prioriza essenciais e usa linhas simples',
+        (tester) async {
+      await _open(
+          tester,
+          kind == 'transfer'
+              ? const TransferForm(accounts: _accounts)
+              : const TransactionForm(
+                  accounts: _accounts,
+                  categories: [],
+                  fixedType: TransactionType.expense));
+      final inputContext = tester.element(find.byType(TextFormField).first);
+      expect(Theme.of(inputContext).inputDecorationTheme.filled, false);
+      expect(Theme.of(inputContext).inputDecorationTheme.border,
+          isA<UnderlineInputBorder>());
+      expect(tester.getTopLeft(find.text('Vencimento')).dy,
+          lessThan(tester.getTopLeft(find.text('Mais opções')).dy));
+      expect(
+          tester
+              .getTopLeft(
+                  find.text(kind == 'transfer' ? 'Conta de origem' : 'Conta'))
+              .dy,
+          lessThan(tester.getTopLeft(find.text('Vencimento')).dy));
+      expect(tester.takeException(), isNull);
+    });
+  }
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
     for (final kind in ['income', 'expense', 'transfer']) {
       testWidgets(

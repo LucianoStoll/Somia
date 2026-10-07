@@ -81,6 +81,7 @@ jobs:
             test/features/settings/*mobile-preview.png
             test/features/settings/*desktop-preview.png
             test/core/routing/*mobile-preview.png
+            test/core/routing/*desktop-preview.png
             test/core/allocations/*mobile-preview.png
             test/core/allocations/*desktop-preview.png
             test/core/widgets/*mobile-preview.png

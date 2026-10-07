@@ -210,22 +210,30 @@ class _DashboardViewState extends State<_DashboardView>
                   future
                       ? 'Saldo efetivado: ${MoneyMinor.display(currency.currentBalanceMinor, code)}'
                       : 'Saldo projetado: ${MoneyMinor.display(currency.projectedBalanceMinor, code)}')),
-          _metric(
+          _sectionLink(
               context,
+              AppRoutes.incomePath,
               'Receitas',
-              currency.incomeMinor,
-              code,
-              Icons.arrow_upward_rounded,
-              SomiaColors.green,
-              'Efetivados e previstos'),
-          _metric(
+              _metric(
+                  context,
+                  'Receitas',
+                  currency.incomeMinor,
+                  code,
+                  Icons.arrow_upward_rounded,
+                  SomiaColors.green,
+                  'Efetivados e previstos')),
+          _sectionLink(
               context,
+              AppRoutes.expensesPath,
               'Despesas',
-              currency.expenseMinor,
-              code,
-              Icons.arrow_downward_rounded,
-              SomiaColors.red,
-              'Efetivados e previstos'),
+              _metric(
+                  context,
+                  'Despesas',
+                  currency.expenseMinor,
+                  code,
+                  Icons.arrow_downward_rounded,
+                  SomiaColors.red,
+                  'Efetivados e previstos')),
           BalanceDetailCard(
               key: ValueKey('desktop-projected-$code'),
               currencyCode: code,
@@ -259,6 +267,17 @@ class _DashboardViewState extends State<_DashboardView>
       const SizedBox(height: 6),
     ]);
   }
+
+  Widget _sectionLink(
+          BuildContext context, String path, String label, Widget child) =>
+      Semantics(
+          button: true,
+          label: 'Abrir $label',
+          child: InkWell(
+              key: ValueKey('dashboard-link-$path'),
+              onTap: () => context.go(path),
+              borderRadius: BorderRadius.circular(15),
+              child: child));
 
   Widget _metric(BuildContext context, String label, int amount, String code,
           IconData icon, Color tint, String detail) =>

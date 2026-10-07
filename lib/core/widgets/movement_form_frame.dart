@@ -17,9 +17,11 @@ class MovementFormFrame extends StatelessWidget {
       required this.child,
       required this.onSave,
       this.onCancel,
-      this.saveLabel = 'Salvar lançamento'});
+      this.saveLabel = 'Salvar lançamento',
+      this.compact = false});
   final String title, saveLabel;
   final Widget child;
+  final bool compact;
   final VoidCallback onSave;
   final VoidCallback? onCancel;
 
@@ -28,10 +30,25 @@ class MovementFormFrame extends StatelessWidget {
     final mobile = usesFullScreenMovementForm(context);
     final form = Theme(
       data: Theme.of(context).copyWith(
+          listTileTheme: compact
+              ? const ListTileThemeData(
+                  contentPadding: EdgeInsets.zero, dense: true)
+              : null,
           inputDecorationTheme: Theme.of(context).inputDecorationTheme.copyWith(
                 isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                filled: compact ? false : null,
+                border: compact ? const UnderlineInputBorder() : null,
+                enabledBorder: compact
+                    ? const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF293746)))
+                    : null,
+                focusedBorder: compact
+                    ? UnderlineInputBorder(
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary))
+                    : null,
+                contentPadding: EdgeInsets.symmetric(
+                    horizontal: compact ? 0 : 14, vertical: compact ? 10 : 16),
               )),
       child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,

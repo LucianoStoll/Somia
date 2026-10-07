@@ -1,3 +1,4 @@
+import 'category_visuals.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -154,9 +155,7 @@ class _CategoriesViewState extends State<_CategoriesView> {
         margin: const EdgeInsets.only(bottom: 12),
         child: ListTile(
           leading: Icon(_icons[category.iconKey] ?? Icons.label_outline,
-              color: category.colorArgb == null
-                  ? null
-                  : Color.lerp(Color(category.colorArgb!), Colors.white, 0.35)),
+              color: categoryDisplayColor(category)),
           title:
               Text(category.name, maxLines: 2, overflow: TextOverflow.ellipsis),
           subtitle: Text(category.isArchived

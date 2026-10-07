@@ -1,3 +1,4 @@
+import '../../../core/widgets/compact_movement_field.dart';
 import '../../../core/series/movement_series.dart';
 import '../../../core/series/series_form.dart';
 import '../../accounts/presentation/account_identity.dart';
@@ -640,6 +641,7 @@ class TransferFormState extends State<TransferForm> {
           ),
       builder: (context, cancel) => MovementFormFrame(
             onCancel: cancel,
+            compact: true,
             title: widget.item == null
                 ? 'Nova transferência'
                 : 'Editar transferência',
@@ -648,7 +650,7 @@ class TransferFormState extends State<TransferForm> {
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                spacing: 16,
+                spacing: 8,
                 children: [
                   TextFormField(
                     controller: _description,
@@ -680,17 +682,6 @@ class TransferFormState extends State<TransferForm> {
                               .firstOrNull
                               ?.currencyCode ??
                           'BRL'),
-                  if (widget.item == null || widget.item?.series != null)
-                    SeriesFormFields(
-                        controller: _series,
-                        amount: _amount,
-                        dueDate: _dueDate,
-                        currencyCode: widget.accounts
-                                .where((a) => a.id == _sourceId)
-                                .firstOrNull
-                                ?.currencyCode ??
-                            'BRL',
-                        existing: widget.item?.series),
                   DropdownButtonFormField<String>(
                     key: ValueKey('source-$_sourceId'),
                     isExpanded: true,
@@ -729,27 +720,40 @@ class TransferFormState extends State<TransferForm> {
                         : null,
                     onChanged: (id) => setState(() => _destinationId = id),
                   ),
-                  MovementDateFields(
-                    posted: _date,
-                    due: _dueDate,
-                    onPosted: () => _pickDate('posted'),
-                    onDue: () => _pickDate('due'),
-                  ),
+                  CompactMovementDate(
+                      label: 'Vencimento',
+                      date: _dueDate,
+                      onTap: () => _pickDate('due')),
                   SwitchListTile(
                       title: const Text('Efetivada'),
-                      subtitle: const Text('A data movimenta as duas contas'),
                       value: !_forcePending && _isEffective,
                       onChanged: _forcePending
                           ? null
                           : (value) => setState(() => _isEffective = value)),
                   if (!_forcePending && _isEffective)
-                    ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Data de efetivação'),
-                        subtitle:
-                            Text(_dateLabel(_effectiveDate ?? DateTime.now())),
-                        trailing: const Icon(Icons.calendar_today),
+                    CompactMovementDate(
+                        label: 'Data de efetivação',
+                        date: _effectiveDate ?? DateTime.now(),
                         onTap: () => _pickDate('effective')),
+                  const Divider(),
+                  const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Mais opções')),
+                  if (widget.item == null || widget.item?.series != null)
+                    SeriesFormFields(
+                        controller: _series,
+                        amount: _amount,
+                        dueDate: _dueDate,
+                        currencyCode: widget.accounts
+                                .where((a) => a.id == _sourceId)
+                                .firstOrNull
+                                ?.currencyCode ??
+                            'BRL',
+                        existing: widget.item?.series),
+                  CompactMovementDate(
+                      label: 'Lançamento',
+                      date: _date,
+                      onTap: () => _pickDate('posted')),
                 ],
               ),
             ),

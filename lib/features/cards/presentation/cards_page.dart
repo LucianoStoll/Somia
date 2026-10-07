@@ -1,3 +1,6 @@
+import 'package:go_router/go_router.dart';
+import '../../../core/routing/app_router.dart';
+import '../../../core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/filters/reference_month.dart';
@@ -32,7 +35,8 @@ class _CardsPageState extends State<CardsPage> {
   List<Account> _accounts = [];
   List<FinanceCategory> _categories = [];
   String? _cardId, _error;
-  bool _loading = true, _acting = false, _cash = false;
+  bool _loading = true, _acting = false, _cash = false, _statement = false;
+  bool get _detail => widget.cardId != null;
   int _request = 0;
   DateTime get _month => referenceMonth.value;
   CreditCard? get _card => _cards.where((c) => c.id == _cardId).firstOrNull;
@@ -64,8 +68,10 @@ class _CardsPageState extends State<CardsPage> {
       final categories = await getIt<CategoriesRepository>().list();
       final id = cards.any((c) => c.id == _cardId)
           ? _cardId
-          : cards.where((c) => !c.isArchived).firstOrNull?.id ??
-              cards.firstOrNull?.id;
+          : _detail
+              ? null
+              : cards.where((c) => !c.isArchived).firstOrNull?.id ??
+                  cards.firstOrNull?.id;
       final invoices = id == null
           ? <CardInvoice>[]
           : await _repo.invoices(id, selected: _month);
@@ -303,57 +309,175 @@ class _CardsPageState extends State<CardsPage> {
         Text(cardMoney(amount),
             style: const TextStyle(fontWeight: FontWeight.w600))
       ]));
-  Widget _cardTile(CreditCard c) => Card(
-      child: ListTile(
-          leading: AccountAvatar(institutionId: c.institutionId),
-          title: Text('${c.name}${c.isArchived ? ' (arquivado)' : ''}'),
-          selected: c.id == _cardId,
-          subtitle: Text(c.limitMinor == null
-              ? 'Comprometido: ${cardMoney(c.committedMinor)} · Sem controle de limite'
-              : 'Disponível: ${cardMoney(c.availableMinor!)}\nComprometido: ${cardMoney(c.committedMinor)}${c.creditMinor > 0 ? ' · Crédito: ${cardMoney(c.creditMinor)}' : ''}'),
+  Widget _cardMenu(CreditCard c) => PopupMenuButton<String>(
+      enabled: !_acting,
+      onSelected: (action) async {
+        if (action == 'edit') {
+          await _editCard(c);
+          return;
+        }
+        if (action == 'history') {
+          final history = await _repo.limitHistory(c.id);
+          if (!mounted) return;
+          await showDialog<void>(
+              context: context,
+              builder: (dialog) => AlertDialog(
+                      title: const Text('Histórico de limite'),
+                      content: SingleChildScrollView(
+                          child: Text(history
+                              .map((h) =>
+                                  '${cardDateLabel(h.$1)} · ${h.$2 == null ? 'Sem controle' : cardMoney(h.$2!)}')
+                              .join('\n'))),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(dialog),
+                            child: const Text('Fechar'))
+                      ]));
+          return;
+        }
+        await _run(() => _repo.archive(c.id, !c.isArchived));
+      },
+      itemBuilder: (_) => [
+            const PopupMenuItem(value: 'edit', child: Text('Editar cartão')),
+            const PopupMenuItem(
+                value: 'history', child: Text('Histórico de limite')),
+            PopupMenuItem(
+                value: 'archive',
+                child: Text(c.isArchived ? 'Reativar' : 'Arquivar'))
+          ]);
+
+  Widget _cardTile(CreditCard c) => Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        color: SomiaColors.surface,
+        child: InkWell(
+          key: ValueKey('card-open-${c.id}'),
           onTap: _acting
               ? null
-              : () => setState(() {
-                    _cardId = c.id;
-                    _load();
-                  }),
-          trailing: PopupMenuButton<String>(
-              enabled: !_acting,
-              onSelected: (action) async {
-                if (action == 'edit') {
-                  await _editCard(c);
-                  return;
-                }
-                if (action == 'history') {
-                  final history = await _repo.limitHistory(c.id);
-                  if (!mounted) return;
-                  await showDialog<void>(
-                      context: context,
-                      builder: (dialog) => AlertDialog(
-                              title: const Text('Histórico de limite'),
-                              content: SingleChildScrollView(
-                                  child: Text(history
-                                      .map((h) =>
-                                          '${cardDateLabel(h.$1)} · ${h.$2 == null ? 'Sem controle' : cardMoney(h.$2!)}')
-                                      .join('\n'))),
-                              actions: [
-                                TextButton(
-                                    onPressed: () => Navigator.pop(dialog),
-                                    child: const Text('Fechar'))
-                              ]));
-                  return;
-                }
-                await _run(() => _repo.archive(c.id, !c.isArchived));
-              },
-              itemBuilder: (_) => [
-                    const PopupMenuItem(
-                        value: 'edit', child: Text('Editar cartão')),
-                    const PopupMenuItem(
-                        value: 'history', child: Text('Histórico de limite')),
-                    PopupMenuItem(
-                        value: 'archive',
-                        child: Text(c.isArchived ? 'Reativar' : 'Arquivar'))
-                  ])));
+              : () => context.go(
+                  '${AppRoutes.cardsPath}?card=${Uri.encodeComponent(c.id)}'),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [SomiaColors.surfaceHigh, SomiaColors.surface])),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                AccountAvatar(institutionId: c.institutionId),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: Text(
+                        '${c.name}${c.isArchived ? ' (arquivado)' : ''}',
+                        style: Theme.of(context).textTheme.titleMedium)),
+                _cardMenu(c)
+              ]),
+              const SizedBox(height: 20),
+              Text(
+                  c.availableMinor == null
+                      ? 'Limite comprometido'
+                      : 'Limite disponível',
+                  style: const TextStyle(color: SomiaColors.muted)),
+              Text(cardMoney(c.availableMinor ?? c.committedMinor),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w600, color: SomiaColors.blue)),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                    child: Text(
+                        'Fecha dia ${c.closingDay} · Vence dia ${c.dueDay}',
+                        style: const TextStyle(
+                            color: SomiaColors.muted, fontSize: 12))),
+                const Icon(Icons.credit_card_outlined, color: SomiaColors.blue)
+              ]),
+            ]),
+          ),
+        ),
+      ));
+
+  Widget _cardSummary(CreditCard card, CardInvoice invoice) => Card(
+      child: Padding(
+          padding: const EdgeInsets.all(16),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              AccountAvatar(institutionId: card.institutionId),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Text(card.name,
+                      style: Theme.of(context).textTheme.titleLarge)),
+              _cardMenu(card)
+            ]),
+            const SizedBox(height: 12),
+            _metric('Limite total', card.limitMinor ?? 0),
+            if (card.limitMinor == null)
+              const Text('Sem controle de limite',
+                  style: TextStyle(color: SomiaColors.muted)),
+            _metric('Limite comprometido', card.committedMinor),
+            if (card.availableMinor != null) ...[
+              _metric('Limite disponível', card.availableMinor!),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                  value: card.limitMinor! <= 0
+                      ? (card.committedMinor > 0 ? 1 : 0)
+                      : (card.committedMinor / card.limitMinor!)
+                          .clamp(0.0, 1.0),
+                  minHeight: 6,
+                  borderRadius: BorderRadius.circular(8)),
+            ],
+            if (card.creditMinor > 0)
+              _metric('Crédito do cartão', card.creditMinor),
+            const SizedBox(height: 12),
+            Text(
+                'Fecha ${cardDateLabel(invoice.closingAt)} · Vence ${cardDateLabel(invoice.dueAt)}',
+                style: const TextStyle(color: SomiaColors.muted)),
+            _metric('Fatura do mês', invoice.chargesMinor),
+            Text(invoice.status,
+                style: const TextStyle(color: SomiaColors.blue)),
+          ])));
+
+  List<Widget> _dailyStatement(CardInvoice invoice) {
+    final days = <int, List<Widget>>{};
+    final entries = [...invoice.entries]
+      ..sort((a, b) => a.description.compareTo(b.description));
+    for (final entry in entries) {
+      days
+          .putIfAbsent(cardDay(entry.postedAt), () => [])
+          .add(_entryTile(entry));
+    }
+    for (final payment in invoice.payments) {
+      days
+          .putIfAbsent(cardDay(payment.date), () => [])
+          .add(_paymentTile(payment));
+    }
+    final dates = days.keys.toList()..sort((a, b) => b.compareTo(a));
+    return [
+      Text('Extrato · ${cardMonthLabel(invoice.month)}',
+          style: Theme.of(context).textTheme.titleMedium),
+      const Text(
+          'Itens desta fatura por data da compra e pagamentos por data do pagamento.',
+          style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
+      if (dates.isEmpty)
+        const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Nenhum lançamento nesta fatura.')),
+      for (final day in dates) ...[
+        Padding(
+            padding: const EdgeInsets.only(top: 18, bottom: 4),
+            child: Text(cardDateLabel(cardDate(day)),
+                key: ValueKey('card-statement-day-$day'),
+                style: const TextStyle(
+                    color: SomiaColors.blue, fontWeight: FontWeight.w600))),
+        const Divider(height: 1),
+        ...days[day]!,
+      ],
+    ];
+  }
+
   Widget _entryTile(CardEntry e) => ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
       title: Text(e.description),
@@ -414,14 +538,17 @@ class _CardsPageState extends State<CardsPage> {
         .fold(0, (a, p) => a + p.amountMinor);
     return Scaffold(
         appBar: AppBar(
-            title: const Text('Cartões'),
-            leading: somiaMenuLeading(context),
+            title: Text(_detail ? 'Detalhes do cartão' : 'Cartões'),
+            leading: _detail
+                ? BackButton(onPressed: () => context.go(AppRoutes.cardsPath))
+                : somiaMenuLeading(context),
             actions: [
               IconButton(
                   tooltip: 'Novo cartão',
                   onPressed: _loading || _acting ? null : () => _editCard(),
                   icon: const Icon(Icons.add))
             ]),
+        floatingActionButton: const SomiaQuickActions(),
         body: _loading && _cards.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : _error != null
@@ -448,8 +575,15 @@ class _CardsPageState extends State<CardsPage> {
                                 icon: const Icon(Icons.credit_card),
                                 label: const Text('Cadastrar cartão'))
                           ],
-                          for (final c in _cards) _cardTile(c),
-                          if (card != null && invoice != null) ...[
+                          if (!_detail)
+                            for (final c in _cards) _cardTile(c),
+                          if (_detail && card == null)
+                            const Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Text(
+                                    'Cartão não encontrado. Volte à lista de cartões.')),
+                          if (_detail && card != null && invoice != null) ...[
+                            _cardSummary(card, invoice),
                             const SizedBox(height: 16),
                             Text(
                                 '${card.name} · ${cardMonthLabel(invoice.month)}',
@@ -457,16 +591,29 @@ class _CardsPageState extends State<CardsPage> {
                             Wrap(spacing: 8, runSpacing: 8, children: [
                               ChoiceChip(
                                   label: const Text('Competência / fatura'),
-                                  selected: !_cash,
-                                  onSelected: (_) =>
-                                      setState(() => _cash = false)),
+                                  selected: !_cash && !_statement,
+                                  onSelected: (_) => setState(() {
+                                        _cash = false;
+                                        _statement = false;
+                                      })),
+                              ChoiceChip(
+                                  label: const Text('Extrato'),
+                                  selected: _statement,
+                                  onSelected: (_) => setState(() {
+                                        _statement = true;
+                                        _cash = false;
+                                      })),
                               ChoiceChip(
                                   label: const Text('Caixa / pagamentos'),
                                   selected: _cash,
-                                  onSelected: (_) =>
-                                      setState(() => _cash = true))
+                                  onSelected: (_) => setState(() {
+                                        _cash = true;
+                                        _statement = false;
+                                      }))
                             ]),
-                            if (_cash) ...[
+                            if (_statement)
+                              ..._dailyStatement(invoice)
+                            else if (_cash) ...[
                               const SizedBox(height: 12),
                               const Text(
                                   'Débitos reais da conta no mês escolhido, mesmo que o pagamento pertença a outra fatura.'),
