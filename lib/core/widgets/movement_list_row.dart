@@ -48,6 +48,18 @@ class MovementListRow extends StatelessWidget {
   String _date(DateTime date) => '${date.day.toString().padLeft(2, '0')}/'
       '${date.month.toString().padLeft(2, '0')}/${date.year}';
 
+  double _textWidth(BuildContext context, String text, TextStyle style) {
+    final painter = TextPainter(
+        text: TextSpan(
+            text: text, style: DefaultTextStyle.of(context).style.merge(style)),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context))
+      ..layout();
+    final width = painter.width.ceilToDouble();
+    painter.dispose();
+    return width;
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = effective
@@ -165,8 +177,20 @@ class MovementListRow extends StatelessWidget {
                 statusButton,
                 const SizedBox(width: 8),
                 Expanded(child: LayoutBuilder(builder: (context, constraints) {
+                  final amountWidth = _textWidth(
+                      context,
+                      amount,
+                      const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600));
+                  final dateWidth = _textWidth(
+                      context,
+                      _date(effectiveDate ?? dueDate),
+                      const TextStyle(fontSize: 11));
+                  final valueWidth =
+                      (amountWidth > dateWidth ? amountWidth : dateWidth) + 2;
                   final stacked = constraints.maxWidth < 210 ||
-                      MediaQuery.textScalerOf(context).scale(14) > 21;
+                      MediaQuery.textScalerOf(context).scale(14) > 21 ||
+                      valueWidth > constraints.maxWidth * 0.60;
                   final edit = InkWell(
                       key: ValueKey('movement-edit-$id'),
                       onTap: busy ? null : onEdit,
@@ -184,9 +208,9 @@ class MovementListRow extends StatelessWidget {
                         Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(flex: 3, child: edit),
-                              const SizedBox(width: 12),
-                              Expanded(flex: 2, child: value)
+                              Expanded(child: edit),
+                              const SizedBox(width: 8),
+                              SizedBox(width: valueWidth, child: value)
                             ]),
                         ...labels
                       ]);
