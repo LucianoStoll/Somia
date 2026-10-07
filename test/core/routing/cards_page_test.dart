@@ -239,7 +239,7 @@ void main() {
       expect(find.text('Pago no mês'), findsOneWidget);
       await tester.tap(find.text('Competência / fatura'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Pagar fatura'));
+      await tester.scrollUntilVisible(find.text('Pagar fatura'), 160);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Pagar fatura'));
       await tester.pumpAndSettle();

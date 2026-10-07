@@ -109,6 +109,8 @@ class MovementListRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis)),
       ],
+    ]);
+    final labels = <Widget>[
       if (tags.isNotEmpty || categoryTags.isNotEmpty) ...[
         const SizedBox(height: 5),
         Wrap(spacing: 5, runSpacing: 4, children: [
@@ -127,7 +129,7 @@ class MovementListRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis))
         ]),
       ],
-    ]);
+    ];
     final value = Semantics(
         button: true,
         label: 'Valor $amount',
@@ -174,14 +176,19 @@ class MovementListRow extends StatelessWidget {
                   if (stacked) {
                     return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [edit, value]);
+                        children: [edit, value, ...labels]);
                   }
-                  return Row(
+                  return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(flex: 3, child: edit),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 2, child: value),
+                        Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(flex: 3, child: edit),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 2, child: value)
+                            ]),
+                        ...labels
                       ]);
                 })),
                 const SizedBox(width: 4),
