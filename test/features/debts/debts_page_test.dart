@@ -71,22 +71,24 @@ void main() {
       await tester.enterText(
           find.widgetWithText(TextFormField, 'Credor / banco'), 'Família');
       await tester.pump();
-      if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW'))
+      if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
         await expectLater(
             find.byType(MaterialApp),
             matchesGoldenFile(platform == TargetPlatform.android
                 ? 'debt-form-mobile-preview.png'
                 : 'debt-form-desktop-preview.png'));
+      }
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       expect((await repo.load()).single.balanceMinor, 100000);
       expect(tester.takeException(), isNull);
-      if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW'))
+      if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
         await expectLater(
             find.byType(MaterialApp),
             matchesGoldenFile(platform == TargetPlatform.android
                 ? 'debts-mobile-preview.png'
                 : 'debts-desktop-preview.png'));
+      }
     });
     testWidgets(
         'vincular exige despesa e mostra orientação quando vazio $platform',

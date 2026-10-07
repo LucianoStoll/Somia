@@ -59,33 +59,40 @@ class SqliteDebtsRepository implements DebtsRepository {
   @override
   Future<String> save(DebtDraft draft, {String? id}) =>
       db.transaction(() async {
-        if (draft.name.trim().isEmpty || draft.creditor.trim().isEmpty)
+        if (draft.name.trim().isEmpty || draft.creditor.trim().isEmpty) {
           throw const FormatException('Informe nome e credor.');
-        if (draft.balanceMinor < 0 || draft.balanceMinor > 9000000000000000)
+        }
+        if (draft.balanceMinor < 0 || draft.balanceMinor > 9000000000000000) {
           throw const FormatException('Saldo inicial fora do limite.');
+        }
         if (draft.referenceAt.year < 1900 ||
-            day(draft.referenceAt) > day(DateTime.now()))
+            day(draft.referenceAt) > day(DateTime.now())) {
           throw const FormatException(
               'A referência deve estar entre 1900 e hoje.');
+        }
         if (draft.assetId != null) {
           final asset = await db.customSelect(
               'SELECT id FROM assets WHERE id=? AND deleted_at IS NULL',
               variables: [Variable(draft.assetId!)]).get();
-          if (asset.isEmpty)
+          if (asset.isEmpty) {
             throw const FormatException('Selecione um bem cadastrado.');
+          }
           final duplicate = await db.customSelect(
               'SELECT id FROM debts WHERE asset_id=? AND deleted_at IS NULL AND id<>?',
               variables: [Variable(draft.assetId!), Variable(id ?? '')]).get();
-          if (duplicate.isNotEmpty)
+          if (duplicate.isNotEmpty) {
             throw const FormatException(
                 'O bem já possui um financiamento vinculado.');
+          }
         }
         final now = EntityMetadata.nowUtcMillis();
+        final debtId = id ?? EntityMetadata.newId();
         if (id != null) {
-          final old = await _find(id);
-          if (old.readNullable<String>('asset_id') != draft.assetId)
+          final old = await _find(debtId);
+          if (old.readNullable<String>('asset_id') != draft.assetId) {
             throw const FormatException(
                 'O vínculo com o bem é definido no cadastro e preservado no histórico.');
+          }
           final links = await db.customSelect(
               'SELECT id FROM debt_payments WHERE debt_id=?',
               variables: [Variable(id)]).get();
@@ -108,11 +115,10 @@ class SqliteDebtsRepository implements DebtsRepository {
                 id
               ]);
         } else {
-          id = EntityMetadata.newId();
           await db.customStatement(
               'INSERT INTO debts(id,name,creditor,kind,balance_minor,reference_at,asset_id,notes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)',
               [
-                id,
+                debtId,
                 draft.name.trim(),
                 draft.creditor.trim(),
                 draft.kind.name,
@@ -125,7 +131,7 @@ class SqliteDebtsRepository implements DebtsRepository {
               ]);
         }
         await validateDebtFinancial(db);
-        return id;
+        return debtId;
       });
   @override
   Future<List<DebtExpense>> expenses(String debtId) async {
@@ -153,11 +159,13 @@ class SqliteDebtsRepository implements DebtsRepository {
   Future<void> link(String debtId, String transactionId, int principalMinor) =>
       db.transaction(() async {
         await _find(debtId);
-        if (principalMinor < 0 || principalMinor > 9000000000000000)
+        if (principalMinor < 0 || principalMinor > 9000000000000000) {
           throw const FormatException('Amortização fora do limite.');
-        if (!(await expenses(debtId)).any((t) => t.id == transactionId))
+        }
+        if (!(await expenses(debtId)).any((t) => t.id == transactionId)) {
           throw const FormatException(
               'Despesa indisponível ou já vinculada. Atualize a lista.');
+        }
         final now = EntityMetadata.nowUtcMillis();
         await db.customStatement(
             'INSERT INTO debt_payments(id,debt_id,transaction_id,principal_minor,created_at,updated_at) VALUES(?,?,?,?,?,?)',
