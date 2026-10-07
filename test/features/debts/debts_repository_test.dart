@@ -180,6 +180,18 @@ void main() {
     expect(await db.customSelect('SELECT * FROM transactions').get(),
         hasLength(1));
   });
+  test('desvincular preserva valor original após editar a despesa', () async {
+    final id = await debts.save(debt());
+    final tx = await expense(paid: true);
+    await debts.link(id, tx, 35000);
+    await debts.unlink((await debts.load()).single.payments.single.id);
+    await transactions.updateAmount(tx,
+        expectedAmountMinor: 50000, amountMinor: 10000);
+    final previous = (await debts.load()).single.payments.single;
+    expect(previous.amountMinor, 50000);
+    expect(previous.chargesMinor, 15000);
+    expect((await debts.load()).single.balanceMinor, 100000);
+  });
   test('quitação exata e parcela só de encargos não duplicam caixa', () async {
     final id = await debts.save(debt(balance: 35000));
     final fee = await expense(paid: true, amount: 1000);
@@ -230,7 +242,7 @@ void main() {
         throwsFormatException);
     final before = await readFinancial(db);
     final invalid = await readFinancial(db);
-    invalid['debt_payments']!.values.single['principal_minor'] = 100001;
+    invalid['debts']!.values.single['balance_minor'] = 20000;
     await expectLater(db.transaction(() => replaceFinancial(db, invalid)),
         throwsFormatException);
     expect(await readFinancial(db), before);

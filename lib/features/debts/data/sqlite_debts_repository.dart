@@ -42,15 +42,22 @@ class SqliteDebtsRepository implements DebtsRepository {
                   .map((p) => DebtPayment(
                       id: p.read<String>('id'),
                       transactionId: p.read<String>('transaction_id'),
-                      description: p.read<String>('description'),
-                      amountMinor: p.readNullable<int>('actual_amount_minor') ??
-                          p.read<int>('planned_amount_minor'),
+                      description: (p.readNullable<int>('deleted_at') != null ||
+                              p.readNullable<int>('transaction_deleted') !=
+                                  null)
+                          ? p.read<String>('linked_description')
+                          : p.read<String>('description'),
+                      amountMinor: (p.readNullable<int>('deleted_at') != null ||
+                              p.readNullable<int>('transaction_deleted') !=
+                                  null)
+                          ? p.read<int>('linked_amount_minor')
+                          : p.readNullable<int>('actual_amount_minor') ??
+                              p.read<int>('planned_amount_minor'),
                       principalMinor: p.read<int>('principal_minor'),
-                      date: date(p.read<int>('date')),
-                      effective: p.readNullable<int>('effective_at') != null &&
-                          p.read<int>('effective_at') < tomorrow,
-                      deleted:
-                          p.readNullable<int>('transaction_deleted') != null,
+                      date: date(p
+                          .read<int>((p.readNullable<int>('deleted_at') != null || p.readNullable<int>('transaction_deleted') != null) ? 'linked_at' : 'date')),
+                      effective: p.readNullable<int>('effective_at') != null && p.read<int>('effective_at') < tomorrow,
+                      deleted: p.readNullable<int>('transaction_deleted') != null,
                       unlinked: p.readNullable<int>('deleted_at') != null))
                   .toList()));
         }
@@ -162,18 +169,28 @@ class SqliteDebtsRepository implements DebtsRepository {
         if (principalMinor < 0 || principalMinor > 9000000000000000) {
           throw const FormatException('Amortização fora do limite.');
         }
-        if (!(await expenses(debtId)).any((t) => t.id == transactionId)) {
+        final expense = (await expenses(debtId))
+            .where((t) => t.id == transactionId)
+            .firstOrNull;
+        if (expense == null) {
           throw const FormatException(
               'Despesa indisponível ou já vinculada. Atualize a lista.');
         }
+        if (principalMinor > expense.amountMinor) {
+          throw const FormatException(
+              'A amortização não pode superar o valor da parcela.');
+        }
         final now = EntityMetadata.nowUtcMillis();
         await db.customStatement(
-            'INSERT INTO debt_payments(id,debt_id,transaction_id,principal_minor,created_at,updated_at) VALUES(?,?,?,?,?,?)',
+            'INSERT INTO debt_payments(id,debt_id,transaction_id,principal_minor,linked_amount_minor,linked_description,linked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)',
             [
               EntityMetadata.newId(),
               debtId,
               transactionId,
               principalMinor,
+              expense.amountMinor,
+              expense.description,
+              day(expense.date),
               now,
               now
             ]);

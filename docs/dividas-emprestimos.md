@@ -14,7 +14,7 @@ O saldo inicial é o principal ainda devido na referência, sem somar juros futu
 - Saldo projetado = saldo inicial − principal de todas as despesas vinculadas não excluídas, incluindo previstas e efetivações futuras. É projeção das parcelas cadastradas, não cotação bancária nem cronograma automático.
 - A soma das amortizações vinculadas não pode exceder o saldo inicial; cada amortização não pode exceder o valor da despesa. Não estimar automaticamente juros, SAC, Price, IOF ou desconto por antecipação.
 - Efetivar, desfazer efetivação, mudar data e excluir despesa reflete no saldo sem gravar uma segunda movimentação. Vínculo com despesa excluída fica visível, mas não amortiza nem reserva principal.
-- **Desvincular parcela** mantém a despesa e guarda o vínculo antigo como histórico. Para corrigir amortização, desvincule e vincule novamente.
+- **Desvincular parcela** mantém a despesa e guarda o vínculo antigo como histórico, com valor, descrição e data registrados no vínculo; edições posteriores não reescrevem esse registro. Para corrigir amortização, desvincule e vincule novamente.
 - Alterações incompatíveis da despesa (valor menor que principal, receita, outra moeda ou data anterior à referência) são rejeitadas com rollback. Desvincule antes de alterar.
 - Saldo inicial e referência ficam imutáveis após o primeiro vínculo, mesmo desvinculado; metadados podem ser editados. Não há exclusão de dívida nesta entrega, preservando seus vínculos históricos. Saldo atual zero indica quitação.
 
