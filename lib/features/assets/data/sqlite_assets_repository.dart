@@ -4,6 +4,7 @@ import '../../../core/database/entity_metadata.dart';
 import '../../accounts/data/sqlite_accounts_repository.dart';
 import '../../cards/data/cards_repository.dart';
 import '../domain/asset.dart';
+import '../../debts/data/sqlite_debts_repository.dart';
 
 class SqliteAssetsRepository implements AssetsRepository {
   const SqliteAssetsRepository(this.db);
@@ -48,9 +49,14 @@ class SqliteAssetsRepository implements AssetsRepository {
             .customSelect(
                 'SELECT * FROM assets WHERE deleted_at IS NULL ORDER BY is_archived,lower(name),id')
             .get();
+        final debts = await SqliteDebtsRepository(db).load();
         final assets = <Asset>[];
         for (final r in rows) {
+          final debt =
+              debts.where((d) => d.assetId == r.read<String>('id')).firstOrNull;
           assets.add(Asset(
+              managedDebtMinor: debt?.balanceMinor,
+              managedCreditor: debt?.creditor,
               id: r.read<String>('id'),
               name: r.read<String>('name'),
               kind: AssetKind.values.byName(r.read<String>('kind')),
@@ -63,6 +69,9 @@ class SqliteAssetsRepository implements AssetsRepository {
         final accounts = await SqliteAccountsRepository(db).list();
         final cards = await CardsRepository(db).list();
         return AssetOverview(assets,
+            otherDebtMinor: debts
+                .where((d) => d.assetId == null)
+                .fold(0, (s, d) => s + d.balanceMinor),
             accountsMinor: accounts
                 .where((a) => a.currencyCode == 'BRL')
                 .fold(0, (s, a) => s + a.currentBalanceMinor),
@@ -127,6 +136,17 @@ class SqliteAssetsRepository implements AssetsRepository {
           {String? expectedLatestId}) =>
       db.transaction(() async {
         final asset = await _find(id);
+        final managed = await db.customSelect(
+            'SELECT id FROM debts WHERE asset_id=? AND deleted_at IS NULL',
+            variables: [Variable(id)]).get();
+        if (managed.isNotEmpty) {
+          final latest = (await _history(id)).first;
+          if (draft.debtMinor != latest.debtMinor ||
+              draft.creditor.trim() != latest.creditor) {
+            throw const FormatException(
+                'Atualize o financiamento pela tela Dívidas e empréstimos.');
+          }
+        }
         _money(draft.valueMinor);
         _money(draft.debtMinor);
         _date(draft.date);

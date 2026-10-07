@@ -153,11 +153,13 @@ class _AssetsPageState extends State<AssetsPage> {
                                           data.cardCreditMinor),
                                     _metric('Financiamentos dos bens',
                                         -data.assetDebtMinor),
+                                    _metric('Outras dívidas e empréstimos',
+                                        -data.otherDebtMinor),
                                     _metric('Dívidas dos cartões',
                                         -data.cardDebtMinor),
                                     const SizedBox(height: 8),
                                     const Text(
-                                        'Investimentos entram uma vez pelas contas. Valores manuais usam a última avaliação. Outras dívidas ainda não cadastradas não entram neste total.'),
+                                        'Investimentos entram uma vez pelas contas. Valores manuais usam a última avaliação. Dívidas cadastradas entram uma vez; financiamentos vinculados substituem o saldo manual do bem.'),
                                   ]))),
                       if (data.assets.isEmpty)
                         const Padding(
@@ -198,10 +200,12 @@ class _AssetsPageState extends State<AssetsPage> {
                                       if (asset.current != null)
                                         Text(
                                             'Avaliação: ${assetDate(asset.current!.date)}'),
-                                      if (asset.current?.creditor.isNotEmpty ??
+                                      if ((asset.managedCreditor ??
+                                                  asset.current?.creditor)
+                                              ?.isNotEmpty ??
                                           false)
                                         Text(
-                                            'Credor: ${asset.current!.creditor}'),
+                                            'Credor: ${asset.managedCreditor ?? asset.current!.creditor}'),
                                       if (asset.notes.isNotEmpty)
                                         Text(asset.notes),
                                       const SizedBox(height: 12),

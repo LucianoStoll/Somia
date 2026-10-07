@@ -72,3 +72,5 @@ A CI executa formatação, análise, testes no Linux e Windows, prévias de inte
 - [Atualização Android e backup](docs/atualizacao-apk.md)
 
 Cartões, recorrências, calculadora, backup automático, sincronização e CSV já foram entregues nesta versão. Planejamento, rateio/reembolsos, anexos, relatórios avançados, conciliação e as demais pendências das epics #11–#16 estão planejados para a v0.3.0-alpha.
+
+Dívidas e empréstimos (#65): Investimentos → Dívidas e empréstimos. Cadastro em BRL, vínculo com bem e amortização manual das despesas existentes; saldo atual/projetado integrado ao patrimônio. [Regras e validação](docs/dividas-emprestimos.md). Schema atual 15: atualizar Android e Windows antes de sincronizar.

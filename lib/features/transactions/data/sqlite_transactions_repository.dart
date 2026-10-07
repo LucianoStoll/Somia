@@ -6,6 +6,7 @@ import '../../../core/series/movement_series.dart';
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/database/debt_integrity.dart';
 import '../../../core/database/entity_metadata.dart';
 import '../domain/financial_transaction.dart';
 import '../domain/transactions_repository.dart';
@@ -13,6 +14,13 @@ import '../domain/transactions_repository.dart';
 class SqliteTransactionsRepository implements TransactionsRepository {
   const SqliteTransactionsRepository(this._db);
   final AppDatabase _db;
+
+  Future<T> _checked<T>(Future<T> Function() action) =>
+      _db.transaction(() async {
+        final result = await action();
+        await validateDebtFinancial(_db);
+        return result;
+      });
 
   static const _select = '''
     SELECT t.id, t.description, t.type, t.planned_amount_minor,
@@ -98,7 +106,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     }
     _validateDraft(draft);
     final plan = draft.seriesPlan;
-    if (plan == null) return _db.transaction(() => _createSingle(draft));
+    if (plan == null) return _checked(() => _createSingle(draft));
     plan.validate();
     if (plan.dateAt(draft.date, plan.count - 1).year > 2100 ||
         plan.dateAt(draft.dueDate ?? draft.date, plan.count - 1).year > 2100) {
@@ -131,7 +139,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<FinancialTransaction> update(String id, TransactionDraft draft) =>
-      _db.transaction(() async {
+      _checked(() async {
         if (id.startsWith('invoice:')) {
           throw StateError('Abra a fatura para alterar seus lançamentos.');
         }
@@ -283,7 +291,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
           {required int expectedAmountMinor,
           required int amountMinor,
           SeriesScope scope = SeriesScope.onlyThis}) =>
-      _db.transaction(() async {
+      _checked(() async {
         if (id.startsWith('invoice:')) {
           throw StateError('Abra a fatura para alterar seus lançamentos.');
         }
@@ -335,16 +343,21 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   }
 
   @override
-  Future<void> delete(String id, {SeriesScope scope = SeriesScope.onlyThis}) =>
-      id.startsWith('invoice:')
-          ? Future.error(
-              StateError('Abra a fatura para alterar seus lançamentos.'))
-          : id.startsWith('card:')
-              ? CardsRepository(_db).deletePurchase(id.substring(5), scope)
-              : SeriesStore(_db, 'transactions').delete(id, scope);
+  Future<
+      void> delete(String id, {SeriesScope scope = SeriesScope.onlyThis}) => id
+          .startsWith('invoice:')
+      ? Future.error(StateError('Abra a fatura para alterar seus lançamentos.'))
+      : id.startsWith('card:')
+          ? CardsRepository(_db).deletePurchase(id.substring(5), scope)
+          : _checked(() => SeriesStore(_db, 'transactions').delete(id, scope));
 
   @override
   Future<void> setEffective(String id,
+          {required bool effective, DateTime? effectiveDate}) =>
+      _checked(() => _setEffective(id,
+          effective: effective, effectiveDate: effectiveDate));
+
+  Future<void> _setEffective(String id,
       {required bool effective, DateTime? effectiveDate}) async {
     if (id.startsWith('invoice:')) {
       throw StateError('Pague pela ação da fatura.');
@@ -374,6 +387,11 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<void> changeEffectiveDate(String id,
+          {required DateTime expectedDate, DateTime? effectiveDate}) =>
+      _checked(() => _changeEffectiveDate(id,
+          expectedDate: expectedDate, effectiveDate: effectiveDate));
+
+  Future<void> _changeEffectiveDate(String id,
       {required DateTime expectedDate, DateTime? effectiveDate}) async {
     if (id.startsWith('invoice:')) {
       throw StateError('Pague pela ação da fatura.');

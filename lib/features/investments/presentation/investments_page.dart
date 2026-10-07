@@ -153,6 +153,12 @@ class _InvestmentsView extends StatelessWidget {
                                   icon: const Icon(Icons.home_work_outlined),
                                   label: const Text('Bens e patrimônio'),
                                 ),
+                                OutlinedButton.icon(
+                                    onPressed: () =>
+                                        context.go(AppRoutes.debtsPath),
+                                    icon: const Icon(
+                                        Icons.account_balance_outlined),
+                                    label: const Text('Dívidas e empréstimos')),
                                 Card(
                                   child: Padding(
                                     padding: const EdgeInsets.all(20),

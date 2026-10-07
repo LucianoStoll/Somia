@@ -2,7 +2,9 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
-- #64: veículos, imóveis e outros bens, aquisição, avaliações e saldo de financiamento manuais com histórico. Resumo de contas BRL, bens e dívidas sem duplicar investimentos. Retirada reversível preserva financiamento em aberto. Schema 14, backups/sync históricos v11–v13 e fila pendente migrada. [Regras e roteiro](docs/bens-patrimonio.md); aguarda validação manual.
+- #65: dívidas e empréstimos em BRL, vínculo com bem, amortização manual vinculada a despesas existentes, saldo atual/projetado e histórico reversível. Integração ao patrimônio sem duplicação, schema 15 e backup/sync v11–v14. [Regras e roteiro](docs/dividas-emprestimos.md); aguarda validação manual.
+
+- #64: veículos, imóveis e outros bens, aquisição, avaliações e saldo de financiamento manuais com histórico. Resumo de contas BRL, bens e dívidas sem duplicar investimentos. Retirada reversível preserva financiamento em aberto. Schema 14, backups/sync históricos v11–v13 e fila pendente migrada. [Regras e roteiro](docs/bens-patrimonio.md); validada pelo usuário em 06/10/2026.
 
 - #63: ocultar em Despesas faturas com valor mensal zerado, preservando histórico em Cartões.
 

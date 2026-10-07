@@ -74,7 +74,8 @@ class SomiaSectionBackScope extends StatelessWidget {
             if (scaffold?.isDrawerOpen ?? false) {
               scaffold!.closeDrawer();
             } else if (location != AppRoutes.dashboardPath) {
-              context.go(location == AppRoutes.assetsPath
+              context.go((location == AppRoutes.assetsPath ||
+                      location == AppRoutes.debtsPath)
                   ? AppRoutes.investmentsPath
                   : location.startsWith('${AppRoutes.accountsPath}/')
                       ? AppRoutes.accountsPath
@@ -169,7 +170,8 @@ class _SomiaMenu extends StatelessWidget {
                             EdgeInsets.symmetric(horizontal: compact ? 18 : 14),
                         selected: location == destination.path ||
                             (destination.path == AppRoutes.investmentsPath &&
-                                location == AppRoutes.assetsPath) ||
+                                (location == AppRoutes.assetsPath ||
+                                    location == AppRoutes.debtsPath)) ||
                             (destination.path == AppRoutes.accountsPath &&
                                 location
                                     .startsWith('${AppRoutes.accountsPath}/')),

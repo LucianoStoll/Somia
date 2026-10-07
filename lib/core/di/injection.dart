@@ -1,3 +1,5 @@
+import '../../features/debts/domain/debt.dart';
+import '../../features/debts/data/sqlite_debts_repository.dart';
 import '../../features/assets/domain/asset.dart';
 import '../../features/assets/data/sqlite_assets_repository.dart';
 import '../../features/investments/domain/investment.dart';
@@ -121,6 +123,8 @@ Future<void> configureDependencies(AppEnvironment environment) async {
   getIt.registerLazySingleton<CsvImportRepository>(() =>
       SqliteCsvImportRepository(database, maintenance: getIt<BackupManager>()));
 
+  getIt.registerLazySingleton<DebtsRepository>(
+      () => SqliteDebtsRepository(database));
   getIt.registerLazySingleton<AssetsRepository>(
       () => SqliteAssetsRepository(database));
   getIt.registerLazySingleton<InvestmentsRepository>(

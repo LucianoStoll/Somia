@@ -41,7 +41,7 @@ void main() {
     expect(
         (await db.customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        14);
+        AppDatabase.currentSchemaVersion);
     expect(
         (await db
                 .customSelect('SELECT initial_balance_minor FROM accounts')
@@ -54,7 +54,8 @@ void main() {
     final queued =
         await db.customSelect('SELECT * FROM sync_uploads').getSingle();
     expect(queued.read<String>('packet_id'), isNot(payload['id']));
-    expect(jsonDecode(queued.read<String>('payload'))['schema'], 14);
+    expect(jsonDecode(queued.read<String>('payload'))['schema'],
+        AppDatabase.currentSchemaVersion);
     expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
   });
 }

@@ -23,6 +23,7 @@ import 'schema_v11.dart';
 import 'schema_v12.dart';
 import 'schema_v13.dart';
 import 'schema_v14.dart';
+import 'schema_v15.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -128,7 +129,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 14;
+  static const currentSchemaVersion = 15;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -154,6 +155,7 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV12,
             ...schemaV13,
             ...schemaV14,
+            ...schemaV15,
           ]) {
             await customStatement(statement);
           }
@@ -175,13 +177,14 @@ class AppDatabase extends GeneratedDatabase {
               12 => schemaV12,
               13 => schemaV13,
               14 => schemaV14,
+              15 => schemaV15,
               _ => throw StateError('Migration v$version não implementada'),
             };
             for (final statement in statements) {
               await customStatement(statement);
             }
           }
-          if (from < 14) {
+          if (from < 15) {
             // Requeue unsent v11–v13 packets with new identities: an earlier upload
             // may already exist remotely with the original content hash.
             final uploads =
@@ -189,7 +192,7 @@ class AppDatabase extends GeneratedDatabase {
             for (final row in uploads) {
               final packet = jsonDecode(row.read<String>('payload'))
                   as Map<String, dynamic>;
-              packet['schema'] = 14;
+              packet['schema'] = 15;
               packet['id'] = const Uuid().v4();
               for (final entry in packet['entries'] as List) {
                 if (from < 12 &&

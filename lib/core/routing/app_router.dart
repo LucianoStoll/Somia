@@ -1,3 +1,4 @@
+import '../../features/debts/presentation/debts_page.dart';
 import '../../features/assets/presentation/assets_page.dart';
 import '../../features/investments/presentation/investments_page.dart';
 import '../../features/accounts/presentation/account_statement_page.dart';
@@ -20,6 +21,7 @@ abstract final class AppRoutes {
   static const dashboardPath = '/';
   static const investments = 'investments';
   static const investmentsPath = '/investments';
+  static const debtsPath = '/investments/debts';
   static const assetsPath = '/investments/assets';
   static const cards = 'cards';
   static const cardsPath = '/cards';
@@ -53,6 +55,10 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) {
               location: state.uri.path,
               child: SomiaShell(location: state.uri.path, child: child)),
           routes: [
+            GoRoute(
+                path: AppRoutes.debtsPath,
+                builder: (context, state) => SomiaSectionBackScope(
+                    location: state.uri.path, child: const DebtsPage())),
             GoRoute(
                 path: AppRoutes.assetsPath,
                 builder: (context, state) => SomiaSectionBackScope(

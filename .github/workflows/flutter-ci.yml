@@ -69,6 +69,8 @@ jobs:
         run: flutter test test/features/investments/investments_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render assets previews
         run: flutter test test/features/assets/assets_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render debt previews
+        run: flutter test test/features/debts/debts_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Publish dashboard preview
         uses: actions/upload-artifact@v4
         with:
@@ -87,6 +89,8 @@ jobs:
             test/features/investments/*desktop-preview.png
             test/features/assets/*mobile-preview.png
             test/features/assets/*desktop-preview.png
+            test/features/debts/*mobile-preview.png
+            test/features/debts/*desktop-preview.png
           if-no-files-found: error
           retention-days: 30
 

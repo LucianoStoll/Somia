@@ -76,8 +76,12 @@ class _AssetFormState extends State<AssetForm> {
           ? AssetValuationDraft(
               date: _assessed,
               valueMinor: MoneyMinor.parse(_value.text),
-              debtMinor: MoneyMinor.parse(_debt.text),
-              creditor: _creditor.text,
+              debtMinor: widget.asset?.managedDebtMinor != null
+                  ? widget.asset!.current!.debtMinor
+                  : MoneyMinor.parse(_debt.text),
+              creditor: widget.asset?.managedDebtMinor != null
+                  ? widget.asset!.current!.creditor
+                  : _creditor.text,
               notes: widget.valuationOnly ? _notes.text : '')
           : null;
       if (widget.valuationOnly) {
@@ -180,29 +184,34 @@ class _AssetFormState extends State<AssetForm> {
                           labelText: 'Valor atual do bem',
                           minimumMinor: 0),
                       const SizedBox(height: 20),
-                      MonetaryCalculatorField(
-                          controller: _debt,
-                          labelText: 'Saldo devedor do financiamento',
-                          minimumMinor: 0),
-                      const SizedBox(height: 12),
-                      const Text(
-                          'Informe o saldo atual devido ao banco, sem somar juros futuros nem repetir dívidas já registradas nos cartões.'),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                          controller: _creditor,
-                          decoration: const InputDecoration(
-                              labelText: 'Credor / banco do financiamento'),
-                          validator: (v) {
-                            try {
-                              return MoneyMinor.parse(_debt.text) > 0 &&
-                                      (v?.trim().isEmpty ?? true)
-                                  ? 'Informe o credor.'
-                                  : null;
-                            } catch (_) {
-                              return null;
-                            }
-                          }),
-                      const SizedBox(height: 20),
+                      if (widget.asset?.managedDebtMinor != null)
+                        const Text(
+                            'Financiamento controlado em Dívidas e empréstimos. A avaliação altera somente o valor do bem.')
+                      else ...[
+                        MonetaryCalculatorField(
+                            controller: _debt,
+                            labelText: 'Saldo devedor do financiamento',
+                            minimumMinor: 0),
+                        const SizedBox(height: 12),
+                        const Text(
+                            'Informe o saldo atual devido ao banco, sem somar juros futuros nem repetir dívidas já registradas nos cartões.'),
+                        const SizedBox(height: 20),
+                        TextFormField(
+                            controller: _creditor,
+                            decoration: const InputDecoration(
+                                labelText: 'Credor / banco do financiamento'),
+                            validator: (v) {
+                              try {
+                                return MoneyMinor.parse(_debt.text) > 0 &&
+                                        (v?.trim().isEmpty ?? true)
+                                    ? 'Informe o credor.'
+                                    : null;
+                              } catch (_) {
+                                return null;
+                              }
+                            }),
+                        const SizedBox(height: 20),
+                      ],
                     ],
                     TextFormField(
                         controller: _notes,

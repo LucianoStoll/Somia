@@ -29,16 +29,20 @@ class Asset {
       required this.acquisitionMinor,
       required this.history,
       this.notes = '',
-      this.archived = false});
+      this.archived = false,
+      this.managedDebtMinor,
+      this.managedCreditor});
   final String id, name, notes;
   final AssetKind kind;
   final DateTime acquiredAt;
   final int acquisitionMinor;
   final bool archived;
+  final int? managedDebtMinor;
+  final String? managedCreditor;
   final List<AssetValuation> history;
   AssetValuation? get current => history.firstOrNull;
   int get valueMinor => current?.valueMinor ?? 0;
-  int get debtMinor => current?.debtMinor ?? 0;
+  int get debtMinor => managedDebtMinor ?? current?.debtMinor ?? 0;
 }
 
 class AssetDraft {
@@ -70,9 +74,10 @@ class AssetOverview {
   const AssetOverview(this.assets,
       {this.accountsMinor = 0,
       this.cardDebtMinor = 0,
-      this.cardCreditMinor = 0});
+      this.cardCreditMinor = 0,
+      this.otherDebtMinor = 0});
   final List<Asset> assets;
-  final int accountsMinor, cardDebtMinor, cardCreditMinor;
+  final int accountsMinor, cardDebtMinor, cardCreditMinor, otherDebtMinor;
   Iterable<Asset> get active => assets.where((a) => !a.archived);
   int get assetsMinor => active.fold(0, (s, a) => s + a.valueMinor);
   int get assetDebtMinor => assets.fold(0, (s, a) => s + a.debtMinor);
@@ -81,7 +86,8 @@ class AssetOverview {
       cardCreditMinor +
       assetsMinor -
       assetDebtMinor -
-      cardDebtMinor;
+      cardDebtMinor -
+      otherDebtMinor;
 }
 
 abstract interface class AssetsRepository {
