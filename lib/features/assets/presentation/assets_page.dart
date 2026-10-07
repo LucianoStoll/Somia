@@ -159,7 +159,7 @@ class _AssetsPageState extends State<AssetsPage> {
                                         -data.cardDebtMinor),
                                     const SizedBox(height: 8),
                                     const Text(
-                                        'Investimentos entram uma vez pelas contas. Valores manuais usam a última avaliação. Dívidas cadastradas entram uma vez; financiamentos vinculados substituem o saldo manual do bem.'),
+                                        'Investimentos entram pelas contas. Financiamentos vinculados substituem o saldo manual do bem; outras dívidas cadastradas entram uma vez.'),
                                   ]))),
                       if (data.assets.isEmpty)
                         const Padding(

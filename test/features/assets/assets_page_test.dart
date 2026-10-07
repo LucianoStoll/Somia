@@ -124,9 +124,13 @@ void main() {
       await open(tester, platform,
           scale: platform == TargetPlatform.android ? 1.2 : 1);
       expect(find.text('Patrimônio líquido cadastrado'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Palio'), 120);
+      await tester.pumpAndSettle();
       expect(find.text('Palio'), findsOneWidget);
       expect(tester.takeException(), isNull);
       if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+        await tester.drag(find.byType(ListView).first, const Offset(0, 1000));
+        await tester.pumpAndSettle();
         await expectLater(
             find.byType(MaterialApp),
             matchesGoldenFile(platform == TargetPlatform.android

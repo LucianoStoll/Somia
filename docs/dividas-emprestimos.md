@@ -54,6 +54,7 @@ Atualize **Android e Windows antes de sincronizar**. Formulários usam calculado
 - `lib/features/assets/domain/asset.dart`, `data/sqlite_assets_repository.dart`, `presentation/asset_form.dart`, `assets_page.dart`: dívida controlada e patrimônio sem repetição.
 - `test/features/debts/debts_repository_test.dart`, `debts_page_test.dart`, `test/core/database/schema_v15_test.dart`: amortização, reversões, datas, rollback, patrimônio, restore/sync, migration e formulários Android/Windows.
 - `test/core/database/schema_v14_test.dart`: expectativa da versão atual ao abrir legado.
+- `test/features/assets/assets_page_test.dart`: valida acessibilidade dos bens por rolagem após incluir outras dívidas no resumo.
 - `.github/workflows/flutter-ci.yml`: geração e publicação de prévias de dívidas/formulários.
 - `README.md`, `CHANGELOG.md`, `docs/ciclos/v0.3.0-alpha.md` e este documento: regras, inventário e validação.
 
