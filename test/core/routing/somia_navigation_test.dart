@@ -1,3 +1,5 @@
+import 'package:finapp/features/cards/data/cards_repository.dart';
+import 'package:finapp/features/cards/domain/credit_card.dart';
 import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
@@ -33,6 +35,34 @@ class _LiveUiBackupManager extends BackupManager {
   Future<void> daily() async {}
   @override
   Future<void> refresh() async {}
+}
+
+class _CardsNavigationStub extends Fake implements CardsRepository {
+  @override
+  Future<List<CreditCard>> list() async => [
+        const CreditCard(
+            id: 'card',
+            name: 'Cartão teste',
+            paymentAccountId: 'a',
+            closingDay: 1,
+            dueDay: 10,
+            limitMinor: 50000)
+      ];
+  @override
+  Future<List<CardInvoice>> invoices(String cardId,
+          {DateTime? selected}) async =>
+      [
+        CardInvoice(
+            id: 'invoice',
+            cardId: cardId,
+            month: selected!,
+            closingAt: DateTime(selected.year, selected.month, 1),
+            dueAt: DateTime(selected.year, selected.month, 10),
+            previousMinor: 0,
+            chargesMinor: 0,
+            paidMinor: 0,
+            scheduledMinor: 0)
+      ];
 }
 
 class _DashboardStub implements DashboardRepository {
@@ -342,6 +372,30 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets(
+      'roteador real volta do detalhe à lista de cartões antes do resumo',
+      (tester) async {
+    await openBackTest(tester);
+    getIt.registerSingleton<CardsRepository>(_CardsNavigationStub());
+    appRouter.go('/cards');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('card-open-card')));
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.queryParameters['card'],
+        'card');
+    expect(find.text('Detalhes do cartão'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/cards');
+    expect(appRouter.routeInformationProvider.value.uri.queryParameters['card'],
+        isNull);
+    expect(find.byKey(const ValueKey('card-open-card')), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'conta abre extrato e Voltar Android retorna à lista antes do Resumo',
       (tester) async {

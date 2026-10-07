@@ -71,13 +71,11 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) {
             GoRoute(
                 path: AppRoutes.cardsPath,
                 name: AppRoutes.cards,
-                builder: (context, state) => SomiaSectionBackScope(
-                    location: state.uri.path,
-                    child: CardsPage(
-                        key: ValueKey(state.uri.toString()),
-                        cardId: state.uri.queryParameters['card'],
-                        month: DateTime.tryParse(
-                            state.uri.queryParameters['month'] ?? '')))),
+                builder: (context, state) => CardsPage(
+                    key: ValueKey(state.uri.toString()),
+                    cardId: state.uri.queryParameters['card'],
+                    month: DateTime.tryParse(
+                        state.uri.queryParameters['month'] ?? ''))),
             GoRoute(
               path: AppRoutes.transfersPath,
               name: AppRoutes.transfers,
