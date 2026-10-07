@@ -70,7 +70,7 @@ void main() {
       expect(await repo.load(), isEmpty);
       await tester.enterText(
           find.widgetWithText(TextFormField, 'Credor / banco'), 'Família');
-      await tester.pump();
+      await tester.pumpAndSettle();
       if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
         await expectLater(
             find.byType(MaterialApp),
