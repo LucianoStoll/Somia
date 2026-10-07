@@ -190,7 +190,7 @@ class MovementListRow extends StatelessWidget {
                       (amountWidth > dateWidth ? amountWidth : dateWidth) + 2;
                   final stacked = constraints.maxWidth < 210 ||
                       MediaQuery.textScalerOf(context).scale(14) > 21 ||
-                      valueWidth > constraints.maxWidth * 0.60;
+                      valueWidth > constraints.maxWidth * 0.65;
                   final edit = InkWell(
                       key: ValueKey('movement-edit-$id'),
                       onTap: busy ? null : onEdit,
