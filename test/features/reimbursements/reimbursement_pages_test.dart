@@ -151,7 +151,7 @@ void main() {
       await tester.pumpAndSettle();
       expect((await repo.load()).single.pending, 2500);
       expect((await repo.load()).single.received, 1500);
-      expect(find.text('A receber: BRL 25,00'), findsOneWidget);
+      expect(find.text('A receber: R\$ 25,00'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

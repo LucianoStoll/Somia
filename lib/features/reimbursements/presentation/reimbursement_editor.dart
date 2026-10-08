@@ -132,11 +132,19 @@ class _ReimbursementEditorState extends State<ReimbursementEditor> {
     return row;
   }
 
+  int _amount(String text) {
+    try {
+      return MoneyMinor.parse(text);
+    } on FormatException {
+      return 0;
+    }
+  }
+
   void changed() {
     widget.onChanged(enabled
         ? rows
             .map((r) => ReimbursementDraft(
-                r.personId ?? '', MoneyMinor.parse(r.amount.text),
+                r.personId ?? '', _amount(r.amount.text),
                 id: r.id))
             .toList()
         : []);

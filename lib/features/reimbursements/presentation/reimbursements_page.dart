@@ -76,7 +76,7 @@ class _ReimbursementsPageState extends State<ReimbursementsPage> {
   }
 
   String money(int amount, String currency) =>
-      '$currency ${MoneyMinor.plain(amount)}';
+      MoneyMinor.display(amount, currency);
   Future<void> receive(Reimbursement r) async {
     final accounts = (await getIt<AccountsRepository>().list())
         .where((a) => !a.isArchived && a.currencyCode == r.currency)
