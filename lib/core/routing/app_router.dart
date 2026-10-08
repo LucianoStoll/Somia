@@ -1,3 +1,4 @@
+import '../../features/reimbursements/presentation/reimbursements_page.dart';
 import '../../features/debts/presentation/debts_page.dart';
 import '../../features/assets/presentation/assets_page.dart';
 import '../../features/investments/presentation/investments_page.dart';
@@ -37,6 +38,7 @@ abstract final class AppRoutes {
   static const expensesPath = '/expenses';
   static const transfers = 'transfers';
   static const transfersPath = '/transfers';
+  static const reimbursementsPath = '/people';
   static const settings = 'settings';
   static const settingsPath = '/settings';
 }
@@ -55,6 +57,9 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) {
               location: state.uri.path,
               child: SomiaShell(location: state.uri.path, child: child)),
           routes: [
+            GoRoute(
+                path: AppRoutes.reimbursementsPath,
+                builder: (context, state) => const ReimbursementsPage()),
             GoRoute(
                 path: AppRoutes.debtsPath,
                 builder: (context, state) => SomiaSectionBackScope(

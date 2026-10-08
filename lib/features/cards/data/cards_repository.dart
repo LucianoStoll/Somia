@@ -1,3 +1,5 @@
+import '../../reimbursements/data/reimbursements_repository.dart';
+import '../../../core/database/reimbursement_integrity.dart';
 import '../../../core/allocations/category_allocation.dart';
 import '../../../core/allocations/allocation_store.dart';
 
@@ -310,6 +312,10 @@ class CardsRepository {
               count: firstIndex - 1 + amounts.length,
               id: index == 0 ? firstId : null);
         }
+        if (draft.reimbursements != null) {
+          await ReimbursementsRepository(db)
+              .replace('purchase:$purchaseId', draft.reimbursements!);
+        }
         return firstId;
       });
   Future<List<CardEntry>> entries({String? cardId, String? invoiceId}) async {
@@ -590,6 +596,11 @@ class CardsRepository {
                 e.id
               ]);
         }
+        if (draft.reimbursements != null) {
+          await ReimbursementsRepository(db).replace(
+              'purchase:${original.purchaseId}', draft.reimbursements!);
+        }
+        await validateReimbursements(db);
       });
   Future<void> updateAmount(
           String id, int expected, int amount, SeriesScope scope) =>
@@ -614,6 +625,7 @@ class CardsRepository {
                 e.id
               ]);
         }
+        await validateReimbursements(db);
       });
   Future<void> deletePurchase(String id, SeriesScope scope) =>
       db.transaction(() async {
@@ -635,6 +647,7 @@ class CardsRepository {
               'UPDATE card_entries SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
               [now, now, e.id]);
         }
+        await validateReimbursements(db);
       });
   Future<void> refund(String id, int amount, String invoiceId, DateTime date) =>
       db.transaction(() async {

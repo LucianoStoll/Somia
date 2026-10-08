@@ -57,7 +57,7 @@ void main() {
         await db.customSelect('SELECT * FROM sync_uploads').getSingle();
     expect(upload.read<String>('packet_id'), isNot('old-color-packet-0001'));
     final packet = jsonDecode(upload.read<String>('payload'));
-    expect(packet['schema'], 16);
+    expect(packet['schema'], AppDatabase.currentSchemaVersion);
     expect(packet['entries'][0]['data']['color_argb'], isNull);
     expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
     await expectLater(

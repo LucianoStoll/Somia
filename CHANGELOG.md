@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- Pessoas e reembolsos em Mais opções da despesa: recebimentos parciais como receitas vinculadas, histórico e schema 17 com backup/sync.
+
 - Despesa paga usa vencimento como efetivação por padrão; datas adicionais e opções avançadas ficam em Mais opções expansível.
 
 - Experiência #59: categorias lado a lado e indicador centralizado; seletores compactos; Configurações por seções; categorias recolhíveis com atalho de subcategoria; cor persistente, logo e resumo de limite/fatura na lista de cartões (schema 16).

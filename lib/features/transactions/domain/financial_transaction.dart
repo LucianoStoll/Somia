@@ -1,3 +1,4 @@
+import '../../reimbursements/domain/reimbursement.dart';
 import '../../../core/allocations/category_allocation.dart';
 import '../../../core/series/movement_series.dart';
 
@@ -70,6 +71,7 @@ class FinancialTransaction {
 
 class TransactionDraft {
   const TransactionDraft({
+    this.reimbursements,
     this.allocations = const [],
     required this.description,
     required this.type,
@@ -88,6 +90,7 @@ class TransactionDraft {
   });
 
   final List<CategoryAllocation> allocations;
+  final List<ReimbursementDraft>? reimbursements;
 
   final String description;
   final TransactionType type;

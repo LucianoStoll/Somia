@@ -1,3 +1,5 @@
+import '../../reimbursements/data/reimbursements_repository.dart';
+import '../../../core/database/reimbursement_integrity.dart';
 import '../../../core/allocations/category_allocation.dart';
 import '../../../core/allocations/allocation_store.dart';
 import '../../cards/data/cards_repository.dart';
@@ -19,6 +21,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       _db.transaction(() async {
         final result = await action();
         await validateDebtFinancial(_db);
+        await validateReimbursements(_db);
         return result;
       });
 
@@ -107,6 +110,10 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     _validateDraft(draft);
     final plan = draft.seriesPlan;
     if (plan == null) return _checked(() => _createSingle(draft));
+    if (draft.reimbursements?.isNotEmpty ?? false) {
+      throw const FormatException(
+          'Crie o lançamento individual antes de vincular reembolsos.');
+    }
     plan.validate();
     if (plan.dateAt(draft.date, plan.count - 1).year > 2100 ||
         plan.dateAt(draft.dueDate ?? draft.date, plan.count - 1).year > 2100) {
@@ -157,6 +164,10 @@ class SqliteTransactionsRepository implements TransactionsRepository {
         if (draft.scope == SeriesScope.onlyThis ||
             SeriesStore.info(original) == null) {
           return _updateSingle(id, draft);
+        }
+        if (draft.reimbursements != null) {
+          throw const FormatException(
+              'Altere o reembolso somente neste lançamento.');
         }
         final targets = await store.targets(id, draft.scope);
         for (final row in targets) {
@@ -217,6 +228,9 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       now,
       CategoryAllocation.encode(draft.allocations),
     ]);
+    if (draft.reimbursements != null) {
+      await ReimbursementsRepository(_db).replace(id, draft.reimbursements!);
+    }
     return _find(id);
   }
 
@@ -283,6 +297,9 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       UPDATE transactions SET ${fields.join(', ')}
       WHERE id = ? AND deleted_at IS NULL
     ''', args);
+    if (draft.reimbursements != null) {
+      await ReimbursementsRepository(_db).replace(id, draft.reimbursements!);
+    }
     return _find(id);
   }
 

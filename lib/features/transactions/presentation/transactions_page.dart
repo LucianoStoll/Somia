@@ -1,3 +1,6 @@
+import '../../reimbursements/presentation/reimbursement_editor.dart';
+import '../../reimbursements/data/reimbursements_repository.dart';
+import '../../reimbursements/domain/reimbursement.dart';
 import '../../categories/presentation/category_visuals.dart';
 import '../../../core/widgets/compact_movement_field.dart';
 import '../../../core/allocations/category_allocation.dart';
@@ -873,6 +876,7 @@ class TransactionFormState extends State<TransactionForm> {
   final _firstInstallment = TextEditingController(text: '1');
   String? _categoryId;
   String? _subcategoryId;
+  List<ReimbursementDraft>? _reimbursements;
   bool _rateioEnabled = false;
   List<CategoryAllocation> _allocations = [];
   void _amountChanged() {
@@ -1208,6 +1212,8 @@ class TransactionFormState extends State<TransactionForm> {
     Navigator.pop(
         context,
         TransactionDraft(
+          reimbursements:
+              _type == TransactionType.expense ? _reimbursements : null,
           description: _description.text.trim(),
           type: _type,
           amountMinor: MoneyMinor.parse(_amount.text),
@@ -1258,7 +1264,8 @@ class TransactionFormState extends State<TransactionForm> {
               _series.snapshot,
               _cardId,
               _cardMonth,
-              _firstInstallment.text
+              _firstInstallment.text,
+              _reimbursements?.map((r) => r.signature).join('|')
             ),
         builder: (context, cancel) => MovementFormFrame(
               onCancel: cancel,
@@ -1511,6 +1518,20 @@ class TransactionFormState extends State<TransactionForm> {
                         initiallyExpanded:
                             _rateioEnabled || widget.item?.series != null,
                         children: [
+                          if (_type == TransactionType.expense &&
+                              getIt.isRegistered<ReimbursementsRepository>())
+                            ReimbursementEditor(
+                                repo: getIt<ReimbursementsRepository>(),
+                                movementId: widget.item?.id,
+                                currency: _cardId != null
+                                    ? 'BRL'
+                                    : _availableAccounts
+                                            .where((a) => a.id == _accountId)
+                                            .firstOrNull
+                                            ?.currencyCode ??
+                                        'BRL',
+                                onChanged: (v) =>
+                                    setState(() => _reimbursements = v)),
                           if (!_forcePending && _isEffective)
                             CompactMovementDate(
                                 label: 'Data de efetivação',
