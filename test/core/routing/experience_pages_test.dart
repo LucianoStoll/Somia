@@ -150,18 +150,16 @@ void main() {
   const render = bool.fromEnvironment('SOMIA_RENDER_PREVIEW');
   testWidgets('prévias de categorias e configurações', (tester) async {
     if (!render) return;
-    final loader = FontLoader('Roboto')
-      ..addFont(File(
-              '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf')
-          .readAsBytes()
-          .then((b) => ByteData.sublistView(b)));
-    await loader.load();
-    final icons = FontLoader('MaterialIcons')
-      ..addFont(File(
-              '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf')
-          .readAsBytes()
-          .then((b) => ByteData.sublistView(b)));
-    await icons.load();
+    for (final pair in [
+      ('Roboto', 'Roboto-Regular.ttf'),
+      ('MaterialIcons', 'MaterialIcons-Regular.otf')
+    ]) {
+      final loader = FontLoader(pair.$1)
+        ..addFont(Future.value(ByteData.sublistView(File(
+                '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts/${pair.$2}')
+            .readAsBytesSync())));
+      await loader.load();
+    }
     for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
       for (final page in ['categories', 'settings']) {
         await open(tester, '/$page', platform);
