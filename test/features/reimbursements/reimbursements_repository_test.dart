@@ -65,6 +65,82 @@ void main() {
           isEffective: true,
           accountId: account,
           reimbursements: [ReimbursementDraft(person, claim)]));
+  test('previsão aparece em receitas e continua devida até efetivar', () async {
+    final due = DateTime.now().add(const Duration(days: 30));
+    await tx.create(TransactionDraft(
+        description: 'Jantar',
+        type: TransactionType.expense,
+        amountMinor: 10000,
+        date: date,
+        isEffective: true,
+        accountId: account,
+        reimbursements: [
+          ReimbursementDraft(person, 4000, dueDate: due, accountId: account)
+        ]));
+    final income =
+        (await tx.list(const TransactionFilter(type: TransactionType.income)))
+            .single;
+    expect(income.amountMinor, 4000);
+    expect(income.isEffective, isFalse);
+    expect(income.categoryId, isNull);
+    expect(income.dueDate, DateTime.utc(due.year, due.month, due.day));
+    var claim = (await repo.load()).single;
+    expect(claim.pending, 4000);
+    expect(claim.scheduled, 4000);
+    expect((await accounts.list()).single.currentBalanceMinor, 10000);
+    await tx.setEffective(income.id,
+        effective: true, effectiveDate: DateTime.now());
+    claim = (await repo.load()).single;
+    expect(claim.pending, 0);
+    expect(claim.received, 4000);
+    expect((await accounts.list()).single.currentBalanceMinor, 14000);
+  });
+  test(
+      'editar previsão mantém identidade e remover cancela só a receita pendente',
+      () async {
+    final source = await expense();
+    var draft = (await repo.drafts(source.id)).single;
+    await repo.replace(source.id, [
+      ReimbursementDraft(person, 4000,
+          id: draft.id, dueDate: DateTime.utc(2026, 12, 1), accountId: account)
+    ]);
+    final incomeId = (await repo.load()).single.receipts.single.transactionId;
+    draft = (await repo.drafts(source.id)).single;
+    expect(draft.dueDate, DateTime.utc(2026, 12, 1));
+    await repo.replace(source.id, [
+      ReimbursementDraft(person, 5000,
+          id: draft.id, dueDate: DateTime.utc(2026, 12, 5), accountId: account)
+    ]);
+    final income =
+        (await tx.list(const TransactionFilter(type: TransactionType.income)))
+            .single;
+    expect(income.id, incomeId);
+    expect(income.amountMinor, 5000);
+    expect(income.dueDate, DateTime.utc(2026, 12, 5));
+    await repo.replace(source.id, []);
+    expect(await repo.load(), isEmpty);
+    expect(await tx.list(const TransactionFilter(type: TransactionType.income)),
+        isEmpty);
+    expect((await tx.list()).single.id, source.id);
+  });
+  test('conta inválida reverte a criação completa da despesa e previsão',
+      () async {
+    await expectLater(
+        tx.create(TransactionDraft(
+            description: 'Compra',
+            type: TransactionType.expense,
+            amountMinor: 10000,
+            date: date,
+            isEffective: true,
+            accountId: account,
+            reimbursements: [
+              ReimbursementDraft(person, 4000,
+                  dueDate: date, accountId: 'inexistente')
+            ])),
+        throwsA(isA<FormatException>()));
+    expect(await tx.list(), isEmpty);
+    expect(await repo.load(), isEmpty);
+  });
   test('despesa integral, recebimentos parciais, saldo e exclusão da receita',
       () async {
     await expense();
@@ -85,7 +161,8 @@ void main() {
             .single
             .amountMinor,
         10000);
-    await tx.delete(r.receipts.first.transactionId);
+    await tx.delete(
+        r.receipts.singleWhere((r) => r.amountMinor == 2500).transactionId);
     expect((await repo.load()).single.pending, 2500);
     await validateFinancial(db);
   });

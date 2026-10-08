@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/routing/app_router.dart';
+import '../../../core/routing/somia_shell.dart';
 import '../../../core/widgets/movement_form_frame.dart';
 import '../../accounts/domain/money_minor.dart';
 import '../../assets/domain/asset.dart';
@@ -124,10 +125,7 @@ class _DebtsPageState extends State<DebtsPage> {
     return Scaffold(
         appBar: AppBar(
             title: const Text('Dívidas e empréstimos'),
-            leading: IconButton(
-                tooltip: 'Voltar a investimentos',
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.go(AppRoutes.investmentsPath)),
+            leading: somiaMenuLeading(context),
             actions: [
               IconButton(
                   tooltip: 'Atualizar dívidas',

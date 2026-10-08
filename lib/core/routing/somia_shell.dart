@@ -40,6 +40,10 @@ const _menu = <_MenuDestination>[
       'Contas', AppRoutes.accountsPath, Icons.account_balance_wallet_outlined),
   _MenuDestination(
       'Investimentos', AppRoutes.investmentsPath, Icons.savings_outlined),
+  _MenuDestination(
+      'Bens e patrimônio', AppRoutes.assetsPath, Icons.home_work_outlined),
+  _MenuDestination('Dívidas e empréstimos', AppRoutes.debtsPath,
+      Icons.account_balance_outlined),
   _MenuDestination('Cartões', AppRoutes.cardsPath, Icons.credit_card_outlined),
   _MenuDestination('Pessoas e reembolsos', AppRoutes.reimbursementsPath,
       Icons.people_outline),
@@ -98,12 +102,9 @@ class SomiaSectionBackScope extends StatelessWidget {
                                   .queryParameters['card'] !=
                               null
                       ? AppRoutes.cardsPath
-                      : (location == AppRoutes.assetsPath ||
-                              location == AppRoutes.debtsPath)
-                          ? AppRoutes.investmentsPath
-                          : location.startsWith('${AppRoutes.accountsPath}/')
-                              ? AppRoutes.accountsPath
-                              : AppRoutes.dashboardPath);
+                      : location.startsWith('${AppRoutes.accountsPath}/')
+                          ? AppRoutes.accountsPath
+                          : AppRoutes.dashboardPath);
             }
           },
           child: child,
@@ -193,9 +194,6 @@ class _SomiaMenu extends StatelessWidget {
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: compact ? 18 : 14),
                         selected: location == destination.path ||
-                            (destination.path == AppRoutes.investmentsPath &&
-                                (location == AppRoutes.assetsPath ||
-                                    location == AppRoutes.debtsPath)) ||
                             (destination.path == AppRoutes.accountsPath &&
                                 location
                                     .startsWith('${AppRoutes.accountsPath}/')),

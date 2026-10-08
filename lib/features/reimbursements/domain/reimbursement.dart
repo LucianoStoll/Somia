@@ -5,11 +5,14 @@ class Person {
 }
 
 class ReimbursementDraft {
-  const ReimbursementDraft(this.personId, this.amountMinor, {this.id});
+  const ReimbursementDraft(this.personId, this.amountMinor,
+      {this.id, this.dueDate, this.accountId});
   final String personId;
   final int amountMinor;
   final String? id;
-  String get signature => '$id:$personId:$amountMinor';
+  final DateTime? dueDate;
+  final String? accountId;
+  String get signature => '$id:$personId:$amountMinor:$dueDate:$accountId';
 }
 
 class ReimbursementReceipt {
