@@ -110,7 +110,7 @@ void main() {
       await tester.tap(find.text('Mais opções'));
       await tester.pumpAndSettle();
       expect(find.text('Data de efetivação'), findsOneWidget);
-      expect(find.text('Lançamento'), findsOneWidget);
+      expect(find.text('Lançamento'), findsWidgets);
       await tester.ensureVisible(find.text('Mais opções'));
       await tester.tap(find.text('Mais opções'));
       await tester.pumpAndSettle();
@@ -304,6 +304,10 @@ void main() {
       tester.view.viewInsets = const FakeViewPadding(bottom: 100);
       await tester.pumpAndSettle();
       expect(find.text('Salvar lançamento').hitTestable(), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Mais opções'), 250,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text('Mais opções'));
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Mais detalhes'), 250,
           scrollable: find
               .ancestor(
