@@ -36,8 +36,9 @@ class _TransactionTagsEditorState extends State<TransactionTagsEditor> {
           unique.putIfAbsent(TransactionTags.key(tag), () => tag);
         }
       }
-      if (mounted)
+      if (mounted) {
         setState(() => _suggestions = unique.values.toList()..sort());
+      }
     } catch (_) {
       /* Suggestions are optional; manual entry remains available. */
     }
