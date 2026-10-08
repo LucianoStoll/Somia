@@ -250,7 +250,8 @@ class _PlanningPageState extends State<PlanningPage> {
                 Text(
                     'Prazo: ${g.deadline!.day}/${g.deadline!.month}/${g.deadline!.year}'),
               if (!g.archived && g.deadline != null && left > 0)
-                Text(g.deadline!
+                Text(DateTime(g.deadline!.year, g.deadline!.month,
+                            g.deadline!.day)
                         .isBefore(DateTime(today.year, today.month, today.day))
                     ? 'Prazo vencido. Revise a meta.'
                     : 'Referência mensal até o prazo: ${money((left + months - 1) ~/ months, g.currency)}'),
