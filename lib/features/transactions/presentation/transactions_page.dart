@@ -1516,7 +1516,9 @@ class TransactionFormState extends State<TransactionForm> {
                           title: Text(_type == TransactionType.income
                               ? 'Recebido'
                               : 'Pago'),
-                          value: !_forcePending && _isEffective,
+                          value: (widget.item?.settlementCount ?? 0) > 0
+                              ? widget.item!.isEffective
+                              : !_forcePending && _isEffective,
                           onChanged: _forcePending ||
                                   (widget.item?.settlementCount ?? 0) > 0
                               ? null

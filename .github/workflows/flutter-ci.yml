@@ -98,6 +98,7 @@ jobs:
             test/features/investments/*desktop-preview.png
             test/features/assets/*mobile-preview.png
             test/features/assets/*desktop-preview.png
+            test/features/transactions/*-preview.png
             test/features/planning/*-preview.png
             test/features/reimbursements/*mobile-preview.png
             test/features/reimbursements/*desktop-preview.png

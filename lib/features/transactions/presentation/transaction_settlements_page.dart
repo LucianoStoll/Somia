@@ -131,78 +131,85 @@ class _TransactionSettlementsPageState
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Baixas e histórico')),
-        body: ListView(padding: const EdgeInsets.all(20), children: [
-          Text(widget.item.description,
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          Text('Total: ${money(widget.item.amountMinor)}'),
-          Text('Restante para baixar: ${money(remaining)}'),
-          if (error != null)
-            Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(error!,
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error))),
-          if (busy) const LinearProgressIndicator(),
-          if (widget.item.effectiveDate != null)
-            const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                    'Este lançamento está efetivado integralmente. Marque como pendente antes de adicionar baixas.')),
-          if (remaining > 0 && widget.item.effectiveDate == null) ...[
-            const SizedBox(height: 20),
-            TextField(
-                controller: amount,
-                enabled: !busy,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Valor da baixa')),
-            DropdownButtonFormField<String>(
-                initialValue: accountId,
-                decoration: const InputDecoration(labelText: 'Conta'),
-                items: [
-                  for (final a in accounts)
-                    DropdownMenuItem(value: a.id, child: Text(a.name))
-                ],
-                onChanged: busy ? null : (v) => setState(() => accountId = v)),
-            ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_today),
-                title: const Text('Data do pagamento / recebimento'),
-                subtitle: Text(label(date)),
-                onTap: busy
-                    ? null
-                    : () async {
-                        final picked = await showDatePicker(
-                            context: context,
-                            initialDate: date,
-                            firstDate: DateTime(1900),
-                            lastDate: DateTime(2200));
-                        if (picked != null && mounted) {
-                          setState(() => date = picked);
-                        }
-                      }),
-            FilledButton(
-                onPressed: busy ? null : _save,
-                child: Text(widget.item.type == TransactionType.income
-                    ? 'Registrar recebimento'
-                    : 'Registrar pagamento')),
-          ],
-          const SizedBox(height: 24),
-          Text('Histórico', style: Theme.of(context).textTheme.titleMedium),
-          if (rows.isEmpty)
-            const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('Nenhuma baixa registrada.')),
-          for (final row in rows)
-            ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(money(row.amountMinor)),
-                subtitle: Text('${row.accountName} · ${label(row.date)}'),
-                trailing: IconButton(
-                    tooltip: 'Desfazer baixa',
-                    onPressed: busy ? null : () => _remove(row),
-                    icon: const Icon(Icons.undo))),
-        ]),
+        body: Center(
+            child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: ListView(padding: const EdgeInsets.all(20), children: [
+                  Text(widget.item.description,
+                      style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Text('Total: ${money(widget.item.amountMinor)}'),
+                  Text('Restante para baixar: ${money(remaining)}'),
+                  if (error != null)
+                    Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(error!,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error))),
+                  if (busy) const LinearProgressIndicator(),
+                  if (widget.item.effectiveDate != null)
+                    const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                            'Este lançamento está efetivado integralmente. Marque como pendente antes de adicionar baixas.')),
+                  if (remaining > 0 && widget.item.effectiveDate == null) ...[
+                    const SizedBox(height: 20),
+                    TextField(
+                        controller: amount,
+                        enabled: !busy,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration:
+                            const InputDecoration(labelText: 'Valor da baixa')),
+                    DropdownButtonFormField<String>(
+                        initialValue: accountId,
+                        decoration: const InputDecoration(labelText: 'Conta'),
+                        items: [
+                          for (final a in accounts)
+                            DropdownMenuItem(value: a.id, child: Text(a.name))
+                        ],
+                        onChanged:
+                            busy ? null : (v) => setState(() => accountId = v)),
+                    ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.calendar_today),
+                        title: const Text('Data do pagamento / recebimento'),
+                        subtitle: Text(label(date)),
+                        onTap: busy
+                            ? null
+                            : () async {
+                                final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: date,
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime(2200));
+                                if (picked != null && mounted) {
+                                  setState(() => date = picked);
+                                }
+                              }),
+                    FilledButton(
+                        onPressed: busy ? null : _save,
+                        child: Text(widget.item.type == TransactionType.income
+                            ? 'Registrar recebimento'
+                            : 'Registrar pagamento')),
+                  ],
+                  const SizedBox(height: 24),
+                  Text('Histórico',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  if (rows.isEmpty)
+                    const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text('Nenhuma baixa registrada.')),
+                  for (final row in rows)
+                    ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(money(row.amountMinor)),
+                        subtitle: Text(
+                            '${row.accountName} · ${label(row.date)}${DateTime.utc(row.date.year, row.date.month, row.date.day).isAfter(DateTime.utc(DateTime.now().year, DateTime.now().month, DateTime.now().day)) ? ' · Agendado' : ''}'),
+                        trailing: IconButton(
+                            tooltip: 'Desfazer baixa',
+                            onPressed: busy ? null : () => _remove(row),
+                            icon: const Icon(Icons.undo))),
+                ]))),
       );
 }
