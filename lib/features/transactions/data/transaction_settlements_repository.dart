@@ -101,9 +101,10 @@ class TransactionSettlementsRepository {
               Variable.withString(id),
               Variable.withString(transactionId)
             ]);
-        if (n != 1)
+        if (n != 1) {
           throw const FormatException(
               'A baixa já foi alterada. Atualize o histórico.');
+        }
         await validateSettlements(db);
       });
 }

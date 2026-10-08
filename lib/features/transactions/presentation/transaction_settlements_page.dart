@@ -59,11 +59,12 @@ class _TransactionSettlementsPageState
         busy = false;
       });
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           busy = false;
           error = e.toString();
         });
+      }
     }
   }
 
@@ -74,18 +75,20 @@ class _TransactionSettlementsPageState
     });
     try {
       final value = MoneyMinor.parse(amount.text);
-      if (accountId == null)
+      if (accountId == null) {
         throw const FormatException('Selecione uma conta.');
+      }
       await repo.add(widget.item.id,
           accountId: accountId!, amountMinor: value, date: date);
       amount.clear();
       await _load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           busy = false;
           error = e.toString().replaceFirst('FormatException: ', '');
         });
+      }
     }
   }
 
@@ -113,11 +116,12 @@ class _TransactionSettlementsPageState
       await repo.remove(widget.item.id, row.id);
       await _load();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           busy = false;
           error = e.toString();
         });
+      }
     }
   }
 
@@ -173,8 +177,9 @@ class _TransactionSettlementsPageState
                             initialDate: date,
                             firstDate: DateTime(1900),
                             lastDate: DateTime(2200));
-                        if (picked != null && mounted)
+                        if (picked != null && mounted) {
                           setState(() => date = picked);
+                        }
                       }),
             FilledButton(
                 onPressed: busy ? null : _save,
