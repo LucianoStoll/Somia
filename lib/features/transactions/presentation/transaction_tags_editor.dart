@@ -81,7 +81,7 @@ class _TransactionTagsEditorState extends State<TransactionTagsEditor> {
                     onPressed: () => _add(_input.text),
                     icon: const Icon(Icons.add))),
             onChanged: (_) => setState(() {}),
-            onSubmitted: _add),
+            onFieldSubmitted: _add),
         Wrap(spacing: 6, children: [
           for (final tag in widget.tags)
             InputChip(

@@ -41,20 +41,6 @@ void main() {
         limitMinor: 50000,
         institutionId: 'nubank'));
   });
-  test('tags acompanham parcelas, edição e filtro da fatura', () async {
-    final id = await cards.createPurchase(draft(count: 2, tags: ['Viagem']));
-    expect((await cards.entries()).every((e) => e.tags.contains('Viagem')),
-        isTrue);
-    expect((await cards.findMovement(id)).tags, ['Viagem']);
-    expect(
-        await cards.movements(const TransactionFilter(tag: 'outra')), isEmpty);
-    expect(await cards.movements(const TransactionFilter(tag: 'VIAGEM')),
-        hasLength(2));
-    await cards.editPurchase(id, draft(amount: 5000, tags: ['Trabalho']));
-    expect((await cards.findMovement(id)).tags, ['Trabalho']);
-    expect(await cards.movements(const TransactionFilter(tag: 'viagem')),
-        hasLength(1));
-  });
   tearDown(() => db.close());
   TransactionDraft draft(
           {int amount = 10000,
@@ -99,6 +85,20 @@ void main() {
         projectedBalanceMinor: b.projectedMinor);
   }
 
+  test('tags acompanham parcelas, edição e filtro da fatura', () async {
+    final id = await cards.createPurchase(draft(count: 2, tags: ['Viagem']));
+    expect((await cards.entries()).every((e) => e.tags.contains('Viagem')),
+        isTrue);
+    expect((await cards.findMovement(id)).tags, ['Viagem']);
+    expect(
+        await cards.movements(const TransactionFilter(tag: 'outra')), isEmpty);
+    expect(await cards.movements(const TransactionFilter(tag: 'VIAGEM')),
+        hasLength(2));
+    await cards.editPurchase(id, draft(amount: 5000, tags: ['Trabalho']));
+    expect((await cards.findMovement(id)).tags, ['Trabalho']);
+    expect(await cards.movements(const TransactionFilter(tag: 'viagem')),
+        hasLength(1));
+  });
   test('cor do cartão persiste na criação e edição sem mudar limites',
       () async {
     final old = await cards.find(cardId);
