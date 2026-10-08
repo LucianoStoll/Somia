@@ -86,15 +86,23 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       TransactionDateField.due => 't.due_at',
       TransactionDateField.effective => 't.effective_at',
     };
+    final byEffectuation = filter.dateField == TransactionDateField.effective;
+    final range = <String>[];
+    final rangeColumn = byEffectuation ? 'e.effective_at' : dateColumn;
     if (filter.from != null) {
-      where.add('$dateColumn >= ?');
+      range.add('$rangeColumn >= ?');
       variables.add(Variable.withInt(_dayMillis(filter.from!)));
     }
     if (filter.to != null) {
-      where.add('$dateColumn < ?');
+      range.add('$rangeColumn < ?');
       final day =
           DateTime.utc(filter.to!.year, filter.to!.month, filter.to!.day + 1);
       variables.add(Variable.withInt(day.millisecondsSinceEpoch));
+    }
+    if (range.isNotEmpty) {
+      where.add(byEffectuation
+          ? "EXISTS(SELECT 1 FROM transaction_events e WHERE e.deleted_at IS NULL AND (e.id=t.id OR e.id IN (SELECT 'settlement:'||s.id FROM transaction_settlements s WHERE s.transaction_id=t.id)) AND ${range.join(' AND ')})"
+          : range.join(' AND '));
     }
     variables.add(Variable.withInt(todayEnd));
     final rows = await _db.customSelect('''

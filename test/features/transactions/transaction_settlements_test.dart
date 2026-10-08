@@ -65,6 +65,14 @@ void main() {
     expect(item.settledMinor, 400);
     expect(item.remainingMinor, 601);
     expect(item.isEffective, false);
+    expect(
+        (await tx.list(TransactionFilter(
+                dateField: TransactionDateField.effective,
+                from: past,
+                to: past)))
+            .single
+            .id,
+        t.id);
     expect((await tx.list(TransactionFilter(accountId: b))).single.id, t.id);
     await repo.add(t.id, accountId: a, amountMinor: 601, date: past);
     expect(
