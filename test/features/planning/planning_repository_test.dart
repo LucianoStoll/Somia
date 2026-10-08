@@ -274,7 +274,7 @@ void main() {
     await repo.saveBudget(period, category, 'BRL', 1000);
     await repo.saveGoal(goal());
     final snapshot = await readFinancial(db);
-    await replaceFinancial(db, snapshot);
+    await db.transaction(() => replaceFinancial(db, snapshot));
     await validateFinancial(db);
     expect((await repo.budgets(period)).single.amount, 1000);
     expect((await repo.goals()).single.saved, 100000);
