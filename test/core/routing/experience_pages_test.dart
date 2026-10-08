@@ -99,7 +99,8 @@ void main() {
         (tester) async {
       final router = await open(tester, '/settings', platform);
       expect(find.text('Finanças'), findsOneWidget);
-      await tester.scrollUntilVisible(find.text('Backup e restauração'), 180);
+      await tester.scrollUntilVisible(find.text('Backup e restauração'), 180,
+          scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Backup e restauração'));
       await tester.pumpAndSettle();
       expect(find.text('Exportar backup'), findsOneWidget);

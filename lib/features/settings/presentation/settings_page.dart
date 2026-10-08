@@ -283,6 +283,11 @@ class _SettingsPageState extends State<SettingsPage> {
         ];
       default:
         return [
+          if ((_manager?.databaseRevision ?? 0) > 0)
+            const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child:
+                    Text('Backup restaurado. Os dados já estão atualizados.')),
           _heading('Finanças'),
           _option('Contas', Icons.account_balance_outlined,
               () => context.goNamed(AppRoutes.accounts)),
