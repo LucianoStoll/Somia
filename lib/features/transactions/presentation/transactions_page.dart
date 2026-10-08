@@ -742,7 +742,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
         ][item.date.month - 1]}.',
         pendingLabel: 'Desfazer último pagamento',
         tags: [
-          if (_categoryId != null || _subcategoryId != null) 'Fatura completa',
+          if (_categoryId != null || _subcategoryId != null || _tag != null)
+            'Fatura completa',
           if (item.cardPreviousMinor != 0)
             'Anterior ${MoneyMinor.display(item.cardPreviousMinor, 'BRL')}',
           if (!item.isEffective && item.cardBalanceMinor != item.amountMinor)
