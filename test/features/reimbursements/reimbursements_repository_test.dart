@@ -161,7 +161,8 @@ void main() {
             .single
             .amountMinor,
         10000);
-    await tx.delete(r.receipts.first.transactionId);
+    await tx.delete(
+        r.receipts.singleWhere((r) => r.amountMinor == 2500).transactionId);
     expect((await repo.load()).single.pending, 2500);
     await validateFinancial(db);
   });
