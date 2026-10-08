@@ -48,6 +48,8 @@ void main() {
     await db.close();
   });
   Future<void> open(WidgetTester tester, TargetPlatform platform) async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
     tester.view.physicalSize = platform == TargetPlatform.android
         ? const Size(390, 844)
         : const Size(1280, 900);
