@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/di/injection.dart';
-import '../../../core/routing/app_router.dart';
+import '../../../core/routing/somia_shell.dart';
 import '../../../core/widgets/movement_form_frame.dart';
 import '../../accounts/domain/money_minor.dart';
 import '../../investments/presentation/investment_forms.dart'
@@ -99,10 +98,7 @@ class _AssetsPageState extends State<AssetsPage> {
     return Scaffold(
         appBar: AppBar(
             title: const Text('Bens e patrimônio'),
-            leading: IconButton(
-                tooltip: 'Voltar a investimentos',
-                onPressed: () => context.go(AppRoutes.investmentsPath),
-                icon: const Icon(Icons.arrow_back)),
+            leading: somiaMenuLeading(context),
             actions: [
               IconButton(
                   tooltip: 'Atualizar patrimônio',
