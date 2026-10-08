@@ -46,6 +46,15 @@ Widget form(String kind) => kind == 'transfer'
 
 Future<void> select(WidgetTester tester, String key, String value) async {
   final finder = find.byKey(ValueKey(key));
+  if (finder.evaluate().isEmpty &&
+      find
+          .byKey(const ValueKey('transaction-more-options'))
+          .evaluate()
+          .isNotEmpty) {
+    await tester.ensureVisible(find.text('Mais opções'));
+    await tester.tap(find.text('Mais opções'));
+    await tester.pumpAndSettle();
+  }
   await tester.ensureVisible(finder);
   await tester.tap(finder);
   await tester.pumpAndSettle();

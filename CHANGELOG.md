@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- Despesa paga usa vencimento como efetivação por padrão; datas adicionais e opções avançadas ficam em Mais opções expansível.
+
 - Experiência #59: categorias lado a lado e indicador centralizado; seletores compactos; Configurações por seções; categorias recolhíveis com atalho de subcategoria; cor persistente, logo e resumo de limite/fatura na lista de cartões (schema 16).
 
 - Experiência (#59): ícones compartilhados no balão “+”, atalho em Cartões, lista/detalhe/extrato diário de cartões, lançamentos compactos com cores de categorias, atalhos do resumo e formulários em linhas simples. Entrega conjunta para validação; regras em `docs/experiencia-uso.md`.

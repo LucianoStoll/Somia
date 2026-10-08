@@ -1113,7 +1113,10 @@ class TransactionFormState extends State<TransactionForm> {
             ? _date
             : field == 'due'
                 ? _dueDate
-                : _effectiveDate ?? DateTime.now(),
+                : _effectiveDate ??
+                    (_type == TransactionType.expense
+                        ? _dueDate
+                        : DateTime.now()),
         firstDate: DateTime(2000),
         lastDate: DateTime(2100, 12, 31));
     if (picked != null && mounted) {
@@ -1190,8 +1193,12 @@ class TransactionFormState extends State<TransactionForm> {
       }
     }
     final isEffective = !_forcePending && _isEffective;
-    var effective = isEffective ? _effectiveDate ?? DateTime.now() : null;
+    var effective = isEffective
+        ? _effectiveDate ??
+            (_type == TransactionType.expense ? _dueDate : DateTime.now())
+        : null;
     if (isEffective &&
+        _type != TransactionType.expense &&
         widget.item?.effectiveDate == null &&
         !DateUtils.isSameDay(_dueDate, DateTime.now())) {
       effective = await chooseEffectuationDate(context, _dueDate);
@@ -1487,128 +1494,145 @@ class TransactionFormState extends State<TransactionForm> {
                           value: !_forcePending && _isEffective,
                           onChanged: _forcePending
                               ? null
-                              : (value) => setState(() => _isEffective = value),
-                        ),
-                      if (!_forcePending && _isEffective)
-                        CompactMovementDate(
-                            label: 'Data de efetivação',
-                            date: _effectiveDate ?? DateTime.now(),
-                            onTap: () => _pickDate('effective')),
-                      const Divider(),
-                      const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text('Mais opções')),
-                      if (widget.item == null || widget.item?.series != null)
-                        SeriesFormFields(
-                            key: ValueKey('series-card-${_cardId != null}'),
-                            controller: _series,
-                            amount: _amount,
-                            dueDate: _cardId == null
-                                ? _dueDate
-                                : _selectedCard?.dueFor(_invoiceMonth) ??
-                                    _dueDate,
-                            currencyCode: _availableAccounts
-                                    .where((a) => a.id == _accountId)
-                                    .firstOrNull
-                                    ?.currencyCode ??
-                                'BRL',
-                            cardMode: _cardId != null,
-                            existing: widget.item?.series),
-                      if (_cardId != null && widget.item == null)
-                        TextFormField(
-                            controller: _firstInstallment,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                                labelText: 'Primeira parcela a cadastrar',
-                                helperText: _series.active
-                                    ? 'Ex.: 4 para cadastrar apenas da 4ª em diante. A quantidade acima é a restante.'
-                                    : 'Use 1 para compra à vista. Para apenas a última parcela, informe seu número.'),
-                            validator: (v) {
-                              final n = int.tryParse(v ?? '');
-                              return n == null ||
-                                      n < 1 ||
-                                      n +
-                                              (_series.active
-                                                  ? int.tryParse(
-                                                          _series.count.text) ??
-                                                      0
-                                                  : 1) -
-                                              1 >
-                                          1000
-                                  ? 'Numeração entre 1 e 1000.'
-                                  : null;
-                            }),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Dividir entre categorias'),
-                        value: _rateioEnabled,
-                        onChanged: (v) => setState(() {
-                          _rateioEnabled = v;
-                          _categoryChosenManually = true;
-                          if (!v) _allocations = [];
-                        }),
-                      ),
-                      if (_rateioEnabled)
-                        AllocationEditor(
-                          key: ValueKey('allocation-$_type'),
-                          categories: widget.categories,
-                          type: _type.name,
-                          currencyCode: _cardId != null
-                              ? 'BRL'
-                              : _availableAccounts
-                                      .where((a) => a.id == _accountId)
-                                      .firstOrNull
-                                      ?.currencyCode ??
-                                  'BRL',
-                          total: MoneyMinor.parse(_amount.text),
-                          initial: _allocations,
-                          onChanged: (v) => _allocations = v,
-                        ),
-                      if (_cardId == null)
-                        CompactMovementDate(
-                            label: 'Lançamento',
-                            date: _date,
-                            onTap: () => _pickDate('posted')),
-                      if (widget.fixedType == null)
-                        ExpansionTile(
-                          title: const Text('Mais detalhes'),
-                          tilePadding: EdgeInsets.zero,
-                          children: [
-                            DropdownButtonFormField<TransactionType>(
-                              menuMaxHeight: 280,
-                              borderRadius: BorderRadius.circular(16),
-                              itemHeight: 48,
-                              isExpanded: true,
-                              initialValue: _type,
-                              decoration:
-                                  const InputDecoration(labelText: 'Tipo'),
-                              items: TransactionType.values
-                                  .map((type) => DropdownMenuItem(
-                                      value: type, child: Text(type.label)))
-                                  .toList(),
-                              onChanged: (type) {
-                                if (type != null) {
-                                  setState(() {
-                                    _type = type;
-                                    _rateioEnabled = false;
-                                    _allocations = [];
-                                    if (type == TransactionType.income) {
-                                      _cardId = null;
+                              : (value) => setState(() {
+                                    _isEffective = value;
+                                    if (value &&
+                                        _type == TransactionType.expense) {
+                                      _effectiveDate = null;
                                     }
-                                    _categoryId = null;
-                                    _subcategoryId = null;
-                                    _categoryChosenManually = false;
-                                    _categoryFromHistory = false;
-                                    _categoryHistory = {};
-                                    _historySuggestions = [];
-                                    _showSuggestions = true;
-                                  });
-                                  _historyLoading = _loadCategoryHistory();
-                                }
-                              },
-                            ),
-                          ],
+                                  }),
                         ),
+                      const Divider(),
+                      ExpansionTile(
+                        key: const ValueKey('transaction-more-options'),
+                        title: const Text('Mais opções'),
+                        tilePadding: EdgeInsets.zero,
+                        maintainState: true,
+                        initiallyExpanded:
+                            _rateioEnabled || widget.item?.series != null,
+                        children: [
+                          if (!_forcePending && _isEffective)
+                            CompactMovementDate(
+                                label: 'Data de efetivação',
+                                date: _effectiveDate ??
+                                    (_type == TransactionType.expense
+                                        ? _dueDate
+                                        : DateTime.now()),
+                                onTap: () => _pickDate('effective')),
+                          if (widget.item == null ||
+                              widget.item?.series != null)
+                            SeriesFormFields(
+                                key: ValueKey('series-card-${_cardId != null}'),
+                                controller: _series,
+                                amount: _amount,
+                                dueDate: _cardId == null
+                                    ? _dueDate
+                                    : _selectedCard?.dueFor(_invoiceMonth) ??
+                                        _dueDate,
+                                currencyCode: _availableAccounts
+                                        .where((a) => a.id == _accountId)
+                                        .firstOrNull
+                                        ?.currencyCode ??
+                                    'BRL',
+                                cardMode: _cardId != null,
+                                existing: widget.item?.series),
+                          if (_cardId != null && widget.item == null)
+                            TextFormField(
+                                controller: _firstInstallment,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                    labelText: 'Primeira parcela a cadastrar',
+                                    helperText: _series.active
+                                        ? 'Ex.: 4 para cadastrar apenas da 4ª em diante. A quantidade acima é a restante.'
+                                        : 'Use 1 para compra à vista. Para apenas a última parcela, informe seu número.'),
+                                validator: (v) {
+                                  final n = int.tryParse(v ?? '');
+                                  return n == null ||
+                                          n < 1 ||
+                                          n +
+                                                  (_series.active
+                                                      ? int.tryParse(_series
+                                                              .count.text) ??
+                                                          0
+                                                      : 1) -
+                                                  1 >
+                                              1000
+                                      ? 'Numeração entre 1 e 1000.'
+                                      : null;
+                                }),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Dividir entre categorias'),
+                            value: _rateioEnabled,
+                            onChanged: (v) => setState(() {
+                              _rateioEnabled = v;
+                              _categoryChosenManually = true;
+                              if (!v) _allocations = [];
+                            }),
+                          ),
+                          if (_rateioEnabled)
+                            AllocationEditor(
+                              key: ValueKey('allocation-$_type'),
+                              categories: widget.categories,
+                              type: _type.name,
+                              currencyCode: _cardId != null
+                                  ? 'BRL'
+                                  : _availableAccounts
+                                          .where((a) => a.id == _accountId)
+                                          .firstOrNull
+                                          ?.currencyCode ??
+                                      'BRL',
+                              total: MoneyMinor.parse(_amount.text),
+                              initial: _allocations,
+                              onChanged: (v) => _allocations = v,
+                            ),
+                          if (_cardId == null)
+                            CompactMovementDate(
+                                label: 'Lançamento',
+                                date: _date,
+                                onTap: () => _pickDate('posted')),
+                          if (widget.fixedType == null)
+                            ExpansionTile(
+                              title: const Text('Mais detalhes'),
+                              tilePadding: EdgeInsets.zero,
+                              children: [
+                                DropdownButtonFormField<TransactionType>(
+                                  menuMaxHeight: 280,
+                                  borderRadius: BorderRadius.circular(16),
+                                  itemHeight: 48,
+                                  isExpanded: true,
+                                  initialValue: _type,
+                                  decoration:
+                                      const InputDecoration(labelText: 'Tipo'),
+                                  items: TransactionType.values
+                                      .map((type) => DropdownMenuItem(
+                                          value: type, child: Text(type.label)))
+                                      .toList(),
+                                  onChanged: (type) {
+                                    if (type != null) {
+                                      setState(() {
+                                        _type = type;
+                                        _rateioEnabled = false;
+                                        _allocations = [];
+                                        if (type == TransactionType.income) {
+                                          _cardId = null;
+                                        }
+                                        _categoryId = null;
+                                        _subcategoryId = null;
+                                        _categoryChosenManually = false;
+                                        _categoryFromHistory = false;
+                                        _categoryHistory = {};
+                                        _historySuggestions = [];
+                                        _showSuggestions = true;
+                                      });
+                                      _historyLoading = _loadCategoryHistory();
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ]),
               ),
             ));

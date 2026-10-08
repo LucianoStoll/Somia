@@ -72,3 +72,12 @@ Migration aditiva 16 inclui color_argb no cartão, com validação de cor opaca.
 5. Editar cor e instituição do cartão; conferir lista e detalhe, limites/percentual e fatura do mês escolhido.
 6. Testar limite zero, ausente e excedido; pagamento a partir da lista e atalho Extrato.
 7. Conferir a cor após reiniciar, backup/restauração e sincronização com ambos os dispositivos atualizados.
+
+
+### Datas da despesa e Mais opções — 08/10/2026
+
+No formulário de despesa por conta, Vencimento é a data principal. Uma nova despesa paga usa essa data também como efetivação, inclusive para vencimentos anteriores ou futuros, sem perguntar novamente qual data contabilizar. Lançamento inicia com hoje. Ao ligar Pago, a efetivação volta a seguir o vencimento; uma data de efetivação escolhida manualmente em Mais opções substitui o padrão. Editar uma despesa já paga preserva suas datas existentes até alteração explícita.
+
+Mais opções expande/recolhe datas de lançamento e efetivação, recorrência/parcelamento, rateio e detalhes adicionais, preservando o preenchimento ao recolher. O vencimento e Pago permanecem na área principal. Compra no cartão mantém Data da compra e suas regras de fatura; séries permanecem pendentes. A regra de datas de receitas e a efetivação rápida nas listas permanecem como já definidas.
+
+Validar despesa paga com vencimento passado/futuro, lançamento hoje, data manual em Mais opções, pendente sem efetivação e recolher/expandir sem perder dados.
