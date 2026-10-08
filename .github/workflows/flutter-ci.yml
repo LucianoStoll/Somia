@@ -71,6 +71,8 @@ jobs:
         run: flutter test test/features/investments/investments_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render assets previews
         run: flutter test test/features/assets/assets_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render planning previews
+        run: flutter test test/features/planning/planning_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render reimbursement previews
         run: flutter test test/features/reimbursements/reimbursement_pages_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render debt previews
@@ -94,6 +96,7 @@ jobs:
             test/features/investments/*desktop-preview.png
             test/features/assets/*mobile-preview.png
             test/features/assets/*desktop-preview.png
+            test/features/planning/*-preview.png
             test/features/reimbursements/*mobile-preview.png
             test/features/reimbursements/*desktop-preview.png
             test/features/debts/*mobile-preview.png

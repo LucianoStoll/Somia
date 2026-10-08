@@ -279,7 +279,7 @@ void main() {
             .customSelect('SELECT payload FROM sync_uploads')
             .getSingle())
         .read<String>('payload'));
-    expect(packet['schema'], 17);
+    expect(packet['schema'], AppDatabase.currentSchemaVersion);
     expect(packet['id'], isNot('old-packet-reimbursement'));
     expect(packet['entries'][0]['data']['color_argb'], 4286421725);
   });

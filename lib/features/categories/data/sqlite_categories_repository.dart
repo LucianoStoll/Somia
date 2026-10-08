@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/entity_metadata.dart';
+import '../../../core/database/planning_integrity.dart';
 import '../domain/categories_repository.dart';
 import '../domain/category.dart';
 
@@ -42,34 +43,43 @@ class SqliteCategoriesRepository implements CategoriesRepository {
   }
 
   @override
-  Future<FinanceCategory> update(String id, CategoryDraft draft) async {
-    final original = await _find(id);
-    if (original.type != draft.type) {
-      final used = await _db.customSelect(
-        '''SELECT 1 FROM transactions t,json_each(t.allocations_json) p WHERE json_extract(p.value,'\$.categoryId')=?
-        UNION ALL SELECT 1 FROM card_entries e,json_each(e.allocations_json) p WHERE json_extract(p.value,'\$.categoryId')=? LIMIT 1''',
-        variables: [Variable.withString(id), Variable.withString(id)],
-      ).get();
-      if (used.isNotEmpty) {
-        throw StateError('Preserve o tipo da categoria usada em rateios.');
-      }
-    }
-    await _validate(draft, id: id);
-    await _db.customStatement('''
+  Future<FinanceCategory> update(String id, CategoryDraft draft) =>
+      _db.transaction(() async {
+        final original = await _find(id);
+        if (original.type != draft.type) {
+          final used = await _db.customSelect(
+            '''SELECT 1 FROM transactions t,json_each(t.allocations_json) p WHERE json_extract(p.value,'\$.categoryId')=?
+        UNION ALL SELECT 1 FROM card_entries e,json_each(e.allocations_json) p WHERE json_extract(p.value,'\$.categoryId')=?
+        UNION ALL SELECT 1 FROM budget_limits WHERE category_id=?
+        UNION ALL SELECT 1 FROM planning_goals g,json_each(g.essential_json) p WHERE p.value=? LIMIT 1''',
+            variables: [
+              Variable.withString(id),
+              Variable.withString(id),
+              Variable.withString(id),
+              Variable.withString(id)
+            ],
+          ).get();
+          if (used.isNotEmpty) {
+            throw StateError('Preserve o tipo da categoria usada em rateios.');
+          }
+        }
+        await _validate(draft, id: id);
+        await _db.customStatement('''
       UPDATE categories SET name = ?, type = ?, parent_id = ?, icon_key = ?,
         color_argb = ?, updated_at = ?, sync_version = sync_version + 1
       WHERE id = ? AND deleted_at IS NULL
     ''', [
-      draft.name.trim(),
-      draft.type.name,
-      draft.parentId,
-      draft.iconKey,
-      draft.colorArgb,
-      EntityMetadata.nowUtcMillis(),
-      id
-    ]);
-    return _find(id);
-  }
+          draft.name.trim(),
+          draft.type.name,
+          draft.parentId,
+          draft.iconKey,
+          draft.colorArgb,
+          EntityMetadata.nowUtcMillis(),
+          id
+        ]);
+        await validatePlanning(_db);
+        return _find(id);
+      });
 
   @override
   Future<FinanceCategory> setArchived(String id,

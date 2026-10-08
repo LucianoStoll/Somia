@@ -1,6 +1,7 @@
 import 'app_database.dart';
 import 'debt_integrity.dart';
 import 'reimbursement_integrity.dart';
+import 'planning_integrity.dart';
 import '../allocations/category_allocation.dart';
 
 const financialTables = [
@@ -22,6 +23,9 @@ const financialTables = [
   'people',
   'reimbursements',
   'reimbursement_receipts',
+  'budget_limits',
+  'planning_goals',
+  'goal_accounts',
 ];
 typedef FinancialRows = Map<String, Map<String, Map<String, Object?>>>;
 
@@ -80,6 +84,7 @@ Future<void> replaceFinancial(AppDatabase db, FinancialRows rows) async {
 Future<void> validateFinancial(AppDatabase db) async {
   await validateDebtFinancial(db);
   await validateReimbursements(db);
+  await validatePlanning(db);
   final now = DateTime.now();
   final today =
       DateTime.utc(now.year, now.month, now.day).millisecondsSinceEpoch;

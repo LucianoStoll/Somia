@@ -289,6 +289,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 child:
                     Text('Backup restaurado. Os dados já estão atualizados.')),
           _heading('Finanças'),
+          _option('Planejamento', Icons.flag_outlined,
+              () => context.go(AppRoutes.planningPath)),
           _option('Pessoas e reembolsos', Icons.people_outline,
               () => context.go(AppRoutes.reimbursementsPath)),
           _option('Contas', Icons.account_balance_outlined,

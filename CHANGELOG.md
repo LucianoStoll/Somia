@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- Planejamento (#13): orçamento mensal previsto/realizado, metas por contas, reserva por gastos essenciais, renda/poupança e alertas internos; schema 18 com backup/sync.
+
 - Pessoas e reembolsos em Mais opções da despesa: recebimentos parciais como receitas vinculadas, histórico e schema 17 com backup/sync.
 
 - Despesa paga usa vencimento como efetivação por padrão; datas adicionais e opções avançadas ficam em Mais opções expansível.
