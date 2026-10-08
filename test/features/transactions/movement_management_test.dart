@@ -228,7 +228,7 @@ void main() {
   test('compra mantém fatura na edição em lote e pode ser restaurada',
       () async {
     final cards = CardsRepository(db);
-    final card = await cards.create(CardDraft(
+    final card = await cards.save(CardDraft(
         name: 'Cartão',
         paymentAccountId: accountId,
         limitMinor: 100000,
@@ -240,8 +240,8 @@ void main() {
         amountMinor: 1000,
         date: DateTime(2026, 10, 8),
         isEffective: false,
-        accountId: card.id,
-        cardId: card.id,
+        accountId: card,
+        cardId: card,
         cardInvoiceMonth: DateTime(2026, 12),
         tags: ['Viagem']));
     final before = await cards.entry(id);

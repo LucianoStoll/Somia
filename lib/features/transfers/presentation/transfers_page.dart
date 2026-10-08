@@ -495,8 +495,9 @@ class _TransfersViewState extends State<_TransfersView> {
                     : row;
               },
             );
-            if (!getIt.isRegistered<MovementManagementRepository>())
+            if (!getIt.isRegistered<MovementManagementRepository>()) {
               return list;
+            }
             return Column(children: [
               BulkMovementToolbar(
                   selection: _bulkSelection,

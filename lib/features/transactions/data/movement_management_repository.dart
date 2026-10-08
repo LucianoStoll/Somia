@@ -56,8 +56,9 @@ class MovementManagementRepository {
   Future<void> apply(
           List<MovementReference> selection, BulkMovementPatch patch) =>
       db.transaction(() async {
-        if (selection.isEmpty || patch.isEmpty)
+        if (selection.isEmpty || patch.isEmpty) {
           throw StateError('Selecione lançamentos e pelo menos um campo.');
+        }
         final refs = {for (final ref in selection) ref.key: ref}.values;
         // Validate every revision before mutating any row.
         for (final ref in refs) {
@@ -94,9 +95,10 @@ class MovementManagementRepository {
                         ? patch.effectiveDate ?? DateTime.now()
                         : item.effectiveDate));
           } else {
-            if (patch.destinationAccountId != null)
+            if (patch.destinationAccountId != null) {
               throw StateError(
                   'Conta de destino é exclusiva de transferências.');
+            }
             final item = ref.kind == MovementKind.cardEntry
                 ? await CardsRepository(db).findMovement(ref.id)
                 : (await transactions.list())
@@ -256,11 +258,27 @@ class MovementManagementRepository {
                 final live = await db.customSelect(
                     'SELECT id FROM ${link.key} WHERE id=? AND deleted_at IS NULL',
                     variables: [Variable.withString(id)]).get();
-                if (live.isEmpty)
+                if (live.isEmpty) {
                   throw StateError(
                       'Restaure a conta ou o cartão vinculado antes deste lançamento.');
+                }
               }
             }
+          }
+          if (ref.kind == MovementKind.cardEntry) {
+            final row = await _check(ref, 'trashed');
+            await db.customStatement(
+                'INSERT INTO card_entry_history(id,entry_id,action,previous_invoice_id,invoice_id,previous_amount_minor,amount_minor,changed_at) VALUES(?,?,?,?,?,?,?,?)',
+                [
+                  EntityMetadata.newId(),
+                  ref.id,
+                  restore ? 'restore' : 'purge',
+                  row.read<String>('invoice_id'),
+                  row.read<String>('invoice_id'),
+                  row.read<int>('amount_minor'),
+                  restore ? row.read<int>('amount_minor') : 0,
+                  now
+                ]);
           }
           await db.customStatement(
               'UPDATE ${ref.table} SET trash_state=?,deleted_at=${restore ? 'NULL' : 'deleted_at'},updated_at=?,sync_version=sync_version+1 WHERE id=?',
@@ -275,7 +293,8 @@ class MovementManagementRepository {
       WHERE kind='refund' AND deleted_at IS NULL GROUP BY source_id
       HAVING SUM(-amount_minor) > COALESCE((SELECT SUM(p.amount_minor) FROM card_entries p
         WHERE p.purchase_id=card_entries.source_id AND p.kind='purchase' AND p.deleted_at IS NULL),0) LIMIT 1''').get();
-    if (invalid.isNotEmpty)
+    if (invalid.isNotEmpty) {
       throw StateError('O estorno excederia o valor das compras ativas.');
+    }
   }
 }

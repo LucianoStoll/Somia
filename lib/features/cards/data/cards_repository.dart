@@ -779,6 +779,8 @@ class CardsRepository {
       final action = switch (r.read<String>('action')) {
         'anticipate' => 'Antecipação',
         'delete' => 'Exclusão',
+        'restore' => 'Restauração',
+        'purge' => 'Exclusão definitiva',
         _ => 'Edição',
       };
       return '${date.day}/${date.month}/${date.year}: $action para ${month.month}/${month.year}';

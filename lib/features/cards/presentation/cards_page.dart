@@ -600,7 +600,9 @@ class _CardsPageState extends State<CardsPage> {
   Widget _entryTile(CardEntry e) {
     final row = _entryContent(e);
     if (e.kind != 'purchase' ||
-        !getIt.isRegistered<MovementManagementRepository>()) return row;
+        !getIt.isRegistered<MovementManagementRepository>()) {
+      return row;
+    }
     return SelectableMovementRow(
         ref: MovementReference(MovementKind.cardEntry, e.id, e.revision),
         selection: _bulkSelection,

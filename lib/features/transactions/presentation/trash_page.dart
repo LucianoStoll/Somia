@@ -25,19 +25,21 @@ class _TrashPageState extends State<TrashPage> {
   Future<void> _load() async {
     try {
       final items = await getIt<MovementManagementRepository>().listTrash();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _items = items;
           _selected.clear();
           _loading = false;
           _error = null;
         });
+      }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = '$error';
           _loading = false;
         });
+      }
     }
   }
 
@@ -75,9 +77,10 @@ class _TrashPageState extends State<TrashPage> {
       }
       await _load();
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('$error')));
+      }
     } finally {
       if (mounted) setState(() => _acting = false);
     }

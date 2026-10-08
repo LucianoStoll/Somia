@@ -247,8 +247,9 @@ class SyncStore {
           final previousPurge =
               managed && previous?.data?['trash_state'] == 'purged';
           if (previousPurge && !incomingPurge) {
-            if (previous != null && !entry.sameData(previous))
+            if (previous != null && !entry.sameData(previous)) {
               await _history(entry, 'conflict');
+            }
             continue;
           }
           if (previous != null) {

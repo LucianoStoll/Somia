@@ -50,13 +50,15 @@ class BulkMovementToolbar extends StatelessWidget {
       await action();
       onSelection({});
       await onCompleted();
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Operação concluída.')));
+      }
     } catch (error) {
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('$error')));
+      }
     }
   }
 
@@ -77,9 +79,10 @@ class BulkMovementToolbar extends StatelessWidget {
                       onPressed: () => Navigator.pop(context, true),
                       child: const Text('Mover para lixeira'))
                 ]));
-    if (confirmed == true && context.mounted)
+    if (confirmed == true && context.mounted) {
       await _run(
           context, () => getIt<MovementManagementRepository>().trash(refs));
+    }
   }
 
   Future<void> _edit(BuildContext context) async {
@@ -88,9 +91,10 @@ class BulkMovementToolbar extends StatelessWidget {
         context: context,
         builder: (_) => BulkMovementDialog(
             count: refs.length, transfer: transfer, card: card));
-    if (patch != null && context.mounted)
+    if (patch != null && context.mounted) {
       await _run(context,
           () => getIt<MovementManagementRepository>().apply(refs, patch));
+    }
   }
 }
 
@@ -158,27 +162,36 @@ class _BulkMovementDialogState extends State<BulkMovementDialog> {
       final repo = getIt<MovementManagementRepository>();
       final accounts = await repo.accountOptions();
       final categories = await repo.categoryOptions();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _accounts = accounts;
           _categories = categories;
         });
+      }
     } catch (error) {
       if (mounted) setState(() => _error = '$error');
     }
   }
 
   Widget _options(String label, List<({String id, String label})> values,
-          ValueChanged<String?> change) =>
+          ValueChanged<String?> change,
+          {String? selected}) =>
       DropdownButtonFormField<String>(
+          key: ValueKey('$label/$selected'),
+          initialValue: selected,
           isExpanded: true,
           decoration: InputDecoration(labelText: label),
-          items: values
-              .map((item) => DropdownMenuItem(
-                  value: item.id,
-                  child: Text(item.label, overflow: TextOverflow.ellipsis)))
-              .toList(),
-          onChanged: change);
+          items: [
+            DropdownMenuItem(
+                value: '',
+                child: Text(label.startsWith('Categoria')
+                    ? 'Sem categoria'
+                    : 'Manter conta atual')),
+            ...values.map((item) => DropdownMenuItem(
+                value: item.id,
+                child: Text(item.label, overflow: TextOverflow.ellipsis))),
+          ],
+          onChanged: (value) => change(value == '' ? null : value));
   DateTime? _posted, _due, _effectiveDate;
   bool? _effective;
   @override
@@ -235,17 +248,21 @@ class _BulkMovementDialogState extends State<BulkMovementDialog> {
       int? amount;
       if (_enabled.contains('amount')) {
         final raw = _amount.text.trim().replaceAll(',', '.');
-        if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(raw))
+        if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(raw)) {
           throw const FormatException(
               'Informe um valor positivo com até duas casas decimais.');
+        }
         final parts = raw.split('.');
         amount = int.parse(parts[0]) * 100 +
             (parts.length == 2 ? int.parse(parts[1].padRight(2, '0')) : 0);
-        if (amount <= 0 || amount > 9000000000000000)
+        if (amount <= 0 || amount > 9000000000000000) {
           throw const FormatException('Valor inválido.');
+        }
       }
-      if (_enabled.contains('description') && _description.text.trim().isEmpty)
+      if (_enabled.contains('description') &&
+          _description.text.trim().isEmpty) {
         throw const FormatException('Informe uma descrição.');
+      }
       final patch = BulkMovementPatch(
         description:
             _enabled.contains('description') ? _description.text.trim() : null,
@@ -263,8 +280,9 @@ class _BulkMovementDialogState extends State<BulkMovementDialog> {
         effective: _effective,
         effectiveDate: _effectiveDate,
       );
-      if (patch.isEmpty)
+      if (patch.isEmpty) {
         throw const FormatException('Escolha pelo menos um campo.');
+      }
       Navigator.pop(context, patch);
     } catch (error) {
       setState(() => _error = '$error');
@@ -283,19 +301,26 @@ class _BulkMovementDialogState extends State<BulkMovementDialog> {
                       children: [
                     const Text(
                         'Marque apenas os campos que deseja alterar. Os demais serão preservados. A alteração vale somente para as ocorrências selecionadas.'),
+                    if (widget.card)
+                      const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                              'A alteração também afeta faturas já pagas. Confira os valores antes de aplicar.')),
                     if (!widget.card) ...[
                       _options(
                           widget.transfer
                               ? 'Alterar conta de origem'
                               : 'Alterar conta',
                           _accounts,
-                          (value) => setState(() => _accountId = value)),
+                          (value) => setState(() => _accountId = value),
+                          selected: _accountId),
                       if (widget.transfer)
                         _options(
                             'Alterar conta de destino',
                             _accounts,
                             (value) =>
-                                setState(() => _destinationAccountId = value)),
+                                setState(() => _destinationAccountId = value),
+                            selected: _destinationAccountId),
                     ],
                     if (!widget.transfer) ...[
                       CheckboxListTile(
@@ -306,7 +331,8 @@ class _BulkMovementDialogState extends State<BulkMovementDialog> {
                               setState(() => _changeCategory = value ?? false)),
                       if (_changeCategory) ...[
                         _options('Categoria (vazio para remover)', _categories,
-                            (value) => setState(() => _categoryId = value)),
+                            (value) => setState(() => _categoryId = value),
+                            selected: _categoryId),
                         TextButton(
                             onPressed: () => setState(() => _categoryId = null),
                             child: const Text('Remover categoria')),
@@ -329,10 +355,13 @@ class _BulkMovementDialogState extends State<BulkMovementDialog> {
                           (date) => _posted = date),
                       _date('vencimento', _due, (date) => _due = date),
                       DropdownButtonFormField<bool>(
+                          key: ValueKey(_effective),
                           decoration:
                               const InputDecoration(labelText: 'Efetivação'),
                           initialValue: _effective,
                           items: const [
+                            DropdownMenuItem(
+                                child: Text('Manter efetivação atual')),
                             DropdownMenuItem(
                                 value: true, child: Text('Efetivar')),
                             DropdownMenuItem(
@@ -345,6 +374,16 @@ class _BulkMovementDialogState extends State<BulkMovementDialog> {
                         _date('data de efetivação', _effectiveDate,
                             (date) => _effectiveDate = date),
                     ],
+                    if (_posted != null || _due != null || _effective != null)
+                      TextButton(
+                          onPressed: () => setState(() {
+                                _posted = null;
+                                _due = null;
+                                _effective = null;
+                                _effectiveDate = null;
+                              }),
+                          child:
+                              const Text('Manter datas e efetivação atuais')),
                     if (_error != null)
                       Text(_error!,
                           style: TextStyle(
