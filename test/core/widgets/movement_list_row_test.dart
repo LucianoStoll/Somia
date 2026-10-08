@@ -72,6 +72,19 @@ Future<void> open(
 }
 
 void main() {
+  testWidgets('categorias longas ficam lado a lado e status centralizado',
+      (tester) async {
+    await open(tester, row(), const Size(320, 844), 2);
+    final first = tester.getRect(find.text('Investimentos e patrimônio'));
+    final second = tester.getRect(find.text('Financiamento'));
+    expect(first.top, closeTo(second.top, 1));
+    expect(first.right, lessThan(second.left));
+    final status =
+        tester.getRect(find.byKey(const ValueKey('movement-status-a')));
+    final body = tester.getRect(find.byType(Row).first);
+    expect(status.center.dy, closeTo(body.center.dy, 1));
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('status, descrição, valor e menu têm toques independentes',
       (tester) async {
     var edits = 0, statuses = 0, values = 0;

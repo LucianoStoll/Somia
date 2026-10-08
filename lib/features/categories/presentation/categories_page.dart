@@ -47,17 +47,24 @@ class _CategoriesView extends StatefulWidget {
 
 class _CategoriesViewState extends State<_CategoriesView> {
   CategoryType _filter = CategoryType.expense;
+  final Set<String> _collapsed = {};
 
-  Future<void> _edit([FinanceCategory? category]) async {
+  Future<void> _edit(
+      [FinanceCategory? category, FinanceCategory? parent]) async {
     final categories = context.read<CategoriesCubit>().state.categories;
     final draft = await showMovementForm<CategoryDraft>(
       context,
       (_) => CategoryForm(
-          category: category, categories: categories, defaultType: _filter),
+          category: category,
+          categories: categories,
+          defaultType: parent?.type ?? _filter,
+          parent: parent),
     );
     if (draft == null || !mounted) return;
     try {
       await context.read<CategoriesCubit>().save(draft, id: category?.id);
+      if (parent != null && mounted)
+        setState(() => _collapsed.remove(parent.id));
     } catch (error) {
       if (mounted) _showError(error);
     }
@@ -135,12 +142,13 @@ class _CategoriesViewState extends State<_CategoriesView> {
                           children: [
                             for (final root in roots) ...[
                               _categoryTile(root),
-                              for (final child in state.categories.where(
-                                  (category) => category.parentId == root.id))
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 28),
-                                  child: _categoryTile(child),
-                                ),
+                              if (!_collapsed.contains(root.id))
+                                for (final child in state.categories.where(
+                                    (category) => category.parentId == root.id))
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 28),
+                                    child: _categoryTile(child),
+                                  ),
                             ],
                           ],
                         ),
@@ -164,17 +172,39 @@ class _CategoriesViewState extends State<_CategoriesView> {
                   ? 'Subcategoria'
                   : 'Categoria principal'),
           onTap: () => _edit(category),
-          trailing: PopupMenuButton<String>(
-            tooltip: 'Ações da categoria',
-            onSelected: (action) =>
-                action == 'edit' ? _edit(category) : _archive(category),
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 'edit', child: Text('Editar')),
-              PopupMenuItem(
-                  value: 'archive',
-                  child: Text(category.isArchived ? 'Reativar' : 'Arquivar')),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (!category.isSubcategory) ...[
+              IconButton(
+                  key: ValueKey('category-expand-${category.id}'),
+                  tooltip: _collapsed.contains(category.id)
+                      ? 'Mostrar subcategorias'
+                      : 'Ocultar subcategorias',
+                  onPressed: () => setState(() {
+                        if (!_collapsed.add(category.id))
+                          _collapsed.remove(category.id);
+                      }),
+                  icon: Icon(_collapsed.contains(category.id)
+                      ? Icons.expand_more
+                      : Icons.expand_less)),
+              if (!category.isArchived)
+                IconButton(
+                    key: ValueKey('category-add-${category.id}'),
+                    tooltip: 'Adicionar subcategoria',
+                    onPressed: () => _edit(null, category),
+                    icon: const Icon(Icons.add)),
             ],
-          ),
+            PopupMenuButton<String>(
+              tooltip: 'Ações da categoria',
+              onSelected: (action) =>
+                  action == 'edit' ? _edit(category) : _archive(category),
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'edit', child: Text('Editar')),
+                PopupMenuItem(
+                    value: 'archive',
+                    child: Text(category.isArchived ? 'Reativar' : 'Arquivar')),
+              ],
+            ),
+          ]),
         ),
       );
 }
@@ -184,8 +214,10 @@ class CategoryForm extends StatefulWidget {
       {super.key,
       required this.categories,
       required this.defaultType,
-      this.category});
+      this.category,
+      this.parent});
   final FinanceCategory? category;
+  final FinanceCategory? parent;
   final List<FinanceCategory> categories;
   final CategoryType defaultType;
 
@@ -205,8 +237,8 @@ class CategoryFormState extends State<CategoryForm> {
   void initState() {
     super.initState();
     _name = TextEditingController(text: widget.category?.name ?? '');
-    _type = widget.category?.type ?? widget.defaultType;
-    _parentId = widget.category?.parentId;
+    _type = widget.category?.type ?? widget.parent?.type ?? widget.defaultType;
+    _parentId = widget.category?.parentId ?? widget.parent?.id;
     _iconKey = widget.category?.iconKey ?? 'other';
     _colorArgb = widget.category?.colorArgb ?? 0xff1976d2;
   }
@@ -246,7 +278,9 @@ class CategoryFormState extends State<CategoryForm> {
               onSave: _submit,
               saveLabel: 'Salvar categoria',
               title: widget.category == null
-                  ? 'Nova categoria'
+                  ? (widget.parent == null
+                      ? 'Nova categoria'
+                      : 'Nova subcategoria')
                   : widget.category!.isSubcategory
                       ? 'Editar subcategoria'
                       : 'Editar categoria',
@@ -269,6 +303,9 @@ class CategoryFormState extends State<CategoryForm> {
                                 : null,
                       ),
                       DropdownButtonFormField<CategoryType>(
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        itemHeight: 48,
                         isExpanded: true,
                         initialValue: _type,
                         decoration: const InputDecoration(labelText: 'Tipo'),
@@ -288,6 +325,9 @@ class CategoryFormState extends State<CategoryForm> {
                         },
                       ),
                       DropdownButtonFormField<String>(
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        itemHeight: 48,
                         isExpanded: true,
                         key: ValueKey(_type),
                         initialValue: _parentId,
@@ -308,6 +348,9 @@ class CategoryFormState extends State<CategoryForm> {
                             _parentId = id == null || id.isEmpty ? null : id),
                       ),
                       DropdownButtonFormField<String>(
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        itemHeight: 48,
                         isExpanded: true,
                         initialValue: _iconKey,
                         decoration: const InputDecoration(labelText: 'Ícone'),
@@ -328,6 +371,9 @@ class CategoryFormState extends State<CategoryForm> {
                         },
                       ),
                       DropdownButtonFormField<int>(
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        itemHeight: 48,
                         isExpanded: true,
                         initialValue: _colorArgb,
                         decoration: const InputDecoration(labelText: 'Cor'),

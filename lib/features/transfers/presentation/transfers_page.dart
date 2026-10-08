@@ -683,6 +683,9 @@ class TransferFormState extends State<TransferForm> {
                               ?.currencyCode ??
                           'BRL'),
                   DropdownButtonFormField<String>(
+                    menuMaxHeight: 280,
+                    borderRadius: BorderRadius.circular(16),
+                    itemHeight: 48,
                     key: ValueKey('source-$_sourceId'),
                     isExpanded: true,
                     initialValue: _sourceId,
@@ -704,6 +707,9 @@ class TransferFormState extends State<TransferForm> {
                     }),
                   ),
                   DropdownButtonFormField<String>(
+                    menuMaxHeight: 280,
+                    borderRadius: BorderRadius.circular(16),
+                    itemHeight: 48,
                     key: ValueKey('destination-$_sourceId'),
                     isExpanded: true,
                     initialValue: _destinationId,

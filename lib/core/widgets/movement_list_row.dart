@@ -122,23 +122,31 @@ class MovementListRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis)),
       ],
     ]);
+    Widget badge(MovementTag tag) => Tooltip(
+        message: tag.label,
+        child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+                color: tag.color.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(5)),
+            child: Text(tag.label,
+                style: TextStyle(fontSize: 11, color: tag.color),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis)));
     final labels = <Widget>[
-      if (tags.isNotEmpty || categoryTags.isNotEmpty) ...[
+      if (categoryTags.isNotEmpty) ...[
+        const SizedBox(height: 5),
+        Row(children: [
+          for (var index = 0; index < categoryTags.length; index++) ...[
+            if (index > 0) const SizedBox(width: 5),
+            Flexible(child: badge(categoryTags[index])),
+          ],
+        ]),
+      ],
+      if (tags.isNotEmpty) ...[
         const SizedBox(height: 5),
         Wrap(spacing: 5, runSpacing: 4, children: [
-          for (final tag in [
-            ...categoryTags,
-            ...tags.map((label) => MovementTag(label, SomiaColors.muted))
-          ])
-            Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                    color: tag.color.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(5)),
-                child: Text(tag.label,
-                    style: TextStyle(fontSize: 11, color: tag.color),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis))
+          for (final tag in tags) badge(MovementTag(tag, SomiaColors.muted)),
         ]),
       ],
     ];
@@ -173,7 +181,7 @@ class MovementListRow extends StatelessWidget {
           Padding(
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
               child:
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                 statusButton,
                 const SizedBox(width: 8),
                 Expanded(child: LayoutBuilder(builder: (context, constraints) {

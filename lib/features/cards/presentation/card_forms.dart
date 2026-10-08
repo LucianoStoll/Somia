@@ -51,6 +51,7 @@ class _CardFormState extends State<CardForm> {
   final _opening = TextEditingController(text: '0,00');
   late DateTime _month;
   String? _account, _bank;
+  int? _colorArgb;
   late bool _controlLimit;
   bool _saving = false;
   List<Account> get _accounts => widget.accounts
@@ -68,6 +69,7 @@ class _CardFormState extends State<CardForm> {
     _due = TextEditingController(text: '${c?.dueDay ?? 5}');
     _account = c?.paymentAccountId ?? _accounts.firstOrNull?.id;
     _bank = c?.institutionId;
+    _colorArgb = c?.colorArgb;
     _controlLimit = c == null || c.limitMinor != null;
     _month = widget.month;
   }
@@ -96,7 +98,8 @@ class _CardFormState extends State<CardForm> {
               closingDay: int.parse(_closing.text),
               dueDay: int.parse(_due.text),
               limitMinor: _controlLimit ? MoneyMinor.parse(_limit.text) : null,
-              institutionId: _bank),
+              institutionId: _bank,
+              colorArgb: _colorArgb),
           widget.card == null ? MoneyMinor.parse(_opening.text) : 0,
           _month);
       if (mounted) Navigator.pop(context, true);
@@ -117,6 +120,7 @@ class _CardFormState extends State<CardForm> {
             _opening.text,
             _account,
             _bank,
+            _colorArgb,
             _controlLimit,
             _month
           ),
@@ -142,7 +146,8 @@ class _CardFormState extends State<CardForm> {
                             : null),
                     ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: AccountAvatar(institutionId: _bank),
+                        leading: AccountAvatar(
+                            institutionId: _bank, colorArgb: _colorArgb),
                         title: const Text('Instituição'),
                         subtitle: Text(BankInstitution.find(_bank)?.name ??
                             'Sem instituição'),
@@ -155,7 +160,39 @@ class _CardFormState extends State<CardForm> {
                                 _bank = selected.isEmpty ? null : selected);
                           }
                         }),
+                    DropdownButtonFormField<int>(
+                        initialValue: _colorArgb ?? -1,
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        isExpanded: true,
+                        decoration:
+                            const InputDecoration(labelText: 'Cor do cartão'),
+                        items: [
+                          const DropdownMenuItem<int>(
+                              value: -1, child: Text('Padrão Somia')),
+                          for (final entry in const <int, String>{
+                            0xff6f9dd5: 'Azul',
+                            0xff69b89a: 'Verde',
+                            0xffb59add: 'Roxo',
+                            0xffd59c76: 'Laranja',
+                            0xffcf8390: 'Rosa',
+                            0xff8c9baa: 'Cinza',
+                          }.entries)
+                            DropdownMenuItem(
+                                value: entry.key,
+                                child: Row(children: [
+                                  Icon(Icons.circle,
+                                      color: Color(entry.key), size: 20),
+                                  const SizedBox(width: 10),
+                                  Text(entry.value),
+                                ])),
+                        ],
+                        onChanged: (value) => setState(
+                            () => _colorArgb = value == -1 ? null : value)),
                     DropdownButtonFormField<String>(
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        itemHeight: 48,
                         initialValue: _account,
                         isExpanded: true,
                         decoration: const InputDecoration(
@@ -302,6 +339,9 @@ class _CardPaymentFormState extends State<CardPaymentForm> {
                     Text(
                         'Saldo da fatura: ${cardMoney(widget.invoice.balanceMinor)}'),
                     DropdownButtonFormField<String>(
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        itemHeight: 48,
                         initialValue: _account,
                         isExpanded: true,
                         decoration: const InputDecoration(

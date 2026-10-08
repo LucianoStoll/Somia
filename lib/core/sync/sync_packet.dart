@@ -97,8 +97,14 @@ class SyncPacket {
         'kind': kind,
         'entries': entries.map((e) {
           final value = e.toJson();
-          if (sourceSchema == 11 && e.data != null) {
+          if (sourceSchema < 16 &&
+              e.table == 'credit_cards' &&
+              e.data != null) {
             value['data'] = Map<String, Object?>.of(e.data!)
+              ..remove('color_argb');
+          }
+          if (sourceSchema == 11 && e.data != null) {
+            value['data'] = Map<String, Object?>.from(value['data'] as Map)
               ..remove('allocations_json');
           }
           return value;
@@ -117,7 +123,8 @@ class SyncPacket {
             v['schema'] != 11 &&
             v['schema'] != 12 &&
             v['schema'] != 13 &&
-            v['schema'] != 14) ||
+            v['schema'] != 14 &&
+            v['schema'] != 15) ||
         !['genesis', 'changes'].contains(v['kind']) ||
         [
           'id',
@@ -155,6 +162,17 @@ class SyncPacket {
             throw const FormatException('Registro v11 incompatível.');
           }
           (e['data'] as Map)['allocations_json'] = '[]';
+        }
+      }
+    }
+    if (v['schema'] < 16) {
+      for (final e in v['entries'] as List) {
+        if (e is Map && e['table'] == 'credit_cards' && e['data'] is Map) {
+          if ((e['data'] as Map).containsKey('color_argb')) {
+            throw const FormatException(
+                'Cor em pacote histórico incompatível.');
+          }
+          (e['data'] as Map)['color_argb'] = null;
         }
       }
     }

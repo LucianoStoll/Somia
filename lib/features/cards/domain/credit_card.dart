@@ -17,12 +17,14 @@ class CreditCard {
       required this.closingDay,
       required this.dueDay,
       this.institutionId,
+      this.colorArgb,
       this.limitMinor,
       this.isArchived = false,
       this.committedMinor = 0,
       this.creditMinor = 0});
   final String id, name, paymentAccountId;
   final String? institutionId;
+  final int? colorArgb;
   final int closingDay, dueDay;
   final int? limitMinor;
   final bool isArchived;
@@ -51,11 +53,13 @@ class CardDraft {
       required this.closingDay,
       required this.dueDay,
       this.limitMinor,
-      this.institutionId});
+      this.institutionId,
+      this.colorArgb});
   final String name, paymentAccountId;
   final int closingDay, dueDay;
   final int? limitMinor;
   final String? institutionId;
+  final int? colorArgb;
 }
 
 class CardEntry {

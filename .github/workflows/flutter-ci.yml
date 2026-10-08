@@ -47,6 +47,8 @@ jobs:
         run: flutter test test/core/routing/movement_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render account and category form previews
         run: flutter test test/core/routing/reference_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render experience pages preview
+        run: flutter test test/core/routing/experience_pages_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render bank catalog preview
         run: flutter test test/core/routing/bank_selector_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render series form preview

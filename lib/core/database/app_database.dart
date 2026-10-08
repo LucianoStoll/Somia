@@ -24,6 +24,7 @@ import 'schema_v12.dart';
 import 'schema_v13.dart';
 import 'schema_v14.dart';
 import 'schema_v15.dart';
+import 'schema_v16.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -129,7 +130,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 15;
+  static const currentSchemaVersion = 16;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -156,6 +157,7 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV13,
             ...schemaV14,
             ...schemaV15,
+            ...schemaV16,
           ]) {
             await customStatement(statement);
           }
@@ -178,13 +180,14 @@ class AppDatabase extends GeneratedDatabase {
               13 => schemaV13,
               14 => schemaV14,
               15 => schemaV15,
+              16 => schemaV16,
               _ => throw StateError('Migration v$version não implementada'),
             };
             for (final statement in statements) {
               await customStatement(statement);
             }
           }
-          if (from < 15) {
+          if (from < 16) {
             // Requeue unsent v11–v13 packets with new identities: an earlier upload
             // may already exist remotely with the original content hash.
             final uploads =
@@ -192,9 +195,12 @@ class AppDatabase extends GeneratedDatabase {
             for (final row in uploads) {
               final packet = jsonDecode(row.read<String>('payload'))
                   as Map<String, dynamic>;
-              packet['schema'] = 15;
+              packet['schema'] = 16;
               packet['id'] = const Uuid().v4();
               for (final entry in packet['entries'] as List) {
+                if (entry['table'] == 'credit_cards' && entry['data'] != null) {
+                  entry['data']['color_argb'] = null;
+                }
                 if (from < 12 &&
                     ['transactions', 'card_entries'].contains(entry['table']) &&
                     entry['data'] != null) {

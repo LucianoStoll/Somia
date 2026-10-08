@@ -1,6 +1,6 @@
 # Experiência de uso — v0.3.0-alpha (#59)
 
-Entrega conjunta dos seis ajustes solicitados em 07/10/2026. Mantém tema escuro, regras financeiras, schema 15 e identidade de instalação. A aprovação manual desta entrega não encerra automaticamente toda a revisão de experiência da alpha.
+Entrega conjunta dos seis ajustes solicitados em 07/10/2026. Mantém tema escuro, regras financeiras e identidade de instalação. A primeira entrega usou schema 15; a cor persistente do cartão na segunda entrega usa schema 16. A aprovação manual desta entrega não encerra automaticamente toda a revisão de experiência da alpha.
 
 ## Navegação e ícones
 
@@ -47,3 +47,28 @@ Mantém descrição com foco inicial Android, Enter para calculadora, validaçã
 - CategoryVisuals: apresentação compartilhada da cor de cadastro.
 - MovementFormFrame/CompactMovementDate e formulários: linhas compactas e hierarquia.
 - Testes de navegação, cartão, lista e formulário; prévias Android/Windows na CI.
+
+
+## Segunda entrega — ajustes 7 a 11
+
+Categoria e subcategoria ficam na mesma linha nas listas, com reticências e dica contendo o nome completo. O indicador de efetivar fica centralizado na altura da linha inteira. Etiquetas de parcelas/rateio permanecem separadas.
+
+Seletores dos lançamentos têm altura máxima de 280 pixels lógicos e rolagem interna. Os menus continuam próximos ao campo e mantêm validação, opções elegíveis, ícones e cores. A seleção de instituição continua no catálogo pesquisável.
+
+Configurações usa seções Finanças, Dados e utilidades, Ajuda e aplicativo. Backup/restauração, Drive e sincronização abrem páginas próprias; voltar retorna ao menu de Configurações. Ajuda e versão continuam acessíveis. Nenhuma integração Open Finance ou bloqueio de segurança foi adicionada.
+
+Categorias inicia com grupos expandidos, mantendo a apresentação anterior. Cada categoria principal pode ser recolhida independentemente durante a visita. O “+” de uma categoria ativa abre Nova subcategoria com tipo e vínculo definidos; salvar expande o grupo. Categorias arquivadas mantêm consulta/edição, sem atalho para criar filha. Nova categoria continua separado.
+
+Cada cartão pode escolher uma das seis cores discretas ou o padrão Somia em Editar cartão. O logo usa a instituição escolhida no próprio cartão, independente da conta de pagamento; instituições ausentes usam ícone alternativo do catálogo interno, agora incluindo Banco do Brasil e Mercado Pago. A lista mostra limite total/comprometido/disponível, barra e percentual, conta, datas da fatura selecionada, fatura mensal, situação, pagamento e atalho Extrato. O uso acima do limite mantém percentual real e alerta vermelho; limite zero/ausente recebe indicação própria. Fatura do mês continua distinta da dívida total. Bandeira e reabrir fatura não foram adicionados, pois precisam de detalhamento funcional.
+
+Migration aditiva 16 inclui color_argb no cartão, com validação de cor opaca. Backup/restauração e sync preservam a cor; pacotes históricos v11–v15 recebem cor padrão, e uploads pendentes são reidentificados para schema 16. Atualizar Android e Windows antes de sincronizar. Valores, faturas e pagamentos não mudam com a escolha de cor.
+
+### Teste conjunto desta entrega
+
+1. Conferir categorias longas lado a lado e o indicador centralizado, inclusive com fonte ampliada.
+2. Abrir seletores com muitas contas/categorias, rolar o menu e fechar sem perder o formulário.
+3. Abrir páginas de backup/Drive/sync pelas Configurações, voltar e conferir os controles existentes.
+4. Recolher uma categoria, conferir que as demais continuam abertas, criar filha pelo “+” e cancelar outro cadastro.
+5. Editar cor e instituição do cartão; conferir lista e detalhe, limites/percentual e fatura do mês escolhido.
+6. Testar limite zero, ausente e excedido; pagamento a partir da lista e atalho Extrato.
+7. Conferir a cor após reiniciar, backup/restauração e sincronização com ambos os dispositivos atualizados.

@@ -83,6 +83,33 @@ void main() {
         projectedBalanceMinor: b.projectedMinor);
   }
 
+  test('cor do cartão persiste na criação e edição sem mudar limites',
+      () async {
+    final old = await cards.find(cardId);
+    await cards.save(
+        CardDraft(
+            name: old.name,
+            paymentAccountId: old.paymentAccountId,
+            closingDay: old.closingDay,
+            dueDay: old.dueDay,
+            limitMinor: old.limitMinor,
+            institutionId: old.institutionId,
+            colorArgb: 0xffb59add),
+        id: cardId);
+    expect((await cards.find(cardId)).colorArgb, 0xffb59add);
+    expect((await cards.limitHistory(cardId)).length, 1);
+    await expectLater(
+        cards.save(
+            CardDraft(
+                name: old.name,
+                paymentAccountId: old.paymentAccountId,
+                closingDay: 25,
+                dueDay: 5,
+                colorArgb: -1),
+            id: cardId),
+        throwsFormatException);
+    expect((await cards.find(cardId)).colorArgb, 0xffb59add);
+  });
   test('fechamento inclusivo próxima, último dia, mensal âncora e manual',
       () async {
     final before =

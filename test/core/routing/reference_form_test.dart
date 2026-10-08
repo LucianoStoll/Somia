@@ -182,6 +182,23 @@ void main() {
     expect((result as AccountDraft).initialBalanceMinor, 0);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('nova subcategoria recebe categoria e tipo pelo atalho',
+      (tester) async {
+    Object? result;
+    await open(
+        tester,
+        const CategoryForm(
+            categories: [parent, child],
+            defaultType: CategoryType.income,
+            parent: parent),
+        onResult: (value) => result = value);
+    expect(find.text('Nova subcategoria'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).first, 'Outra filha');
+    await tester.tap(find.text('Salvar categoria'));
+    await tester.pumpAndSettle();
+    expect((result as CategoryDraft).parentId, parent.id);
+    expect((result as CategoryDraft).type, parent.type);
+  });
   for (final item in [parent, child]) {
     testWidgets(
         'editar categoria ${item.id} preserva tipo, parent, ícone e cor',

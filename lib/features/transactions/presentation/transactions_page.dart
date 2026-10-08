@@ -1308,6 +1308,9 @@ class TransactionFormState extends State<TransactionForm> {
                         KeyedSubtree(
                             key: ValueKey('payment-kind-${_cardId != null}'),
                             child: DropdownButtonFormField<bool>(
+                                menuMaxHeight: 280,
+                                borderRadius: BorderRadius.circular(16),
+                                itemHeight: 48,
                                 key: const ValueKey('payment-method'),
                                 initialValue: _cardId != null,
                                 decoration: const InputDecoration(
@@ -1339,6 +1342,9 @@ class TransactionFormState extends State<TransactionForm> {
                                     }))),
                       if (_cardId != null) ...[
                         DropdownButtonFormField<String>(
+                            menuMaxHeight: 280,
+                            borderRadius: BorderRadius.circular(16),
+                            itemHeight: 48,
                             key: ValueKey('card-choice-$_cardId'),
                             initialValue: _cardId,
                             isExpanded: true,
@@ -1370,6 +1376,9 @@ class TransactionFormState extends State<TransactionForm> {
                       ],
                       if (_cardId == null)
                         DropdownButtonFormField<String>(
+                          menuMaxHeight: 280,
+                          borderRadius: BorderRadius.circular(16),
+                          itemHeight: 48,
                           key: ValueKey('account-choice-$_accountId'),
                           isExpanded: true,
                           initialValue: _accountId,
@@ -1387,6 +1396,9 @@ class TransactionFormState extends State<TransactionForm> {
                         ),
                       if (!_rateioEnabled)
                         DropdownButtonFormField<String>(
+                          menuMaxHeight: 280,
+                          borderRadius: BorderRadius.circular(16),
+                          itemHeight: 48,
                           isExpanded: true,
                           key: ValueKey('category-${_type.name}-$_categoryId'),
                           initialValue: _categoryId,
@@ -1419,6 +1431,9 @@ class TransactionFormState extends State<TransactionForm> {
                         ),
                       if (!_rateioEnabled)
                         DropdownButtonFormField<String>(
+                          menuMaxHeight: 280,
+                          borderRadius: BorderRadius.circular(16),
+                          itemHeight: 48,
                           isExpanded: true,
                           key: ValueKey(
                               'subcategory-${_type.name}-$_categoryId-$_subcategoryId'),
@@ -1560,6 +1575,9 @@ class TransactionFormState extends State<TransactionForm> {
                           tilePadding: EdgeInsets.zero,
                           children: [
                             DropdownButtonFormField<TransactionType>(
+                              menuMaxHeight: 280,
+                              borderRadius: BorderRadius.circular(16),
+                              itemHeight: 48,
                               isExpanded: true,
                               initialValue: _type,
                               decoration:

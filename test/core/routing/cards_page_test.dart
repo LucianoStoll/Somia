@@ -62,6 +62,7 @@ class _Cards extends CardsRepository {
             dueDay: 5,
             limitMinor: 500000,
             institutionId: 'nubank',
+            colorArgb: 0xffb59add,
             committedMinor: 85050)
       ];
   @override
@@ -151,6 +152,8 @@ void main() {
                   location: '/cards',
                   child: CardsPage(
                       key: ValueKey(state.uri.toString()),
+                      initialStatement:
+                          state.uri.queryParameters['view'] == 'statement',
                       cardId: state.uri.queryParameters['card']))),
           for (final path in ['/income', '/expenses', '/transfers'])
             GoRoute(

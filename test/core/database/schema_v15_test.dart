@@ -41,7 +41,7 @@ void main() {
     expect(
         (await db.customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        15);
+        AppDatabase.currentSchemaVersion);
     expect(
         (await db
                 .customSelect('SELECT debt_minor FROM asset_valuations')
@@ -52,7 +52,8 @@ void main() {
     final upload =
         await db.customSelect('SELECT * FROM sync_uploads').getSingle();
     expect(upload.read<String>('packet_id'), isNot('old-packet-id-0001'));
-    expect(jsonDecode(upload.read<String>('payload'))['schema'], 15);
+    expect(jsonDecode(upload.read<String>('payload'))['schema'],
+        AppDatabase.currentSchemaVersion);
     expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
   });
 }

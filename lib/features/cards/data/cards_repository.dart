@@ -75,6 +75,7 @@ class CardsRepository {
           id: r.read<String>('id'),
           name: r.read<String>('name'),
           institutionId: r.readNullable<String>('institution_id'),
+          colorArgb: r.readNullable<int>('color_argb'),
           paymentAccountId: r.read<String>('payment_account_id'),
           closingDay: r.read<int>('closing_day'),
           dueDay: r.read<int>('due_day'),
@@ -97,6 +98,10 @@ class CardsRepository {
             draft.dueDay > 31) {
           throw const FormatException('Informe nome e dias entre 1 e 31.');
         }
+        if (draft.colorArgb != null &&
+            (draft.colorArgb! < 0xff000000 || draft.colorArgb! > 0xffffffff)) {
+          throw const FormatException('Cor do cartão inválida.');
+        }
         if (draft.limitMinor != null) _money(draft.limitMinor!, zero: true);
         final old = id == null ? null : await find(id);
         if (old == null || old.paymentAccountId != draft.paymentAccountId) {
@@ -106,12 +111,13 @@ class CardsRepository {
         final key = id ?? EntityMetadata.newId();
         if (id == null) {
           await db.customStatement(
-              '''INSERT INTO credit_cards (id,name,institution_id,payment_account_id,limit_minor,closing_day,due_day,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?)''',
+              '''INSERT INTO credit_cards (id,name,institution_id,color_argb,payment_account_id,limit_minor,closing_day,due_day,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?)''',
               [
                 key,
                 draft.name.trim(),
                 draft.institutionId,
+                draft.colorArgb,
                 draft.paymentAccountId,
                 draft.limitMinor,
                 draft.closingDay,
@@ -121,10 +127,11 @@ class CardsRepository {
               ]);
         } else {
           await db.customStatement(
-              '''UPDATE credit_cards SET name=?,institution_id=?,payment_account_id=?,limit_minor=?,closing_day=?,due_day=?,updated_at=?,sync_version=sync_version+1 WHERE id=?''',
+              '''UPDATE credit_cards SET name=?,institution_id=?,color_argb=?,payment_account_id=?,limit_minor=?,closing_day=?,due_day=?,updated_at=?,sync_version=sync_version+1 WHERE id=?''',
               [
                 draft.name.trim(),
                 draft.institutionId,
+                draft.colorArgb,
                 draft.paymentAccountId,
                 draft.limitMinor,
                 draft.closingDay,
