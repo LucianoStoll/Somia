@@ -126,6 +126,14 @@ class _TransactionSettlementsPageState
     }
   }
 
+  InputDecoration _decoration(String label) => InputDecoration(
+        labelText: label,
+        filled: false,
+        border: const UnderlineInputBorder(),
+        enabledBorder: const UnderlineInputBorder(),
+        focusedBorder: const UnderlineInputBorder(),
+        disabledBorder: const UnderlineInputBorder(),
+      );
   String label(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
   @override
@@ -159,11 +167,11 @@ class _TransactionSettlementsPageState
                         enabled: !busy,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
-                        decoration:
-                            const InputDecoration(labelText: 'Valor da baixa')),
+                        decoration: _decoration('Valor da baixa')),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                         initialValue: accountId,
-                        decoration: const InputDecoration(labelText: 'Conta'),
+                        decoration: _decoration('Conta'),
                         items: [
                           for (final a in accounts)
                             DropdownMenuItem(value: a.id, child: Text(a.name))
