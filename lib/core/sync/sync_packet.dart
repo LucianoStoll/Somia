@@ -126,7 +126,8 @@ class SyncPacket {
             v['schema'] != 14 &&
             v['schema'] != 15 &&
             v['schema'] != 16 &&
-            v['schema'] != 17) ||
+            v['schema'] != 17 &&
+            v['schema'] != 18) ||
         !['genesis', 'changes'].contains(v['kind']) ||
         [
           'id',
@@ -137,6 +138,12 @@ class SyncPacket {
         (v['entries'] as List).length > 100000) {
       throw const FormatException(
           'Versão de sincronização incompatível. Atualize os dois dispositivos.');
+    }
+    if (v['schema'] < 19 &&
+        (v['entries'] as List)
+            .any((e) => e is Map && e['table'] == 'transaction_settlements')) {
+      throw const FormatException(
+          'Baixas parciais exigem a versão atual do aplicativo.');
     }
     if (v['schema'] < 18 &&
         (v['entries'] as List).any((e) =>

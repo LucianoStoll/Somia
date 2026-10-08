@@ -1,5 +1,6 @@
 import '../../reimbursements/data/reimbursements_repository.dart';
 import '../../../core/database/reimbursement_integrity.dart';
+import '../../../core/database/settlement_integrity.dart';
 import '../../../core/allocations/category_allocation.dart';
 import '../../../core/allocations/allocation_store.dart';
 import '../../cards/data/cards_repository.dart';
@@ -22,6 +23,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
         final result = await action();
         await validateDebtFinancial(_db);
         await validateReimbursements(_db);
+        await validateSettlements(_db);
         return result;
       });
 
@@ -30,7 +32,10 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       t.series_id, t.series_index, t.series_kind, t.series_count, t.series_unit, t.series_interval,
       t.posted_at, t.due_at, t.effective_at, t.account_id, t.category_id, t.allocations_json,
       a.name AS account_name, a.currency_code,
-      c.name AS category_name
+      c.name AS category_name,
+      (SELECT COUNT(*) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL) AS settlement_count,
+      COALESCE((SELECT SUM(s.amount_minor) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.effective_at<CAST(strftime('%s','now','localtime','start of day','+1 day') AS INTEGER)*1000),0) AS settled_minor,
+      COALESCE((SELECT SUM(s.amount_minor) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.effective_at>=CAST(strftime('%s','now','localtime','start of day','+1 day') AS INTEGER)*1000),0) AS scheduled_minor
     FROM transactions t
     JOIN accounts a ON a.id = t.account_id
     LEFT JOIN categories c ON c.id = t.category_id
@@ -48,7 +53,9 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       variables.add(Variable.withString(filter.type!.name));
     }
     if (filter.accountId != null) {
-      where.add('t.account_id = ?');
+      where.add(
+          '(t.account_id = ? OR EXISTS(SELECT 1 FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.account_id=?))');
+      variables.add(Variable.withString(filter.accountId!));
       variables.add(Variable.withString(filter.accountId!));
     }
     if (filter.categoryId != null) {
@@ -62,10 +69,14 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     }
     switch (filter.status) {
       case TransactionStatus.effective:
-        where.add('t.effective_at IS NOT NULL AND t.effective_at < ?');
+        where.add(
+            '(t.effective_at IS NOT NULL AND t.effective_at < ? OR t.planned_amount_minor=(SELECT COALESCE(SUM(s.amount_minor),0) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.effective_at< ?))');
+        variables.add(Variable.withInt(todayEnd));
         variables.add(Variable.withInt(todayEnd));
       case TransactionStatus.pending:
-        where.add('(t.effective_at IS NULL OR t.effective_at >= ?)');
+        where.add(
+            '(t.effective_at IS NULL OR t.effective_at >= ?) AND t.planned_amount_minor>(SELECT COALESCE(SUM(s.amount_minor),0) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.effective_at< ?)');
+        variables.add(Variable.withInt(todayEnd));
         variables.add(Variable.withInt(todayEnd));
       case TransactionStatus.all:
         break;
@@ -238,6 +249,11 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       String id, TransactionDraft draft) async {
     _validateDraft(draft);
     final original = await _find(id);
+    if (original.settlementCount > 0 &&
+        (draft.type != original.type || draft.cardId != null)) {
+      throw const FormatException(
+          'Desfaça as baixas antes de mudar o tipo ou a forma de pagamento.');
+    }
     await validateAllocationReferences(
       _db,
       draft.allocations,
@@ -489,6 +505,9 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   FinancialTransaction _map(QueryRow row) => FinancialTransaction(
         id: row.read<String>('id'),
+        settlementCount: row.read<int>('settlement_count'),
+        settledMinor: row.read<int>('settled_minor'),
+        scheduledSettlementMinor: row.read<int>('scheduled_minor'),
         allocations: CategoryAllocation.decode(
           row.read<String>('allocations_json'),
         ),
@@ -506,9 +525,11 @@ class SqliteTransactionsRepository implements TransactionsRepository {
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row.read<int>('effective_at'),
                 isUtc: true),
-        isEffective: row.readNullable<int>('effective_at') != null &&
-            row.read<int>('effective_at') <
-                _dayMillis(DateTime.now().add(const Duration(days: 1))),
+        isEffective: row.read<int>('settled_minor') ==
+                row.read<int>('planned_amount_minor') ||
+            row.readNullable<int>('effective_at') != null &&
+                row.read<int>('effective_at') <
+                    _dayMillis(DateTime.now().add(const Duration(days: 1))),
         accountId: row.read<String>('account_id'),
         accountName: row.read<String>('account_name'),
         categoryId: row.readNullable<String>('category_id'),

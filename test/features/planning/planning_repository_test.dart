@@ -317,7 +317,7 @@ void main() {
       final row =
           await migrated.customSelect('SELECT * FROM sync_uploads').getSingle();
       final packet = jsonDecode(row.read<String>('payload'));
-      expect(packet['schema'], 18);
+      expect(packet['schema'], AppDatabase.currentSchemaVersion);
       expect(packet['id'], isNot('old-packet'));
       expect(
           (await migrated.customSelect('SELECT * FROM planning_goals').get()),

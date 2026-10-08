@@ -30,14 +30,14 @@ Future<Map<String, BalanceDetails>> loadBalanceDetails(
 
   await collect(
       '''SELECT a.currency_code,t.type AS kind,SUM(t.actual_amount_minor) AS amount
-    FROM transactions t JOIN accounts a ON a.id=t.account_id
+    FROM transaction_events t JOIN accounts a ON a.id=t.account_id
     WHERE a.deleted_at IS NULL AND a.include_in_balance=1 AND t.deleted_at IS NULL
       AND t.ignore_balance=0 AND t.actual_amount_minor IS NOT NULL
       AND t.effective_at>=? AND t.effective_at<? GROUP BY a.currency_code,t.type''',
       [start, end]);
   await collect(
       '''SELECT a.currency_code,'pending_'||t.type AS kind,SUM(t.planned_amount_minor) AS amount
-    FROM transactions t JOIN accounts a ON a.id=t.account_id
+    FROM transaction_events t JOIN accounts a ON a.id=t.account_id
     WHERE a.deleted_at IS NULL AND a.include_in_balance=1 AND t.deleted_at IS NULL AND t.ignore_balance=0
       AND (t.effective_at IS NULL OR t.effective_at>=?) AND COALESCE(t.effective_at,t.due_at)<?
     GROUP BY a.currency_code,t.type''', [end, end]);

@@ -27,7 +27,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         final totals = <String, (int, int)>{};
         final period = await _db.customSelect('''
       SELECT a.currency_code, t.type, SUM(COALESCE(t.actual_amount_minor, t.planned_amount_minor)) AS amount_minor
-      FROM transactions t JOIN accounts a ON a.id = t.account_id
+      FROM transaction_events t JOIN accounts a ON a.id = t.account_id
       WHERE t.deleted_at IS NULL AND t.ignore_analytics = 0
         AND a.deleted_at IS NULL AND a.include_in_analytics = 1
         AND COALESCE(t.effective_at, t.due_at) >= ? AND COALESCE(t.effective_at, t.due_at) < ?
@@ -48,8 +48,8 @@ class SqliteDashboardRepository implements DashboardRepository {
               : (previous.$1, previous.$2 + amount);
         }
         final categoryRows = await _db.customSelect('''
-      WITH allocated AS (SELECT t.*, json_extract(part.value,'\$.categoryId') AS allocation_category, json_extract(part.value,'\$.amountMinor') AS allocation_amount FROM transactions t JOIN json_each(t.allocations_json) part
-        UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor) FROM transactions t WHERE json_array_length(t.allocations_json)=0)
+      WITH allocated AS (SELECT t.*, json_extract(part.value,'\$.categoryId') AS allocation_category, json_extract(part.value,'\$.amountMinor') AS allocation_amount FROM transaction_events t JOIN json_each(t.allocations_json) part
+        UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor) FROM transaction_events t WHERE json_array_length(t.allocations_json)=0)
       SELECT a.currency_code, COALESCE(parent.name, c.name, 'Sem categoria')
         AS category_name, SUM(t.allocation_amount) AS amount_minor
       FROM allocated t JOIN accounts a ON a.id = t.account_id
@@ -95,7 +95,7 @@ class SqliteDashboardRepository implements DashboardRepository {
       SELECT a.currency_code,
         strftime('%Y-%m', COALESCE(t.effective_at, t.due_at) / 1000, 'unixepoch') AS month_key,
         t.type, SUM(COALESCE(t.actual_amount_minor, t.planned_amount_minor)) AS amount_minor
-      FROM transactions t JOIN accounts a ON a.id = t.account_id
+      FROM transaction_events t JOIN accounts a ON a.id = t.account_id
       WHERE t.deleted_at IS NULL AND t.ignore_analytics = 0
         AND a.deleted_at IS NULL AND a.include_in_analytics = 1
         AND COALESCE(t.effective_at, t.due_at) >= ? AND COALESCE(t.effective_at, t.due_at) < ?
@@ -190,7 +190,7 @@ class SqliteDashboardRepository implements DashboardRepository {
           a.currency_code,
           COALESCE(t.actual_amount_minor, t.planned_amount_minor) AS amount_minor,
           t.due_at AS event_at, t.effective_at, t.created_at
-        FROM transactions t JOIN accounts a ON a.id = t.account_id
+        FROM transaction_events t JOIN accounts a ON a.id = t.account_id
         WHERE t.deleted_at IS NULL AND a.deleted_at IS NULL
         UNION ALL
         SELECT e.id, 'expense', e.description, 'Cartão ' || c.name,

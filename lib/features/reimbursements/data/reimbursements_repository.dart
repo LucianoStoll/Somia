@@ -177,8 +177,9 @@ class ReimbursementsRepository {
         result = <Reimbursement>[];
     for (final r in rows) {
       final receipts = await _rows(
-          '''SELECT l.id,l.transaction_id,t.description,t.planned_amount_minor,t.effective_at,
-        COALESCE(t.effective_at,t.due_at) AS date,t.deleted_at FROM reimbursement_receipts l JOIN transactions t ON t.id=l.transaction_id
+          '''SELECT l.id,l.transaction_id,t.description,e.planned_amount_minor,e.effective_at,
+        COALESCE(e.effective_at,e.due_at) AS date,e.deleted_at FROM reimbursement_receipts l JOIN transactions t ON t.id=l.transaction_id
+        JOIN transaction_events e ON (e.id=t.id OR e.id IN (SELECT 'settlement:'||s.id FROM transaction_settlements s WHERE s.transaction_id=t.id))
         WHERE l.reimbursement_id=? AND l.deleted_at IS NULL ORDER BY date DESC,l.id''',
           [r.read<String>('id')]);
       result.add(Reimbursement(

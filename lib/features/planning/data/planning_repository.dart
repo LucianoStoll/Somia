@@ -27,8 +27,8 @@ class PlanningRepository {
         end = month(DateTime(period.year, period.month + 1)),
         today = day(now().add(const Duration(days: 1)));
     final tx = await rows('''WITH allocated AS (
-      SELECT t.*,json_extract(p.value,'\$.categoryId') cid,json_extract(p.value,'\$.amountMinor') amount FROM transactions t,json_each(t.allocations_json) p
-      UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor) FROM transactions t WHERE json_array_length(t.allocations_json)=0)
+      SELECT t.*,json_extract(p.value,'\$.categoryId') cid,json_extract(p.value,'\$.amountMinor') amount FROM transaction_events t,json_each(t.allocations_json) p
+      UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor) FROM transaction_events t WHERE json_array_length(t.allocations_json)=0)
       SELECT t.cid,c.parent_id,a.currency_code,t.type,
       SUM(CASE WHEN t.effective_at IS NOT NULL AND t.effective_at<? THEN t.amount ELSE 0 END) realized,SUM(t.amount) projected
       FROM allocated t JOIN accounts a ON a.id=t.account_id LEFT JOIN categories c ON c.id=t.cid

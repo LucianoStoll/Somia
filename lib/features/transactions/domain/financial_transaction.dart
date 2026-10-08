@@ -18,6 +18,9 @@ class FinancialTransaction {
   const FinancialTransaction({
     required this.id,
     this.series,
+    this.settlementCount = 0,
+    this.settledMinor = 0,
+    this.scheduledSettlementMinor = 0,
     this.cardId,
     this.cardInvoiceMonth,
     this.cardInvoiceId,
@@ -43,6 +46,9 @@ class FinancialTransaction {
   });
 
   final String id;
+  final int settlementCount, settledMinor, scheduledSettlementMinor;
+  int get remainingMinor =>
+      amountMinor - settledMinor - scheduledSettlementMinor;
   final SeriesInfo? series;
   final String? cardId;
   final DateTime? cardInvoiceMonth;

@@ -35,6 +35,7 @@ import '../../categories/domain/category.dart';
 import '../domain/financial_transaction.dart';
 import '../domain/transactions_repository.dart';
 import 'transactions_cubit.dart';
+import 'transaction_settlements_page.dart';
 
 String _dateLabel(DateTime date) => '${date.day.toString().padLeft(2, '0')}/'
     '${date.month.toString().padLeft(2, '0')}/${date.year}';
@@ -750,6 +751,12 @@ class _TransactionsViewState extends State<_TransactionsView> {
                 ]));
   }
 
+  Future<void> _settlements(FinancialTransaction item) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => TransactionSettlementsPage(item: item)));
+    if (mounted) await context.read<TransactionsCubit>().load();
+  }
+
   Widget _itemTile(FinancialTransaction item) {
     if (item.cardInvoiceId != null) return _invoiceTile(item);
     final categories = context.read<TransactionsCubit>().state.categories;
@@ -777,6 +784,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
               ? 'Receber hoje'
               : 'Pagar hoje',
       tags: [
+        if (item.settlementCount > 0)
+          'Baixado: ${MoneyMinor.display(item.settledMinor, item.currencyCode)} · Restante: ${MoneyMinor.display(item.amountMinor - item.settledMinor, item.currencyCode)}',
         if (item.cardId != null) 'Compra no cartão',
         if (item.series != null) item.series!.label,
         if (item.allocations.isNotEmpty)
@@ -793,10 +802,15 @@ class _TransactionsViewState extends State<_TransactionsView> {
           context.go(
               '/cards?card=${item.cardId}&month=${item.cardInvoiceMonth!.toIso8601String()}');
         } else {
-          _quickEffective(item);
+          if (item.settlementCount > 0) {
+            _settlements(item);
+          } else {
+            _quickEffective(item);
+          }
         }
       },
-      onPending: () => _markPending(item),
+      onPending: () =>
+          item.settlementCount > 0 ? _settlements(item) : _markPending(item),
       onAmount: () => _editAmount(item),
       onEdit: () => _edit(item),
       menu: PopupMenuButton<String>(
@@ -805,6 +819,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
         tooltip: 'Ações do lançamento',
         icon: const Icon(Icons.more_vert, size: 20),
         onSelected: (action) {
+          if (action == 'settlements') _settlements(item);
           if (action == 'edit') _edit(item);
           if (action == 'delete') _delete(item);
           if (action == 'pending') _markPending(item);
@@ -814,7 +829,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
         },
         itemBuilder: (_) => [
           const PopupMenuItem(value: 'edit', child: Text('Editar')),
-          if (item.effectiveDate != null) ...[
+          if (item.cardId == null)
+            const PopupMenuItem(
+                value: 'settlements', child: Text('Baixas e histórico')),
+          if (item.effectiveDate != null && item.settlementCount == 0) ...[
             const PopupMenuItem(value: 'date', child: Text('Ajustar data')),
             const PopupMenuItem(
                 value: 'pending', child: Text('Marcar como pendente')),
@@ -1499,7 +1517,8 @@ class TransactionFormState extends State<TransactionForm> {
                               ? 'Recebido'
                               : 'Pago'),
                           value: !_forcePending && _isEffective,
-                          onChanged: _forcePending
+                          onChanged: _forcePending ||
+                                  (widget.item?.settlementCount ?? 0) > 0
                               ? null
                               : (value) => setState(() {
                                     _isEffective = value;
@@ -1509,6 +1528,9 @@ class TransactionFormState extends State<TransactionForm> {
                                     }
                                   }),
                         ),
+                      if ((widget.item?.settlementCount ?? 0) > 0)
+                        const Text(
+                            'As baixas são gerenciadas em Baixas e histórico.'),
                       const Divider(),
                       ExpansionTile(
                         key: const ValueKey('transaction-more-options'),
