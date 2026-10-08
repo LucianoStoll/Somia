@@ -51,6 +51,18 @@ void main() {
         ]
       })
     ]);
+    for (final table in ['sync_versions', 'sync_outbox']) {
+      await old.customStatement(
+          'INSERT INTO $table(table_name,row_id,clock,device_id,is_deleted,data) VALUES(?,?,?,?,?,?)',
+          [
+            'transactions',
+            't',
+            1,
+            'device-tags-00000001',
+            0,
+            jsonEncode(data)
+          ]);
+    }
     await old.close();
     final db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
@@ -63,6 +75,12 @@ void main() {
     final payload = jsonDecode(upload.read<String>('payload'));
     expect(payload['schema'], AppDatabase.currentSchemaVersion);
     expect(payload['entries'][0]['data']['tags_json'], '[]');
+    for (final table in ['sync_versions', 'sync_outbox']) {
+      final synced = jsonDecode(
+          (await db.customSelect('SELECT data FROM $table').getSingle())
+              .read<String>('data'));
+      expect(synced['tags_json'], '[]');
+    }
     expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
   });
 }
