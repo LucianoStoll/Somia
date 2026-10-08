@@ -63,8 +63,9 @@ class _CategoriesViewState extends State<_CategoriesView> {
     if (draft == null || !mounted) return;
     try {
       await context.read<CategoriesCubit>().save(draft, id: category?.id);
-      if (parent != null && mounted)
+      if (parent != null && mounted) {
         setState(() => _collapsed.remove(parent.id));
+      }
     } catch (error) {
       if (mounted) _showError(error);
     }
@@ -180,8 +181,9 @@ class _CategoriesViewState extends State<_CategoriesView> {
                       ? 'Mostrar subcategorias'
                       : 'Ocultar subcategorias',
                   onPressed: () => setState(() {
-                        if (!_collapsed.add(category.id))
+                        if (!_collapsed.add(category.id)) {
                           _collapsed.remove(category.id);
+                        }
                       }),
                   icon: Icon(_collapsed.contains(category.id)
                       ? Icons.expand_more

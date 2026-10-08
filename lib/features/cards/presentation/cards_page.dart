@@ -370,9 +370,10 @@ class _CardsPageState extends State<CardsPage> {
 
   Widget _limitProgress(CreditCard card) {
     final limit = card.limitMinor;
-    if (limit == null)
+    if (limit == null) {
       return const Text('Sem controle de limite',
           style: TextStyle(color: SomiaColors.muted, fontSize: 12));
+    }
     final ratio = limit <= 0 ? 0.0 : card.committedMinor / limit;
     final label = limit == 0
         ? (card.committedMinor > 0 ? 'Acima do limite' : 'Limite zero')

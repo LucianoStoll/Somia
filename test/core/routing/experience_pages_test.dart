@@ -124,7 +124,11 @@ void main() {
             name: 'Banco $i',
             type: AccountType.checking,
             currencyCode: 'BRL',
-            initialBalanceMinor: 0));
+            initialBalanceMinor: 0,
+            currentBalanceMinor: 0,
+            projectedBalanceMinor: 0,
+            includeInAnalytics: true,
+            isArchived: false));
     await forms.open(
         tester, TransactionForm(accounts: accounts, categories: const []));
     await tester.enterText(

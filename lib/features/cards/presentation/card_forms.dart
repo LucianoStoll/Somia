@@ -146,8 +146,7 @@ class _CardFormState extends State<CardForm> {
                             : null),
                     ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: AccountAvatar(
-                            institutionId: _bank, colorArgb: _colorArgb),
+                        leading: AccountAvatar(institutionId: _bank),
                         title: const Text('Instituição'),
                         subtitle: Text(BankInstitution.find(_bank)?.name ??
                             'Sem instituição'),

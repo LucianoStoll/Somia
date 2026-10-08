@@ -61,9 +61,9 @@ void main() {
     expect(packet['entries'][0]['data']['color_argb'], isNull);
     expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
     await expectLater(
-        db.customStatement("UPDATE credit_cards SET color_argb=-1"),
+        db.customStatement('UPDATE credit_cards SET color_argb=-1'),
         throwsA(anything));
-    await db.customStatement("UPDATE credit_cards SET color_argb=4286421725");
+    await db.customStatement('UPDATE credit_cards SET color_argb=4286421725');
     expect(
         (await db
                 .customSelect('SELECT color_argb FROM credit_cards')
