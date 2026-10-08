@@ -25,8 +25,9 @@ class _TransactionSettlementsPageState
   DateTime date = DateTime.now();
   bool busy = true;
   String? error;
-  int get remaining =>
-      widget.item.amountMinor - rows.fold(0, (s, r) => s + r.amountMinor);
+  int get remaining => widget.item.effectiveDate != null
+      ? 0
+      : widget.item.amountMinor - rows.fold(0, (s, r) => s + r.amountMinor);
   String money(int v) => MoneyMinor.display(v, widget.item.currencyCode);
   @override
   void initState() {

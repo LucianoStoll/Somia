@@ -12,6 +12,10 @@ import 'package:finapp/features/transactions/data/sqlite_transactions_repository
 import 'package:finapp/features/transactions/data/transaction_settlements_repository.dart';
 import 'package:finapp/features/transactions/domain/financial_transaction.dart';
 
+import 'package:finapp/features/planning/data/planning_repository.dart';
+import 'package:finapp/features/reimbursements/data/reimbursements_repository.dart';
+import 'package:finapp/features/reimbursements/domain/reimbursement.dart';
+
 void main() {
   late AppDatabase db;
   late SqliteAccountsRepository accounts;
@@ -171,5 +175,32 @@ void main() {
     await expectLater(db.transaction(() => replaceFinancial(db, typed)),
         throwsFormatException);
     expect((await repo.list(t.id)).single.amountMinor, 400);
+  });
+  test('planning and reimbursement count actual receipts plus residual once',
+      () async {
+    final expense = await create();
+    final reimbursements = ReimbursementsRepository(db);
+    final person = await reimbursements.savePerson('Ana');
+    await reimbursements
+        .replace(expense.id, [ReimbursementDraft(person, 1001)]);
+    final income = await create(type: TransactionType.income);
+    final claim = (await reimbursements.load()).single;
+    await reimbursements.link(claim.id, income.id);
+    await repo.add(income.id, accountId: b, amountMinor: 400, date: past);
+    final result = (await reimbursements.load()).single;
+    expect(result.received, 400);
+    expect(result.scheduled, 601);
+    expect(result.available, 0);
+    final spending = await PlanningRepository(db).spending(DateTime(2020, 1));
+    expect(
+        spending
+            .where((s) => s.type == 'income')
+            .fold(0, (v, s) => v + s.realized),
+        400);
+    expect(
+        spending
+            .where((s) => s.type == 'income')
+            .fold(0, (v, s) => v + s.projected),
+        1001);
   });
 }

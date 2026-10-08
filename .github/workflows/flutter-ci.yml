@@ -71,6 +71,8 @@ jobs:
         run: flutter test test/features/investments/investments_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render assets previews
         run: flutter test test/features/assets/assets_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render partial settlement previews
+        run: flutter test test/features/transactions/transaction_settlements_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render planning previews
         run: flutter test test/features/planning/planning_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render reimbursement previews

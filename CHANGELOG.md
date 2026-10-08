@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- Baixas parciais (#11): conta e data por pagamento/recebimento, histórico e desfazer, restante pendente e integração com saldos, planejamento, rateios e reembolsos; schema 19 com backup/sync.
+
 - Planejamento (#13): orçamento mensal previsto/realizado, metas por contas, reserva por gastos essenciais, renda/poupança e alertas internos; schema 18 com backup/sync.
 
 - Pessoas e reembolsos em Mais opções da despesa: recebimentos parciais como receitas vinculadas, histórico e schema 17 com backup/sync.
