@@ -30,6 +30,7 @@ import 'schema_v18.dart';
 import 'schema_v19.dart';
 import 'schema_v20.dart';
 import 'schema_v21.dart';
+import 'schema_v22.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -135,7 +136,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 21;
+  static const currentSchemaVersion = 22;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -168,6 +169,7 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV19,
             ...schemaV20,
             ...schemaV21,
+            ...schemaV22,
           ]) {
             await customStatement(statement);
           }
@@ -196,13 +198,14 @@ class AppDatabase extends GeneratedDatabase {
               19 => schemaV19,
               20 => schemaV20,
               21 => schemaV21,
+              22 => schemaV22,
               _ => throw StateError('Migration v$version não implementada'),
             };
             for (final statement in statements) {
               await customStatement(statement);
             }
           }
-          if (from < 21) {
+          if (from < 22) {
             // Requeue unsent v11–v13 packets with new identities: an earlier upload
             // may already exist remotely with the original content hash.
             final uploads =
@@ -210,15 +213,22 @@ class AppDatabase extends GeneratedDatabase {
             for (final row in uploads) {
               final packet = jsonDecode(row.read<String>('payload'))
                   as Map<String, dynamic>;
-              packet['schema'] = 21;
+              packet['schema'] = 22;
               packet['id'] = const Uuid().v4();
               for (final entry in packet['entries'] as List) {
+                if (['transactions', 'transfers', 'card_entries']
+                        .contains(entry['table']) &&
+                    entry['data'] != null) {
+                  entry['data']['trash_state'] = 'active';
+                }
                 if (['transactions', 'card_entries'].contains(entry['table']) &&
                     entry['data'] != null) {
                   if (from < 20) {
                     entry['data']['tags_json'] = '[]';
                   }
-                  entry['data']['establishment'] = '';
+                  if (from < 21) {
+                    entry['data']['establishment'] = '';
+                  }
                 }
                 if (from < 16 &&
                     entry['table'] == 'credit_cards' &&

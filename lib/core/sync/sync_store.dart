@@ -240,13 +240,24 @@ class SyncStore {
           }
           if (entry.clock > maxClock) maxClock = entry.clock;
           final previous = versions[entry.key];
+          final managed = ['transactions', 'transfers', 'card_entries']
+              .contains(entry.table);
+          final incomingPurge =
+              managed && entry.data?['trash_state'] == 'purged';
+          final previousPurge =
+              managed && previous?.data?['trash_state'] == 'purged';
+          if (previousPurge && !incomingPurge) {
+            if (previous != null && !entry.sameData(previous))
+              await _history(entry, 'conflict');
+            continue;
+          }
           if (previous != null) {
             final order = entry.compare(previous);
             if (order == 0 && !entry.sameData(previous)) {
               throw const FormatException(
                   'Versões iguais com dados diferentes.');
             }
-            if (order <= 0) {
+            if (order <= 0 && !(incomingPurge && !previousPurge)) {
               if (order < 0 && !entry.sameData(previous)) {
                 await _history(entry, 'conflict');
               }
@@ -321,6 +332,10 @@ class SyncStore {
         throw const FormatException('Versão de histórico indisponível.');
       }
       final rows = await readFinancial(db);
+      if (rows[entry.table]?[entry.id]?['trash_state'] == 'purged') {
+        throw const FormatException(
+            'Um lançamento excluído definitivamente não pode ser recuperado pelo histórico.');
+      }
       if (entry.deleted) {
         rows[entry.table]!.remove(entry.id);
       } else {

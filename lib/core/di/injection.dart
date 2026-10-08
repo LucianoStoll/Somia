@@ -1,3 +1,4 @@
+import '../../features/transactions/data/movement_management_repository.dart';
 import '../../features/planning/data/planning_repository.dart';
 import '../../features/reimbursements/data/reimbursements_repository.dart';
 import '../../features/debts/domain/debt.dart';
@@ -137,6 +138,9 @@ Future<void> configureDependencies(AppEnvironment environment) async {
 
   getIt.registerLazySingleton<PlanningRepository>(
       () => PlanningRepository(database));
+
+  getIt.registerLazySingleton<MovementManagementRepository>(
+      () => MovementManagementRepository(database));
 
   // As dependências de cada feature serão registradas aqui por módulo.
 }

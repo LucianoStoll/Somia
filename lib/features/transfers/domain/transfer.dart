@@ -3,6 +3,7 @@ import '../../../core/series/movement_series.dart';
 class Transfer {
   const Transfer({
     required this.id,
+    this.revision = '',
     this.series,
     this.description = 'Transferência',
     required this.sourceAccountId,
@@ -18,6 +19,7 @@ class Transfer {
   });
 
   final String id;
+  final String revision;
   final SeriesInfo? series;
   final String description;
   final String sourceAccountId;

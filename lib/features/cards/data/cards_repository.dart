@@ -349,6 +349,8 @@ class CardsRepository {
             invoiceMonth: cardDate(r.read<int>('month_at')),
             categoryId: r.readNullable<String>('category_id'),
             tags: TransactionTags.decode(r.read<String>('tags_json')),
+            revision:
+                "${r.read<int>('updated_at')}:${r.read<int>('sync_version')}",
             establishment: r.read<String>('establishment'),
             allocations: CategoryAllocation.decode(
               r.read<String>('allocations_json'),
@@ -656,7 +658,7 @@ class CardsRepository {
           }
           await _history(e, 'delete', e.invoiceId, 0);
           await db.customStatement(
-              'UPDATE card_entries SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+              "UPDATE card_entries SET trash_state='trashed',deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?",
               [now, now, e.id]);
         }
         await validateReimbursements(db);
@@ -796,13 +798,14 @@ class CardsRepository {
         }
         final now = EntityMetadata.nowUtcMillis();
         await db.customStatement(
-            'UPDATE card_entries SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+            "UPDATE card_entries SET trash_state='trashed',deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?",
             [now, now, id]);
       });
 
   FinancialTransaction movement(CardEntry e, CreditCard c) =>
       FinancialTransaction(
           id: 'card:${e.id}',
+          revision: e.revision,
           cardId: c.id,
           cardInvoiceMonth: e.invoiceMonth,
           description: e.description,

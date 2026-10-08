@@ -30,7 +30,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       });
 
   static const _select = '''
-    SELECT t.establishment, t.tags_json, t.id, t.description, t.type, t.planned_amount_minor,
+    SELECT t.updated_at, t.sync_version, t.establishment, t.tags_json, t.id, t.description, t.type, t.planned_amount_minor,
       t.series_id, t.series_index, t.series_kind, t.series_count, t.series_unit, t.series_interval,
       t.posted_at, t.due_at, t.effective_at, t.account_id, t.category_id, t.allocations_json,
       a.name AS account_name, a.currency_code,
@@ -535,6 +535,8 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   FinancialTransaction _map(QueryRow row) => FinancialTransaction(
         id: row.read<String>('id'),
+        revision:
+            "${row.read<int>('updated_at')}:${row.read<int>('sync_version')}",
         tags: TransactionTags.decode(row.read<String>('tags_json')),
         establishment: row.read<String>('establishment'),
         settlementCount: row.read<int>('settlement_count'),

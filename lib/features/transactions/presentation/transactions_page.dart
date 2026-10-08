@@ -1,3 +1,6 @@
+import '../data/movement_management_repository.dart';
+import '../domain/movement_management.dart';
+import 'bulk_movement_toolbar.dart';
 import 'establishment_editor.dart';
 import 'transaction_tags_editor.dart';
 import '../domain/transaction_tags.dart';
@@ -68,6 +71,7 @@ class _TransactionsView extends StatefulWidget {
 }
 
 class _TransactionsViewState extends State<_TransactionsView> {
+  Map<String, MovementReference> _bulkSelection = {};
   bool _openedInitial = false;
   final Set<String> _changingStatus = {};
   TransactionType? _type;
@@ -396,6 +400,16 @@ class _TransactionsViewState extends State<_TransactionsView> {
               ));
             }
             return Column(children: [
+              if (getIt.isRegistered<MovementManagementRepository>())
+                BulkMovementToolbar(
+                    selection: _bulkSelection,
+                    available: state.items
+                        .where((item) => !item.id.startsWith('invoice:'))
+                        .map(MovementReference.transaction)
+                        .toList(),
+                    onSelection: (selection) =>
+                        setState(() => _bulkSelection = selection),
+                    onCompleted: context.read<TransactionsCubit>().load),
               Padding(
                   padding: const EdgeInsets.all(12),
                   child: Wrap(
@@ -433,8 +447,17 @@ class _TransactionsViewState extends State<_TransactionsView> {
                       : ListView.builder(
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
                           itemCount: state.items.length,
-                          itemBuilder: (context, index) =>
-                              _itemTile(state.items[index]),
+                          itemBuilder: (context, index) => getIt.isRegistered<
+                                      MovementManagementRepository>() &&
+                                  !state.items[index].id.startsWith('invoice:')
+                              ? SelectableMovementRow(
+                                  ref: MovementReference.transaction(
+                                      state.items[index]),
+                                  selection: _bulkSelection,
+                                  onSelection: (selection) => setState(
+                                      () => _bulkSelection = selection),
+                                  child: _itemTile(state.items[index]))
+                              : _itemTile(state.items[index]),
                         )),
             ]);
           },

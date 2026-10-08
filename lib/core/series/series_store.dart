@@ -74,7 +74,7 @@ class SeriesStore {
         final now = EntityMetadata.nowUtcMillis();
         for (final row in rows) {
           await db.customStatement(
-              '''UPDATE $table SET deleted_at = ?, updated_at = ?,
+              '''UPDATE $table SET trash_state = 'trashed', deleted_at = ?, updated_at = ?,
         sync_version = sync_version + 1 WHERE id = ? AND deleted_at IS NULL''',
               [now, now, row.read<String>('id')]);
         }

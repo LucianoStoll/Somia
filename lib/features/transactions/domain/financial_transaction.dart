@@ -17,6 +17,7 @@ enum TransactionDateField { posted, due, effective }
 class FinancialTransaction {
   const FinancialTransaction({
     required this.id,
+    this.revision = '',
     this.series,
     this.settlementCount = 0,
     this.settledMinor = 0,
@@ -48,6 +49,7 @@ class FinancialTransaction {
   });
 
   final String id;
+  final String revision;
   final int settlementCount, settledMinor, scheduledSettlementMinor;
   int get remainingMinor =>
       amountMinor - settledMinor - scheduledSettlementMinor;

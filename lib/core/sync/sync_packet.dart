@@ -119,6 +119,12 @@ class SyncPacket {
             value['data'] = Map<String, Object?>.from(value['data'] as Map)
               ..remove('establishment');
           }
+          if (sourceSchema < 22 &&
+              ['transactions', 'transfers', 'card_entries'].contains(e.table) &&
+              e.data != null) {
+            value['data'] = Map<String, Object?>.from(value['data'] as Map)
+              ..remove('trash_state');
+          }
           return value;
         }).toList(),
       })));
@@ -141,7 +147,8 @@ class SyncPacket {
             v['schema'] != 17 &&
             v['schema'] != 18 &&
             v['schema'] != 19 &&
-            v['schema'] != 20) ||
+            v['schema'] != 20 &&
+            v['schema'] != 21) ||
         !['genesis', 'changes'].contains(v['kind']) ||
         [
           'id',
@@ -238,6 +245,20 @@ class SyncPacket {
                 'Estabelecimento em pacote histórico incompatível.');
           }
           (e['data'] as Map)['establishment'] = '';
+        }
+      }
+    }
+    if (v['schema'] < 22) {
+      for (final e in v['entries'] as List) {
+        if (e is Map &&
+            ['transactions', 'transfers', 'card_entries']
+                .contains(e['table']) &&
+            e['data'] is Map) {
+          if ((e['data'] as Map).containsKey('trash_state')) {
+            throw const FormatException(
+                'Lixeira em pacote histórico incompatível.');
+          }
+          (e['data'] as Map)['trash_state'] = 'active';
         }
       }
     }

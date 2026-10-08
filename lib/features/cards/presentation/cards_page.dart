@@ -1,3 +1,6 @@
+import '../../transactions/data/movement_management_repository.dart';
+import '../../transactions/domain/movement_management.dart';
+import '../../transactions/presentation/bulk_movement_toolbar.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/theme/app_theme.dart';
@@ -31,6 +34,7 @@ class CardsPage extends StatefulWidget {
 }
 
 class _CardsPageState extends State<CardsPage> {
+  Map<String, MovementReference> _bulkSelection = {};
   CardsRepository get _repo => getIt<CardsRepository>();
   List<CreditCard> _cards = [];
   List<CardInvoice> _invoices = [];
@@ -593,7 +597,18 @@ class _CardsPageState extends State<CardsPage> {
     ];
   }
 
-  Widget _entryTile(CardEntry e) => ListTile(
+  Widget _entryTile(CardEntry e) {
+    final row = _entryContent(e);
+    if (e.kind != 'purchase' ||
+        !getIt.isRegistered<MovementManagementRepository>()) return row;
+    return SelectableMovementRow(
+        ref: MovementReference(MovementKind.cardEntry, e.id, e.revision),
+        selection: _bulkSelection,
+        onSelection: (selection) => setState(() => _bulkSelection = selection),
+        child: row);
+  }
+
+  Widget _entryContent(CardEntry e) => ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
       title: Text(e.description),
       subtitle: Text(
@@ -700,6 +715,22 @@ class _CardsPageState extends State<CardsPage> {
                                 child: Text(
                                     'Cartão não encontrado. Volte à lista de cartões.')),
                           if (_detail && card != null && invoice != null) ...[
+                            if (getIt
+                                .isRegistered<MovementManagementRepository>())
+                              BulkMovementToolbar(
+                                  selection: _bulkSelection,
+                                  card: true,
+                                  available: invoice.entries
+                                      .where(
+                                          (entry) => entry.kind == 'purchase')
+                                      .map((entry) => MovementReference(
+                                          MovementKind.cardEntry,
+                                          entry.id,
+                                          entry.revision))
+                                      .toList(),
+                                  onSelection: (selection) => setState(
+                                      () => _bulkSelection = selection),
+                                  onCompleted: _load),
                             _cardSummary(card, invoice),
                             const SizedBox(height: 16),
                             Text(

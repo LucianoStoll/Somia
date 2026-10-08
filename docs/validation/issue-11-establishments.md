@@ -20,4 +20,4 @@
 
 Testes de normalização/limites, cadastro/edição/filtros combinados, backup/sync histórico, seleção e limpeza do editor, parcelas e migração com tags/uploads pendentes. O CI confirma formatação, análise estática, suíte Linux/Windows e compila os pacotes. Validação manual permanece pendente.
 
-Edição em lote, lixeira/restauração e anexos continuam pendentes da #11.
+Edição em lote e lixeira/restauração estão documentadas em issue-11-bulk-trash.md. Anexos continuam pendentes da #11.

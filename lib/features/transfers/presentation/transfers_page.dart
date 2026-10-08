@@ -1,3 +1,6 @@
+import '../../transactions/data/movement_management_repository.dart';
+import '../../transactions/domain/movement_management.dart';
+import '../../transactions/presentation/bulk_movement_toolbar.dart';
 import '../../../core/widgets/compact_movement_field.dart';
 import '../../../core/series/movement_series.dart';
 import '../../../core/series/series_form.dart';
@@ -50,6 +53,7 @@ class _TransfersView extends StatefulWidget {
 }
 
 class _TransfersViewState extends State<_TransfersView> {
+  Map<String, MovementReference> _bulkSelection = {};
   bool _openedInitial = false;
   final _changingStatus = <String>{};
   DateTimeRange? _range;
@@ -432,12 +436,12 @@ class _TransfersViewState extends State<_TransfersView> {
               return const Center(
                   child: Text('Nenhuma transferência para estes filtros.'));
             }
-            return ListView.builder(
+            final list = ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
               itemCount: state.items.length,
               itemBuilder: (context, index) {
                 final item = state.items[index];
-                return MovementListRow(
+                final row = MovementListRow(
                   id: item.id,
                   description: item.description,
                   tags: [if (item.series != null) item.series!.label],
@@ -481,8 +485,29 @@ class _TransfersViewState extends State<_TransfersView> {
                     ],
                   ),
                 );
+                return getIt.isRegistered<MovementManagementRepository>()
+                    ? SelectableMovementRow(
+                        ref: MovementReference.transfer(item),
+                        selection: _bulkSelection,
+                        onSelection: (selection) =>
+                            setState(() => _bulkSelection = selection),
+                        child: row)
+                    : row;
               },
             );
+            if (!getIt.isRegistered<MovementManagementRepository>())
+              return list;
+            return Column(children: [
+              BulkMovementToolbar(
+                  selection: _bulkSelection,
+                  available:
+                      state.items.map(MovementReference.transfer).toList(),
+                  transfer: true,
+                  onSelection: (selection) =>
+                      setState(() => _bulkSelection = selection),
+                  onCompleted: context.read<TransfersCubit>().load),
+              Expanded(child: list)
+            ]);
           })),
         ]),
       );
