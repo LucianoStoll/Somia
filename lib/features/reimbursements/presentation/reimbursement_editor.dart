@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/money/money_minor.dart';
+import '../../accounts/domain/money_minor.dart';
 import '../../../core/widgets/monetary_calculator.dart';
 import '../../../core/widgets/movement_form_frame.dart';
 import '../../../core/widgets/unsaved_changes_guard.dart';

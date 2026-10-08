@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
-import '../../../core/money/money_minor.dart';
+import '../../accounts/domain/money_minor.dart';
 import '../../../core/routing/somia_shell.dart';
 import '../../../core/widgets/monetary_calculator.dart';
 import '../../../core/widgets/movement_form_frame.dart';
