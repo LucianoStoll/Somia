@@ -107,6 +107,12 @@ class SyncPacket {
             value['data'] = Map<String, Object?>.from(value['data'] as Map)
               ..remove('allocations_json');
           }
+          if (sourceSchema < 20 &&
+              ['transactions', 'card_entries'].contains(e.table) &&
+              e.data != null) {
+            value['data'] = Map<String, Object?>.from(value['data'] as Map)
+              ..remove('tags_json');
+          }
           return value;
         }).toList(),
       })));
@@ -127,7 +133,8 @@ class SyncPacket {
             v['schema'] != 15 &&
             v['schema'] != 16 &&
             v['schema'] != 17 &&
-            v['schema'] != 18) ||
+            v['schema'] != 18 &&
+            v['schema'] != 19) ||
         !['genesis', 'changes'].contains(v['kind']) ||
         [
           'id',
@@ -198,6 +205,19 @@ class SyncPacket {
                 'Cor em pacote histórico incompatível.');
           }
           (e['data'] as Map)['color_argb'] = null;
+        }
+      }
+    }
+    if (v['schema'] < 20) {
+      for (final e in v['entries'] as List) {
+        if (e is Map &&
+            ['transactions', 'card_entries'].contains(e['table']) &&
+            e['data'] is Map) {
+          if ((e['data'] as Map).containsKey('tags_json')) {
+            throw const FormatException(
+                'Tags em pacote histórico incompatível.');
+          }
+          (e['data'] as Map)['tags_json'] = '[]';
         }
       }
     }

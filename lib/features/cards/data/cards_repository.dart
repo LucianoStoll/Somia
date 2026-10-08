@@ -1,3 +1,4 @@
+import '../../transactions/domain/transaction_tags.dart';
 import '../../reimbursements/data/reimbursements_repository.dart';
 import '../../../core/database/reimbursement_integrity.dart';
 import '../../../core/allocations/category_allocation.dart';
@@ -220,6 +221,7 @@ class CardsRepository {
       required DateTime date,
       String? categoryId,
       List<CategoryAllocation> allocations = const [],
+      List<String> tags = const [],
       String kind = 'purchase',
       int index = 0,
       int count = 1,
@@ -234,8 +236,8 @@ class CardsRepository {
     }
     final now = EntityMetadata.nowUtcMillis();
     await db.customStatement(
-        '''INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,installment_index,installment_count,description,category_id,kind,amount_minor,posted_at,source_id,created_at,updated_at,allocations_json)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+        '''INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,installment_index,installment_count,description,category_id,kind,amount_minor,posted_at,source_id,created_at,updated_at,allocations_json,tags_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         [
           id ?? EntityMetadata.newId(),
           cardId,
@@ -252,6 +254,7 @@ class CardsRepository {
           now,
           now,
           CategoryAllocation.encode(allocations),
+          TransactionTags.encode(tags),
         ]);
   }
 
@@ -301,6 +304,7 @@ class CardsRepository {
               invoiceId: target,
               purchaseId: purchaseId,
               description: draft.description,
+              tags: draft.tags,
               amount: amounts[index],
               date: draft.date,
               categoryId: draft.categoryId,
@@ -340,6 +344,7 @@ class CardsRepository {
             dueAt: cardDate(r.read<int>('due_at')),
             invoiceMonth: cardDate(r.read<int>('month_at')),
             categoryId: r.readNullable<String>('category_id'),
+            tags: TransactionTags.decode(r.read<String>('tags_json')),
             allocations: CategoryAllocation.decode(
               r.read<String>('allocations_json'),
             ),
@@ -584,8 +589,9 @@ class CardsRepository {
           }
           await _history(e, 'edit', target, draft.amountMinor);
           await db.customStatement(
-              'UPDATE card_entries SET allocations_json=?,description=?,amount_minor=?,posted_at=?,category_id=?,invoice_id=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+              'UPDATE card_entries SET tags_json=?,allocations_json=?,description=?,amount_minor=?,posted_at=?,category_id=?,invoice_id=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
               [
+                TransactionTags.encode(draft.tags),
                 CategoryAllocation.encode(draft.allocations),
                 draft.description.trim(),
                 draft.amountMinor,
@@ -794,6 +800,7 @@ class CardsRepository {
           cardId: c.id,
           cardInvoiceMonth: e.invoiceMonth,
           description: e.description,
+          tags: e.tags,
           type: TransactionType.expense,
           amountMinor: e.amountMinor,
           date: e.postedAt,
@@ -1001,6 +1008,12 @@ class CardsRepository {
                       e.allocations
                           .any((p) => categories.contains(p.categoryId)),
                 )) {
+              continue;
+            }
+            if (filter.tag != null &&
+                !bill.entries.any((e) => e.tags.any((tag) =>
+                    TransactionTags.key(tag) ==
+                    TransactionTags.key(filter.tag!)))) {
               continue;
             }
             final effective = bill.balanceMinor <= 0;

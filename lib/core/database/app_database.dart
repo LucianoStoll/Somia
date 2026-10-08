@@ -28,6 +28,7 @@ import 'schema_v16.dart';
 import 'schema_v17.dart';
 import 'schema_v18.dart';
 import 'schema_v19.dart';
+import 'schema_v20.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -133,7 +134,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 19;
+  static const currentSchemaVersion = 20;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -164,6 +165,7 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV17,
             ...schemaV18,
             ...schemaV19,
+            ...schemaV20,
           ]) {
             await customStatement(statement);
           }
@@ -190,13 +192,14 @@ class AppDatabase extends GeneratedDatabase {
               17 => schemaV17,
               18 => schemaV18,
               19 => schemaV19,
+              20 => schemaV20,
               _ => throw StateError('Migration v$version não implementada'),
             };
             for (final statement in statements) {
               await customStatement(statement);
             }
           }
-          if (from < 19) {
+          if (from < 20) {
             // Requeue unsent v11–v13 packets with new identities: an earlier upload
             // may already exist remotely with the original content hash.
             final uploads =
@@ -204,9 +207,13 @@ class AppDatabase extends GeneratedDatabase {
             for (final row in uploads) {
               final packet = jsonDecode(row.read<String>('payload'))
                   as Map<String, dynamic>;
-              packet['schema'] = 19;
+              packet['schema'] = 20;
               packet['id'] = const Uuid().v4();
               for (final entry in packet['entries'] as List) {
+                if (['transactions', 'card_entries'].contains(entry['table']) &&
+                    entry['data'] != null) {
+                  entry['data']['tags_json'] = '[]';
+                }
                 if (from < 16 &&
                     entry['table'] == 'credit_cards' &&
                     entry['data'] != null) {

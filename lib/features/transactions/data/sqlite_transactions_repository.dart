@@ -1,3 +1,4 @@
+import '../domain/transaction_tags.dart';
 import '../../reimbursements/data/reimbursements_repository.dart';
 import '../../../core/database/reimbursement_integrity.dart';
 import '../../../core/database/settlement_integrity.dart';
@@ -28,7 +29,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       });
 
   static const _select = '''
-    SELECT t.id, t.description, t.type, t.planned_amount_minor,
+    SELECT t.tags_json, t.id, t.description, t.type, t.planned_amount_minor,
       t.series_id, t.series_index, t.series_kind, t.series_count, t.series_unit, t.series_interval,
       t.posted_at, t.due_at, t.effective_at, t.account_id, t.category_id, t.allocations_json,
       a.name AS account_name, a.currency_code,
@@ -110,7 +111,10 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       ORDER BY CASE WHEN t.effective_at < ? THEN 0 ELSE 1 END, t.due_at DESC, t.created_at DESC, t.id DESC
     ''', variables: variables).get();
     final items = [
-      ...rows.map(_map),
+      ...rows.map(_map).where((item) =>
+          filter.tag == null ||
+          item.tags.any((tag) =>
+              TransactionTags.key(tag) == TransactionTags.key(filter.tag!))),
       ...await CardsRepository(_db).movements(filter)
     ];
     items.sort((a, b) {
@@ -146,6 +150,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
         throw const FormatException('A série deve terminar até o ano 2100.');
       }
       return (await _createSingle(TransactionDraft(
+              tags: draft.tags,
               description: draft.description,
               type: draft.type,
               accountId: draft.accountId,
@@ -201,6 +206,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
           await _updateSingle(
               row.read<String>('id'),
               TransactionDraft(
+                  tags: draft.tags,
                   description: draft.description,
                   type: draft.type,
                   accountId: draft.accountId,
@@ -229,8 +235,8 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       INSERT INTO transactions
         (id, description, type, planned_amount_minor, actual_amount_minor,
          competence_at, posted_at, due_at, effective_at, account_id, category_id,
-         created_at, updated_at, allocations_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         created_at, updated_at, allocations_json, tags_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       id,
       draft.description.trim(),
@@ -246,6 +252,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       now,
       now,
       CategoryAllocation.encode(draft.allocations),
+      TransactionTags.encode(draft.tags),
     ]);
     if (draft.reimbursements != null) {
       await ReimbursementsRepository(_db).replace(id, draft.reimbursements!);
@@ -281,6 +288,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     // Não revalida conta/categoria arquivada ao editar só descrição, data ou
     // valor de um lançamento histórico; mudar o vínculo exige entidade ativa.
     final fields = <String>[
+      'tags_json = ?',
       'allocations_json = ?',
       'description = ?',
       'planned_amount_minor = ?',
@@ -294,6 +302,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     ];
     final day = _dayMillis(draft.date);
     final args = <Object?>[
+      TransactionTags.encode(draft.tags),
       CategoryAllocation.encode(draft.allocations),
       draft.description.trim(),
       draft.amountMinor,
@@ -513,6 +522,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   FinancialTransaction _map(QueryRow row) => FinancialTransaction(
         id: row.read<String>('id'),
+        tags: TransactionTags.decode(row.read<String>('tags_json')),
         settlementCount: row.read<int>('settlement_count'),
         settledMinor: row.read<int>('settled_minor'),
         scheduledSettlementMinor: row.read<int>('scheduled_minor'),

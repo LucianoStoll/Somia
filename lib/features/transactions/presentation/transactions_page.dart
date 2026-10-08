@@ -1,3 +1,5 @@
+import 'transaction_tags_editor.dart';
+import '../domain/transaction_tags.dart';
 import '../../reimbursements/presentation/reimbursement_editor.dart';
 import '../../reimbursements/data/reimbursements_repository.dart';
 import '../../reimbursements/domain/reimbursement.dart';
@@ -71,6 +73,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
   String? _accountId;
   String? _categoryId;
   String? _subcategoryId;
+  String? _tag;
   TransactionStatus _status = TransactionStatus.all;
   TransactionDateField _dateField = TransactionDateField.due;
   DateTimeRange? _range;
@@ -118,6 +121,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                                   _accountId = null;
                                   _categoryId = null;
                                   _subcategoryId = null;
+                                  _tag = null;
                                   _status = TransactionStatus.all;
                                   _dateField = TransactionDateField.due;
                                   _range = _monthRange;
@@ -164,6 +168,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
     _refreshFilters?.call();
     context.read<TransactionsCubit>().load(TransactionFilter(
           type: _type,
+          tag: _tag,
           accountId: _accountId,
           categoryId: _subcategoryId ?? _categoryId,
           status: _status,
@@ -442,6 +447,28 @@ class _TransactionsViewState extends State<_TransactionsView> {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
+                SizedBox(
+                    width: 220,
+                    child: TextFormField(
+                      key: ValueKey('tag-filter-$_tag'),
+                      initialValue: _tag,
+                      decoration: InputDecoration(
+                          labelText: 'Filtrar por tag',
+                          suffixIcon: _tag == null
+                              ? const Icon(Icons.sell_outlined)
+                              : IconButton(
+                                  tooltip: 'Limpar tag',
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () {
+                                    setState(() => _tag = null);
+                                    _apply();
+                                  })),
+                      onFieldSubmitted: (value) {
+                        setState(() =>
+                            _tag = value.trim().isEmpty ? null : value.trim());
+                        _apply();
+                      },
+                    )),
                 if (widget.sectionType == null) ...[
                   ChoiceChip(
                       label: const Text('Todos'),
@@ -784,6 +811,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
               ? 'Receber hoje'
               : 'Pagar hoje',
       tags: [
+        ...item.tags.map((tag) => '#$tag'),
         if (item.settlementCount > 0)
           'Baixado: ${MoneyMinor.display(item.settledMinor, item.currencyCode)} · Restante: ${MoneyMinor.display(item.amountMinor - item.settledMinor, item.currencyCode)}',
         if (item.cardId != null) 'Compra no cartão',
@@ -895,6 +923,7 @@ class TransactionFormState extends State<TransactionForm> {
   String? _categoryId;
   String? _subcategoryId;
   List<ReimbursementDraft>? _reimbursements;
+  List<String> _tags = [];
   bool _rateioEnabled = false;
   List<CategoryAllocation> _allocations = [];
   void _amountChanged() {
@@ -1085,6 +1114,7 @@ class TransactionFormState extends State<TransactionForm> {
     super.initState();
     _series.addListener(_seriesChanged);
     final item = widget.item;
+    _tags = List.of(item?.tags ?? const []);
     _description = TextEditingController(text: item?.description ?? '');
     _amount =
         TextEditingController(text: MoneyMinor.plain(item?.amountMinor ?? 0));
@@ -1230,6 +1260,7 @@ class TransactionFormState extends State<TransactionForm> {
     Navigator.pop(
         context,
         TransactionDraft(
+          tags: _tags,
           reimbursements:
               _type == TransactionType.expense ? _reimbursements : null,
           description: _description.text.trim(),
@@ -1268,6 +1299,7 @@ class TransactionFormState extends State<TransactionForm> {
     return UnsavedChangesGuard(
         value: () => (
               _description.text,
+              TransactionTags.encode(_tags),
               _amount.text,
               _type,
               _date,
@@ -1539,9 +1571,14 @@ class TransactionFormState extends State<TransactionForm> {
                         title: const Text('Mais opções'),
                         tilePadding: EdgeInsets.zero,
                         maintainState: true,
-                        initiallyExpanded:
-                            _rateioEnabled || widget.item?.series != null,
+                        initiallyExpanded: _tags.isNotEmpty ||
+                            _rateioEnabled ||
+                            widget.item?.series != null,
                         children: [
+                          TransactionTagsEditor(
+                              tags: _tags,
+                              onChanged: (tags) =>
+                                  setState(() => _tags = tags)),
                           if (_type == TransactionType.expense &&
                               getIt.isRegistered<ReimbursementsRepository>())
                             ReimbursementEditor(
