@@ -66,6 +66,14 @@ class MovementManagementRepository {
         }
         final transactions = SqliteTransactionsRepository(db);
         final transfers = SqliteTransfersRepository(db);
+        final transactionItems =
+            refs.any((ref) => ref.kind == MovementKind.transaction)
+                ? {for (final item in await transactions.list()) item.id: item}
+                : <String, FinancialTransaction>{};
+        final transferItems =
+            refs.any((ref) => ref.kind == MovementKind.transfer)
+                ? {for (final item in await transfers.list()) item.id: item}
+                : <String, Transfer>{};
         for (final ref in refs) {
           if (ref.kind == MovementKind.transfer) {
             if (patch.changeCategory ||
@@ -75,8 +83,7 @@ class MovementManagementRepository {
               throw StateError(
                   'Transferências não possuem categoria, tags ou estabelecimento.');
             }
-            final item = (await transfers.list())
-                .firstWhere((item) => item.id == ref.id);
+            final item = transferItems[ref.id]!;
             await _currency(item.currencyCode, patch.accountId);
             await _currency(item.currencyCode, patch.destinationAccountId);
             await transfers.update(
@@ -95,14 +102,14 @@ class MovementManagementRepository {
                         ? patch.effectiveDate ?? DateTime.now()
                         : item.effectiveDate));
           } else {
+            final originalRow = await _check(ref, 'active');
             if (patch.destinationAccountId != null) {
               throw StateError(
                   'Conta de destino é exclusiva de transferências.');
             }
             final item = ref.kind == MovementKind.cardEntry
                 ? await CardsRepository(db).findMovement(ref.id)
-                : (await transactions.list())
-                    .firstWhere((item) => item.id == ref.id);
+                : transactionItems[ref.id]!;
             if (patch.changeCategory && item.allocations.isNotEmpty) {
               throw StateError(
                   'Edite o rateio individualmente antes de trocar a categoria.');
@@ -144,6 +151,28 @@ class MovementManagementRepository {
                     allocations: item.allocations,
                     tags: tags,
                     establishment: patch.establishment ?? item.establishment));
+            if (ref.kind == MovementKind.transaction) {
+              final fields = <String>[];
+              final args = <Object?>[];
+              if (patch.amountMinor == null &&
+                  patch.effective == null &&
+                  originalRow.readNullable<int>('actual_amount_minor') !=
+                      (item.effectiveDate == null ? null : item.amountMinor)) {
+                fields.add('actual_amount_minor=?');
+                args.add(originalRow.readNullable<int>('actual_amount_minor'));
+              }
+              if (patch.postedDate == null &&
+                  originalRow.read<int>('competence_at') !=
+                      originalRow.read<int>('posted_at')) {
+                fields.add('competence_at=?');
+                args.add(originalRow.read<int>('competence_at'));
+              }
+              if (fields.isNotEmpty) {
+                await db.customStatement(
+                    'UPDATE transactions SET ${fields.join(',')} WHERE id=?',
+                    [...args, ref.id]);
+              }
+            }
           }
         }
         await _validate();
@@ -256,7 +285,7 @@ class MovementManagementRepository {
             for (final link in links.entries) {
               for (final id in link.value) {
                 final live = await db.customSelect(
-                    'SELECT id FROM ${link.key} WHERE id=? AND deleted_at IS NULL',
+                    "SELECT id FROM ${link.key} WHERE id=? ${link.key == 'card_invoices' ? '' : 'AND deleted_at IS NULL'}",
                     variables: [Variable.withString(id)]).get();
                 if (live.isEmpty) {
                   throw StateError(

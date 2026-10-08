@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:finapp/features/transactions/data/transaction_settlements_repository.dart';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
@@ -76,6 +79,25 @@ void main() {
       expect(item.establishment, 'Farmácia');
       expect(item.dueDate, DateTime.utc(2026, 10, 10));
     }
+  });
+  test(
+      'campos históricos de valor efetivado e competência ficam intactos quando não escolhidos',
+      () async {
+    final item = await transactions.create(draft());
+    final day = DateTime.utc(2026, 10, 1).millisecondsSinceEpoch;
+    await db.customStatement(
+        'UPDATE transactions SET actual_amount_minor=800,effective_at=?,competence_at=? WHERE id=?',
+        [day, day, item.id]);
+    await management.apply([await ref(item.id)],
+        const BulkMovementPatch(establishment: 'Nova loja'));
+    final row = await db
+        .customSelect(
+            'SELECT actual_amount_minor,competence_at,posted_at FROM transactions')
+        .getSingle();
+    expect(row.read<int>('actual_amount_minor'), 800);
+    expect(row.read<int>('competence_at'), day);
+    expect(row.read<int>('posted_at'),
+        DateTime.utc(2026, 10, 8).millisecondsSinceEpoch);
   });
   test('revisão antiga cancela todo o lote', () async {
     final a = await transactions.create(draft());
@@ -297,4 +319,52 @@ void main() {
     expect(find.text('A lixeira está vazia.'), findsOneWidget);
     expect((await transactions.list()).length, 1);
   });
+  if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+    testWidgets('prévias mobile e desktop de edição em lote e lixeira',
+        (tester) async {
+      for (final pair in [
+        ('Roboto', 'Roboto-Regular.ttf'),
+        ('MaterialIcons', 'MaterialIcons-Regular.otf')
+      ]) {
+        final loader = FontLoader(pair.$1)
+          ..addFont(Future.value(ByteData.sublistView(File(
+                  '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts/${pair.$2}')
+              .readAsBytesSync())));
+        await loader.load();
+      }
+      getIt.registerSingleton<MovementManagementRepository>(management);
+      final item =
+          await transactions.create(draft(description: 'Mercado da semana'));
+      await transactions.delete(item.id);
+      for (final mobile in [true, false]) {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+        tester.view.physicalSize =
+            mobile ? const Size(390, 844) : const Size(1280, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final suffix = mobile ? 'mobile' : 'desktop';
+        await tester.pumpWidget(const MaterialApp(home: TrashPage()));
+        await tester.pumpAndSettle();
+        await expectLater(find.byType(TrashPage),
+            matchesGoldenFile('trash-$suffix-preview.png'));
+        await tester.pumpWidget(MaterialApp(
+            home: Builder(
+                builder: (context) => Scaffold(
+                    body: TextButton(
+                        onPressed: () => showDialog<BulkMovementPatch>(
+                            context: context,
+                            builder: (_) => const BulkMovementDialog(count: 3)),
+                        child: const Text('Abrir lote'))))));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Abrir lote'));
+        await tester.pumpAndSettle();
+        await expectLater(find.byType(MaterialApp),
+            matchesGoldenFile('bulk-$suffix-preview.png'));
+        await tester.tap(find.text('Cancelar'));
+        await tester.pumpAndSettle();
+      }
+    });
+  }
 }

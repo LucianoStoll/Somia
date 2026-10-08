@@ -34,7 +34,7 @@ void main() {
         "INSERT INTO accounts(id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES('a','Conta','cash','BRL',0,1,1)");
     await old.customStatement(
         '''INSERT INTO transactions(id,description,type,planned_amount_minor,competence_at,posted_at,due_at,account_id,created_at,updated_at,tags_json,establishment,deleted_at)
-      VALUES('t','Compra','expense',1234,1,1,1,'a',1,1,'["Viagem"]','Loja',2)''');
+      VALUES('transaction-trash-0001','Compra','expense',1234,1,1,1,'a',1,1,'["Viagem"]','Loja',2)''');
     final data =
         (await old.customSelect('SELECT * FROM transactions').getSingle()).data;
     await old.customStatement('INSERT INTO sync_uploads VALUES(?,?)', [
@@ -52,7 +52,7 @@ void main() {
           'INSERT INTO $table(table_name,row_id,clock,device_id,is_deleted,data) VALUES(?,?,?,?,?,?)',
           [
             'transactions',
-            't',
+            'transaction-trash-0001',
             1,
             'device-trash-00000001',
             0,
@@ -90,8 +90,8 @@ void main() {
         'device-trash-00000001',
         'genesis',
         [
-          SyncEntry(
-              'transactions', 't', 1, 'device-trash-00000001', false, row.data)
+          SyncEntry('transactions', 'transaction-trash-0001', 1,
+              'device-trash-00000001', false, row.data)
         ],
         sourceSchema: 21);
     final decoded =
