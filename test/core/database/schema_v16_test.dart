@@ -31,7 +31,7 @@ void main() {
     final file = File('${dir.path}/db.sqlite');
     final old = LegacyV15(NativeDatabase(file));
     await old.customStatement(
-        "INSERT INTO accounts(id,name,type,currency_code,created_at,updated_at) VALUES('a','Banco','checking','BRL',1,1)");
+        "INSERT INTO accounts(id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES('a','Banco','checking','BRL',0,1,1)");
     await old.customStatement(
         "INSERT INTO credit_cards(id,name,payment_account_id,closing_day,due_day,created_at,updated_at) VALUES('c','Cartão','a',25,5,1,1)");
     final data =
