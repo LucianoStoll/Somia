@@ -1,3 +1,4 @@
+import '../../transactions/domain/establishment.dart';
 import '../../transactions/domain/transaction_tags.dart';
 import '../../reimbursements/data/reimbursements_repository.dart';
 import '../../../core/database/reimbursement_integrity.dart';
@@ -222,6 +223,7 @@ class CardsRepository {
       String? categoryId,
       List<CategoryAllocation> allocations = const [],
       List<String> tags = const [],
+      String establishment = '',
       String kind = 'purchase',
       int index = 0,
       int count = 1,
@@ -236,8 +238,8 @@ class CardsRepository {
     }
     final now = EntityMetadata.nowUtcMillis();
     await db.customStatement(
-        '''INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,installment_index,installment_count,description,category_id,kind,amount_minor,posted_at,source_id,created_at,updated_at,allocations_json,tags_json)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+        '''INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,installment_index,installment_count,description,category_id,kind,amount_minor,posted_at,source_id,created_at,updated_at,allocations_json,tags_json,establishment)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         [
           id ?? EntityMetadata.newId(),
           cardId,
@@ -255,6 +257,7 @@ class CardsRepository {
           now,
           CategoryAllocation.encode(allocations),
           TransactionTags.encode(tags),
+          Establishment.normalize(establishment),
         ]);
   }
 
@@ -305,6 +308,7 @@ class CardsRepository {
               purchaseId: purchaseId,
               description: draft.description,
               tags: draft.tags,
+              establishment: draft.establishment,
               amount: amounts[index],
               date: draft.date,
               categoryId: draft.categoryId,
@@ -345,6 +349,7 @@ class CardsRepository {
             invoiceMonth: cardDate(r.read<int>('month_at')),
             categoryId: r.readNullable<String>('category_id'),
             tags: TransactionTags.decode(r.read<String>('tags_json')),
+            establishment: r.read<String>('establishment'),
             allocations: CategoryAllocation.decode(
               r.read<String>('allocations_json'),
             ),
@@ -589,8 +594,9 @@ class CardsRepository {
           }
           await _history(e, 'edit', target, draft.amountMinor);
           await db.customStatement(
-              'UPDATE card_entries SET tags_json=?,allocations_json=?,description=?,amount_minor=?,posted_at=?,category_id=?,invoice_id=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+              'UPDATE card_entries SET establishment=?,tags_json=?,allocations_json=?,description=?,amount_minor=?,posted_at=?,category_id=?,invoice_id=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
               [
+                Establishment.normalize(draft.establishment),
                 TransactionTags.encode(draft.tags),
                 CategoryAllocation.encode(draft.allocations),
                 draft.description.trim(),
@@ -801,6 +807,7 @@ class CardsRepository {
           cardInvoiceMonth: e.invoiceMonth,
           description: e.description,
           tags: e.tags,
+          establishment: e.establishment,
           type: TransactionType.expense,
           amountMinor: e.amountMinor,
           date: e.postedAt,
@@ -1010,10 +1017,15 @@ class CardsRepository {
                 )) {
               continue;
             }
-            if (filter.tag != null &&
-                !bill.entries.any((e) => e.tags.any((tag) =>
-                    TransactionTags.key(tag) ==
-                    TransactionTags.key(filter.tag!)))) {
+            if ((filter.tag != null || filter.establishment != null) &&
+                !bill.entries.any((e) =>
+                    (filter.tag == null ||
+                        e.tags.any((tag) =>
+                            TransactionTags.key(tag) ==
+                            TransactionTags.key(filter.tag!))) &&
+                    (filter.establishment == null ||
+                        Establishment.key(e.establishment) ==
+                            Establishment.key(filter.establishment!)))) {
               continue;
             }
             final effective = bill.balanceMinor <= 0;

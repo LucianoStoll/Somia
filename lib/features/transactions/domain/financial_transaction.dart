@@ -32,6 +32,7 @@ class FinancialTransaction {
     this.cardPaymentSignature = '',
     this.allocations = const [],
     this.tags = const [],
+    this.establishment = '',
     required this.description,
     required this.type,
     required this.amountMinor,
@@ -61,6 +62,7 @@ class FinancialTransaction {
   final String cardPaymentSignature;
   final List<CategoryAllocation> allocations;
   final List<String> tags;
+  final String establishment;
   final String description;
   final TransactionType type;
   final int amountMinor;
@@ -82,6 +84,7 @@ class TransactionDraft {
     this.reimbursements,
     this.allocations = const [],
     this.tags = const [],
+    this.establishment = '',
     required this.description,
     required this.type,
     required this.amountMinor,
@@ -100,6 +103,7 @@ class TransactionDraft {
 
   final List<CategoryAllocation> allocations;
   final List<String> tags;
+  final String establishment;
   final List<ReimbursementDraft>? reimbursements;
 
   final String description;
@@ -122,6 +126,7 @@ class TransactionFilter {
   const TransactionFilter(
       {this.type,
       this.tag,
+      this.establishment,
       this.accountId,
       this.categoryId,
       this.status = TransactionStatus.all,
@@ -131,6 +136,7 @@ class TransactionFilter {
 
   final TransactionType? type;
   final String? tag;
+  final String? establishment;
   final String? accountId;
   final String? categoryId;
   final TransactionStatus status;

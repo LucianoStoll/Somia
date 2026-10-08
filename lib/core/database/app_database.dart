@@ -29,6 +29,7 @@ import 'schema_v17.dart';
 import 'schema_v18.dart';
 import 'schema_v19.dart';
 import 'schema_v20.dart';
+import 'schema_v21.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -134,7 +135,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 20;
+  static const currentSchemaVersion = 21;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -166,6 +167,7 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV18,
             ...schemaV19,
             ...schemaV20,
+            ...schemaV21,
           ]) {
             await customStatement(statement);
           }
@@ -193,13 +195,14 @@ class AppDatabase extends GeneratedDatabase {
               18 => schemaV18,
               19 => schemaV19,
               20 => schemaV20,
+              21 => schemaV21,
               _ => throw StateError('Migration v$version não implementada'),
             };
             for (final statement in statements) {
               await customStatement(statement);
             }
           }
-          if (from < 20) {
+          if (from < 21) {
             // Requeue unsent v11–v13 packets with new identities: an earlier upload
             // may already exist remotely with the original content hash.
             final uploads =
@@ -207,12 +210,15 @@ class AppDatabase extends GeneratedDatabase {
             for (final row in uploads) {
               final packet = jsonDecode(row.read<String>('payload'))
                   as Map<String, dynamic>;
-              packet['schema'] = 20;
+              packet['schema'] = 21;
               packet['id'] = const Uuid().v4();
               for (final entry in packet['entries'] as List) {
                 if (['transactions', 'card_entries'].contains(entry['table']) &&
                     entry['data'] != null) {
-                  entry['data']['tags_json'] = '[]';
+                  if (from < 20) {
+                    entry['data']['tags_json'] = '[]';
+                  }
+                  entry['data']['establishment'] = '';
                 }
                 if (from < 16 &&
                     entry['table'] == 'credit_cards' &&

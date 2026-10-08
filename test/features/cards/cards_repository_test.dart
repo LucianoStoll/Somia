@@ -50,10 +50,12 @@ void main() {
           String? selectedCard,
           int first = 1,
           List<String> tags = const [],
+          String establishment = '',
           SeriesScope scope = SeriesScope.onlyThis}) =>
       TransactionDraft(
           description: 'Mercado',
           tags: tags,
+          establishment: establishment,
           type: TransactionType.expense,
           amountMinor: amount,
           date: date ?? DateTime(2026, 1, 10),
@@ -85,6 +87,33 @@ void main() {
         projectedBalanceMinor: b.projectedMinor);
   }
 
+  test('estabelecimento acompanha parcelas, edição e filtro sem alterar tags',
+      () async {
+    final id = await cards.createPurchase(
+        draft(count: 2, tags: ['Viagem'], establishment: ' Mercado  Central '));
+    expect(
+        (await cards.entries())
+            .every((e) => e.establishment == 'Mercado Central'),
+        isTrue);
+    expect(
+        await cards.movements(
+            const TransactionFilter(establishment: 'mercado central')),
+        hasLength(2));
+    expect(
+        await cards.movements(const TransactionFilter(establishment: 'Outro')),
+        isEmpty);
+    await cards
+        .createPurchase(draft(tags: ['Outra'], establishment: 'Farmácia'));
+    expect(
+        await cards.movements(
+            const TransactionFilter(establishment: 'Farmácia', tag: 'Viagem')),
+        isEmpty);
+    await cards.editPurchase(
+        id, draft(amount: 5000, tags: ['Viagem'], establishment: 'Farmácia'));
+    final movement = await cards.findMovement(id);
+    expect(movement.establishment, 'Farmácia');
+    expect(movement.tags, ['Viagem']);
+  });
   test('tags acompanham parcelas, edição e filtro da fatura', () async {
     final id = await cards.createPurchase(draft(count: 2, tags: ['Viagem']));
     expect((await cards.entries()).every((e) => e.tags.contains('Viagem')),

@@ -1,3 +1,4 @@
+import 'establishment_editor.dart';
 import 'transaction_tags_editor.dart';
 import '../domain/transaction_tags.dart';
 import '../../reimbursements/presentation/reimbursement_editor.dart';
@@ -74,6 +75,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
   String? _categoryId;
   String? _subcategoryId;
   String? _tag;
+  String? _establishmentFilter;
   TransactionStatus _status = TransactionStatus.all;
   TransactionDateField _dateField = TransactionDateField.due;
   DateTimeRange? _range;
@@ -122,6 +124,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                                   _categoryId = null;
                                   _subcategoryId = null;
                                   _tag = null;
+                                  _establishmentFilter = null;
                                   _status = TransactionStatus.all;
                                   _dateField = TransactionDateField.due;
                                   _range = _monthRange;
@@ -169,6 +172,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
     context.read<TransactionsCubit>().load(TransactionFilter(
           type: _type,
           tag: _tag,
+          establishment: _establishmentFilter,
           accountId: _accountId,
           categoryId: _subcategoryId ?? _categoryId,
           status: _status,
@@ -469,6 +473,29 @@ class _TransactionsViewState extends State<_TransactionsView> {
                         _apply();
                       },
                     )),
+                SizedBox(
+                    width: 220,
+                    child: TextFormField(
+                      key: ValueKey(
+                          'establishment-filter-$_establishmentFilter'),
+                      initialValue: _establishmentFilter,
+                      decoration: InputDecoration(
+                          labelText: 'Filtrar por estabelecimento',
+                          suffixIcon: _establishmentFilter == null
+                              ? const Icon(Icons.store_outlined)
+                              : IconButton(
+                                  tooltip: 'Limpar estabelecimento',
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () {
+                                    setState(() => _establishmentFilter = null);
+                                    _apply();
+                                  })),
+                      onFieldSubmitted: (value) {
+                        setState(() => _establishmentFilter =
+                            value.trim().isEmpty ? null : value.trim());
+                        _apply();
+                      },
+                    )),
                 if (widget.sectionType == null) ...[
                   ChoiceChip(
                       label: const Text('Todos'),
@@ -742,7 +769,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
         ][item.date.month - 1]}.',
         pendingLabel: 'Desfazer último pagamento',
         tags: [
-          if (_categoryId != null || _subcategoryId != null || _tag != null)
+          if (_categoryId != null ||
+              _subcategoryId != null ||
+              _tag != null ||
+              _establishmentFilter != null)
             'Fatura completa',
           if (item.cardPreviousMinor != 0)
             'Anterior ${MoneyMinor.display(item.cardPreviousMinor, 'BRL')}',
@@ -813,6 +843,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
               : 'Pagar hoje',
       tags: [
         ...item.tags.map((tag) => '#$tag'),
+        if (item.establishment.isNotEmpty) 'Local: ${item.establishment}',
         if (item.settlementCount > 0)
           'Baixado: ${MoneyMinor.display(item.settledMinor, item.currencyCode)} · Restante: ${MoneyMinor.display(item.amountMinor - item.settledMinor, item.currencyCode)}',
         if (item.cardId != null) 'Compra no cartão',
@@ -925,6 +956,7 @@ class TransactionFormState extends State<TransactionForm> {
   String? _subcategoryId;
   List<ReimbursementDraft>? _reimbursements;
   List<String> _tags = [];
+  String _establishment = '';
   bool _rateioEnabled = false;
   List<CategoryAllocation> _allocations = [];
   void _amountChanged() {
@@ -1116,6 +1148,7 @@ class TransactionFormState extends State<TransactionForm> {
     _series.addListener(_seriesChanged);
     final item = widget.item;
     _tags = List.of(item?.tags ?? const []);
+    _establishment = item?.establishment ?? '';
     _description = TextEditingController(text: item?.description ?? '');
     _amount =
         TextEditingController(text: MoneyMinor.plain(item?.amountMinor ?? 0));
@@ -1262,6 +1295,7 @@ class TransactionFormState extends State<TransactionForm> {
         context,
         TransactionDraft(
           tags: _tags,
+          establishment: _establishment,
           reimbursements:
               _type == TransactionType.expense ? _reimbursements : null,
           description: _description.text.trim(),
@@ -1301,6 +1335,7 @@ class TransactionFormState extends State<TransactionForm> {
         value: () => (
               _description.text,
               TransactionTags.encode(_tags),
+              _establishment,
               _amount.text,
               _type,
               _date,
@@ -1572,10 +1607,15 @@ class TransactionFormState extends State<TransactionForm> {
                         title: const Text('Mais opções'),
                         tilePadding: EdgeInsets.zero,
                         maintainState: true,
-                        initiallyExpanded: _tags.isNotEmpty ||
+                        initiallyExpanded: _establishment.isNotEmpty ||
+                            _tags.isNotEmpty ||
                             _rateioEnabled ||
                             widget.item?.series != null,
                         children: [
+                          EstablishmentEditor(
+                              value: _establishment,
+                              onChanged: (value) =>
+                                  setState(() => _establishment = value)),
                           TransactionTagsEditor(
                               tags: _tags,
                               onChanged: (tags) =>

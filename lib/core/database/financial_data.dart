@@ -1,3 +1,4 @@
+import '../../features/transactions/domain/establishment.dart';
 import '../../features/transactions/domain/transaction_tags.dart';
 import 'app_database.dart';
 import 'debt_integrity.dart';
@@ -127,9 +128,11 @@ Future<void> validateFinancial(AppDatabase db) async {
       r.read<String>('id'): r.read<String>('type'),
   };
   for (final table in ['transactions', 'card_entries']) {
-    for (final row
-        in await db.customSelect('SELECT tags_json FROM $table').get()) {
+    for (final row in await db
+        .customSelect('SELECT tags_json, establishment FROM $table')
+        .get()) {
       TransactionTags.decode(row.read<String>('tags_json'));
+      Establishment.normalize(row.read<String>('establishment'));
     }
     for (final row in await db.customSelect('SELECT * FROM $table').get()) {
       final parts = CategoryAllocation.decode(

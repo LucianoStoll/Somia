@@ -1,3 +1,4 @@
+import '../domain/establishment.dart';
 import '../domain/transaction_tags.dart';
 import '../../reimbursements/data/reimbursements_repository.dart';
 import '../../../core/database/reimbursement_integrity.dart';
@@ -29,7 +30,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       });
 
   static const _select = '''
-    SELECT t.tags_json, t.id, t.description, t.type, t.planned_amount_minor,
+    SELECT t.establishment, t.tags_json, t.id, t.description, t.type, t.planned_amount_minor,
       t.series_id, t.series_index, t.series_kind, t.series_count, t.series_unit, t.series_interval,
       t.posted_at, t.due_at, t.effective_at, t.account_id, t.category_id, t.allocations_json,
       a.name AS account_name, a.currency_code,
@@ -111,10 +112,17 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       ORDER BY CASE WHEN t.effective_at < ? THEN 0 ELSE 1 END, t.due_at DESC, t.created_at DESC, t.id DESC
     ''', variables: variables).get();
     final items = [
-      ...rows.map(_map).where((item) =>
-          filter.tag == null ||
-          item.tags.any((tag) =>
-              TransactionTags.key(tag) == TransactionTags.key(filter.tag!))),
+      ...rows
+          .map(_map)
+          .where((item) =>
+              filter.establishment == null ||
+              Establishment.key(item.establishment) ==
+                  Establishment.key(filter.establishment!))
+          .where((item) =>
+              filter.tag == null ||
+              item.tags.any((tag) =>
+                  TransactionTags.key(tag) ==
+                  TransactionTags.key(filter.tag!))),
       ...await CardsRepository(_db).movements(filter)
     ];
     items.sort((a, b) {
@@ -151,6 +159,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       }
       return (await _createSingle(TransactionDraft(
               tags: draft.tags,
+              establishment: draft.establishment,
               description: draft.description,
               type: draft.type,
               accountId: draft.accountId,
@@ -207,6 +216,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
               row.read<String>('id'),
               TransactionDraft(
                   tags: draft.tags,
+                  establishment: draft.establishment,
                   description: draft.description,
                   type: draft.type,
                   accountId: draft.accountId,
@@ -235,8 +245,8 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       INSERT INTO transactions
         (id, description, type, planned_amount_minor, actual_amount_minor,
          competence_at, posted_at, due_at, effective_at, account_id, category_id,
-         created_at, updated_at, allocations_json, tags_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         created_at, updated_at, allocations_json, tags_json, establishment)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       id,
       draft.description.trim(),
@@ -253,6 +263,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       now,
       CategoryAllocation.encode(draft.allocations),
       TransactionTags.encode(draft.tags),
+      Establishment.normalize(draft.establishment),
     ]);
     if (draft.reimbursements != null) {
       await ReimbursementsRepository(_db).replace(id, draft.reimbursements!);
@@ -288,6 +299,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     // Não revalida conta/categoria arquivada ao editar só descrição, data ou
     // valor de um lançamento histórico; mudar o vínculo exige entidade ativa.
     final fields = <String>[
+      'establishment = ?',
       'tags_json = ?',
       'allocations_json = ?',
       'description = ?',
@@ -302,6 +314,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     ];
     final day = _dayMillis(draft.date);
     final args = <Object?>[
+      Establishment.normalize(draft.establishment),
       TransactionTags.encode(draft.tags),
       CategoryAllocation.encode(draft.allocations),
       draft.description.trim(),
@@ -523,6 +536,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   FinancialTransaction _map(QueryRow row) => FinancialTransaction(
         id: row.read<String>('id'),
         tags: TransactionTags.decode(row.read<String>('tags_json')),
+        establishment: row.read<String>('establishment'),
         settlementCount: row.read<int>('settlement_count'),
         settledMinor: row.read<int>('settled_minor'),
         scheduledSettlementMinor: row.read<int>('scheduled_minor'),

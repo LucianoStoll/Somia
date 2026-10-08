@@ -78,6 +78,7 @@ class CardEntry {
       required this.invoiceMonth,
       this.allocations = const [],
       this.tags = const [],
+      this.establishment = '',
       this.categoryId,
       this.categoryName,
       this.sourceId});
@@ -87,6 +88,7 @@ class CardEntry {
   final String? categoryId, categoryName, sourceId;
   final List<CategoryAllocation> allocations;
   final List<String> tags;
+  final String establishment;
   String get label => count > 1
       ? 'Parcela ${index + 1}/$count'
       : switch (kind) {
