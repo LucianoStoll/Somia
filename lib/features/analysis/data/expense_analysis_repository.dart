@@ -91,7 +91,7 @@ class ExpenseAnalysisRepository {
           final net = r.read<int>('amount') + (credits[id] ?? 0);
           credits[id] = math.min(0, net);
           // Each invoice's unpaid charges once; never repeat overdue carry-over.
-          if (date >= futureStart && net > 0)
+          if (date >= futureStart && net > 0) {
             cardPending.add(AnalysisExpense(
                 id: r.read<String>('id'),
                 description: 'Fatura — ${r.read<String>('name')}',
@@ -101,6 +101,7 @@ class ExpenseAnalysisRepository {
                 category: 'Cartão',
                 subcategory: 'Fatura',
                 amount: net));
+          }
         }
         final expenses = pending.map(map).toList();
         final accounts = await SqliteAccountsRepository(db)

@@ -56,15 +56,17 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
       setState(() {
         data = result;
         loading = false;
-        if (!result.currencies.contains(currency))
+        if (!result.currencies.contains(currency)) {
           currency = result.currencies.firstOrNull;
+        }
       });
     } catch (_) {
-      if (mounted && id == request)
+      if (mounted && id == request) {
         setState(() {
           loading = false;
           error = 'Não foi possível carregar as análises.';
         });
+      }
     }
   }
 
@@ -117,8 +119,9 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
                                         child: Text('Saldo por tipo de conta'))
                                   ],
                                   onChanged: (value) {
-                                    if (value != null)
+                                    if (value != null) {
                                       setState(() => view = value);
+                                    }
                                   }),
                               const SizedBox(height: 12),
                               if (loading)

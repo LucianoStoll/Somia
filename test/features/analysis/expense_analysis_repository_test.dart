@@ -44,7 +44,7 @@ Future<void> invoice(AppDatabase db, String id, int month, int amount) =>
           [id, 'c', at(month, 1), at(month, 5), at(month)]);
       await db.customStatement(
           "INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,description,category_id,kind,amount_minor,posted_at,created_at,updated_at) VALUES(?,'c',?,?,'Compra cartão','market','purchase',?,?,0,0)",
-          [id + 'entry', id, id + 'purchase', amount, at(month)]);
+          ['${id}entry', id, '${id}purchase', amount, at(month)]);
     });
 void main() {
   late AppDatabase db;
