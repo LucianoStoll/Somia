@@ -1,8 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FontLoader;
+import 'package:finapp/core/theme/app_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/core/database/backup_service.dart';
@@ -150,4 +151,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nenhum anexo neste lançamento.'), findsOneWidget);
   });
+  if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+    testWidgets('prévias de anexos no Android e Windows', (tester) async {
+      for (final pair in [
+        ('Roboto', 'Roboto-Regular.ttf'),
+        ('MaterialIcons', 'MaterialIcons-Regular.otf')
+      ]) {
+        final loader = FontLoader(pair.$1)
+          ..addFont(Future.value(ByteData.sublistView(File(
+                  '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts/${pair.$2}')
+              .readAsBytesSync())));
+        await loader.load();
+      }
+      await repo.add(
+          owner, 'Comprovante de pagamento.pdf', Uint8List.fromList([1, 2, 3]));
+      await repo.add(
+          owner, 'Nota fiscal do mercado.png', Uint8List.fromList([4, 5, 6]));
+      for (final mobile in [true, false]) {
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+        tester.view.physicalSize =
+            mobile ? const Size(390, 844) : const Size(1280, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(MaterialApp(
+            theme: AppTheme.dark,
+            home: AttachmentsPage(repository: repo, owner: owner)));
+        await tester.pumpAndSettle();
+        await expectLater(
+            find.byType(AttachmentsPage),
+            matchesGoldenFile(
+                'attachments-${mobile ? 'mobile' : 'desktop'}-preview.png'));
+      }
+    });
+  }
 }

@@ -75,6 +75,8 @@ jobs:
         run: flutter test test/features/transactions/transaction_settlements_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render bulk editing and trash previews
         run: flutter test test/features/transactions/movement_management_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render attachment previews
+        run: flutter test test/features/attachments/attachments_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render planning previews
         run: flutter test test/features/planning/planning_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render reimbursement previews
@@ -88,6 +90,7 @@ jobs:
           path: |
             test/features/dashboard/*mobile-preview.png
             test/features/dashboard/*desktop-preview.png
+            test/features/attachments/*-preview.png
             test/features/settings/*mobile-preview.png
             test/features/settings/*desktop-preview.png
             test/core/routing/*mobile-preview.png

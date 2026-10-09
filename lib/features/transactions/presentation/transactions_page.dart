@@ -903,8 +903,9 @@ class _TransactionsViewState extends State<_TransactionsView> {
         tooltip: 'Ações do lançamento',
         icon: const Icon(Icons.more_vert, size: 20),
         onSelected: (action) {
-          if (action == 'attachments')
+          if (action == 'attachments') {
             showAttachments(context, MovementReference.transaction(item));
+          }
           if (action == 'settlements') _settlements(item);
           if (action == 'edit') _edit(item);
           if (action == 'delete') _delete(item);
