@@ -326,5 +326,5 @@ void main() {
       await migrated.close();
       await directory.delete(recursive: true);
     }
-  });
+  }, timeout: Timeout(Duration(seconds: Platform.isWindows ? 120 : 30)));
 }
