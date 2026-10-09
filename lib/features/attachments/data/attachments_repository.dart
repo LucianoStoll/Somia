@@ -80,7 +80,7 @@ class AttachmentsRepository {
     if (bytes.length != row.read<int>('size') ||
         crypto.sha256.convert(bytes).toString() != row.read<String>('sha256')) {
       throw const FormatException(
-          'Arquivo corrompido. Restaure uma cópia íntegra.');
+          'Arquivo corrompido. Exclua este anexo e importe uma cópia íntegra.');
     }
     return bytes;
   }

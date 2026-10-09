@@ -100,25 +100,27 @@ class _AttachmentsPageState extends State<AttachmentsPage> {
                       child: const Text('Fechar')),
                 ])));
       });
-  Future<void> _remove(LocalAttachment item) => _run(() async {
-        final confirmed = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-                    title: const Text('Excluir anexo?'),
-                    content: Text(
-                        'Excluir “${item.name}” deste lançamento? O arquivo original não será alterado.'),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancelar')),
-                      FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Excluir'))
-                    ]));
-        if (confirmed == true) {
-          await widget.repository.remove(widget.owner, item.id);
-        }
-      });
+  Future<void> _remove(LocalAttachment item) async {
+    if (_busy) return;
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+                title: const Text('Excluir anexo?'),
+                content: Text(
+                    'Excluir “${item.name}” deste lançamento? O arquivo original não será alterado.'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancelar')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Excluir'))
+                ]));
+    if (confirmed == true && mounted) {
+      await _run(() => widget.repository.remove(widget.owner, item.id));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => PopScope(
       canPop: !_busy,

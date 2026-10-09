@@ -20,7 +20,7 @@ Arquivos inválidos, de versão futura, com corrupção ou vínculos inválidos 
 
 Snapshot SQLite por `VACUUM INTO`, incluindo WAL ativo; validação de cabeçalho, versão, integridade e chaves estrangeiras. Arquivo temporário único, escrita com flush e renomeação; retenção somente após salvar uma cópia válida. Operações no app são serializadas pelo `BackupManager`. Falhas automáticas ficam visíveis em Ajustes e não impedem usar o app. Não há migration de schema nesta entrega.
 
-O backup contém a base completa: contas, categorias, receitas/despesas, transferências, séries, cartões, faturas, pagamentos e históricos. Anexos ainda não são uma funcionalidade do Somia; este formato continua sendo SQLite. Google Drive manual já está disponível no Android e Windows (#50/#51). Sincronização automática, conflitos e anexos seguem na #16.
+O backup contém a base completa: contas, categorias, receitas/despesas, transferências, séries, cartões, faturas, pagamentos e históricos. Desde a #70, os anexos locais também acompanham o backup completo em SQLite, com tamanho e SHA-256 verificados. Google Drive manual já está disponível no Android e Windows (#50/#51). A sincronização financeira automática e os conflitos já estão implementados; o transporte individual dos anexos segue na #16.
 
 ## Validação manual
 

@@ -208,7 +208,7 @@ class AppDatabase extends GeneratedDatabase {
               await customStatement(statement);
             }
           }
-          if (from < 22) {
+          if (from < 23) {
             // Requeue unsent v11–v13 packets with new identities: an earlier upload
             // may already exist remotely with the original content hash.
             final uploads =
@@ -216,10 +216,11 @@ class AppDatabase extends GeneratedDatabase {
             for (final row in uploads) {
               final packet = jsonDecode(row.read<String>('payload'))
                   as Map<String, dynamic>;
-              packet['schema'] = 22;
+              packet['schema'] = currentSchemaVersion;
               packet['id'] = const Uuid().v4();
               for (final entry in packet['entries'] as List) {
-                if (['transactions', 'transfers', 'card_entries']
+                if (from < 22 &&
+                    ['transactions', 'transfers', 'card_entries']
                         .contains(entry['table']) &&
                     entry['data'] != null) {
                   entry['data']['trash_state'] = 'active';

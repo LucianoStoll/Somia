@@ -70,7 +70,7 @@ void main() {
     final upload =
         await db.customSelect('SELECT * FROM sync_uploads').getSingle();
     final payload = jsonDecode(upload.read<String>('payload'));
-    expect(payload['schema'], 22);
+    expect(payload['schema'], AppDatabase.currentSchemaVersion);
     expect(upload.read<String>('packet_id'), isNot('old-trash-packet-0001'));
     final queued = payload['entries'][0]['data'];
     expect(queued['tags_json'], '["Viagem"]');

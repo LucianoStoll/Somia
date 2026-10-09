@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +30,7 @@ class LegacyV22 extends LegacyV21 {
       });
 }
 
-Future<void> seed(AppDatabase db) async {
+Future<void> seed(GeneratedDatabase db) async {
   await db.customStatement(
       "INSERT INTO accounts(id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES('a','Conta','cash','BRL',0,1,1)");
   await db.customStatement(
@@ -94,9 +95,14 @@ void main() {
     await BackupService.restoreOpen(db, LocalBackupStore(dir), backup);
     final item = (await repo.list(owner)).single;
     expect(await repo.read(owner, item.id), [3, 2, 1]);
+    final validHash = (await db
+            .customSelect('SELECT sha256 FROM local_attachments')
+            .getSingle())
+        .read<String>('sha256');
     await db.customStatement("UPDATE local_attachments SET sha256='bad'");
     final bad = await BackupService.export(db, dir);
-    await BackupService.restoreOpen(db, LocalBackupStore(dir), backup);
+    await db
+        .customStatement('UPDATE local_attachments SET sha256=?', [validHash]);
     await expectLater(BackupService.restoreOpen(db, LocalBackupStore(dir), bad),
         throwsFormatException);
     expect(await repo.read(owner, item.id), [3, 2, 1]);
@@ -127,6 +133,46 @@ void main() {
     expect(await db.customSelect('SELECT * FROM local_attachments').get(),
         isEmpty);
     expect(await db.customSelect('SELECT * FROM transactions').get(), isEmpty);
+  });
+  test('migration v22 preserva lixeira e renova uploads para schema atual',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('attachments-migration-');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/legacy.sqlite');
+    final old = LegacyV22(NativeDatabase(file));
+    await seed(old);
+    await old.customStatement(
+        "UPDATE transactions SET deleted_at=2,trash_state='trashed' WHERE id='t'");
+    final row =
+        (await old.customSelect('SELECT * FROM transactions').getSingle()).data;
+    await old.customStatement('INSERT INTO sync_uploads VALUES(?,?)', [
+      'old-attachment-packet',
+      jsonEncode({
+        'id': 'old-attachment-packet',
+        'schema': 22,
+        'entries': [
+          {'table': 'transactions', 'data': row}
+        ]
+      })
+    ]);
+    await old.close();
+    final migrated = AppDatabase(NativeDatabase(file));
+    try {
+      final upload =
+          await migrated.customSelect('SELECT * FROM sync_uploads').getSingle();
+      final packet = jsonDecode(upload.read<String>('payload'));
+      expect(packet['schema'], AppDatabase.currentSchemaVersion);
+      expect(packet['id'], isNot('old-attachment-packet'));
+      expect(packet['entries'][0]['data']['trash_state'], 'trashed');
+      expect(
+          (await migrated
+                  .customSelect('SELECT trash_state FROM transactions')
+                  .getSingle())
+              .read<String>('trash_state'),
+          'trashed');
+    } finally {
+      await migrated.close();
+    }
   });
   testWidgets('lista anexos e permite cancelar ou confirmar exclusão',
       (tester) async {
