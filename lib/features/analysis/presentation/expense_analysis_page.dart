@@ -272,8 +272,16 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
         'Próximos 6 meses após o selecionado. Pendências existentes hoje: despesas ainda não pagas e encargos de cartão não liquidados, sem repetir pagamentos ou saldos antigos. Recorrências ainda não geradas não são estimadas.',
         [
           const Wrap(spacing: 16, children: [
-            Text('● Despesas', style: TextStyle(color: SomiaColors.red)),
-            Text('● Cartões', style: TextStyle(color: SomiaColors.blue))
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.circle, size: 8, color: SomiaColors.red),
+              SizedBox(width: 6),
+              Text('Despesas', style: TextStyle(color: SomiaColors.red))
+            ]),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.circle, size: 8, color: SomiaColors.blue),
+              SizedBox(width: 6),
+              Text('Cartões', style: TextStyle(color: SomiaColors.blue))
+            ])
           ]),
           const SizedBox(height: 12),
           if (rows.every((r) => r.total == 0))
