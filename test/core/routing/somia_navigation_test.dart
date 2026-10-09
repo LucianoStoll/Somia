@@ -652,11 +652,19 @@ void main() {
       'Despesas',
       'Transferências',
       'Contas',
-      'Categorias',
-      'Configurações'
+      'Análises',
+      'Categorias'
     ]) {
       expect(find.text(label), findsWidgets);
     }
+    final drawerScroll = find
+        .descendant(of: find.byType(Drawer), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(find.text('Configurações'), 200,
+        scrollable: drawerScroll);
+    expect(find.text('Configurações'), findsWidgets);
+    await tester.drag(find.byType(Drawer), const Offset(0, 1000));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('menu-/income')));
     await tester.pumpAndSettle();
     expect(find.text('Salário'), findsOneWidget);
