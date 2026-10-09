@@ -8,7 +8,7 @@ Salvar o lançamento e abrir seu menu → Anexos. Receitas/despesas, transferên
 Limite de 20 MB por arquivo, sem arquivos vazios. Nome normalizado, UUID, tamanho e SHA-256. Arquivos são copiados para armazenamento interno SQLite (BLOB), não dependem da permanência do original. Anexos pertencem somente à ocorrência escolhida; não são propagados para outras parcelas nem pela edição em lote.
 
 ## Dados e compatibilidade
-Migration aditiva 23; backup anterior automático. Arquivos acompanham backup completo SQLite local e Drive, inclusive restauração com app aberto. Backups anteriores migram com tabela vazia. Hash inválido bloqueia restauração antes da substituição. O crescimento dos arquivos aumenta o tamanho dos backups e continua sujeito aos limites do provedor.
+Migration aditiva 23; backup anterior automático. Arquivos acompanham backup completo SQLite local e Drive, inclusive restauração com app aberto. Backups anteriores migram com tabela vazia. Hash inválido bloqueia restauração antes da substituição. O crescimento dos arquivos aumenta o tamanho dos backups. O backup completo no Drive tem limite atual de 64 MB, somando banco e anexos; exportação local continua disponível.
 
 Tabela local separada do conjunto sincronizado: sync financeiro não transporta bytes/metadados nem apaga arquivos locais ao substituir linhas financeiras. Atualizar os dois dispositivos antes de sincronizar schema 23; pacotes históricos até 22 continuam aceitos. A sincronização individual, escolha automático/Wi-Fi/manual e limpeza remota serão implementadas na #16.
 
@@ -22,4 +22,6 @@ Excluir movimento para lixeira preserva anexo; restaurar devolve acesso. Exclus�
 - [ ] Backup completo em outro dispositivo e restauração de backup antigo.
 - [ ] Sync financeiro mantém os anexos locais, sem prometer transporte de arquivos.
 
-Testes automatizados cobrem conteúdo/hash, limite, vínculo inexistente, lixeira, backup/restauração atômica, migration v22 e isolamento do sync; teste de tela cobre listagem e confirmação. Validação técnica em andamento; aprovação manual pendente.
+Testes automatizados cobrem conteúdo/hash, limite, vínculo inexistente, lixeira, backup/restauração atômica, migration v22 e isolamento do sync; teste de tela cobre listagem e confirmação. Validação técnica aprovada na build 279 (commit `6279846`): análise/formatação, testes Linux e 522 testes Windows, prévias mobile/desktop revisadas, APK assinado com versão/assinatura verificadas e pacote Windows completo. Aprovação manual pendente.
+
+[Android 279](https://github.com/LucianoStoll/Somia/actions/runs/37870240961/artifacts/11589874606) · [Windows 279](https://github.com/LucianoStoll/Somia/actions/runs/37870240961/artifacts/11590886182).
