@@ -2,10 +2,14 @@ import '../../attachments/presentation/attachments_page.dart';
 import '../../transactions/data/movement_management_repository.dart';
 import '../../transactions/domain/movement_management.dart';
 import '../../transactions/presentation/bulk_movement_toolbar.dart';
+
 import 'package:go_router/go_router.dart';
+
 import '../../../core/routing/app_router.dart';
 import '../../../core/theme/app_theme.dart';
+
 import 'package:flutter/material.dart';
+
 import '../../../core/di/injection.dart';
 import '../../../core/filters/reference_month.dart';
 import '../../../core/routing/somia_shell.dart';
@@ -25,8 +29,12 @@ import '../domain/credit_card.dart';
 import 'card_forms.dart';
 
 class CardsPage extends StatefulWidget {
-  const CardsPage(
-      {super.key, this.cardId, this.month, this.initialStatement = false});
+  const CardsPage({
+    super.key,
+    this.cardId,
+    this.month,
+    this.initialStatement = false,
+  });
   final String? cardId;
   final DateTime? month;
   final bool initialStatement;
@@ -36,6 +44,17 @@ class CardsPage extends StatefulWidget {
 
 class _CardsPageState extends State<CardsPage> {
   Map<String, MovementReference> _bulkSelection = {};
+  bool _bulkMode = false;
+
+  void _cancelBulk() => setState(() {
+        _bulkMode = false;
+        _bulkSelection = {};
+      });
+
+  void _startBulk(MovementReference ref) => setState(() {
+        _bulkMode = true;
+        _bulkSelection = {ref.key: ref};
+      });
   CardsRepository get _repo => getIt<CardsRepository>();
   List<CreditCard> _cards = [];
   List<CardInvoice> _invoices = [];
@@ -50,7 +69,8 @@ class _CardsPageState extends State<CardsPage> {
   CreditCard? get _card => _cards.where((c) => c.id == _cardId).firstOrNull;
   CardInvoice? get _invoice => _invoices
       .where(
-          (i) => i.month.year == _month.year && i.month.month == _month.month)
+        (i) => i.month.year == _month.year && i.month.month == _month.month,
+      )
       .firstOrNull;
   @override
   void initState() {
@@ -69,6 +89,7 @@ class _CardsPageState extends State<CardsPage> {
   }
 
   Future<void> _load() async {
+    if (mounted) _cancelBulk();
     final request = ++_request;
     if (mounted) setState(() => _loading = true);
     try {
@@ -91,8 +112,11 @@ class _CardsPageState extends State<CardsPage> {
               ? invoices
               : await _repo.invoices(card.id, selected: _month);
           final selected = items
-              .where((i) =>
-                  i.month.year == _month.year && i.month.month == _month.month)
+              .where(
+                (i) =>
+                    i.month.year == _month.year &&
+                    i.month.month == _month.month,
+              )
               .firstOrNull;
           if (selected != null) summaries[card.id] = selected;
         }
@@ -134,29 +158,37 @@ class _CardsPageState extends State<CardsPage> {
 
   Future<bool> _confirm(String title, String text) async =>
       await showDialog<bool>(
-          context: context,
-          builder: (dialog) =>
-              AlertDialog(title: Text(title), content: Text(text), actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(dialog, false),
-                    child: const Text('Cancelar')),
-                FilledButton(
-                    onPressed: () => Navigator.pop(dialog, true),
-                    child: const Text('Confirmar'))
-              ])) ==
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: Text(title),
+          content: Text(text),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Confirmar'),
+            ),
+          ],
+        ),
+      ) ==
       true;
   Future<void> _editCard([CreditCard? card]) async {
     final saved = await showMovementForm<bool>(
-        context,
-        (_) => CardForm(
-            accounts: _accounts,
-            month: _month,
-            card: card,
-            onSubmit: (draft, opening, month) => _repo.db.transaction(() async {
-                  final id = await _repo.save(draft, id: card?.id);
-                  if (opening != 0) await _repo.opening(id, month, opening);
-                  _cardId = id;
-                })));
+      context,
+      (_) => CardForm(
+        accounts: _accounts,
+        month: _month,
+        card: card,
+        onSubmit: (draft, opening, month) => _repo.db.transaction(() async {
+          final id = await _repo.save(draft, id: card?.id);
+          if (opening != 0) await _repo.opening(id, month, opening);
+          _cardId = id;
+        }),
+      ),
+    );
     if (saved == true && mounted) await _load();
   }
 
@@ -168,25 +200,32 @@ class _CardsPageState extends State<CardsPage> {
         : SeriesScope.onlyThis;
     if (scope == null || !mounted) return;
     final draft = await showMovementForm<TransactionDraft>(
-        context,
-        (_) => TransactionForm(
-            accounts: _accounts,
-            categories: _categories,
-            cards: _cards,
-            initialCardId: card.id,
-            fixedType: TransactionType.expense,
-            scope: scope,
-            item: entry == null ? null : _repo.movement(entry, card)));
+      context,
+      (_) => TransactionForm(
+        accounts: _accounts,
+        categories: _categories,
+        cards: _cards,
+        initialCardId: card.id,
+        fixedType: TransactionType.expense,
+        scope: scope,
+        item: entry == null ? null : _repo.movement(entry, card),
+      ),
+    );
     if (draft == null || !mounted) return;
     if (entry != null) {
       try {
         final hasPayments = await _repo.purchaseHasPayments(
-            entry.id, draft.scope,
-            invoiceMonth: draft.cardInvoiceMonth, purchaseDate: draft.date);
+          entry.id,
+          draft.scope,
+          invoiceMonth: draft.cardInvoiceMonth,
+          purchaseDate: draft.date,
+        );
         if (!mounted) return;
         if (hasPayments &&
-            !await _confirm('Corrigir compra em fatura com pagamento?',
-                'Os pagamentos realizados ou agendados permanecerão vinculados às faturas atuais. A correção recalculará a dívida ou o crédito do cartão, sem alterar o saldo pago pela conta.')) {
+            !await _confirm(
+              'Corrigir compra em fatura com pagamento?',
+              'Os pagamentos realizados ou agendados permanecerão vinculados às faturas atuais. A correção recalculará a dívida ou o crédito do cartão, sem alterar o saldo pago pela conta.',
+            )) {
           return;
         }
       } catch (e) {
@@ -204,33 +243,44 @@ class _CardsPageState extends State<CardsPage> {
     });
   }
 
-  Future<void> _pay(
-      [CreditCard? selectedCard, CardInvoice? selectedInvoice]) async {
+  Future<void> _pay([
+    CreditCard? selectedCard,
+    CardInvoice? selectedInvoice,
+  ]) async {
     final card = selectedCard ?? _card, invoice = selectedInvoice ?? _invoice;
     if (card == null || invoice == null) return;
     final saved = await showMovementForm<bool>(
-        context,
-        (_) => CardPaymentForm(
-            invoice: invoice,
-            card: card,
-            accounts: _accounts,
-            onSubmit: (account, amount, date, fee, discount) => _repo.pay(
-                invoice.id, account, amount, date,
-                fee: fee, discount: discount)));
+      context,
+      (_) => CardPaymentForm(
+        invoice: invoice,
+        card: card,
+        accounts: _accounts,
+        onSubmit: (account, amount, date, fee, discount) => _repo.pay(
+          invoice.id,
+          account,
+          amount,
+          date,
+          fee: fee,
+          discount: discount,
+        ),
+      ),
+    );
     if (saved == true && mounted) await _load();
   }
 
   Future<void> _refund(CardEntry entry) async {
     final saved = await showMovementForm<bool>(
-        context,
-        (_) => CardAdjustmentForm(
-            title: 'Estornar compra',
-            month: _month,
-            initialAmount: entry.amountMinor,
-            onSubmit: (amount, month, date) async {
-              final invoiceId = await _repo.ensureInvoice(entry.cardId, month);
-              await _repo.refund(entry.id, amount, invoiceId, date);
-            }));
+      context,
+      (_) => CardAdjustmentForm(
+        title: 'Estornar compra',
+        month: _month,
+        initialAmount: entry.amountMinor,
+        onSubmit: (amount, month, date) async {
+          final invoiceId = await _repo.ensureInvoice(entry.cardId, month);
+          await _repo.refund(entry.id, amount, invoiceId, date);
+        },
+      ),
+    );
     if (saved == true && mounted) await _load();
   }
 
@@ -238,13 +288,15 @@ class _CardsPageState extends State<CardsPage> {
     final card = _card;
     if (card == null) return;
     final saved = await showMovementForm<bool>(
-        context,
-        (_) => CardAdjustmentForm(
-            title: 'Saldo inicial da fatura',
-            month: _month,
-            signed: true,
-            onSubmit: (amount, month, date) =>
-                _repo.opening(card.id, month, amount)));
+      context,
+      (_) => CardAdjustmentForm(
+        title: 'Saldo inicial da fatura',
+        month: _month,
+        signed: true,
+        onSubmit: (amount, month, date) =>
+            _repo.opening(card.id, month, amount),
+      ),
+    );
     if (saved == true && mounted) await _load();
   }
 
@@ -252,11 +304,12 @@ class _CardsPageState extends State<CardsPage> {
     final invoice = _invoice;
     if (invoice == null) return;
     final saved = await showMovementForm<bool>(
-        context,
-        (_) => CardDatesForm(
-            invoice: invoice,
-            onSubmit: (closing, due) =>
-                _repo.adjustDates(invoice.id, closing, due)));
+      context,
+      (_) => CardDatesForm(
+        invoice: invoice,
+        onSubmit: (closing, due) => _repo.adjustDates(invoice.id, closing, due),
+      ),
+    );
     if (saved == true && mounted) await _load();
   }
 
@@ -267,28 +320,38 @@ class _CardsPageState extends State<CardsPage> {
     if (!mounted) return;
     final paidInvoices = {
       for (final i in _invoices)
-        if (i.payments.isNotEmpty) i.id
+        if (i.payments.isNotEmpty) i.id,
     };
     final saved = await showMovementForm<bool>(
-        context,
-        (_) => CardAnticipationForm(
-            invoice: invoice,
-            entries: future
-                .where((e) =>
-                    e.kind == 'purchase' &&
-                    e.count > 1 &&
-                    e.invoiceMonth.isAfter(invoice.month) &&
-                    !paidInvoices.contains(e.invoiceId))
-                .toList(),
-            onSubmit: (ids, discount) =>
-                _repo.anticipate(ids, invoice.id, discount)));
+      context,
+      (_) => CardAnticipationForm(
+        invoice: invoice,
+        entries: future
+            .where(
+              (e) =>
+                  e.kind == 'purchase' &&
+                  e.count > 1 &&
+                  e.invoiceMonth.isAfter(invoice.month) &&
+                  !paidInvoices.contains(e.invoiceId),
+            )
+            .toList(),
+        onSubmit: (ids, discount) =>
+            _repo.anticipate(ids, invoice.id, discount),
+      ),
+    );
     if (saved == true && mounted) await _load();
   }
 
   Future<void> _entryAction(CardEntry e, String action) async {
+    if (action == 'bulk') {
+      _startBulk(MovementReference(MovementKind.cardEntry, e.id, e.revision));
+      return;
+    }
     if (action == 'attachments') {
       await showAttachments(
-          context, MovementReference(MovementKind.cardEntry, e.id, ''));
+        context,
+        MovementReference(MovementKind.cardEntry, e.id, ''),
+      );
       return;
     }
     if (action == 'edit') {
@@ -303,77 +366,102 @@ class _CardsPageState extends State<CardsPage> {
       final history = await _repo.entryHistory(e.id);
       if (!mounted) return;
       await showDialog<void>(
-          context: context,
-          builder: (dialog) => AlertDialog(
-                  title: const Text('Histórico da compra'),
-                  content: SingleChildScrollView(
-                      child: Text(history.isEmpty
-                          ? 'Nenhuma mudança de fatura ou edição registrada.'
-                          : history.join('\n'))),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(dialog),
-                        child: const Text('Fechar'))
-                  ]));
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Histórico da compra'),
+          content: SingleChildScrollView(
+            child: Text(
+              history.isEmpty
+                  ? 'Nenhuma mudança de fatura ou edição registrada.'
+                  : history.join('\n'),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
+      );
       return;
     }
     final scope = e.kind == 'purchase' && e.count > 1
         ? await chooseSeriesScope(context, deleting: true)
         : SeriesScope.onlyThis;
     if (scope == null || !mounted) return;
-    if (!await _confirm('Excluir registro?',
-            'O registro sairá da fatura e dos cálculos. Os pagamentos realizados ou agendados serão preservados; o saldo restante ou crédito do cartão será recalculado. Para um reembolso real, use estorno. Compras com estorno ou antecipação devem preservar seus vínculos.') ||
+    if (!await _confirm(
+          'Excluir registro?',
+          'O registro sairá da fatura e dos cálculos. Os pagamentos realizados ou agendados serão preservados; o saldo restante ou crédito do cartão será recalculado. Para um reembolso real, use estorno. Compras com estorno ou antecipação devem preservar seus vínculos.',
+        ) ||
         !mounted) {
       return;
     }
-    await _run(() => e.kind == 'purchase'
-        ? _repo.deletePurchase(e.id, scope)
-        : _repo.removeAdjustment(e.id));
+    await _run(
+      () => e.kind == 'purchase'
+          ? _repo.deletePurchase(e.id, scope)
+          : _repo.removeAdjustment(e.id),
+    );
   }
 
   Widget _metric(String label, int amount) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(children: [
-        Expanded(child: Text(label)),
-        Text(cardMoney(amount),
-            style: const TextStyle(fontWeight: FontWeight.w600))
-      ]));
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            Expanded(child: Text(label)),
+            Text(
+              cardMoney(amount),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
   Widget _cardMenu(CreditCard c) => PopupMenuButton<String>(
-      enabled: !_acting,
-      onSelected: (action) async {
-        if (action == 'edit') {
-          await _editCard(c);
-          return;
-        }
-        if (action == 'history') {
-          final history = await _repo.limitHistory(c.id);
-          if (!mounted) return;
-          await showDialog<void>(
+        enabled: !_acting,
+        onSelected: (action) async {
+          if (action == 'edit') {
+            await _editCard(c);
+            return;
+          }
+          if (action == 'history') {
+            final history = await _repo.limitHistory(c.id);
+            if (!mounted) return;
+            await showDialog<void>(
               context: context,
               builder: (dialog) => AlertDialog(
-                      title: const Text('Histórico de limite'),
-                      content: SingleChildScrollView(
-                          child: Text(history
-                              .map((h) =>
-                                  '${cardDateLabel(h.$1)} · ${h.$2 == null ? 'Sem controle' : cardMoney(h.$2!)}')
-                              .join('\n'))),
-                      actions: [
-                        TextButton(
-                            onPressed: () => Navigator.pop(dialog),
-                            child: const Text('Fechar'))
-                      ]));
-          return;
-        }
-        await _run(() => _repo.archive(c.id, !c.isArchived));
-      },
-      itemBuilder: (_) => [
-            const PopupMenuItem(value: 'edit', child: Text('Editar cartão')),
-            const PopupMenuItem(
-                value: 'history', child: Text('Histórico de limite')),
-            PopupMenuItem(
-                value: 'archive',
-                child: Text(c.isArchived ? 'Reativar' : 'Arquivar'))
-          ]);
+                title: const Text('Histórico de limite'),
+                content: SingleChildScrollView(
+                  child: Text(
+                    history
+                        .map(
+                          (h) =>
+                              '${cardDateLabel(h.$1)} · ${h.$2 == null ? 'Sem controle' : cardMoney(h.$2!)}',
+                        )
+                        .join('\n'),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialog),
+                    child: const Text('Fechar'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          }
+          await _run(() => _repo.archive(c.id, !c.isArchived));
+        },
+        itemBuilder: (_) => [
+          const PopupMenuItem(value: 'edit', child: Text('Editar cartão')),
+          const PopupMenuItem(
+              value: 'history', child: Text('Histórico de limite')),
+          PopupMenuItem(
+            value: 'archive',
+            child: Text(c.isArchived ? 'Reativar' : 'Arquivar'),
+          ),
+        ],
+      );
 
   Color _accent(CreditCard card) =>
       card.colorArgb == null ? SomiaColors.blue : Color(card.colorArgb!);
@@ -381,26 +469,32 @@ class _CardsPageState extends State<CardsPage> {
   Widget _limitProgress(CreditCard card) {
     final limit = card.limitMinor;
     if (limit == null) {
-      return const Text('Sem controle de limite',
-          style: TextStyle(color: SomiaColors.muted, fontSize: 12));
+      return const Text(
+        'Sem controle de limite',
+        style: TextStyle(color: SomiaColors.muted, fontSize: 12),
+      );
     }
     final ratio = limit <= 0 ? 0.0 : card.committedMinor / limit;
     final label = limit == 0
         ? (card.committedMinor > 0 ? 'Acima do limite' : 'Limite zero')
         : '${(ratio * 100).round()}%';
-    return Row(children: [
-      Expanded(
+    return Row(
+      children: [
+        Expanded(
           child: LinearProgressIndicator(
-              value: limit == 0 && card.committedMinor > 0
-                  ? 1
-                  : ratio.clamp(0.0, 1.0),
-              color:
-                  card.committedMinor > limit ? SomiaColors.red : _accent(card),
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(8))),
-      const SizedBox(width: 10),
-      Text(label, style: const TextStyle(fontSize: 12)),
-    ]);
+            value: limit == 0 && card.committedMinor > 0
+                ? 1
+                : ratio.clamp(0.0, 1.0),
+            color:
+                card.committedMinor > limit ? SomiaColors.red : _accent(card),
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
+    );
   }
 
   Widget _cardTile(CreditCard card) {
@@ -408,162 +502,218 @@ class _CardsPageState extends State<CardsPage> {
     final accent = _accent(card);
     final account =
         _accounts.where((a) => a.id == card.paymentAccountId).firstOrNull;
-    void open() => context
-        .go('${AppRoutes.cardsPath}?card=${Uri.encodeComponent(card.id)}');
-    Widget fact(String label, String value, {Color? color}) =>
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: const TextStyle(fontSize: 11, color: SomiaColors.muted)),
-          Text(value,
+    void open() => context.go(
+          '${AppRoutes.cardsPath}?card=${Uri.encodeComponent(card.id)}',
+        );
+    Widget fact(String label, String value, {Color? color}) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 11, color: SomiaColors.muted),
+            ),
+            Text(
+              value,
               style: TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600, color: color)),
-        ]);
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        );
     return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Material(
-            borderRadius: BorderRadius.circular(20),
-            clipBehavior: Clip.antiAlias,
-            color: SomiaColors.surface,
-            child: InkWell(
-                key: ValueKey('card-open-${card.id}'),
-                onTap: _acting ? null : open,
-                child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                          Color.alphaBlend(accent.withValues(alpha: .14),
-                              SomiaColors.surfaceHigh),
-                          SomiaColors.surface
-                        ])),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(children: [
-                            AccountAvatar(institutionId: card.institutionId),
-                            const SizedBox(width: 12),
-                            Expanded(
-                                child: Text(
-                                    '${card.name}${card.isArchived ? ' (arquivado)' : ''}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium)),
-                            _cardMenu(card)
-                          ]),
-                          const SizedBox(height: 16),
-                          Wrap(spacing: 20, runSpacing: 12, children: [
-                            fact(
-                                'Limite total',
-                                card.limitMinor == null
-                                    ? 'Não informado'
-                                    : cardMoney(card.limitMinor!)),
-                            fact('Limite comprometido',
-                                cardMoney(card.committedMinor)),
-                            fact(
-                                'Limite disponível',
-                                card.availableMinor == null
-                                    ? 'Não informado'
-                                    : cardMoney(card.availableMinor!),
-                                color: card.availableMinor != null &&
-                                        card.availableMinor! < 0
-                                    ? SomiaColors.red
-                                    : accent),
-                          ]),
-                          const SizedBox(height: 12),
-                          _limitProgress(card),
-                          if (card.creditMinor > 0) ...[
-                            const SizedBox(height: 8),
-                            fact('Crédito do cartão',
-                                cardMoney(card.creditMinor))
-                          ],
-                          const Divider(height: 28),
-                          Wrap(spacing: 20, runSpacing: 12, children: [
-                            fact('Conta', account?.name ?? 'Não definida'),
-                            fact(
-                                'Fechamento',
-                                cardDateLabel(invoice?.closingAt ??
-                                    card.closingFor(_month))),
-                            fact(
-                                'Vencimento',
-                                cardDateLabel(
-                                    invoice?.dueAt ?? card.dueFor(_month))),
-                          ]),
-                          if (invoice != null) ...[
-                            const Divider(height: 28),
-                            Row(children: [
-                              const Expanded(child: Text('Fatura do mês')),
-                              Flexible(
-                                  child: Text(cardMoney(invoice.chargesMinor),
-                                      textAlign: TextAlign.right,
-                                      style: const TextStyle(
-                                          color: SomiaColors.red,
-                                          fontWeight: FontWeight.w600)))
-                            ]),
-                            const SizedBox(height: 6),
-                            Text(invoice.status,
-                                style: TextStyle(
-                                    color: invoice.status == 'Paga'
-                                        ? SomiaColors.green
-                                        : accent)),
-                            Wrap(spacing: 8, children: [
-                              if (invoice.balanceMinor > 0)
-                                TextButton.icon(
-                                    onPressed: _acting
-                                        ? null
-                                        : () => _pay(card, invoice),
-                                    icon:
-                                        const Icon(Icons.check_circle_outline),
-                                    label: const Text('Registrar pagamento')),
-                              TextButton.icon(
-                                  onPressed: _acting
-                                      ? null
-                                      : () => context.go(
-                                          '${AppRoutes.cardsPath}?card=${Uri.encodeComponent(card.id)}&view=statement'),
-                                  icon: const Icon(Icons.receipt_long_outlined),
-                                  label: const Text('Extrato')),
-                            ]),
-                          ],
-                        ])))));
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        color: SomiaColors.surface,
+        child: InkWell(
+          key: ValueKey('card-open-${card.id}'),
+          onTap: _acting ? null : open,
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.alphaBlend(
+                    accent.withValues(alpha: .14),
+                    SomiaColors.surfaceHigh,
+                  ),
+                  SomiaColors.surface,
+                ],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    AccountAvatar(institutionId: card.institutionId),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '${card.name}${card.isArchived ? ' (arquivado)' : ''}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    _cardMenu(card),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 12,
+                  children: [
+                    fact(
+                      'Limite total',
+                      card.limitMinor == null
+                          ? 'Não informado'
+                          : cardMoney(card.limitMinor!),
+                    ),
+                    fact('Limite comprometido', cardMoney(card.committedMinor)),
+                    fact(
+                      'Limite disponível',
+                      card.availableMinor == null
+                          ? 'Não informado'
+                          : cardMoney(card.availableMinor!),
+                      color: card.availableMinor != null &&
+                              card.availableMinor! < 0
+                          ? SomiaColors.red
+                          : accent,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _limitProgress(card),
+                if (card.creditMinor > 0) ...[
+                  const SizedBox(height: 8),
+                  fact('Crédito do cartão', cardMoney(card.creditMinor)),
+                ],
+                const Divider(height: 28),
+                Wrap(
+                  spacing: 20,
+                  runSpacing: 12,
+                  children: [
+                    fact('Conta', account?.name ?? 'Não definida'),
+                    fact(
+                      'Fechamento',
+                      cardDateLabel(
+                        invoice?.closingAt ?? card.closingFor(_month),
+                      ),
+                    ),
+                    fact(
+                      'Vencimento',
+                      cardDateLabel(invoice?.dueAt ?? card.dueFor(_month)),
+                    ),
+                  ],
+                ),
+                if (invoice != null) ...[
+                  const Divider(height: 28),
+                  Row(
+                    children: [
+                      const Expanded(child: Text('Fatura do mês')),
+                      Flexible(
+                        child: Text(
+                          cardMoney(invoice.chargesMinor),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: SomiaColors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    invoice.status,
+                    style: TextStyle(
+                      color:
+                          invoice.status == 'Paga' ? SomiaColors.green : accent,
+                    ),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      if (invoice.balanceMinor > 0)
+                        TextButton.icon(
+                          onPressed: _acting ? null : () => _pay(card, invoice),
+                          icon: const Icon(Icons.check_circle_outline),
+                          label: const Text('Registrar pagamento'),
+                        ),
+                      TextButton.icon(
+                        onPressed: _acting
+                            ? null
+                            : () => context.go(
+                                  '${AppRoutes.cardsPath}?card=${Uri.encodeComponent(card.id)}&view=statement',
+                                ),
+                        icon: const Icon(Icons.receipt_long_outlined),
+                        label: const Text('Extrato'),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _cardSummary(CreditCard card, CardInvoice invoice) => Card(
-      color: Color.alphaBlend(
-          _accent(card).withValues(alpha: .08), SomiaColors.surface),
-      child: Padding(
+        color: Color.alphaBlend(
+          _accent(card).withValues(alpha: .08),
+          SomiaColors.surface,
+        ),
+        child: Padding(
           padding: const EdgeInsets.all(16),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              AccountAvatar(institutionId: card.institutionId),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Text(card.name,
-                      style: Theme.of(context).textTheme.titleLarge)),
-              _cardMenu(card)
-            ]),
-            const SizedBox(height: 12),
-            _metric('Limite total', card.limitMinor ?? 0),
-            if (card.limitMinor == null)
-              const Text('Sem controle de limite',
-                  style: TextStyle(color: SomiaColors.muted)),
-            _metric('Limite comprometido', card.committedMinor),
-            if (card.availableMinor != null) ...[
-              _metric('Limite disponível', card.availableMinor!),
-              const SizedBox(height: 8),
-              _limitProgress(card),
-            ],
-            if (card.creditMinor > 0)
-              _metric('Crédito do cartão', card.creditMinor),
-            const SizedBox(height: 12),
-            Text(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  AccountAvatar(institutionId: card.institutionId),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      card.name,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  _cardMenu(card),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _metric('Limite total', card.limitMinor ?? 0),
+              if (card.limitMinor == null)
+                const Text(
+                  'Sem controle de limite',
+                  style: TextStyle(color: SomiaColors.muted),
+                ),
+              _metric('Limite comprometido', card.committedMinor),
+              if (card.availableMinor != null) ...[
+                _metric('Limite disponível', card.availableMinor!),
+                const SizedBox(height: 8),
+                _limitProgress(card),
+              ],
+              if (card.creditMinor > 0)
+                _metric('Crédito do cartão', card.creditMinor),
+              const SizedBox(height: 12),
+              Text(
                 'Fecha ${cardDateLabel(invoice.closingAt)} · Vence ${cardDateLabel(invoice.dueAt)}',
-                style: const TextStyle(color: SomiaColors.muted)),
-            _metric('Fatura do mês', invoice.chargesMinor),
-            Text(invoice.status,
-                style: const TextStyle(color: SomiaColors.blue)),
-          ])));
+                style: const TextStyle(color: SomiaColors.muted),
+              ),
+              _metric('Fatura do mês', invoice.chargesMinor),
+              Text(invoice.status,
+                  style: const TextStyle(color: SomiaColors.blue)),
+            ],
+          ),
+        ),
+      );
 
   List<Widget> _dailyStatement(CardInvoice invoice) {
     final days = <int, List<Widget>>{};
@@ -581,22 +731,31 @@ class _CardsPageState extends State<CardsPage> {
     }
     final dates = days.keys.toList()..sort((a, b) => b.compareTo(a));
     return [
-      Text('Extrato · ${cardMonthLabel(invoice.month)}',
-          style: Theme.of(context).textTheme.titleMedium),
+      Text(
+        'Extrato · ${cardMonthLabel(invoice.month)}',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
       const Text(
-          'Itens desta fatura por data da compra e pagamentos por data do pagamento.',
-          style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
+        'Itens desta fatura por data da compra e pagamentos por data do pagamento.',
+        style: TextStyle(color: SomiaColors.muted, fontSize: 12),
+      ),
       if (dates.isEmpty)
         const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Nenhum lançamento nesta fatura.')),
+          padding: EdgeInsets.all(16),
+          child: Text('Nenhum lançamento nesta fatura.'),
+        ),
       for (final day in dates) ...[
         Padding(
-            padding: const EdgeInsets.only(top: 18, bottom: 4),
-            child: Text(cardDateLabel(cardDate(day)),
-                key: ValueKey('card-statement-day-$day'),
-                style: const TextStyle(
-                    color: SomiaColors.blue, fontWeight: FontWeight.w600))),
+          padding: const EdgeInsets.only(top: 18, bottom: 4),
+          child: Text(
+            cardDateLabel(cardDate(day)),
+            key: ValueKey('card-statement-day-$day'),
+            style: const TextStyle(
+              color: SomiaColors.blue,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
         const Divider(height: 1),
         ...days[day]!,
       ],
@@ -605,72 +764,91 @@ class _CardsPageState extends State<CardsPage> {
 
   Widget _entryTile(CardEntry e) {
     final row = _entryContent(e);
-    if (e.kind != 'purchase' ||
+    if (!_bulkMode ||
+        e.kind != 'purchase' ||
         !getIt.isRegistered<MovementManagementRepository>()) {
       return row;
     }
     return SelectableMovementRow(
-        ref: MovementReference(MovementKind.cardEntry, e.id, e.revision),
-        selection: _bulkSelection,
-        onSelection: (selection) => setState(() => _bulkSelection = selection),
-        child: row);
+      ref: MovementReference(MovementKind.cardEntry, e.id, e.revision),
+      selection: _bulkSelection,
+      onSelection: (selection) => setState(() => _bulkSelection = selection),
+      child: row,
+    );
   }
 
   Widget _entryContent(CardEntry e) => ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-      title: Text(e.description),
-      subtitle: Text(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        title: Text(e.description),
+        subtitle: Text(
           '${e.label} · ${e.allocations.isEmpty ? e.categoryName ?? 'Sem categoria' : 'Rateio · ${e.allocations.length} categorias'}\nCompra: ${cardDateLabel(e.postedAt)}${e.establishment.isEmpty ? '' : ' · ${e.establishment}'}',
           maxLines: 2,
-          overflow: TextOverflow.ellipsis),
-      isThreeLine: true,
-      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(cardMoney(e.amountMinor)),
-        PopupMenuButton<String>(
-            enabled: !_acting,
-            onSelected: (a) => _entryAction(e, a),
-            itemBuilder: (_) => [
+          overflow: TextOverflow.ellipsis,
+        ),
+        isThreeLine: true,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(cardMoney(e.amountMinor)),
+            PopupMenuButton<String>(
+              enabled: !_acting,
+              onSelected: (a) => _entryAction(e, a),
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                    value: 'attachments', child: Text('Anexos')),
+                if (e.kind == 'purchase') ...[
+                  if (getIt.isRegistered<MovementManagementRepository>())
+                    const PopupMenuItem(
+                      value: 'bulk',
+                      child: Text('Editar em lote'),
+                    ),
                   const PopupMenuItem(
-                      value: 'attachments', child: Text('Anexos')),
-                  if (e.kind == 'purchase') ...[
-                    const PopupMenuItem(
-                        value: 'edit', child: Text('Editar / mudar fatura')),
-                    const PopupMenuItem(
-                        value: 'refund', child: Text('Estornar')),
-                    const PopupMenuItem(
-                        value: 'history', child: Text('Histórico')),
-                  ],
-                  if (e.kind != 'fee' &&
-                      (e.kind != 'discount' || e.sourceId == null))
-                    const PopupMenuItem(
-                        value: 'delete', child: Text('Excluir')),
-                ])
-      ]));
+                    value: 'edit',
+                    child: Text('Editar / mudar fatura'),
+                  ),
+                  const PopupMenuItem(value: 'refund', child: Text('Estornar')),
+                  const PopupMenuItem(
+                      value: 'history', child: Text('Histórico')),
+                ],
+                if (e.kind != 'fee' &&
+                    (e.kind != 'discount' || e.sourceId == null))
+                  const PopupMenuItem(value: 'delete', child: Text('Excluir')),
+              ],
+            ),
+          ],
+        ),
+      );
   Widget _paymentTile(CardPayment p) => ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-      leading: const Icon(Icons.account_balance_wallet_outlined),
-      title: Text(cardMoney(p.amountMinor)),
-      subtitle: Text(
-          '${p.accountName} · ${cardDateLabel(p.date)}${cardDay(p.date) > cardDay(DateTime.now()) ? ' · Agendado' : ''}'),
-      trailing: IconButton(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+        leading: const Icon(Icons.account_balance_wallet_outlined),
+        title: Text(cardMoney(p.amountMinor)),
+        subtitle: Text(
+          '${p.accountName} · ${cardDateLabel(p.date)}${cardDay(p.date) > cardDay(DateTime.now()) ? ' · Agendado' : ''}',
+        ),
+        trailing: IconButton(
           tooltip: 'Desfazer pagamento',
           icon: const Icon(Icons.undo),
           onPressed: _acting
               ? null
               : () async {
-                  if (await _confirm('Desfazer pagamento?',
-                          'O débito sairá da conta e a dívida voltará à fatura. Encargos e desconto deste pagamento também serão desfeitos.') &&
+                  if (await _confirm(
+                        'Desfazer pagamento?',
+                        'O débito sairá da conta e a dívida voltará à fatura. Encargos e desconto deste pagamento também serão desfeitos.',
+                      ) &&
                       mounted) {
                     await _run(() => _repo.undoPayment(p.id));
                   }
-                }));
+                },
+        ),
+      );
   @override
   Widget build(BuildContext context) {
     final card = _card, invoice = _invoice;
     final cashPayments = _invoices
         .expand((i) => i.payments)
         .where(
-            (p) => p.date.year == _month.year && p.date.month == _month.month)
+          (p) => p.date.year == _month.year && p.date.month == _month.month,
+        )
         .toList();
     final cashPaid = cashPayments
         .where((p) => cardDay(p.date) <= cardDay(DateTime.now()))
@@ -679,207 +857,266 @@ class _CardsPageState extends State<CardsPage> {
         .where((p) => cardDay(p.date) > cardDay(DateTime.now()))
         .fold(0, (a, p) => a + p.amountMinor);
     return Scaffold(
-        appBar: AppBar(
-            title: Text(_detail ? 'Detalhes do cartão' : 'Cartões'),
-            leading: _detail
-                ? BackButton(onPressed: () => context.go(AppRoutes.cardsPath))
-                : somiaMenuLeading(context),
-            actions: [
-              IconButton(
-                  tooltip: 'Novo cartão',
-                  onPressed: _loading || _acting ? null : () => _editCard(),
-                  icon: const Icon(Icons.add))
-            ]),
-        floatingActionButton: const SomiaQuickActions(),
-        body: _loading && _cards.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(
-                    child: TextButton(
-                        onPressed: _load,
-                        child: Text('$_error Tentar novamente')))
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-                        children: [
-                          MonthSelector(
-                              month: _month, onChanged: referenceMonth.select),
-                          if (_loading || _acting)
-                            const LinearProgressIndicator(),
-                          if (_cards.isEmpty) ...[
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 28),
-                                child: Text(
-                                    'Cadastre seu primeiro cartão para acompanhar compras, limite e faturas.')),
-                            FilledButton.icon(
-                                onPressed: () => _editCard(),
-                                icon: const Icon(Icons.credit_card),
-                                label: const Text('Cadastrar cartão'))
+      appBar: AppBar(
+        title: Text(_detail ? 'Detalhes do cartão' : 'Cartões'),
+        leading: _detail
+            ? BackButton(onPressed: () => context.go(AppRoutes.cardsPath))
+            : somiaMenuLeading(context),
+        actions: [
+          IconButton(
+            tooltip: 'Novo cartão',
+            onPressed: _loading || _acting ? null : () => _editCard(),
+            icon: const Icon(Icons.add),
+          ),
+        ],
+      ),
+      floatingActionButton: const SomiaQuickActions(),
+      body: _loading && _cards.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: TextButton(
+                    onPressed: _load,
+                    child: Text('$_error Tentar novamente'),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+                    children: [
+                      MonthSelector(
+                        month: _month,
+                        onChanged: referenceMonth.select,
+                      ),
+                      if (_loading || _acting) const LinearProgressIndicator(),
+                      if (_cards.isEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 28),
+                          child: Text(
+                            'Cadastre seu primeiro cartão para acompanhar compras, limite e faturas.',
+                          ),
+                        ),
+                        FilledButton.icon(
+                          onPressed: () => _editCard(),
+                          icon: const Icon(Icons.credit_card),
+                          label: const Text('Cadastrar cartão'),
+                        ),
+                      ],
+                      if (!_detail)
+                        for (final c in _cards) _cardTile(c),
+                      if (_detail && card == null)
+                        const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'Cartão não encontrado. Volte à lista de cartões.',
+                          ),
+                        ),
+                      if (_detail && card != null && invoice != null) ...[
+                        if (_bulkMode &&
+                            getIt.isRegistered<MovementManagementRepository>())
+                          BulkMovementToolbar(
+                            onCancel: _cancelBulk,
+                            selection: _bulkSelection,
+                            card: true,
+                            available: invoice.entries
+                                .where((entry) => entry.kind == 'purchase')
+                                .map(
+                                  (entry) => MovementReference(
+                                    MovementKind.cardEntry,
+                                    entry.id,
+                                    entry.revision,
+                                  ),
+                                )
+                                .toList(),
+                            onSelection: (selection) =>
+                                setState(() => _bulkSelection = selection),
+                            onCompleted: () async {
+                              _cancelBulk();
+                              await _load();
+                            },
+                          ),
+                        _cardSummary(card, invoice),
+                        const SizedBox(height: 16),
+                        Text(
+                          '${card.name} · ${cardMonthLabel(invoice.month)}',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Competência / fatura'),
+                              selected: !_cash && !_statement,
+                              onSelected: (_) => setState(() {
+                                _cash = false;
+                                _statement = false;
+                              }),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Extrato'),
+                              selected: _statement,
+                              onSelected: (_) => setState(() {
+                                _statement = true;
+                                _cash = false;
+                              }),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Caixa / pagamentos'),
+                              selected: _cash,
+                              onSelected: (_) => setState(() {
+                                _cash = true;
+                                _statement = false;
+                              }),
+                            ),
                           ],
-                          if (!_detail)
-                            for (final c in _cards) _cardTile(c),
-                          if (_detail && card == null)
+                        ),
+                        if (_statement)
+                          ..._dailyStatement(invoice)
+                        else if (_cash) ...[
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Débitos reais da conta no mês escolhido, mesmo que o pagamento pertença a outra fatura.',
+                          ),
+                          _metric('Pago no mês', cashPaid),
+                          _metric('Agendado no mês', cashScheduled),
+                          for (final p in cashPayments) _paymentTile(p),
+                          if (cashPayments.isEmpty)
                             const Padding(
-                                padding: EdgeInsets.all(24),
-                                child: Text(
-                                    'Cartão não encontrado. Volte à lista de cartões.')),
-                          if (_detail && card != null && invoice != null) ...[
-                            if (getIt
-                                .isRegistered<MovementManagementRepository>())
-                              BulkMovementToolbar(
-                                  selection: _bulkSelection,
-                                  card: true,
-                                  available: invoice.entries
-                                      .where(
-                                          (entry) => entry.kind == 'purchase')
-                                      .map((entry) => MovementReference(
-                                          MovementKind.cardEntry,
-                                          entry.id,
-                                          entry.revision))
-                                      .toList(),
-                                  onSelection: (selection) => setState(
-                                      () => _bulkSelection = selection),
-                                  onCompleted: _load),
-                            _cardSummary(card, invoice),
-                            const SizedBox(height: 16),
-                            Text(
-                                '${card.name} · ${cardMonthLabel(invoice.month)}',
-                                style: Theme.of(context).textTheme.titleLarge),
-                            Wrap(spacing: 8, runSpacing: 8, children: [
-                              ChoiceChip(
-                                  label: const Text('Competência / fatura'),
-                                  selected: !_cash && !_statement,
-                                  onSelected: (_) => setState(() {
-                                        _cash = false;
-                                        _statement = false;
-                                      })),
-                              ChoiceChip(
-                                  label: const Text('Extrato'),
-                                  selected: _statement,
-                                  onSelected: (_) => setState(() {
-                                        _statement = true;
-                                        _cash = false;
-                                      })),
-                              ChoiceChip(
-                                  label: const Text('Caixa / pagamentos'),
-                                  selected: _cash,
-                                  onSelected: (_) => setState(() {
-                                        _cash = true;
-                                        _statement = false;
-                                      }))
-                            ]),
-                            if (_statement)
-                              ..._dailyStatement(invoice)
-                            else if (_cash) ...[
-                              const SizedBox(height: 12),
-                              const Text(
-                                  'Débitos reais da conta no mês escolhido, mesmo que o pagamento pertença a outra fatura.'),
-                              _metric('Pago no mês', cashPaid),
-                              _metric('Agendado no mês', cashScheduled),
-                              for (final p in cashPayments) _paymentTile(p),
-                              if (cashPayments.isEmpty)
-                                const Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: Text('Nenhum pagamento neste mês.')),
-                            ] else ...[
-                              Card(
-                                  child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(invoice.status,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleMedium),
-                                            Text(
-                                                'Fecha ${cardDateLabel(invoice.closingAt)} · Vence ${cardDateLabel(invoice.dueAt)}'),
-                                            _metric(
-                                                invoice.previousMinor < 0
-                                                    ? 'Crédito anterior'
-                                                    : 'Saldo da fatura anterior',
-                                                invoice.previousMinor),
-                                            _metric('Fatura do mês',
-                                                invoice.chargesMinor),
-                                            _metric('Pagamentos realizados',
-                                                -invoice.paidMinor),
-                                            const Divider(),
-                                            _metric(
-                                                invoice.balanceMinor < 0
-                                                    ? 'Saldo credor'
-                                                    : invoice.previousMinor != 0
-                                                        ? 'Total a pagar com saldo anterior'
-                                                        : 'Saldo a pagar',
-                                                invoice.balanceMinor),
-                                            if (invoice.scheduledMinor > 0) ...[
-                                              _metric('Pagamentos agendados',
-                                                  -invoice.scheduledMinor),
-                                              _metric('Após agendamentos',
-                                                  invoice.projectedMinor)
-                                            ],
-                                            if (invoice.balanceMinor > 0)
-                                              const Text(
-                                                  'O saldo não pago segue para a próxima fatura, mantendo o histórico. Juros e multas são informados no pagamento.'),
-                                          ]))),
-                              Wrap(spacing: 8, runSpacing: 8, children: [
-                                FilledButton.icon(
-                                    onPressed: _acting ? null : _pay,
-                                    icon: const Icon(Icons.payments_outlined),
-                                    label: const Text('Pagar fatura')),
-                                OutlinedButton.icon(
-                                    onPressed: _acting || card.isArchived
-                                        ? null
-                                        : () => _buy(),
-                                    icon: const Icon(Icons.add),
-                                    label: const Text('Nova compra')),
-                                OutlinedButton(
-                                    onPressed: _acting ? null : _anticipate,
-                                    child: const Text('Antecipar parcelas')),
-                                OutlinedButton(
-                                    onPressed: _acting ? null : _dates,
-                                    child: const Text('Ajustar datas')),
-                                OutlinedButton(
-                                    onPressed: _acting ? null : _opening,
-                                    child: const Text('Saldo inicial')),
-                              ]),
-                              const SizedBox(height: 20),
-                              Text('Itens da fatura',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium),
-                              for (final e in invoice.entries) _entryTile(e),
-                              if (invoice.entries.isEmpty)
-                                const Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: Text('Nenhum item nesta fatura.')),
-                              const Divider(),
-                              Text('Pagamentos',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium),
-                              for (final p in invoice.payments) _paymentTile(p),
-                              if (invoice.payments.isEmpty)
-                                const Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child:
-                                        Text('Nenhum pagamento registrado.')),
-                              const SizedBox(height: 12),
-                              Text('Próximas faturas',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium),
-                              for (final i in _invoices
-                                  .where((i) => i.month.isAfter(invoice.month)))
-                                ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    title: Text(cardMonthLabel(i.month)),
-                                    subtitle: Text(i.previousMinor == 0
-                                        ? i.status
-                                        : '${i.status} · anterior ${cardMoney(i.previousMinor)}'),
-                                    trailing: Text(cardMoney(i.chargesMinor)),
-                                    onTap: () =>
-                                        referenceMonth.select(i.month)),
+                              padding: EdgeInsets.all(16),
+                              child: Text('Nenhum pagamento neste mês.'),
+                            ),
+                        ] else ...[
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    invoice.status,
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  Text(
+                                    'Fecha ${cardDateLabel(invoice.closingAt)} · Vence ${cardDateLabel(invoice.dueAt)}',
+                                  ),
+                                  _metric(
+                                    invoice.previousMinor < 0
+                                        ? 'Crédito anterior'
+                                        : 'Saldo da fatura anterior',
+                                    invoice.previousMinor,
+                                  ),
+                                  _metric(
+                                      'Fatura do mês', invoice.chargesMinor),
+                                  _metric(
+                                    'Pagamentos realizados',
+                                    -invoice.paidMinor,
+                                  ),
+                                  const Divider(),
+                                  _metric(
+                                    invoice.balanceMinor < 0
+                                        ? 'Saldo credor'
+                                        : invoice.previousMinor != 0
+                                            ? 'Total a pagar com saldo anterior'
+                                            : 'Saldo a pagar',
+                                    invoice.balanceMinor,
+                                  ),
+                                  if (invoice.scheduledMinor > 0) ...[
+                                    _metric(
+                                      'Pagamentos agendados',
+                                      -invoice.scheduledMinor,
+                                    ),
+                                    _metric(
+                                      'Após agendamentos',
+                                      invoice.projectedMinor,
+                                    ),
+                                  ],
+                                  if (invoice.balanceMinor > 0)
+                                    const Text(
+                                      'O saldo não pago segue para a próxima fatura, mantendo o histórico. Juros e multas são informados no pagamento.',
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              FilledButton.icon(
+                                onPressed: _acting ? null : _pay,
+                                icon: const Icon(Icons.payments_outlined),
+                                label: const Text('Pagar fatura'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _acting || card.isArchived
+                                    ? null
+                                    : () => _buy(),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Nova compra'),
+                              ),
+                              OutlinedButton(
+                                onPressed: _acting ? null : _anticipate,
+                                child: const Text('Antecipar parcelas'),
+                              ),
+                              OutlinedButton(
+                                onPressed: _acting ? null : _dates,
+                                child: const Text('Ajustar datas'),
+                              ),
+                              OutlinedButton(
+                                onPressed: _acting ? null : _opening,
+                                child: const Text('Saldo inicial'),
+                              ),
                             ],
-                          ],
-                        ])));
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Itens da fatura',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          for (final e in invoice.entries) _entryTile(e),
+                          if (invoice.entries.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Text('Nenhum item nesta fatura.'),
+                            ),
+                          const Divider(),
+                          Text(
+                            'Pagamentos',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          for (final p in invoice.payments) _paymentTile(p),
+                          if (invoice.payments.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Text('Nenhum pagamento registrado.'),
+                            ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Próximas faturas',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          for (final i in _invoices.where(
+                            (i) => i.month.isAfter(invoice.month),
+                          ))
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(cardMonthLabel(i.month)),
+                              subtitle: Text(
+                                i.previousMinor == 0
+                                    ? i.status
+                                    : '${i.status} · anterior ${cardMoney(i.previousMinor)}',
+                              ),
+                              trailing: Text(cardMoney(i.chargesMinor)),
+                              onTap: () => referenceMonth.select(i.month),
+                            ),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+    );
   }
 }

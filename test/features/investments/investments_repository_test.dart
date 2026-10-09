@@ -206,12 +206,6 @@ void main() {
             accountId: item.account.id),
         id: item.id);
     await expectLater(
-        repo.save(
-            InvestmentDraft(
-                name: 'Mudança', kind: InvestmentKind.cdb, accountId: bank),
-            id: item.id),
-        throwsFormatException);
-    await expectLater(
         accounts.update(
             item.account.id,
             const AccountDraft(
@@ -227,6 +221,92 @@ void main() {
     expect(changed.maturityDate, DateTime.utc(2027, 10, 25));
     expect(changed.account.currentBalanceMinor, 100);
     expect(await SqliteTransactionsRepository(db).list(), isEmpty);
+  });
+
+  test(
+      'trocar vínculo preserva saldo e histórico, libera conta antiga e rejeita duplicidade',
+      () async {
+    final item = await create(initial: 100);
+    await repo.recordReturn(item.id, amountMinor: 25, date: date);
+    final before = await SqliteTransactionsRepository(db).list();
+    await repo.save(
+        InvestmentDraft(
+            name: 'Corrigida', kind: InvestmentKind.cdb, accountId: bank),
+        id: item.id);
+    expect((await repo.load()).investments.single.account.id, bank);
+    expect(
+        (await accounts.list())
+            .firstWhere((a) => a.id == item.account.id)
+            .currentBalanceMinor,
+        125);
+    expect((await SqliteTransactionsRepository(db).list()).single.id,
+        before.single.id);
+    await repo.save(InvestmentDraft(
+        name: 'Outra', kind: InvestmentKind.cdb, accountId: item.account.id));
+    final other =
+        (await repo.load()).investments.firstWhere((i) => i.id != item.id);
+    await expectLater(
+        repo.save(
+            InvestmentDraft(
+                name: 'Duplicada', kind: InvestmentKind.cdb, accountId: bank),
+            id: other.id),
+        throwsFormatException);
+    expect(
+        (await repo.load())
+            .investments
+            .firstWhere((i) => i.id == other.id)
+            .account
+            .id,
+        item.account.id);
+  });
+
+  test(
+      'excluir aplicação libera conta sem apagar dinheiro ou movimentos e sincroniza novo vínculo',
+      () async {
+    final source = SyncStore(
+        db, LocalBackupStore(Directory('${folder.path}/source-delete')));
+    final genesis = await source.createBase('test@example.com');
+    await source.ack(genesis);
+    final item = await create(initial: 100);
+    await repo.recordReturn(item.id, amountMinor: 25, date: date);
+    await source.prepareUpload();
+    final created = (await source.uploads()).single;
+    await source.ack(created);
+    await repo.delete(item.id);
+    expect((await repo.load()).investments, isEmpty);
+    expect(
+        (await accounts.list())
+            .firstWhere((a) => a.id == item.account.id)
+            .currentBalanceMinor,
+        125);
+    expect((await SqliteTransactionsRepository(db).list()).single.accountId,
+        item.account.id);
+    await repo.save(InvestmentDraft(
+        name: 'Nova',
+        kind: InvestmentKind.savings,
+        accountId: item.account.id));
+    await source.prepareUpload();
+    final changed = (await source.uploads()).single;
+    final other = AppDatabase(NativeDatabase.memory());
+    addTearDown(other.close);
+    final target = SyncStore(
+        other, LocalBackupStore(Directory('${folder.path}/target-delete')));
+    final columns = await financialColumns(other);
+    await target.apply([SyncPacket.decode(genesis.encode(), columns)],
+        joinEmail: 'test@example.com');
+    await target.apply([SyncPacket.decode(created.encode(), columns)]);
+    await target.apply([SyncPacket.decode(changed.encode(), columns)]);
+    expect(await readFinancial(other), await readFinancial(db));
+    expect(
+        (await SqliteInvestmentsRepository(other).load())
+            .investments
+            .single
+            .name,
+        'Nova');
+    final bytes = await BackupService.export(db, folder);
+    await repo.delete((await repo.load()).investments.single.id);
+    await BackupService.restoreOpen(db, LocalBackupStore(folder), bytes);
+    expect((await repo.load()).investments.single.name, 'Nova');
   });
 
   test('arquivar conserva saldo/histórico e reativação permite novas operações',

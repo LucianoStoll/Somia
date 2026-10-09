@@ -38,7 +38,7 @@ class _InvestmentFormState extends State<InvestmentForm> {
   );
   final _initial = TextEditingController(text: '0,00');
   late InvestmentKind _kind = widget.investment?.kind ?? InvestmentKind.cdb;
-  String _account = '';
+  late String _account = widget.investment?.account.id ?? '';
   late DateTime? _maturity = widget.investment?.maturityDate;
   bool _busy = false;
   String? _error;
@@ -56,8 +56,10 @@ class _InvestmentFormState extends State<InvestmentForm> {
       .where(
         (a) =>
             a.currencyCode == 'BRL' &&
-            !a.isArchived &&
-            !widget.overview.investments.any((i) => i.account.id == a.id),
+            (!a.isArchived || a.id == widget.investment?.account.id) &&
+            !widget.overview.investments.any(
+              (i) => i.account.id == a.id && i.id != widget.investment?.id,
+            ),
       )
       .toList();
 
@@ -75,8 +77,7 @@ class _InvestmentFormState extends State<InvestmentForm> {
           maturityDate: _maturity,
           institution: _institution.text,
           notes: _notes.text,
-          accountId: widget.investment?.account.id ??
-              (_account.isEmpty ? null : _account),
+          accountId: _account.isEmpty ? null : _account,
           initialBalanceMinor: widget.investment != null || _account.isNotEmpty
               ? 0
               : MoneyMinor.parse(_initial.text),
@@ -140,10 +141,13 @@ class _InvestmentFormState extends State<InvestmentForm> {
                     items: InvestmentKind.values
                         .map(
                           (k) => DropdownMenuItem(
-                              value: k,
-                              child: Text(k.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis)),
+                            value: k,
+                            child: Text(
+                              k.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _kind = v!),
@@ -157,7 +161,7 @@ class _InvestmentFormState extends State<InvestmentForm> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  if (widget.investment == null) ...[
+                  ...[
                     DropdownButtonFormField<String>(
                       initialValue: _account,
                       isExpanded: true,
@@ -165,11 +169,15 @@ class _InvestmentFormState extends State<InvestmentForm> {
                         labelText: 'Conta vinculada',
                       ),
                       items: [
-                        const DropdownMenuItem(
-                          value: '',
-                          child: Text('Criar conta para aplicação',
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ),
+                        if (widget.investment == null)
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text(
+                              'Criar conta para aplicação',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         for (final a in _accounts)
                           DropdownMenuItem(
                             value: a.id,
@@ -198,37 +206,39 @@ class _InvestmentFormState extends State<InvestmentForm> {
                       ),
                       const SizedBox(height: 20),
                     ],
-                  ] else ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Conta: ${widget.investment!.account.name}'),
-                    ),
-                    const SizedBox(height: 20),
+                    if (widget.investment != null)
+                      const Text(
+                        'Trocar a conta altera somente o vínculo da aplicação. Saldos e movimentações permanecem nas contas originais.',
+                      ),
                   ],
                   ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Vencimento (opcional)'),
-                      subtitle: Text(_maturity == null
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Vencimento (opcional)'),
+                    subtitle: Text(
+                      _maturity == null
                           ? 'Sem vencimento definido'
-                          : '${_maturity!.day}/${_maturity!.month}/${_maturity!.year}'),
-                      leading: const Icon(Icons.event_outlined),
-                      trailing: _maturity == null
-                          ? null
-                          : IconButton(
-                              tooltip: 'Remover vencimento',
-                              icon: const Icon(Icons.close),
-                              onPressed: () =>
-                                  setState(() => _maturity = null)),
-                      onTap: () async {
-                        final date = await showDatePicker(
-                            context: context,
-                            initialDate: _maturity ?? DateTime.now(),
-                            firstDate: DateTime(1900),
-                            lastDate: DateTime(2100, 12, 31));
-                        if (date != null && mounted) {
-                          setState(() => _maturity = date);
-                        }
-                      }),
+                          : '${_maturity!.day}/${_maturity!.month}/${_maturity!.year}',
+                    ),
+                    leading: const Icon(Icons.event_outlined),
+                    trailing: _maturity == null
+                        ? null
+                        : IconButton(
+                            tooltip: 'Remover vencimento',
+                            icon: const Icon(Icons.close),
+                            onPressed: () => setState(() => _maturity = null),
+                          ),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _maturity ?? DateTime.now(),
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime(2100, 12, 31),
+                      );
+                      if (date != null && mounted) {
+                        setState(() => _maturity = date);
+                      }
+                    },
+                  ),
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _notes,
@@ -441,7 +451,8 @@ class _InvestmentOperationFormState extends State<InvestmentOperationForm> {
                       items: widget.accounts
                           .where(
                             (a) =>
-                                !a.isArchived &&
+                                (!a.isArchived ||
+                                    a.id == widget.investment?.account.id) &&
                                 a.currencyCode == 'BRL' &&
                                 a.id != widget.investment.account.id,
                           )

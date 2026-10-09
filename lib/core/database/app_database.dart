@@ -32,6 +32,7 @@ import 'schema_v20.dart';
 import 'schema_v21.dart';
 import 'schema_v22.dart';
 import 'schema_v23.dart';
+import 'schema_v24.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -46,8 +47,9 @@ class AppDatabase extends GeneratedDatabase {
   final _writeZoneKey = Object();
   Stream<void> get financialChanges => _financialChanges.stream;
   static final _financialWrite = RegExp(
-      r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
-      caseSensitive: false);
+    r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
+    caseSensitive: false,
+  );
 
   @override
   Future<void> customStatement(String statement, [List<Object?>? args]) async {
@@ -69,24 +71,33 @@ class AppDatabase extends GeneratedDatabase {
   }
 
   @override
-  Future<int> customUpdate(String query,
-      {List<Variable> variables = const [],
-      Set<ResultSetImplementation>? updates,
-      UpdateKind? updateKind}) async {
-    final changed = await super.customUpdate(query,
-        variables: variables, updates: updates, updateKind: updateKind);
+  Future<int> customUpdate(
+    String query, {
+    List<Variable> variables = const [],
+    Set<ResultSetImplementation>? updates,
+    UpdateKind? updateKind,
+  }) async {
+    final changed = await super.customUpdate(
+      query,
+      variables: variables,
+      updates: updates,
+      updateKind: updateKind,
+    );
     if (changed > 0) _recordFinancialWrite(query);
     return changed;
   }
 
   @override
-  Future<T> transaction<T>(Future<T> Function() action,
-      {bool requireNew = false}) async {
+  Future<T> transaction<T>(
+    Future<T> Function() action, {
+    bool requireNew = false,
+  }) async {
     final parent = Zone.current[_writeZoneKey] as _FinancialWrites?;
     final writes = _FinancialWrites();
     final result = await super.transaction(
-        () => runZoned(action, zoneValues: {_writeZoneKey: writes}),
-        requireNew: requireNew);
+      () => runZoned(action, zoneValues: {_writeZoneKey: writes}),
+      requireNew: requireNew,
+    );
     if (writes.changed) {
       if (parent != null) {
         parent.changed = true;
@@ -116,7 +127,9 @@ class AppDatabase extends GeneratedDatabase {
 
   /// Preserve a consistent copy before opening an older published database.
   static Future<void> protectBeforeMigration(
-      File file, Directory directory) async {
+    File file,
+    Directory directory,
+  ) async {
     if (!await file.exists()) return;
     final previous = sqlite.sqlite3.open(file.path);
     try {
@@ -125,8 +138,10 @@ class AppDatabase extends GeneratedDatabase {
       if (version > 0 && version < currentSchemaVersion) {
         final folder = Directory(p.join(directory.path, 'somia-backups'));
         await folder.create(recursive: true);
-        final snapshot = p.join(folder.path,
-            'beforeMigration-${DateTime.now().microsecondsSinceEpoch}-${const Uuid().v4()}.sqlite');
+        final snapshot = p.join(
+          folder.path,
+          'beforeMigration-${DateTime.now().microsecondsSinceEpoch}-${const Uuid().v4()}.sqlite',
+        );
         previous.execute('VACUUM INTO ?', [snapshot]);
       }
     } finally {
@@ -137,7 +152,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 23;
+  static const currentSchemaVersion = 24;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -172,6 +187,7 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV21,
             ...schemaV22,
             ...schemaV23,
+            ...schemaV24,
           ]) {
             await customStatement(statement);
           }
@@ -202,13 +218,14 @@ class AppDatabase extends GeneratedDatabase {
               21 => schemaV21,
               22 => schemaV22,
               23 => schemaV23,
+              24 => schemaV24,
               _ => throw StateError('Migration v$version não implementada'),
             };
             for (final statement in statements) {
               await customStatement(statement);
             }
           }
-          if (from < 23) {
+          if (from < 24) {
             // Requeue unsent v11–v13 packets with new identities: an earlier upload
             // may already exist remotely with the original content hash.
             final uploads =
@@ -220,8 +237,11 @@ class AppDatabase extends GeneratedDatabase {
               packet['id'] = const Uuid().v4();
               for (final entry in packet['entries'] as List) {
                 if (from < 22 &&
-                    ['transactions', 'transfers', 'card_entries']
-                        .contains(entry['table']) &&
+                    [
+                      'transactions',
+                      'transfers',
+                      'card_entries',
+                    ].contains(entry['table']) &&
                     entry['data'] != null) {
                   entry['data']['trash_state'] = 'active';
                 }

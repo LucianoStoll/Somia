@@ -1,3 +1,9 @@
+import 'package:finapp/features/accounts/domain/accounts_repository.dart';
+import 'package:finapp/features/categories/domain/categories_repository.dart';
+import 'package:finapp/features/categories/data/sqlite_categories_repository.dart';
+import 'package:finapp/features/transactions/domain/transactions_repository.dart';
+import 'package:finapp/features/transactions/presentation/transactions_page.dart';
+import 'package:finapp/core/filters/reference_month.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:finapp/features/transactions/data/transaction_settlements_repository.dart';
@@ -282,6 +288,34 @@ void main() {
     expect((await cards.entry(id)).tags, ['Viagem', 'Teste']);
     expect((await cards.entry(id)).invoiceId, before.invoiceId);
   });
+  testWidgets(
+      'seleção em lote aparece pelo menu e cancelar devolve lista sem checkbox',
+      (tester) async {
+    final item = await transactions.create(draft());
+    referenceMonth.select(DateTime(2026, 10));
+    getIt.registerSingleton<MovementManagementRepository>(management);
+    getIt.registerSingleton<TransactionsRepository>(transactions);
+    getIt.registerSingleton<AccountsRepository>(SqliteAccountsRepository(db));
+    getIt.registerSingleton<CategoriesRepository>(
+        SqliteCategoriesRepository(db));
+    await tester.pumpWidget(const MaterialApp(
+        home: TransactionsPage(sectionType: TransactionType.expense)));
+    await tester.pumpAndSettle();
+    expect(find.byType(Checkbox), findsNothing);
+    expect(find.text('0 selecionado(s)'), findsNothing);
+    await tester.tap(find.byKey(ValueKey('movement-menu-${item.id}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Editar em lote'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Checkbox), findsOneWidget);
+    expect(find.text('1 selecionado(s)'), findsOneWidget);
+    await tester.tap(find.text('Cancelar seleção'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Checkbox), findsNothing);
+    expect(await transactions.list(), hasLength(1));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('diálogo permite limpar estabelecimento sem mudar descrição',
       (tester) async {
     getIt.registerSingleton<MovementManagementRepository>(management);
