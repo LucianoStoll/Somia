@@ -197,6 +197,7 @@ class SyncStore {
         remoteRevision: revision,
         publicationEmail: email,
       );
+      SyncPacket.decode(packet.encode(), _columns!);
       await _queue(packet);
       return packet;
     });
@@ -250,7 +251,7 @@ class SyncStore {
                   null,
                 )
             : before;
-        await _write('sync_versions', entry!);
+        await _write('sync_versions', entry);
         if (changed) await _write('sync_outbox', entry);
       }
       await db.customStatement('INSERT INTO sync_applied VALUES(?,?)', [

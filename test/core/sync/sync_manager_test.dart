@@ -145,6 +145,96 @@ void main() {
     expect(b.sync.error, isNull);
   }
 
+  test('restored unlinked Android can replace while keeping its data',
+      () async {
+    await link();
+    await a.db.customStatement(
+        'UPDATE sync_state SET base_id=NULL,email=NULL,capture_enabled=0 WHERE id=1');
+    await a.db.customStatement('DELETE FROM sync_outbox');
+    await seed(a.db, 'restored', 'Restaurada');
+    await a.sync.listBases();
+    await a.sync.replaceBase();
+    expect(a.sync.error, isNull);
+    await b.sync.listBases();
+    await b.sync.join(b.sync.bases.single);
+    expect(b.sync.error, isNull);
+    expect(
+        await b.db
+            .customSelect("SELECT id FROM accounts WHERE id='restored'")
+            .get(),
+        hasLength(1));
+  });
+
+  test('corrupt recovery packet prevents publication', () async {
+    await link();
+    final base = (await a.sync.store.state()).base;
+    await a.sync.listBases();
+    cloud.corrupt = true;
+    final sends = cloud.sends;
+    await a.sync.replaceBase();
+    expect(a.sync.error, isNotNull);
+    expect(cloud.sends, sends);
+    expect((await a.sync.store.state()).base, base);
+    expect((await a.sync.store.state()).replacementPending, isFalse);
+  });
+
+  test('pending intent survives manager recreation and refuses another account',
+      () async {
+    await link();
+    await a.sync.listBases();
+    cloud.loseResponse = true;
+    await a.sync.replaceBase();
+    final resumed = SyncManager(a.local, a.drive,
+        SyncStore(a.db, a.local.store, device: 'android-device-0001'), cloud,
+        primaryAllowed: true);
+    try {
+      a.auth.email = 'other@example.com';
+      await resumed.replaceBase();
+      expect(resumed.error, isNotNull);
+      a.auth.email = 'same@example.com';
+      final sends = cloud.sends;
+      await resumed.replaceBase();
+      expect(resumed.error, isNull);
+      expect(cloud.sends, sends);
+    } finally {
+      resumed.dispose();
+    }
+  });
+
+  test('unpublished intent can be cancelled but published intent cannot',
+      () async {
+    await link();
+    await a.sync.listBases();
+    await a.sync.store.stageReplacement([a.sync.bases.single.base],
+        a.sync.listedRevision!, a.sync.listedEmail!);
+    await a.sync.cancelReplacement();
+    expect(a.sync.error, isNull);
+    expect((await a.sync.store.state()).replacementPending, isFalse);
+    await a.sync.listBases();
+    cloud.loseResponse = true;
+    await a.sync.replaceBase();
+    await a.sync.cancelReplacement();
+    expect(a.sync.error, contains('Retome'));
+    expect((await a.sync.store.state()).replacementPending, isTrue);
+  });
+
+  test('concurrent replacements stop without choosing a winner', () async {
+    await link();
+    await a.sync.listBases();
+    final original = a.sync.bases.single.base;
+    final revision = a.sync.listedRevision!;
+    await a.sync.replaceBase();
+    expect(a.sync.error, isNull);
+    final competing = await b.sync.store
+        .stageReplacement([original], revision, 'same@example.com');
+    cloud.files[competing.id] = competing;
+    final sends = cloud.sends;
+    await a.sync.synchronize();
+    expect(a.sync.error, contains('concorrentes'));
+    expect(cloud.sends, sends);
+    expect(cloud.files.values.where((p) => p.isBase), hasLength(3));
+  });
+
   setUp(() async {
     dir = await Directory.systemTemp.createTemp('somia-sync-cloud-');
     cloud = MemoryCloud();

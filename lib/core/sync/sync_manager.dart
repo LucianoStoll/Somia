@@ -270,14 +270,16 @@ class SyncManager extends ChangeNotifier {
         await _account(s);
         _clock();
         await _rememberBases(s, all);
-        if (bases.isEmpty)
+        if (bases.isEmpty) {
           message = 'Nenhuma base publicada. Inicie pelo Android.';
+        }
       });
 
   Future<void> replaceBase({String? expectedRevision, String? expectedEmail}) =>
       _run(() async {
-        if (!primaryAllowed)
+        if (!primaryAllowed) {
           throw const DriveFailure('Publique a nova base pelo Android.');
+        }
         final s = await _session();
         final all = _unique(await cloud.list(s));
         await _account(s);
@@ -505,10 +507,11 @@ class SyncManager extends ChangeNotifier {
         if (deferred) return;
         final latest = _unique(await cloud.list(s));
         await _rememberBases(s, latest);
-        if (needsJoin)
+        if (needsJoin) {
           throw const DriveFailure(
             'A base foi substituída durante a sincronização. Receba a nova base.',
           );
+        }
         await _send(s, latest);
         // Novas edições feitas durante a rede permanecem pendentes para o próximo
         // ciclo. last_sync_at informa a conclusão deste ciclo, não trabalho futuro.
