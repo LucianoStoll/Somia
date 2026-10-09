@@ -950,6 +950,8 @@ class _CardsPageState extends State<CardsPage> {
                               label: const Text('Competência / fatura'),
                               selected: !_cash && !_statement,
                               onSelected: (_) => setState(() {
+                                _bulkMode = false;
+                                _bulkSelection = {};
                                 _cash = false;
                                 _statement = false;
                               }),
@@ -958,6 +960,8 @@ class _CardsPageState extends State<CardsPage> {
                               label: const Text('Extrato'),
                               selected: _statement,
                               onSelected: (_) => setState(() {
+                                _bulkMode = false;
+                                _bulkSelection = {};
                                 _statement = true;
                                 _cash = false;
                               }),
@@ -966,6 +970,8 @@ class _CardsPageState extends State<CardsPage> {
                               label: const Text('Caixa / pagamentos'),
                               selected: _cash,
                               onSelected: (_) => setState(() {
+                                _bulkMode = false;
+                                _bulkSelection = {};
                                 _cash = true;
                                 _statement = false;
                               }),

@@ -451,8 +451,7 @@ class _InvestmentOperationFormState extends State<InvestmentOperationForm> {
                       items: widget.accounts
                           .where(
                             (a) =>
-                                (!a.isArchived ||
-                                    a.id == widget.investment?.account.id) &&
+                                !a.isArchived &&
                                 a.currencyCode == 'BRL' &&
                                 a.id != widget.investment.account.id,
                           )

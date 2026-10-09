@@ -559,8 +559,9 @@ class _TransfersViewState extends State<_TransfersView> {
                                 MovementReference.transfer(item),
                               );
                             }
-                            if (action == 'bulk')
+                            if (action == 'bulk') {
                               _startBulk(MovementReference.transfer(item));
+                            }
                             if (action == 'edit') _edit(context, item);
                             if (action == 'delete') _delete(context, item);
                             if (action == 'pending') _markPending(item);
