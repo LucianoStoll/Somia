@@ -100,8 +100,14 @@ class SyncPacket {
     this.kind,
     this.entries, {
     this.sourceSchema = AppDatabase.currentSchemaVersion,
+    this.replaces = const [],
+    this.remoteRevision,
+    this.publicationEmail,
   });
   final int sourceSchema;
+  final List<String> replaces;
+  final String? remoteRevision, publicationEmail;
+  bool get isBase => kind == 'genesis' || kind == 'replacement';
   final String id, base, device, kind;
   final List<SyncEntry> entries;
   Uint8List encode() => Uint8List.fromList(
@@ -113,6 +119,9 @@ class SyncPacket {
             'base': base,
             'device': device,
             'kind': kind,
+            if (kind == 'replacement') 'replaces': replaces,
+            if (kind == 'replacement') 'remoteRevision': remoteRevision,
+            if (kind == 'replacement') 'publicationEmail': publicationEmail,
             'entries': entries.map((e) {
               final value = e.toJson();
               if (sourceSchema < 16 &&
@@ -174,7 +183,7 @@ class SyncPacket {
             v['schema'] != 21 &&
             v['schema'] != 22 &&
             v['schema'] != 23) ||
-        !['genesis', 'changes'].contains(v['kind']) ||
+        !['genesis', 'changes', 'replacement'].contains(v['kind']) ||
         [
           'id',
           'base',
@@ -185,6 +194,22 @@ class SyncPacket {
       throw const FormatException(
         'Versão de sincronização incompatível. Atualize os dois dispositivos.',
       );
+    }
+    if (v['kind'] == 'replacement' &&
+        (v['replaces'] is! List ||
+            (v['replaces'] as List).isEmpty ||
+            (v['replaces'] as List).any(
+              (id) =>
+                  id is! String || !_identity.hasMatch(id) || id == v['base'],
+            ) ||
+            (v['replaces'] as List).toSet().length !=
+                (v['replaces'] as List).length ||
+            v['publicationEmail'] is! String ||
+            (v['publicationEmail'] as String).isEmpty ||
+            v['remoteRevision'] is! String ||
+            !RegExp(r'^[a-f0-9]{64}$')
+                .hasMatch(v['remoteRevision'] as String))) {
+      throw const FormatException('Substituição de base inválida.');
     }
     if (v['schema'] < 19 &&
         (v['entries'] as List).any(
@@ -321,7 +346,7 @@ class SyncPacket {
           (e) =>
               e.device != v['device'] ||
               (v['kind'] == 'changes' && e.clock == 0) ||
-              (v['kind'] == 'genesis' && (e.clock != 0 || e.deleted)),
+              (v['kind'] != 'changes' && (e.clock != 0 || e.deleted)),
         )) {
       throw const FormatException('Pacote de sincronização inválido.');
     }
@@ -332,6 +357,11 @@ class SyncPacket {
       v['kind'] as String,
       entries,
       sourceSchema: v['schema'] as int,
+      replaces: v['kind'] == 'replacement'
+          ? List<String>.from(v['replaces'] as List)
+          : const [],
+      remoteRevision: v['remoteRevision'] as String?,
+      publicationEmail: v['publicationEmail'] as String?,
     );
   }
 }

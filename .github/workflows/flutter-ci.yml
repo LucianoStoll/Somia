@@ -123,7 +123,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Tests on Windows
-        run: flutter test
+        run: flutter test --concurrency=2
       - name: Read app version
         shell: bash
         run: |

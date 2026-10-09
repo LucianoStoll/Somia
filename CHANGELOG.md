@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- #71: substituição explícita da base do Drive pelo Android, backup de proteção, retomada de publicação e novo vínculo confirmado no Windows; gerações anteriores preservadas, bloqueio de clientes antigos e divergências concorrentes.
+
 - #70: anexos locais de até 20 MB nos movimentos, prévia de imagens, salvar cópia, integridade SHA-256 e backup completo; schema 23. Transporte individual pelo sync permanece na #16.
 
 - Baixas parciais (#11): conta e data por pagamento/recebimento, histórico e desfazer, restante pendente e integração com saldos, planejamento, rateios e reembolsos; schema 19 com backup/sync.

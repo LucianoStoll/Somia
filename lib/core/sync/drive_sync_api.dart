@@ -1,25 +1,40 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:uuid/uuid.dart';
+
 import '../drive/drive_backup.dart';
 import 'sync_packet.dart';
 
 class SyncRemoteFile {
   const SyncRemoteFile(
-      this.copy, this.packet, this.base, this.device, this.kind);
+    this.copy,
+    this.packet,
+    this.base,
+    this.device,
+    this.kind,
+  );
   final DriveCopy copy;
   final String packet, base, device, kind;
+  bool get isBase => kind == 'genesis' || kind == 'replacement';
   static SyncRemoteFile parse(Map<String, dynamic> json) {
     final copy = DriveCopy.parse(json, marker: 'somiaSync');
     final p = json['appProperties'] as Map;
-    if (['packet', 'base', 'device'].any((k) =>
-            p[k] is! String ||
-            !RegExp(r'^[a-zA-Z0-9-]{16,80}$').hasMatch(p[k] as String)) ||
-        !['genesis', 'changes'].contains(p['kind'])) {
+    if (['packet', 'base', 'device'].any(
+          (k) =>
+              p[k] is! String ||
+              !RegExp(r'^[a-zA-Z0-9-]{16,80}$').hasMatch(p[k] as String),
+        ) ||
+        !['genesis', 'changes', 'replacement'].contains(p['kind'])) {
       throw const DriveFailure('Arquivo de sincronização inválido.');
     }
-    return SyncRemoteFile(copy, p['packet'] as String, p['base'] as String,
-        p['device'] as String, p['kind'] as String);
+    return SyncRemoteFile(
+      copy,
+      p['packet'] as String,
+      p['base'] as String,
+      p['device'] as String,
+      p['kind'] as String,
+    );
   }
 }
 
@@ -42,15 +57,18 @@ class DriveSyncApi implements SyncCloud {
     String? page;
     do {
       final value = jsonDecode(
-          utf8.decode(await api.request(session, 'GET', '/drive/v3/files', {
-        'spaces': 'appDataFolder',
-        'q':
-            "trashed = false and appProperties has { key='somiaSync' and value='1' }",
-        'fields':
-            'nextPageToken,files(id,name,createdTime,size,md5Checksum,appProperties,spaces,trashed)',
-        'pageSize': '100',
-        if (page != null) 'pageToken': page,
-      })));
+        utf8.decode(
+          await api.request(session, 'GET', '/drive/v3/files', {
+            'spaces': 'appDataFolder',
+            'q':
+                "trashed = false and appProperties has { key='somiaSync' and value='1' }",
+            'fields':
+                'nextPageToken,files(id,name,createdTime,size,md5Checksum,appProperties,spaces,trashed)',
+            'pageSize': '100',
+            if (page != null) 'pageToken': page,
+          }),
+        ),
+      );
       if (value is! Map || value['files'] is! List) {
         throw const DriveFailure('Lista de sincronização inválida.');
       }
@@ -91,17 +109,24 @@ class DriveSyncApi implements SyncCloud {
         'base': packet.base,
         'device': packet.device,
         'kind': packet.kind,
-        'sha256': packet.digest
+        'sha256': packet.digest,
       },
     });
     final body = BytesBuilder(copy: false)
-      ..add(utf8.encode(
-          '--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n--$boundary\r\nContent-Type: application/json\r\n\r\n'))
+      ..add(
+        utf8.encode(
+          '--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n--$boundary\r\nContent-Type: application/json\r\n\r\n',
+        ),
+      )
       ..add(bytes)
       ..add(utf8.encode('\r\n--$boundary--\r\n'));
-    await api.request(session, 'POST', '/upload/drive/v3/files',
-        {'uploadType': 'multipart', 'fields': 'id'},
-        body: body.takeBytes(),
-        contentType: 'multipart/related; boundary=$boundary');
+    await api.request(
+      session,
+      'POST',
+      '/upload/drive/v3/files',
+      {'uploadType': 'multipart', 'fields': 'id'},
+      body: body.takeBytes(),
+      contentType: 'multipart/related; boundary=$boundary',
+    );
   }
 }

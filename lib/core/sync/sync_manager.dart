@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:crypto/crypto.dart';
+
 import '../database/backup_manager.dart';
 import '../drive/drive_backup.dart';
 import '../drive/drive_backup_manager.dart';
@@ -8,8 +11,13 @@ import 'sync_packet.dart';
 import 'drive_sync_api.dart';
 
 class SyncManager extends ChangeNotifier {
-  SyncManager(this.local, this.drive, this.store, this.cloud,
-      {required this.primaryAllowed});
+  SyncManager(
+    this.local,
+    this.drive,
+    this.store,
+    this.cloud, {
+    required this.primaryAllowed,
+  });
   final BackupManager local;
   final DriveBackupManager drive;
   final SyncStore store;
@@ -20,6 +28,8 @@ class SyncManager extends ChangeNotifier {
   List<SyncEntry> history = const [];
   bool busy = false;
   bool deferred = false;
+  bool needsJoin = false;
+  String? listedRevision, listedEmail;
   int completedSyncCycles = 0;
   String? error, message;
   bool _disposed = false;
@@ -84,7 +94,8 @@ class SyncManager extends ChangeNotifier {
     final current = await store.state();
     if (current.email != null && current.email != s.email) {
       throw const DriveFailure(
-          'Esta base está vinculada a outra conta Google. Reconecte a conta original.');
+        'Esta base está vinculada a outra conta Google. Reconecte a conta original.',
+      );
     }
     return s;
   }
@@ -92,7 +103,8 @@ class SyncManager extends ChangeNotifier {
   Future<void> _account(DriveSession s) async {
     if (await drive.api.auth.account() != s.email) {
       throw const DriveFailure(
-          'A conta mudou durante a sincronização. Os dados atuais foram mantidos.');
+        'A conta mudou durante a sincronização. Os dados atuais foram mantidos.',
+      );
     }
   }
 
@@ -102,7 +114,8 @@ class SyncManager extends ChangeNotifier {
         DateTime.now().toUtc().difference(server.toUtc()).inSeconds.abs() >
             300) {
       throw const DriveFailure(
-          'Data e hora estão diferentes do Drive. Ative o horário automático no dispositivo antes de sincronizar.');
+        'Data e hora estão diferentes do Drive. Ative o horário automático no dispositivo antes de sincronizar.',
+      );
     }
   }
 
@@ -116,7 +129,8 @@ class SyncManager extends ChangeNotifier {
               old.kind != file.kind ||
               old.device != file.device)) {
         throw const DriveFailure(
-            'Pacotes repetidos com conteúdo divergente. A sincronização foi interrompida.');
+          'Pacotes repetidos com conteúdo divergente. A sincronização foi interrompida.',
+        );
       }
       result[file.packet] = file;
     }
@@ -129,7 +143,8 @@ class SyncManager extends ChangeNotifier {
         sha256.convert(bytes).toString() != file.copy.sha256Hash ||
         md5.convert(bytes).toString() != file.copy.md5Hash) {
       throw const DriveFailure(
-          'Arquivo de sincronização incompleto ou corrompido.');
+        'Arquivo de sincronização incompleto ou corrompido.',
+      );
     }
     final p = SyncPacket.decode(bytes, await store.columns());
     if (p.id != file.packet ||
@@ -138,14 +153,18 @@ class SyncManager extends ChangeNotifier {
         p.device != file.device ||
         p.digest != file.copy.sha256Hash) {
       throw const DriveFailure(
-          'Conteúdo e identidade da sincronização não correspondem.');
+        'Conteúdo e identidade da sincronização não correspondem.',
+      );
     }
     await _account(s);
     return p;
   }
 
-  Future<List<SyncPacket>> _receive(DriveSession s, List<SyncRemoteFile> files,
-      {bool joining = false}) async {
+  Future<List<SyncPacket>> _receive(
+    DriveSession s,
+    List<SyncRemoteFile> files, {
+    bool joining = false,
+  }) async {
     final received = <SyncPacket>[];
     final applied = joining ? <String, String>{} : await store.applied();
     var bytes = 0;
@@ -159,7 +178,8 @@ class SyncManager extends ChangeNotifier {
       bytes += file.copy.size;
       if (bytes > maxSyncBytes) {
         throw const DriveFailure(
-            'As alterações pendentes excedem 64 MB nesta operação.');
+          'As alterações pendentes excedem 64 MB nesta operação.',
+        );
       }
       received.add(await _download(s, file));
     }
@@ -175,7 +195,8 @@ class SyncManager extends ChangeNotifier {
       if (existing != null) {
         if (existing.base != p.base || existing.copy.sha256Hash != p.digest) {
           throw const DriveFailure(
-              'O pacote pendente tem outra versão no Drive.');
+            'O pacote pendente tem outra versão no Drive.',
+          );
         }
         await _download(s, existing);
       } else {
@@ -188,33 +209,196 @@ class SyncManager extends ChangeNotifier {
     }
   }
 
+  String _revision(Iterable<SyncRemoteFile> files) {
+    final rows = files
+        .map((f) => '${f.packet}:${f.base}:${f.kind}:${f.copy.sha256Hash}')
+        .toSet()
+        .toList()
+      ..sort();
+    return sha256.convert(utf8.encode(rows.join('\n'))).toString();
+  }
+
+  Future<List<SyncRemoteFile>> _activeBases(
+    DriveSession session,
+    Map<String, SyncRemoteFile> all,
+  ) async {
+    final retired = <String>{};
+    final origins = all.values.where((f) => f.isBase).toList();
+    for (final file in origins.where((f) => f.kind == 'replacement')) {
+      final packet = await _download(session, file);
+      if (!packet.replaces.every((id) => origins.any((f) => f.base == id))) {
+        throw const DriveFailure(
+          'A proteção da base anterior está incompleta. Nenhum dado foi alterado.',
+        );
+      }
+      retired.addAll(packet.replaces);
+    }
+    final active = origins.where((f) => !retired.contains(f.base)).toList();
+    if (origins.isNotEmpty && active.length != 1) {
+      throw const DriveFailure(
+        'Existem publicações concorrentes no Drive. A sincronização foi interrompida e as bases foram preservadas para recuperação.',
+      );
+    }
+    if (active.length == 1 && active.single.kind == 'replacement') {
+      final packet = await _download(session, active.single);
+      final ancestors =
+          all.values.where((f) => packet.replaces.contains(f.base));
+      if (_revision(ancestors) != packet.remoteRevision) {
+        throw const DriveFailure(
+            'A base anterior recebeu alterações durante a substituição. A sincronização foi interrompida; todas as versões foram preservadas para recuperação.');
+      }
+    }
+    return active;
+  }
+
+  Future<void> _rememberBases(
+    DriveSession session,
+    Map<String, SyncRemoteFile> all,
+  ) async {
+    bases = await _activeBases(session, all);
+    listedRevision = _revision(all.values);
+    listedEmail = session.email;
+    final current = await store.state();
+    needsJoin = current.base != null &&
+        bases.isNotEmpty &&
+        bases.single.base != current.base;
+  }
+
   Future<void> listBases() => _run(() async {
         final s = await _session();
-        final files = await cloud.list(s);
+        final all = _unique(await cloud.list(s));
         await _account(s);
         _clock();
-        final all = _unique(files);
-        bases = all.values.where((f) => f.kind == 'genesis').toList()
-          ..sort((a, b) => b.copy.createdAt.compareTo(a.copy.createdAt));
+        await _rememberBases(s, all);
         if (bases.isEmpty) {
           message = 'Nenhuma base publicada. Inicie pelo Android.';
         }
       });
+
+  Future<void> replaceBase({String? expectedRevision, String? expectedEmail}) =>
+      _run(() async {
+        if (!primaryAllowed) {
+          throw const DriveFailure('Publique a nova base pelo Android.');
+        }
+        final s = await _session();
+        final all = _unique(await cloud.list(s));
+        await _account(s);
+        _clock();
+        final pending = (await store.uploads()).where(
+          (p) => p.kind == 'replacement',
+        );
+        if (pending.isNotEmpty) {
+          await _finishReplacement(s, pending.single);
+          return;
+        }
+        if ((expectedEmail ?? listedEmail) != s.email ||
+            (expectedRevision ?? listedRevision) != _revision(all.values) ||
+            bases.isEmpty) {
+          throw const DriveFailure(
+            'A base mudou desde a confirmação. Busque as bases no Drive e confirme novamente.',
+          );
+        }
+        await _activeBases(s, all);
+        // The immutable old packets stay in Drive, including every change packet.
+        // Validate that this recovery set can be downloaded before publication.
+        await _receive(s, all.values.toList(), joining: true);
+        final packet = await local.maintain(
+          () => store.stageReplacement(
+            all.values
+                .where((f) => f.isBase)
+                .map((f) => f.base)
+                .toSet()
+                .toList(),
+            listedRevision!,
+            s.email,
+          ),
+          refreshScreens: false,
+        );
+        await _finishReplacement(s, packet);
+      });
+
+  Future<void> _finishReplacement(DriveSession s, SyncPacket packet) async {
+    if (packet.publicationEmail != s.email) {
+      throw const DriveFailure(
+        'A publicação pendente pertence a outra conta Google. Reconecte a conta original.',
+      );
+    }
+    final all = _unique(await cloud.list(s));
+    await _account(s);
+    _clock();
+    if (!all.containsKey(packet.id)) {
+      if (_revision(all.values) != packet.remoteRevision) {
+        throw const DriveFailure(
+          'O Drive mudou durante a publicação. A base atual foi preservada. Cancele a publicação pendente, busque as bases e confirme novamente.',
+        );
+      }
+      await cloud.upload(s, packet);
+    }
+    // Read back and verify before changing the local link. A lost response can
+    // safely be retried using the same persisted packet id.
+    final published = _unique(await cloud.list(s));
+    final file = published[packet.id];
+    if (file == null || (await _download(s, file)).digest != packet.digest) {
+      throw const DriveFailure(
+        'Não foi possível confirmar a publicação. Tente novamente.',
+      );
+    }
+    final active = await _activeBases(s, published);
+    if (active.single.base != packet.base) {
+      throw const DriveFailure(
+        'Outra base foi publicada. Receba a base atual após conferir seus dados.',
+      );
+    }
+    await _account(s);
+    await local.maintain(
+      () => store.activateReplacement(packet, s.email),
+      refreshScreens: false,
+    );
+    await store.markCompleted();
+    needsJoin = false;
+    await _rememberBases(s, published);
+    message =
+        'Base substituída com proteção. Atualize o Somia no Windows e receba a nova base. As bases anteriores permanecem preservadas no Drive.';
+  }
+
+  Future<void> cancelReplacement() => _run(() async {
+        final s = await _session();
+        final all = _unique(await cloud.list(s));
+        await _account(s);
+        for (final packet in (await store.uploads()).where(
+          (p) => p.kind == 'replacement',
+        )) {
+          if (packet.publicationEmail != s.email ||
+              all.containsKey(packet.id)) {
+            throw const DriveFailure(
+              'Esta publicação pode já estar no Drive. Retome a publicação para confirmar o resultado.',
+            );
+          }
+          await store.discardReplacement(packet.id);
+        }
+        message =
+            'Publicação pendente cancelada. Busque as bases para confirmar uma nova substituição.';
+      });
   Future<void> createBase() => _run(() async {
         if (!primaryAllowed) {
           throw const DriveFailure(
-              'A base inicial deve ser publicada pelo Android.');
+            'A base inicial deve ser publicada pelo Android.',
+          );
         }
         final s = await _session();
         final files = await cloud.list(s);
         await _account(s);
         _clock();
-        if (files.any((f) => f.kind == 'genesis')) {
+        if (files.any((f) => f.isBase)) {
+          await _rememberBases(s, _unique(files));
           throw const DriveFailure(
-              'Já existe uma base no Drive. Receba essa base para continuar.');
+            'Já existe uma base no Drive. Receba essa base ou escolha substituí-la pelos dados deste Android.',
+          );
         }
-        await local.maintain(() => store.createBase(s.email),
-            refreshScreens: false);
+        await local.maintain(
+          () => store.createBase(s.email),
+          refreshScreens: false,
+        );
         await _send(s, _unique(files));
         await store.markCompleted();
         message =
@@ -227,35 +411,54 @@ class SyncManager extends ChangeNotifier {
         _clock();
         final fresh = all[selected.packet];
         if (fresh == null ||
-            fresh.kind != 'genesis' ||
+            !fresh.isBase ||
             fresh.base != selected.base ||
             fresh.copy.sha256Hash != selected.copy.sha256Hash) {
           throw const DriveFailure(
-              'A base mudou ou não está disponível. Atualize a lista.');
+            'A base mudou ou não está disponível. Atualize a lista.',
+          );
         }
-        final genesis = all.values
-            .where((f) => f.base == selected.base && f.kind == 'genesis');
+        final active = await _activeBases(s, all);
+        if (!active.any((f) => f.packet == selected.packet)) {
+          throw const DriveFailure(
+            'Esta base foi substituída. Busque a base atual no Drive.',
+          );
+        }
+        final genesis = all.values.where(
+          (f) => f.base == selected.base && f.isBase,
+        );
         if (genesis.length != 1) {
           throw const DriveFailure(
-              'A base tem mais de uma origem. Nenhum dado foi substituído.');
+            'A base tem mais de uma origem. Nenhum dado foi substituído.',
+          );
         }
         final packets = await _receive(
-            s, all.values.where((f) => f.base == selected.base).toList(),
-            joining: true);
+          s,
+          all.values.where((f) => f.base == selected.base).toList(),
+          joining: true,
+        );
         await _account(s);
         await local.maintain(() => store.apply(packets, joinEmail: s.email));
         await store.markCompleted();
+        needsJoin = false;
         message =
             'Base recebida. Este dispositivo já pode enviar e receber alterações.';
       });
-  Future<void> synchronize(
-          {bool automatic = false, bool Function()? canApply}) =>
+  Future<void> synchronize({
+    bool automatic = false,
+    bool Function()? canApply,
+  }) =>
       _run(() async {
         if (automatic && !(canApply?.call() ?? false)) {
           deferred = true;
           return;
         }
         final s = await _session();
+        if ((await store.uploads()).any((p) => p.kind == 'replacement')) {
+          throw const DriveFailure(
+            'Existe uma substituição pendente. Retome ou cancele a publicação na tela de sincronização.',
+          );
+        }
         final current = await store.state();
         if (current.base == null) {
           throw const DriveFailure(
@@ -264,16 +467,23 @@ class SyncManager extends ChangeNotifier {
         final all = _unique(await cloud.list(s));
         await _account(s);
         _clock();
-        final files = all.values.where((f) => f.base == current.base).toList();
-        if (files.where((f) => f.kind == 'genesis').length > 1) {
+        await _rememberBases(s, all);
+        if (needsJoin) {
           throw const DriveFailure(
-              'Esta base tem mais de uma origem. Nenhum dado foi alterado.');
+            'A base do Drive foi substituída. Receba a nova base para continuar. Seus dados locais e pendências foram preservados.',
+          );
+        }
+        final files = all.values.where((f) => f.base == current.base).toList();
+        if (files.where((f) => f.isBase).length > 1) {
+          throw const DriveFailure(
+            'Esta base tem mais de uma origem. Nenhum dado foi alterado.',
+          );
         }
         final queued = await store.uploads();
-        if (!files.any((f) => f.kind == 'genesis') &&
-            !queued.any((p) => p.kind == 'genesis')) {
+        if (!files.any((f) => f.isBase) && !queued.any((p) => p.isBase)) {
           throw const DriveFailure(
-              'A origem da base não está no Drive. Os dados locais foram mantidos.');
+            'A origem da base não está no Drive. Os dados locais foram mantidos.',
+          );
         }
         final packets = await _receive(s, files);
         await _account(s);
@@ -282,16 +492,27 @@ class SyncManager extends ChangeNotifier {
           return;
         }
         if (packets.isNotEmpty) {
-          await local.maintain(() async {
-            if (automatic && !(canApply?.call() ?? false)) {
-              deferred = true;
-              return false;
-            }
-            return store.apply(packets);
-          }, preserveLocation: automatic, shouldRefresh: (changed) => changed);
+          await local.maintain(
+            () async {
+              if (automatic && !(canApply?.call() ?? false)) {
+                deferred = true;
+                return false;
+              }
+              return store.apply(packets);
+            },
+            preserveLocation: automatic,
+            shouldRefresh: (changed) => changed,
+          );
         }
         if (deferred) return;
-        await _send(s, all);
+        final latest = _unique(await cloud.list(s));
+        await _rememberBases(s, latest);
+        if (needsJoin) {
+          throw const DriveFailure(
+            'A base foi substituída durante a sincronização. Receba a nova base.',
+          );
+        }
+        await _send(s, latest);
         // Novas edições feitas durante a rede permanecem pendentes para o próximo
         // ciclo. last_sync_at informa a conclusão deste ciclo, não trabalho futuro.
         await store.markCompleted();

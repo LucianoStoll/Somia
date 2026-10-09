@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:finapp/core/database/financial_data.dart';
+import 'package:finapp/core/sync/sync_packet.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
@@ -22,6 +24,45 @@ class LegacyV23 extends LegacyV21 {
 }
 
 void main() {
+  test('migração mantém identidade e hash de substituição v23 pendente',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('replacement-upgrade-');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/db.sqlite');
+    final old = LegacyV23(NativeDatabase(file));
+    await old.customStatement(
+        "INSERT INTO accounts(id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES('a','Conta','cash','BRL',123,1,1)");
+    final data =
+        (await old.customSelect('SELECT * FROM accounts').getSingle()).data;
+    final packet = SyncPacket(
+        'pending-replacement-0001',
+        'new-replacement-base-0001',
+        'replacement-device-0001',
+        'replacement',
+        [SyncEntry('accounts', 'a', 0, 'replacement-device-0001', false, data)],
+        sourceSchema: 23,
+        replaces: ['old-replacement-base-0001'],
+        remoteRevision: List.filled(64, 'a').join(),
+        publicationEmail: 'test@example.com');
+    final payload = utf8.decode(packet.encode());
+    await old.customStatement(
+        'INSERT INTO sync_uploads VALUES(?,?)', [packet.id, payload]);
+    await old.close();
+    final db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    final queued =
+        await db.customSelect('SELECT * FROM sync_uploads').getSingle();
+    expect(queued.read<String>('packet_id'), packet.id);
+    expect(queued.read<String>('payload'), payload);
+    final decoded =
+        SyncPacket.decode(utf8.encode(payload), await financialColumns(db));
+    expect(decoded.digest, packet.digest);
+    expect(decoded.sourceSchema, 23);
+    expect(decoded.publicationEmail, 'test@example.com');
+    expect(decoded.replaces, packet.replaces);
+    expect(AppDatabase.currentSchemaVersion, 24);
+  });
+
   test(
       'v23 preserva vínculos e fila, libera somente contas de aplicações excluídas',
       () async {

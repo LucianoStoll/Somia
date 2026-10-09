@@ -233,6 +233,12 @@ class AppDatabase extends GeneratedDatabase {
             for (final row in uploads) {
               final packet = jsonDecode(row.read<String>('payload'))
                   as Map<String, dynamic>;
+              // A resposta de um replacement v23 pode ter sido perdida. Como
+              // v24 não muda suas colunas, preservar identidade/hash permite
+              // confirmar o mesmo pacote já publicado após a atualização.
+              if (packet['kind'] == 'replacement' && packet['schema'] == 23) {
+                continue;
+              }
               packet['schema'] = currentSchemaVersion;
               packet['id'] = const Uuid().v4();
               for (final entry in packet['entries'] as List) {
