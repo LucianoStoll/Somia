@@ -110,6 +110,10 @@ class MovementManagementRepository {
             final item = ref.kind == MovementKind.cardEntry
                 ? await CardsRepository(db).findMovement(ref.id)
                 : transactionItems[ref.id]!;
+            if (patch.effective != null && item.settlementCount > 0) {
+              throw const FormatException(
+                  'Desfaça as baixas pelo histórico antes de alterar a efetivação em lote.');
+            }
             if (patch.changeCategory && item.allocations.isNotEmpty) {
               throw StateError(
                   'Edite o rateio individualmente antes de trocar a categoria.');
