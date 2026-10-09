@@ -90,7 +90,7 @@ void main() {
         'device-trash-00000001',
         'genesis',
         [
-          SyncEntry('transactions', 'transaction-trash-0001', 1,
+          SyncEntry('transactions', 'transaction-trash-0001', 0,
               'device-trash-00000001', false, row.data)
         ],
         sourceSchema: 21);
