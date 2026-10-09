@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show FontLoader;
+import 'package:flutter/services.dart';
 import 'package:finapp/core/theme/app_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:finapp/core/database/app_database.dart';
