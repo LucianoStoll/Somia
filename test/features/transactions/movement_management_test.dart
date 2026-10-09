@@ -159,6 +159,11 @@ void main() {
         const BulkMovementPatch(description: 'Pago em baixas'));
     expect((await settlements.list(item.id)).single.amountMinor, 1000);
     expect((await transactions.list()).single.effectiveDate, isNull);
+    await expectLater(
+        management.apply(
+            [await ref(item.id)], const BulkMovementPatch(effective: false)),
+        throwsFormatException);
+    expect((await settlements.list(item.id)).single.amountMinor, 1000);
     expect(
         (await SqliteAccountsRepository(db).list()).single.currentBalanceMinor,
         -1000);
