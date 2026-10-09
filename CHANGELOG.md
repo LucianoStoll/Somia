@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- Análises (#75): categorias/subcategorias, comparação mensal, compromissos dos próximos seis meses e saldo por tipo de conta, moedas separadas e detalhamento dos lançamentos.
+
 - #71: substituição explícita da base do Drive pelo Android, backup de proteção, retomada de publicação e novo vínculo confirmado no Windows; gerações anteriores preservadas, bloqueio de clientes antigos e divergências concorrentes.
 
 - #70: anexos locais de até 20 MB nos movimentos, prévia de imagens, salvar cópia, integridade SHA-256 e backup completo; schema 23. Transporte individual pelo sync permanece na #16.

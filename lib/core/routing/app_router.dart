@@ -1,3 +1,4 @@
+import '../../features/analysis/presentation/expense_analysis_page.dart';
 import '../../features/transactions/presentation/trash_page.dart';
 import '../../features/planning/presentation/planning_page.dart';
 import '../../features/reimbursements/presentation/reimbursements_page.dart';
@@ -20,6 +21,7 @@ import 'somia_shell.dart';
 import 'sync_navigation_guard.dart';
 
 abstract final class AppRoutes {
+  static const analysisPath = '/analysis';
   static const trashPath = '/trash';
   static const dashboard = 'dashboard';
   static const dashboardPath = '/';
@@ -61,6 +63,9 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) {
               location: state.uri.path,
               child: SomiaShell(location: state.uri.path, child: child)),
           routes: [
+            GoRoute(
+                path: AppRoutes.analysisPath,
+                builder: (context, state) => const ExpenseAnalysisPage()),
             GoRoute(
                 path: AppRoutes.trashPath,
                 builder: (context, state) => const TrashPage()),

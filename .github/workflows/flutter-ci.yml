@@ -77,6 +77,8 @@ jobs:
         run: flutter test test/features/transactions/movement_management_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render attachment previews
         run: flutter test test/features/attachments/attachments_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render expense analysis previews
+        run: flutter test test/features/analysis/expense_analysis_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render planning previews
         run: flutter test test/features/planning/planning_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render reimbursement previews
@@ -88,6 +90,7 @@ jobs:
         with:
           name: somia-dashboard-preview
           path: |
+            test/features/analysis/*-preview.png
             test/features/dashboard/*mobile-preview.png
             test/features/dashboard/*desktop-preview.png
             test/features/attachments/*-preview.png

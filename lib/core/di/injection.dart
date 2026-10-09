@@ -1,3 +1,4 @@
+import '../../features/analysis/data/expense_analysis_repository.dart';
 import '../../features/attachments/data/attachments_repository.dart';
 import '../../features/transactions/data/movement_management_repository.dart';
 import '../../features/planning/data/planning_repository.dart';
@@ -120,6 +121,9 @@ Future<void> configureDependencies(AppEnvironment environment) async {
   getIt.registerLazySingleton<DashboardRepository>(
     () => SqliteDashboardRepository(getIt<AppDatabase>()),
   );
+
+  getIt.registerLazySingleton<ExpenseAnalysisRepository>(
+      () => ExpenseAnalysisRepository(getIt<AppDatabase>()));
 
   getIt.registerLazySingleton<CardsRepository>(
       () => CardsRepository(getIt<AppDatabase>()));
