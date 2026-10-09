@@ -1,3 +1,4 @@
+import '../../attachments/presentation/attachments_page.dart';
 import '../../transactions/data/movement_management_repository.dart';
 import '../../transactions/domain/movement_management.dart';
 import '../../transactions/presentation/bulk_movement_toolbar.dart';
@@ -285,6 +286,11 @@ class _CardsPageState extends State<CardsPage> {
   }
 
   Future<void> _entryAction(CardEntry e, String action) async {
+    if (action == 'attachments') {
+      await showAttachments(
+          context, MovementReference(MovementKind.cardEntry, e.id, ''));
+      return;
+    }
     if (action == 'edit') {
       await _buy(e);
       return;
@@ -624,6 +630,8 @@ class _CardsPageState extends State<CardsPage> {
             enabled: !_acting,
             onSelected: (a) => _entryAction(e, a),
             itemBuilder: (_) => [
+                  const PopupMenuItem(
+                      value: 'attachments', child: Text('Anexos')),
                   if (e.kind == 'purchase') ...[
                     const PopupMenuItem(
                         value: 'edit', child: Text('Editar / mudar fatura')),

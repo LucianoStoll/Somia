@@ -316,6 +316,11 @@ class MovementManagementRepository {
           await db.customStatement(
               'UPDATE ${ref.table} SET trash_state=?,deleted_at=${restore ? 'NULL' : 'deleted_at'},updated_at=?,sync_version=sync_version+1 WHERE id=?',
               [restore ? 'active' : 'purged', now, ref.id]);
+          if (!restore) {
+            await db.customStatement(
+                'DELETE FROM local_attachments WHERE owner_table=? AND owner_id=?',
+                [ref.table, ref.id]);
+          }
         }
         await _validate();
       });

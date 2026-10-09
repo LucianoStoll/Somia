@@ -1,3 +1,4 @@
+import '../../attachments/presentation/attachments_page.dart';
 import '../../transactions/data/movement_management_repository.dart';
 import '../../transactions/domain/movement_management.dart';
 import '../../transactions/presentation/bulk_movement_toolbar.dart';
@@ -464,6 +465,9 @@ class _TransfersViewState extends State<_TransfersView> {
                     tooltip: 'Ações da transferência',
                     icon: const Icon(Icons.more_vert, size: 20),
                     onSelected: (action) {
+                      if (action == 'attachments')
+                        showAttachments(
+                            context, MovementReference.transfer(item));
                       if (action == 'edit') _edit(context, item);
                       if (action == 'delete') _delete(context, item);
                       if (action == 'pending') _markPending(item);
@@ -472,6 +476,8 @@ class _TransfersViewState extends State<_TransfersView> {
                       }
                     },
                     itemBuilder: (_) => [
+                      const PopupMenuItem(
+                          value: 'attachments', child: Text('Anexos')),
                       const PopupMenuItem(value: 'edit', child: Text('Editar')),
                       if (item.effectiveDate != null) ...[
                         const PopupMenuItem(

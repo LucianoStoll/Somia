@@ -148,7 +148,8 @@ class SyncPacket {
             v['schema'] != 18 &&
             v['schema'] != 19 &&
             v['schema'] != 20 &&
-            v['schema'] != 21) ||
+            v['schema'] != 21 &&
+            v['schema'] != 22) ||
         !['genesis', 'changes'].contains(v['kind']) ||
         [
           'id',

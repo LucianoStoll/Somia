@@ -1,0 +1,153 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:finapp/core/database/app_database.dart';
+import 'package:finapp/core/database/backup_service.dart';
+import 'package:finapp/core/database/local_backup_store.dart';
+import 'package:finapp/core/database/financial_data.dart';
+import 'package:finapp/core/database/schema_v22.dart';
+import 'package:finapp/core/sync/sync_packet.dart';
+import 'package:finapp/features/attachments/data/attachments_repository.dart';
+import 'package:finapp/features/attachments/presentation/attachments_page.dart';
+import 'package:finapp/features/transactions/domain/movement_management.dart';
+import '../../core/database/schema_v22_test.dart' show LegacyV21;
+
+class LegacyV22 extends LegacyV21 {
+  LegacyV22(super.executor);
+  @override
+  int get schemaVersion => 22;
+  @override
+  MigrationStrategy get migration => MigrationStrategy(onCreate: (m) async {
+        await super.migration.onCreate(m);
+        for (final sql in schemaV22) {
+          await customStatement(sql);
+        }
+      });
+}
+
+Future<void> seed(AppDatabase db) async {
+  await db.customStatement(
+      "INSERT INTO accounts(id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES('a','Conta','cash','BRL',0,1,1)");
+  await db.customStatement(
+      "INSERT INTO transactions(id,description,type,planned_amount_minor,competence_at,posted_at,due_at,account_id,created_at,updated_at) VALUES('t','Compra','expense',1234,1,1,1,'a',1,1)");
+}
+
+void main() {
+  late AppDatabase db;
+  late AttachmentsRepository repo;
+  const owner = MovementReference(MovementKind.transaction, 't', '');
+  setUp(() async {
+    db = AppDatabase(NativeDatabase.memory());
+    await seed(db);
+    repo = AttachmentsRepository(db);
+  });
+  tearDown(() => db.close());
+  test('bytes, nome seguro, hash, isolamento do vínculo e limite', () async {
+    await repo.add(
+        owner, '../../comprovante.pdf', Uint8List.fromList([1, 2, 3]));
+    final file = (await repo.list(owner)).single;
+    expect(file.name, 'comprovante.pdf');
+    expect(await repo.read(owner, file.id), [1, 2, 3]);
+    expect(repo.add(owner, 'vazio', Uint8List(0)), throwsFormatException);
+    expect(
+        repo.add(
+            owner, 'grande', Uint8List(AttachmentsRepository.maxBytes + 1)),
+        throwsFormatException);
+    expect(
+        repo.add(
+            const MovementReference(MovementKind.transaction, 'missing', ''),
+            'x',
+            Uint8List(1)),
+        throwsStateError);
+    await db.customStatement("UPDATE local_attachments SET sha256='bad'");
+    expect(repo.read(owner, file.id), throwsFormatException);
+    expect(AttachmentsRepository.validate(db), throwsFormatException);
+  });
+  test('lixeira preserva arquivo e restauração do movimento reabre acesso',
+      () async {
+    await repo.add(owner, 'comprovante.txt', Uint8List.fromList([42]));
+    await db.customStatement(
+        "UPDATE transactions SET deleted_at=2,trash_state='trashed' WHERE id='t'");
+    expect(repo.list(owner), throwsStateError);
+    expect(
+        (await db.customSelect('SELECT id FROM local_attachments').get())
+            .length,
+        1);
+    await db.customStatement(
+        "UPDATE transactions SET deleted_at=NULL,trash_state='active' WHERE id='t'");
+    final file = (await repo.list(owner)).single;
+    expect(await repo.read(owner, file.id), [42]);
+    await repo.remove(owner, file.id);
+    expect(await repo.list(owner), isEmpty);
+  });
+  test('backup restaura conteúdo e rejeita hash inválido sem substituir base',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('somia-attachments-');
+    addTearDown(() => dir.delete(recursive: true));
+    await repo.add(owner, 'recibo.pdf', Uint8List.fromList([3, 2, 1]));
+    final backup = await BackupService.export(db, dir);
+    await repo.remove(owner, (await repo.list(owner)).single.id);
+    await BackupService.restoreOpen(db, LocalBackupStore(dir), backup);
+    final item = (await repo.list(owner)).single;
+    expect(await repo.read(owner, item.id), [3, 2, 1]);
+    await db.customStatement("UPDATE local_attachments SET sha256='bad'");
+    final bad = await BackupService.export(db, dir);
+    await BackupService.restoreOpen(db, LocalBackupStore(dir), backup);
+    await expectLater(BackupService.restoreOpen(db, LocalBackupStore(dir), bad),
+        throwsFormatException);
+    expect(await repo.read(owner, item.id), [3, 2, 1]);
+  });
+  test('sync financeiro preserva anexos locais e aceita schema 22', () async {
+    await repo.add(owner, 'recibo', Uint8List.fromList([7]));
+    final rows = await readFinancial(db);
+    await db.transaction(() => replaceFinancial(db, rows));
+    expect(await repo.read(owner, (await repo.list(owner)).single.id), [7]);
+    final columns = await financialColumns(db);
+    expect(columns.containsKey('local_attachments'), false);
+    final packet = SyncPacket('packet-attachments-001', 'base-attachments-001',
+        'device-attachments-001', 'changes', [],
+        sourceSchema: 22);
+    expect(SyncPacket.decode(packet.encode(), columns).sourceSchema, 22);
+  });
+  test('backup v22 migra e restaura sem reter anexos da base substituída',
+      () async {
+    final dir = await Directory.systemTemp.createTemp('attachments-legacy-');
+    addTearDown(() => dir.delete(recursive: true));
+    final file = File('${dir.path}/old.sqlite');
+    final old = LegacyV22(NativeDatabase(file));
+    await old.customSelect('SELECT * FROM transactions').get();
+    await old.close();
+    await repo.add(owner, 'recibo', Uint8List.fromList([7]));
+    await BackupService.restoreOpen(
+        db, LocalBackupStore(dir), await file.readAsBytes());
+    expect(await db.customSelect('SELECT * FROM local_attachments').get(),
+        isEmpty);
+    expect(await db.customSelect('SELECT * FROM transactions').get(), isEmpty);
+  });
+  testWidgets('lista anexos e permite cancelar ou confirmar exclusão',
+      (tester) async {
+    await repo.add(owner, 'comprovante.pdf', Uint8List.fromList([1, 2]));
+    await tester.pumpWidget(
+        MaterialApp(home: AttachmentsPage(repository: repo, owner: owner)));
+    await tester.pumpAndSettle();
+    expect(find.text('comprovante.pdf'), findsOneWidget);
+    expect(find.textContaining('ainda não sincronizados'), findsOneWidget);
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Excluir anexo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(await repo.list(owner), hasLength(1));
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Excluir anexo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Excluir'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nenhum anexo neste lançamento.'), findsOneWidget);
+  });
+}

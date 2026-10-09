@@ -31,6 +31,7 @@ import 'schema_v19.dart';
 import 'schema_v20.dart';
 import 'schema_v21.dart';
 import 'schema_v22.dart';
+import 'schema_v23.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -136,7 +137,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 22;
+  static const currentSchemaVersion = 23;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -170,6 +171,7 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV20,
             ...schemaV21,
             ...schemaV22,
+            ...schemaV23,
           ]) {
             await customStatement(statement);
           }
@@ -199,6 +201,7 @@ class AppDatabase extends GeneratedDatabase {
               20 => schemaV20,
               21 => schemaV21,
               22 => schemaV22,
+              23 => schemaV23,
               _ => throw StateError('Migration v$version não implementada'),
             };
             for (final statement in statements) {

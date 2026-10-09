@@ -1,3 +1,4 @@
+import '../../features/attachments/data/attachments_repository.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -124,11 +125,11 @@ abstract final class BackupService {
           final name = trigger.read<String>('name').replaceAll('"', '""');
           await database.customStatement('DROP TRIGGER main."$name"');
         }
-        for (final table in financialTables) {
+        for (final table in [...financialTables, 'local_attachments']) {
           await database.customStatement('DELETE FROM main."$table"');
         }
-        for (final entry
-            in columns.entries.where((e) => financialTables.contains(e.key))) {
+        for (final entry in columns.entries.where(
+            (e) => [...financialTables, 'local_attachments'].contains(e.key))) {
           final names = entry.value
               .map((column) => '"${column.split(':').first}"')
               .join(', ');
@@ -137,6 +138,7 @@ abstract final class BackupService {
                   'SELECT $names FROM restore_source."${entry.key}"');
         }
         await validateFinancial(database);
+        await AttachmentsRepository.validate(database);
         // Uma restauração explícita desvincula a base. Nunca publicar o passado
         // restaurado como exclusões/edições de uma sessão de sync anterior.
         for (final table in columns.keys.where((n) => n.startsWith('sync_'))) {
@@ -247,6 +249,7 @@ abstract final class BackupService {
         }
       }
       await validateFinancial(database);
+      await AttachmentsRepository.validate(database);
     } finally {
       await database.close();
     }

@@ -1,3 +1,4 @@
+import '../../attachments/presentation/attachments_page.dart';
 import '../data/movement_management_repository.dart';
 import '../domain/movement_management.dart';
 import 'bulk_movement_toolbar.dart';
@@ -902,6 +903,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
         tooltip: 'Ações do lançamento',
         icon: const Icon(Icons.more_vert, size: 20),
         onSelected: (action) {
+          if (action == 'attachments')
+            showAttachments(context, MovementReference.transaction(item));
           if (action == 'settlements') _settlements(item);
           if (action == 'edit') _edit(item);
           if (action == 'delete') _delete(item);
@@ -911,6 +914,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
           }
         },
         itemBuilder: (_) => [
+          const PopupMenuItem(value: 'attachments', child: Text('Anexos')),
           const PopupMenuItem(value: 'edit', child: Text('Editar')),
           if (item.cardId == null)
             const PopupMenuItem(
