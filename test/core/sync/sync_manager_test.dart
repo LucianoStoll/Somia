@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:crypto/crypto.dart';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
@@ -34,7 +35,11 @@ class TestAuth implements DriveAuth {
 class NoTransport implements DriveTransport {
   @override
   Future<DriveResponse> send(
-          String m, Uri u, Map<String, String> h, Uint8List? b) =>
+    String m,
+    Uri u,
+    Map<String, String> h,
+    Uint8List? b,
+  ) =>
       throw UnimplementedError();
 }
 
@@ -50,17 +55,19 @@ class MemoryCloud implements SyncCloud {
       files.values.map((p) {
         final bytes = p.encode();
         return SyncRemoteFile(
-            DriveCopy(
-                id: 'drive-${p.id}',
-                name: 'sync.json',
-                createdAt: DateTime.now(),
-                size: bytes.length,
-                md5Hash: md5.convert(bytes).toString(),
-                sha256Hash: p.digest),
-            p.id,
-            p.base,
-            p.device,
-            p.kind);
+          DriveCopy(
+            id: 'drive-${p.id}',
+            name: 'sync.json',
+            createdAt: DateTime.now(),
+            size: bytes.length,
+            md5Hash: md5.convert(bytes).toString(),
+            sha256Hash: p.digest,
+          ),
+          p.id,
+          p.base,
+          p.device,
+          p.kind,
+        );
       }).toList();
   @override
   Future<Uint8List> download(DriveSession s, SyncRemoteFile f) async {
@@ -100,24 +107,36 @@ void main() {
   late Device a, b;
   Future<Device> create(String id, bool primary) async {
     final db = AppDatabase(NativeDatabase.memory());
-    final local =
-        BackupManager(db, LocalBackupStore(Directory('${dir.path}/$id')));
+    final local = BackupManager(
+      db,
+      LocalBackupStore(Directory('${dir.path}/$id')),
+    );
     final auth = TestAuth();
-    final drive =
-        DriveBackupManager(local, DriveBackupApi(auth, NoTransport()));
+    final drive = DriveBackupManager(
+      local,
+      DriveBackupApi(auth, NoTransport()),
+    );
     await drive.initialize();
     return Device(
-        db,
+      db,
+      local,
+      drive,
+      SyncManager(
         local,
         drive,
-        SyncManager(local, drive, SyncStore(db, local.store, device: id), cloud,
-            primaryAllowed: primary),
-        auth);
+        SyncStore(db, local.store, device: id),
+        cloud,
+        primaryAllowed: primary,
+      ),
+      auth,
+    );
   }
 
-  Future<void> seed(AppDatabase db, String id, String name) => db.customStatement(
-      "INSERT INTO accounts(id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES (?,?,'checking','BRL',100000,1,1)",
-      [id, name]);
+  Future<void> seed(AppDatabase db, String id, String name) =>
+      db.customStatement(
+        "INSERT INTO accounts(id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES (?,?,'checking','BRL',100000,1,1)",
+        [id, name],
+      );
   Future<void> link() async {
     await a.sync.createBase();
     expect(a.sync.error, isNull);
@@ -139,42 +158,144 @@ void main() {
     await b.close();
     await dir.delete(recursive: true);
   });
-  test('rede perdida após envio é conciliada sem duplicar e fila persiste',
+  test(
+      'replacement preserves local data and blocks old-device uploads until joining',
       () async {
-    cloud.loseResponse = true;
-    await a.sync.createBase();
-    expect(a.sync.error, isNotNull);
-    expect((await a.sync.store.state()).uploads, 1);
+    await link();
+    final oldBase = (await a.sync.store.state()).base;
+    await seed(a.db, 'new', 'Nova conta Android');
+    await seed(b.db, 'offline', 'Somente Windows');
+    await a.sync.listBases();
+    await a.sync.replaceBase();
+    expect(a.sync.error, isNull);
+    expect((await a.sync.store.state()).base, isNot(oldBase));
+    expect(cloud.files.values.any((p) => p.base == oldBase), isTrue);
+    final sends = cloud.sends;
+    await b.sync.synchronize();
+    expect(b.sync.needsJoin, isTrue);
+    expect(cloud.sends, sends);
+    expect((await b.sync.store.state()).pending, greaterThan(0));
+    await b.sync.join(b.sync.bases.single);
+    expect(b.sync.error, isNull);
+    expect(
+      (await b.db
+          .customSelect("SELECT id FROM accounts WHERE id='offline'")
+          .get()),
+      isEmpty,
+    );
+    expect(
+      (await b.db.customSelect("SELECT id FROM accounts WHERE id='new'").get()),
+      hasLength(1),
+    );
+    expect(await b.local.store.list(), isNotEmpty);
+    await seed(b.db, 'after', 'Depois da troca');
+    await b.sync.synchronize();
     await a.sync.synchronize();
     expect(a.sync.error, isNull);
-    expect(cloud.sends, 1);
-    expect((await a.sync.store.state()).uploads, 0);
-    await b.sync.listBases();
-    await b.sync.join(b.sync.bases.single);
-    expect(await readFinancial(a.db), await readFinancial(b.db));
+    expect(
+      (await a.db
+          .customSelect("SELECT id FROM accounts WHERE id='after'")
+          .get()),
+      hasLength(1),
+    );
   });
+
+  test(
+    'lost replacement response is retried without a duplicate base',
+    () async {
+      await link();
+      await a.sync.listBases();
+      cloud.loseResponse = true;
+      await a.sync.replaceBase();
+      expect(a.sync.error, isNotNull);
+      expect((await a.sync.store.state()).replacementPending, isTrue);
+      await seed(a.db, 'during', 'Durante o envio');
+      final sends = cloud.sends;
+      await a.sync.replaceBase();
+      expect(a.sync.error, isNull);
+      expect(cloud.sends, sends);
+      expect((await a.sync.store.state()).pending, greaterThan(0));
+      await a.sync.synchronize();
+      await b.sync.listBases();
+      await b.sync.join(b.sync.bases.single);
+      expect(b.sync.error, isNull);
+      expect(
+        (await b.db
+            .customSelect("SELECT id FROM accounts WHERE id='during'")
+            .get()),
+        hasLength(1),
+      );
+    },
+  );
+
+  test('remote changes after listing require fresh confirmation', () async {
+    await link();
+    await a.sync.listBases();
+    await seed(b.db, 'remote', 'Nova conta remota');
+    await b.sync.synchronize();
+    final count = cloud.files.length;
+    await a.sync.replaceBase();
+    expect(a.sync.error, contains('confirme novamente'));
+    expect(cloud.files.length, count);
+    expect((await a.sync.store.state()).replacementPending, isFalse);
+  });
+
+  test('a secondary device cannot replace the base', () async {
+    await link();
+    await b.sync.listBases();
+    await b.sync.replaceBase();
+    expect(b.sync.error, contains('Android'));
+    expect(cloud.files.values.where((p) => p.kind == 'replacement'), isEmpty);
+  });
+
+  test(
+    'rede perdida após envio é conciliada sem duplicar e fila persiste',
+    () async {
+      cloud.loseResponse = true;
+      await a.sync.createBase();
+      expect(a.sync.error, isNotNull);
+      expect((await a.sync.store.state()).uploads, 1);
+      await a.sync.synchronize();
+      expect(a.sync.error, isNull);
+      expect(cloud.sends, 1);
+      expect((await a.sync.store.state()).uploads, 0);
+      await b.sync.listBases();
+      await b.sync.join(b.sync.bases.single);
+      expect(await readFinancial(a.db), await readFinancial(b.db));
+    },
+  );
   test(
       'dois dispositivos trocam alterações offline, cartões e pagamentos idempotentes',
       () async {
     await link();
     final cards = CardsRepository(a.db);
-    final card = await cards.save(const CardDraft(
+    final card = await cards.save(
+      const CardDraft(
         name: 'Cartão',
         paymentAccountId: 'a',
         closingDay: 25,
         dueDay: 5,
-        limitMinor: 50000));
-    final entry = await cards.createPurchase(TransactionDraft(
+        limitMinor: 50000,
+      ),
+    );
+    final entry = await cards.createPurchase(
+      TransactionDraft(
         description: 'Compra',
         type: TransactionType.expense,
         amountMinor: 10000,
         date: DateTime(2026, 1, 1),
         isEffective: false,
         accountId: 'a',
-        cardId: card));
+        cardId: card,
+      ),
+    );
     await cards.pay(
-        (await cards.entry(entry)).invoiceId, 'a', 4000, DateTime(2026, 2, 5),
-        fee: 500);
+      (await cards.entry(entry)).invoiceId,
+      'a',
+      4000,
+      DateTime(2026, 2, 5),
+      fee: 500,
+    );
     await seed(b.db, 'new', 'Criada offline');
     await a.sync.synchronize();
     await b.sync.synchronize();
@@ -185,87 +306,104 @@ void main() {
     await b.sync.synchronize();
     await a.sync.synchronize();
     expect(
-        (await b.db
-                .customSelect('SELECT count(*) n FROM card_payments')
-                .getSingle())
-            .read<int>('n'),
-        1);
+      (await b.db
+              .customSelect('SELECT count(*) n FROM card_payments')
+              .getSingle())
+          .read<int>('n'),
+      1,
+    );
     expect((await a.sync.store.state()).pending, 0);
     expect((await b.sync.store.state()).pending, 0);
   });
-  test('compras offline na mesma fatura nova convergem sem duplicar fatura',
-      () async {
-    final cardsA = CardsRepository(a.db);
-    final card = await cardsA.save(const CardDraft(
-        name: 'Compartilhado',
-        paymentAccountId: 'a',
-        closingDay: 25,
-        dueDay: 5,
-        limitMinor: 50000));
-    await link();
-    final cardsB = CardsRepository(b.db);
-    Future<void> purchase(
-        CardsRepository cards, String description, int amount) async {
-      await cards.createPurchase(TransactionDraft(
-          description: description,
-          type: TransactionType.expense,
-          amountMinor: amount,
-          date: DateTime(2026, 3, 1),
-          isEffective: false,
-          accountId: 'a',
-          cardId: card));
-    }
+  test(
+    'compras offline na mesma fatura nova convergem sem duplicar fatura',
+    () async {
+      final cardsA = CardsRepository(a.db);
+      final card = await cardsA.save(
+        const CardDraft(
+          name: 'Compartilhado',
+          paymentAccountId: 'a',
+          closingDay: 25,
+          dueDay: 5,
+          limitMinor: 50000,
+        ),
+      );
+      await link();
+      final cardsB = CardsRepository(b.db);
+      Future<void> purchase(
+        CardsRepository cards,
+        String description,
+        int amount,
+      ) async {
+        await cards.createPurchase(
+          TransactionDraft(
+            description: description,
+            type: TransactionType.expense,
+            amountMinor: amount,
+            date: DateTime(2026, 3, 1),
+            isEffective: false,
+            accountId: 'a',
+            cardId: card,
+          ),
+        );
+      }
 
-    await purchase(cardsA, 'Android', 1000);
-    await purchase(cardsB, 'Windows', 2000);
-    await a.sync.synchronize();
-    await b.sync.synchronize();
-    await a.sync.synchronize();
-    expect(a.sync.error, isNull);
-    expect(b.sync.error, isNull);
-    expect(await readFinancial(a.db), await readFinancial(b.db));
-    expect(
+      await purchase(cardsA, 'Android', 1000);
+      await purchase(cardsB, 'Windows', 2000);
+      await a.sync.synchronize();
+      await b.sync.synchronize();
+      await a.sync.synchronize();
+      expect(a.sync.error, isNull);
+      expect(b.sync.error, isNull);
+      expect(await readFinancial(a.db), await readFinancial(b.db));
+      expect(
         (await b.db
                 .customSelect(
-                    'SELECT count(DISTINCT invoice_id) n FROM card_entries')
+                  'SELECT count(DISTINCT invoice_id) n FROM card_entries',
+                )
                 .getSingle())
             .read<int>('n'),
-        1);
-    expect(
+        1,
+      );
+      expect(
         (await b.db
                 .customSelect('SELECT sum(amount_minor) n FROM card_entries')
                 .getSingle())
             .read<int>('n'),
-        3000);
-  });
-  test('conta diferente, relógio e corrupção recusados antes de substituir',
-      () async {
-    await link();
-    await seed(a.db, 'later', 'Posterior');
-    await a.sync.synchronize();
-    final before = await readFinancial(b.db);
-    b.auth.email = 'other@example.com';
-    await b.sync.synchronize();
-    expect(b.sync.error, contains('outra conta'));
-    expect(await readFinancial(b.db), before);
-    b.auth.email = 'same@example.com';
-    cloud.serverTime = DateTime.now().subtract(const Duration(hours: 1));
-    await b.sync.synchronize();
-    expect(b.sync.error, contains('Data e hora'));
-    expect(await readFinancial(b.db), before);
-    cloud.serverTime = null;
-    cloud.corrupt = true;
-    await b.sync.synchronize();
-    expect(b.sync.error, contains('corrompido'));
-    expect(await readFinancial(b.db), before);
-    cloud.corrupt = false;
-    cloud.afterDownload = () {
-      b.auth.email = 'changed@example.com';
-    };
-    await b.sync.synchronize();
-    expect(b.sync.error, contains('conta mudou'));
-    expect(await readFinancial(b.db), before);
-  });
+        3000,
+      );
+    },
+  );
+  test(
+    'conta diferente, relógio e corrupção recusados antes de substituir',
+    () async {
+      await link();
+      await seed(a.db, 'later', 'Posterior');
+      await a.sync.synchronize();
+      final before = await readFinancial(b.db);
+      b.auth.email = 'other@example.com';
+      await b.sync.synchronize();
+      expect(b.sync.error, contains('outra conta'));
+      expect(await readFinancial(b.db), before);
+      b.auth.email = 'same@example.com';
+      cloud.serverTime = DateTime.now().subtract(const Duration(hours: 1));
+      await b.sync.synchronize();
+      expect(b.sync.error, contains('Data e hora'));
+      expect(await readFinancial(b.db), before);
+      cloud.serverTime = null;
+      cloud.corrupt = true;
+      await b.sync.synchronize();
+      expect(b.sync.error, contains('corrompido'));
+      expect(await readFinancial(b.db), before);
+      cloud.corrupt = false;
+      cloud.afterDownload = () {
+        b.auth.email = 'changed@example.com';
+      };
+      await b.sync.synchronize();
+      expect(b.sync.error, contains('conta mudou'));
+      expect(await readFinancial(b.db), before);
+    },
+  );
   test(
       'Windows não publica base, vínculo é explícito e base removida não recria origem',
       () async {
@@ -275,9 +413,10 @@ void main() {
     await a.sync.createBase();
     await b.sync.listBases();
     expect(
-        (await b.db.customSelect('SELECT name FROM accounts').getSingle())
-            .read<String>('name'),
-        'Windows');
+      (await b.db.customSelect('SELECT name FROM accounts').getSingle())
+          .read<String>('name'),
+      'Windows',
+    );
     await b.sync.join(b.sync.bases.single);
     cloud.files.clear();
     await b.sync.synchronize();
