@@ -5,6 +5,37 @@ void main() {
   const calculator = CashbackCalculator();
   final today = DateTime.utc(2026, 10, 31);
 
+  test('payment coverage accepts only selected eligible outstanding items', () {
+    expect(
+        validatePaymentCoverage(
+            paymentMinor: 10000,
+            allocationByEntry: {'a': 2000, 'b': 5000},
+            availableByEntry: {'a': 3000, 'b': 5000}),
+        7000);
+    expect(
+        validatePaymentCoverage(
+            paymentMinor: 10000, allocationByEntry: {}, availableByEntry: {}),
+        0);
+    expect(
+        () => validatePaymentCoverage(
+            paymentMinor: 10000,
+            allocationByEntry: {'a': 6000, 'b': 5000},
+            availableByEntry: {'a': 6000, 'b': 5000}),
+        throwsArgumentError);
+    expect(
+        () => validatePaymentCoverage(
+            paymentMinor: 10000,
+            allocationByEntry: {'a': 6000},
+            availableByEntry: {'a': 5000}),
+        throwsArgumentError);
+    expect(
+        () => validatePaymentCoverage(
+            paymentMinor: 10000,
+            allocationByEntry: {'another-invoice': 1},
+            availableByEntry: {'a': 5000}),
+        throwsArgumentError);
+  });
+
   List<CashbackEntitlement> calculate({
     required List<CashbackPurchase> purchases,
     required List<CashbackPayment> payments,

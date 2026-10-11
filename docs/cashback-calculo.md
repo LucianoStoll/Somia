@@ -10,6 +10,9 @@ documento não indica conclusão da #76, migration ou entrega de cartões de dé
 - Primeiro pagamento, inclusive parcial, ativa o total da compra uma vez.
 - Pagamentos posteriores entram no gasto mensal das faixas, sem nova ativação.
 - Pagamentos futuros ficam excluídos até o dia efetivo informado na referência.
+- Validação de compras selecionadas exige parcelas elegíveis, valores positivos,
+  cobertura dentro do saldo de cada parcela e soma dentro do pagamento. A parte
+  não atribuída pode pagar dívida anterior/encargos; não ativa compras por suposição.
 - Faixa retroativa determinada pelo total efetivamente pago no mês.
 - Uma previsão por compra, na data do primeiro pagamento ou no mês seguinte.
 - Dias inexistentes usam o último dia do mês; dezembro avança para janeiro.

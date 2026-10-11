@@ -252,6 +252,35 @@ class CashbackConfirmationBaseline {
   }
 }
 
+/// Validates the user's chosen invoice items before persisting payment links.
+/// [availableByEntry] must contain only eligible items from that invoice, after
+/// subtracting prior allocations. Any payment remainder may cover other debt.
+int validatePaymentCoverage({
+  required int paymentMinor,
+  required Map<String, int> allocationByEntry,
+  required Map<String, int> availableByEntry,
+}) {
+  _money(paymentMinor);
+  if (paymentMinor == 0) throw ArgumentError('Pagamento deve ser positivo.');
+  var allocated = BigInt.zero;
+  for (final entry in allocationByEntry.entries) {
+    _money(entry.value);
+    final available = availableByEntry[entry.key];
+    if (entry.key.isEmpty || available == null || entry.value == 0) {
+      throw ArgumentError('Parcela inválida para este pagamento.');
+    }
+    _money(available);
+    if (entry.value > available) {
+      throw ArgumentError('Alocação excede o saldo da parcela.');
+    }
+    allocated += BigInt.from(entry.value);
+  }
+  if (allocated > BigInt.from(paymentMinor)) {
+    throw ArgumentError('Alocações excedem o pagamento.');
+  }
+  return allocated.toInt();
+}
+
 /// Half-up rounding with arbitrary-precision intermediates, including on web.
 int roundedRatio(int amount, int numerator, int denominator) {
   _money(amount);
