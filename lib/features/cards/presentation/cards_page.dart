@@ -846,8 +846,9 @@ class _CardsPageState extends State<CardsPage> {
               entries: invoice.entries,
               available: data.available,
               selected: data.selected));
-      if (chosen != null && mounted)
+      if (chosen != null && mounted) {
         await _run(() => repo.replace(payment.id, chosen));
+      }
     } catch (e) {
       if (mounted) cardError(context, e);
     }

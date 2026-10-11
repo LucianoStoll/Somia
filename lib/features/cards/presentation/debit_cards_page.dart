@@ -102,7 +102,9 @@ class _DebitCardsPageState extends State<DebitCardsPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
-          title: const Text('Cartões de débito'),
+          title: Text(Theme.of(context).platform == TargetPlatform.android
+              ? 'Débito'
+              : 'Cartões de débito'),
           leading: somiaMenuLeading(context),
           actions: [
             IconButton(
