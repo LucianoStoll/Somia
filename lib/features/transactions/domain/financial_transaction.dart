@@ -23,6 +23,7 @@ class FinancialTransaction {
     this.settledMinor = 0,
     this.scheduledSettlementMinor = 0,
     this.cardId,
+    this.debitCardId,
     this.cardInvoiceMonth,
     this.cardInvoiceId,
     this.cardBalanceMinor = 0,
@@ -55,6 +56,7 @@ class FinancialTransaction {
       amountMinor - settledMinor - scheduledSettlementMinor;
   final SeriesInfo? series;
   final String? cardId;
+  final String? debitCardId;
   final DateTime? cardInvoiceMonth;
   final String? cardInvoiceId, cardLastPaymentId;
   final int cardBalanceMinor,
@@ -96,6 +98,7 @@ class TransactionDraft {
     required this.isEffective,
     this.seriesPlan,
     this.cardId,
+    this.debitCardId,
     this.cardInvoiceMonth,
     this.cardFirstInstallment = 1,
     this.scope = SeriesScope.onlyThis,
@@ -117,6 +120,7 @@ class TransactionDraft {
   final bool isEffective;
   final SeriesPlan? seriesPlan;
   final String? cardId;
+  final String? debitCardId;
   final DateTime? cardInvoiceMonth;
   final int cardFirstInstallment;
   final SeriesScope scope;

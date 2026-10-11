@@ -41,6 +41,8 @@ const _menu = <_MenuDestination>[
   _MenuDestination(
       'Investimentos', AppRoutes.investmentsPath, Icons.savings_outlined),
   _MenuDestination('Cartões', AppRoutes.cardsPath, Icons.credit_card_outlined),
+  _MenuDestination('Débito', AppRoutes.debitCardsPath, Icons.payment_outlined),
+  _MenuDestination('Cashback', AppRoutes.cashbackPath, Icons.paid_outlined),
   _MenuDestination(
       'Análises', AppRoutes.analysisPath, Icons.bar_chart_outlined),
   _MenuDestination('Planejamento', AppRoutes.planningPath, Icons.flag_outlined),

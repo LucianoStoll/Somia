@@ -7,6 +7,8 @@ import '../../features/assets/presentation/assets_page.dart';
 import '../../features/investments/presentation/investments_page.dart';
 import '../../features/accounts/presentation/account_statement_page.dart';
 import '../../features/cards/presentation/cards_page.dart';
+import '../../features/cards/presentation/debit_cards_page.dart';
+import '../../features/cards/presentation/cashback_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
@@ -31,6 +33,8 @@ abstract final class AppRoutes {
   static const assetsPath = '/investments/assets';
   static const cards = 'cards';
   static const cardsPath = '/cards';
+  static const debitCardsPath = '/debit-cards';
+  static const cashbackPath = '/cashback';
   static const accounts = 'accounts';
   static const accountsPath = '/accounts';
   static const categories = 'categories';
@@ -88,6 +92,19 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) {
                 name: AppRoutes.investments,
                 builder: (context, state) => SomiaSectionBackScope(
                     location: state.uri.path, child: const InvestmentsPage())),
+            GoRoute(
+                path: AppRoutes.cashbackPath,
+                builder: (context, state) => SomiaSectionBackScope(
+                    location: state.uri.path,
+                    child: CashbackPage(
+                        key: ValueKey(state.uri.toString()),
+                        kind: state.uri.queryParameters['kind'],
+                        cardId: state.uri.queryParameters['card'],
+                        receiptId: state.uri.queryParameters['receipt']))),
+            GoRoute(
+                path: AppRoutes.debitCardsPath,
+                builder: (context, state) => SomiaSectionBackScope(
+                    location: state.uri.path, child: const DebitCardsPage())),
             GoRoute(
                 path: AppRoutes.cardsPath,
                 name: AppRoutes.cards,

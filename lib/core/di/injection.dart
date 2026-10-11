@@ -23,6 +23,8 @@ import '../drive/drive_backup_manager.dart';
 import '../../features/accounts/data/account_statement_repository.dart';
 import '../../features/transactions/data/category_history_repository.dart';
 import '../../features/cards/data/cards_repository.dart';
+import '../../features/cards/data/debit_cards_repository.dart';
+import '../../features/cards/data/cashback_repository.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -124,6 +126,11 @@ Future<void> configureDependencies(AppEnvironment environment) async {
 
   getIt.registerLazySingleton<ExpenseAnalysisRepository>(
       () => ExpenseAnalysisRepository(getIt<AppDatabase>()));
+
+  getIt.registerLazySingleton<CashbackRepository>(
+      () => CashbackRepository(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<DebitCardsRepository>(
+      () => DebitCardsRepository(getIt<AppDatabase>()));
 
   getIt.registerLazySingleton<CardsRepository>(
       () => CardsRepository(getIt<AppDatabase>()));

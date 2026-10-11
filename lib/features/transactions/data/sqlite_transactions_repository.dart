@@ -6,6 +6,9 @@ import '../../../core/database/settlement_integrity.dart';
 import '../../../core/allocations/category_allocation.dart';
 import '../../../core/allocations/allocation_store.dart';
 import '../../cards/data/cards_repository.dart';
+import '../../cards/data/debit_cards_repository.dart';
+import '../../cards/data/cashback_repository.dart';
+import '../../../core/database/card_rewards_integrity.dart';
 import '../../../core/series/series_store.dart';
 import '../../../core/series/movement_series.dart';
 import 'package:drift/drift.dart';
@@ -26,11 +29,13 @@ class SqliteTransactionsRepository implements TransactionsRepository {
         await validateDebtFinancial(_db);
         await validateReimbursements(_db);
         await validateSettlements(_db);
+        await CashbackRepository(_db).reconcile();
+        await validateCardRewards(_db);
         return result;
       });
 
   static const _select = '''
-    SELECT t.updated_at, t.sync_version, t.establishment, t.tags_json, t.id, t.description, t.type, t.planned_amount_minor,
+    SELECT (SELECT l.card_id FROM debit_card_links l WHERE l.id=t.id AND l.deleted_at IS NULL) AS debit_card_id, t.updated_at, t.sync_version, t.establishment, t.tags_json, t.id, t.description, t.type, t.planned_amount_minor,
       t.series_id, t.series_index, t.series_kind, t.series_count, t.series_unit, t.series_interval,
       t.posted_at, t.due_at, t.effective_at, t.account_id, t.category_id, t.allocations_json,
       a.name AS account_name, a.currency_code,
@@ -47,6 +52,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   Future<List<FinancialTransaction>> list([
     TransactionFilter filter = const TransactionFilter(),
   ]) async {
+    await CashbackRepository(_db).reconcile();
     final where = <String>['t.deleted_at IS NULL'];
     final variables = <Variable>[];
     final todayEnd = _dayMillis(DateTime.now().add(const Duration(days: 1)));
@@ -159,6 +165,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       }
       return (await _createSingle(TransactionDraft(
               tags: draft.tags,
+              debitCardId: draft.debitCardId,
               establishment: draft.establishment,
               description: draft.description,
               type: draft.type,
@@ -180,6 +187,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   @override
   Future<FinancialTransaction> update(String id, TransactionDraft draft) =>
       _checked(() async {
+        await _guardCashback(id);
         if (id.startsWith('invoice:')) {
           throw StateError('Abra a fatura para alterar seus lançamentos.');
         }
@@ -216,6 +224,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
               row.read<String>('id'),
               TransactionDraft(
                   tags: draft.tags,
+                  debitCardId: draft.debitCardId,
                   establishment: draft.establishment,
                   description: draft.description,
                   type: draft.type,
@@ -268,11 +277,14 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     if (draft.reimbursements != null) {
       await ReimbursementsRepository(_db).replace(id, draft.reimbursements!);
     }
+    await DebitCardsRepository(_db)
+        .link(id, draft.debitCardId, draft.accountId);
     return _find(id);
   }
 
   Future<FinancialTransaction> _updateSingle(
       String id, TransactionDraft draft) async {
+    await _guardCashback(id);
     _validateDraft(draft);
     final original = await _find(id);
     if (original.settlementCount > 0 &&
@@ -346,6 +358,9 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     if (draft.reimbursements != null) {
       await ReimbursementsRepository(_db).replace(id, draft.reimbursements!);
     }
+    await DebitCardsRepository(_db).link(id, draft.debitCardId, draft.accountId,
+        preserve: draft.debitCardId == original.debitCardId &&
+            draft.accountId == original.accountId);
     return _find(id);
   }
 
@@ -355,6 +370,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
           required int amountMinor,
           SeriesScope scope = SeriesScope.onlyThis}) =>
       _checked(() async {
+        await _guardCashback(id);
         if (id.startsWith('invoice:')) {
           throw StateError('Abra a fatura para alterar seus lançamentos.');
         }
@@ -406,13 +422,17 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   }
 
   @override
-  Future<
-      void> delete(String id, {SeriesScope scope = SeriesScope.onlyThis}) => id
-          .startsWith('invoice:')
-      ? Future.error(StateError('Abra a fatura para alterar seus lançamentos.'))
-      : id.startsWith('card:')
-          ? CardsRepository(_db).deletePurchase(id.substring(5), scope)
-          : _checked(() => SeriesStore(_db, 'transactions').delete(id, scope));
+  Future<void> delete(String id, {SeriesScope scope = SeriesScope.onlyThis}) =>
+      id.startsWith('invoice:')
+          ? Future.error(
+              StateError('Abra a fatura para alterar seus lançamentos.'))
+          : id.startsWith('cashback-receipt-')
+              ? Future.error(StateError(
+                  'Abra Cashback para corrigir ou desfazer o recebimento.'))
+              : id.startsWith('card:')
+                  ? CardsRepository(_db).deletePurchase(id.substring(5), scope)
+                  : _checked(
+                      () => SeriesStore(_db, 'transactions').delete(id, scope));
 
   @override
   Future<void> setEffective(String id,
@@ -422,6 +442,15 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   Future<void> _setEffective(String id,
       {required bool effective, DateTime? effectiveDate}) async {
+    if (id.startsWith('cashback-receipt-')) {
+      if (!effective) {
+        await CashbackRepository(_db).undo(id);
+      } else {
+        await CashbackRepository(_db)
+            .confirmDefault(id, effectiveDate ?? DateTime.now());
+      }
+      return;
+    }
     if (id.startsWith('invoice:')) {
       throw StateError('Pague pela ação da fatura.');
     }
@@ -462,6 +491,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     if (id.startsWith('card:')) {
       throw StateError('Pague pela fatura do cartão.');
     }
+    await _guardCashback(id);
     final changed = await _db.customUpdate('''
       UPDATE transactions SET effective_at = ?, actual_amount_minor = ${effectiveDate == null ? 'NULL' : 'planned_amount_minor'},
         updated_at = ?, sync_version = sync_version + 1
@@ -478,6 +508,12 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       throw StateError(
           'O movimento já mudou. Atualize a lista antes de tentar novamente.');
     }
+  }
+
+  Future<void> _guardCashback(String id) async {
+    if (id.startsWith('cashback-receipt-'))
+      throw StateError(
+          'Abra Cashback para confirmar valores, categorias ou desfazer recebimentos.');
   }
 
   Future<FinancialTransaction> _find(String id) async {
@@ -514,6 +550,11 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   }
 
   void _validateDraft(TransactionDraft draft) {
+    if (draft.debitCardId != null &&
+        (draft.type != TransactionType.expense || draft.cardId != null)) {
+      throw const FormatException(
+          'Cartão de débito exige uma despesa de conta.');
+    }
     CategoryAllocation.validate(draft.allocations, draft.amountMinor);
     if (draft.allocations.isNotEmpty && draft.categoryId != null) {
       throw const FormatException('Use categoria única ou rateio.');
@@ -535,6 +576,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   FinancialTransaction _map(QueryRow row) => FinancialTransaction(
         id: row.read<String>('id'),
+        debitCardId: row.readNullable<String>('debit_card_id'),
         revision:
             "${row.read<int>('updated_at')}:${row.read<int>('sync_version')}",
         tags: TransactionTags.decode(row.read<String>('tags_json')),
@@ -548,7 +590,10 @@ class SqliteTransactionsRepository implements TransactionsRepository {
         series: SeriesStore.info(row),
         description: row.read<String>('description'),
         type: TransactionType.values.byName(row.read<String>('type')),
-        amountMinor: row.read<int>('planned_amount_minor'),
+        amountMinor: row.read<String>('id').startsWith('cashback-receipt-')
+            ? row.readNullable<int>('actual_amount_minor') ??
+                row.read<int>('planned_amount_minor')
+            : row.read<int>('planned_amount_minor'),
         date: DateTime.fromMillisecondsSinceEpoch(
           row.read<int>('posted_at'),
           isUtc: true,

@@ -25,6 +25,7 @@ import '../../categories/domain/categories_repository.dart';
 import '../../transactions/domain/financial_transaction.dart';
 import '../../transactions/presentation/transactions_page.dart';
 import '../data/cards_repository.dart';
+import '../data/card_payment_coverage_repository.dart';
 import '../domain/credit_card.dart';
 import 'card_forms.dart';
 
@@ -249,12 +250,25 @@ class _CardsPageState extends State<CardsPage> {
   ]) async {
     final card = selectedCard ?? _card, invoice = selectedInvoice ?? _invoice;
     if (card == null || invoice == null) return;
+    final available =
+        await CardPaymentCoverageRepository(_repo.db).available(invoice.id);
+    if (!mounted) return;
     final saved = await showMovementForm<bool>(
       context,
       (_) => CardPaymentForm(
         invoice: invoice,
         card: card,
         accounts: _accounts,
+        availableCoverage: available,
+        onSubmitWithCoverage:
+            (account, amount, date, fee, discount, coverage) => _repo.pay(
+                invoice.id, account, amount, date,
+                fee: fee,
+                discount: discount,
+                coverage: coverage.isEmpty &&
+                        amount >= available.values.fold(0, (a, b) => a + b)
+                    ? null
+                    : coverage),
         onSubmit: (account, amount, date, fee, discount) => _repo.pay(
           invoice.id,
           account,
@@ -863,6 +877,15 @@ class _CardsPageState extends State<CardsPage> {
             ? BackButton(onPressed: () => context.go(AppRoutes.cardsPath))
             : somiaMenuLeading(context),
         actions: [
+          IconButton(
+              tooltip: 'Cartões de débito',
+              onPressed: () => context.go(AppRoutes.debitCardsPath),
+              icon: const Icon(Icons.payment_outlined)),
+          IconButton(
+              tooltip: 'Cashback',
+              onPressed: () => context.go(
+                  '/cashback${_cardId == null ? '' : '?kind=credit&card=$_cardId'}'),
+              icon: const Icon(Icons.paid_outlined)),
           IconButton(
             tooltip: 'Novo cartão',
             onPressed: _loading || _acting ? null : () => _editCard(),

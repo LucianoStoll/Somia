@@ -3,6 +3,7 @@ import '../../../core/allocations/category_allocation.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/entity_metadata.dart';
 import '../../../core/database/settlement_integrity.dart';
+import '../../cards/data/cashback_repository.dart';
 
 class TransactionSettlement {
   const TransactionSettlement(
@@ -15,6 +16,12 @@ class TransactionSettlement {
 class TransactionSettlementsRepository {
   const TransactionSettlementsRepository(this.db);
   final AppDatabase db;
+  Future<T> _checked<T>(Future<T> Function() action) =>
+      db.transaction(() async {
+        final result = await action();
+        await CashbackRepository(db).reconcile();
+        return result;
+      });
   Future<List<TransactionSettlement>> list(String id) async => [
         for (final r in await db.customSelect(
             '''SELECT s.*,a.name FROM transaction_settlements s
@@ -33,7 +40,9 @@ class TransactionSettlementsRepository {
           {required String accountId,
           required int amountMinor,
           required DateTime date}) =>
-      db.transaction(() async {
+      _checked(() async {
+        if (transactionId.startsWith('cashback-receipt-'))
+          throw StateError('Confirme o valor depositado na aba Cashback.');
         final t = await db.customSelect(
             '''SELECT t.*,a.currency_code FROM transactions t JOIN accounts a ON a.id=t.account_id
       WHERE t.id=? AND t.deleted_at IS NULL''',
@@ -91,8 +100,7 @@ class TransactionSettlementsRepository {
         await validateSettlements(db);
         return id;
       });
-  Future<void> remove(String transactionId, String id) =>
-      db.transaction(() async {
+  Future<void> remove(String transactionId, String id) => _checked(() async {
         final n = await db.customUpdate(
             'UPDATE transaction_settlements SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=? AND transaction_id=? AND deleted_at IS NULL',
             variables: [

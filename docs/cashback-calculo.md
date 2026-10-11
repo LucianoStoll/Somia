@@ -1,8 +1,8 @@
 # Cashback — base de cálculo da #76
 
-Primeira etapa técnica. O módulo de cálculo está implementado e separado de banco,
-relógio e interface. **Cashback ainda não está disponível no aplicativo.** Este
-documento não indica conclusão da #76, migration ou entrega de cartões de débito.
+A base de cálculo está integrada ao cadastro de débito, pagamentos de crédito,
+Receitas e à aba Cashback no schema 25. Uso e políticas de histórico em
+`docs/cashback-uso.md`. A #76 permanece aberta até validação manual.
 
 ## Regras cobertas
 
@@ -31,20 +31,24 @@ documento não indica conclusão da #76, migration ou entrega de cartões de dé
 - Devolução proporcional usa o depósito realmente recebido, incluindo a
   diferença aceita pelo usuário.
 
-## Integração ainda pendente
+## Integração
 
-O chamador precisará fornecer total e estornos da compra, pagamentos alocados,
-reduções elegíveis das faixas, regra vigente do mês e percentual já confirmado.
-O cálculo retorna direitos; **não grava receitas nem confirma dinheiro**.
+O repositório persiste regras, compras cobertas por pagamentos, direitos e
+recebimentos. Previsões são lançamentos normais de receita; devoluções são
+lançamentos de despesa. Os valores não entram em outro ledger de saldo.
+Confirmações preservam valor teórico, diferença aceita e base remanescente.
+A diferença aceita acompanha proporcionalmente um estorno; ajustes de faixa e
+teto são explicitamente previstos. Repetir um cálculo idêntico não grava nada.
 
-Ainda faltam cadastro de débito, seleção/persistência das compras cobertas por
-pagamento, snapshots históricos de regras, ledger de confirmações e ajustes,
-conta/categoria de recebimento e devolução, confirmação individual/em lote, aba
-Cashback e integração com Receitas. Ajustes combinados de teto/faixa/estorno
-precisam de reconciliação persistente; os métodos de baseline não substituem esse
-ledger. Backup/sync/migrations e prevenção de duplicações serão verificados com
-essa integração. Compras internacionais, adicionais e importação continuam como
-entregas próprias previstas na #76.
+Identificadores de direitos e previsões são derivados do cartão/compra e da
+sequência de confirmações. Snapshot financeiro e sync incluem seis novas
+tabelas. Confirmações têm snapshot imutável; uma alteração parcial/conflitante
+é rejeitada durante a validação, antes de comprometer saldos. A reconciliação
+não edita recebimentos anteriores. Confirmação de valor zero preserva histórico
+sem lançar dinheiro. Há validação de revisão na confirmação em lote.
+
+Compras internacionais, adicionais e importação continuam como entregas próprias
+previstas na #76, fora da integração de débito/cashback desta entrega.
 
 ## Verificação
 

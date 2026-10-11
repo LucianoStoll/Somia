@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- #76: cadastro e seleção de cartão de débito, cobertura de pagamentos de crédito, cashback previsto em Receitas e aba própria, confirmação individual/em lote, faixas, teto, estornos, complementos, histórico imutável e schema 25 com backup/sync. Validação manual pendente.
+
 - Análises (#75): categorias/subcategorias, comparação mensal, compromissos dos próximos seis meses e saldo por tipo de conta, moedas separadas e detalhamento dos lançamentos.
 
 - #71: substituição explícita da base do Drive pelo Android, backup de proteção, retomada de publicação e novo vínculo confirmado no Windows; gerações anteriores preservadas, bloqueio de clientes antigos e divergências concorrentes.

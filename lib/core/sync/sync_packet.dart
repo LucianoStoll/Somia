@@ -182,7 +182,8 @@ class SyncPacket {
             v['schema'] != 20 &&
             v['schema'] != 21 &&
             v['schema'] != 22 &&
-            v['schema'] != 23) ||
+            v['schema'] != 23 &&
+            v['schema'] != 24) ||
         !['genesis', 'changes', 'replacement'].contains(v['kind']) ||
         [
           'id',
@@ -210,6 +211,20 @@ class SyncPacket {
             !RegExp(r'^[a-f0-9]{64}$')
                 .hasMatch(v['remoteRevision'] as String))) {
       throw const FormatException('Substituição de base inválida.');
+    }
+    if (v['schema'] < 25 &&
+        (v['entries'] as List).any((e) =>
+            e is Map &&
+            [
+              'debit_cards',
+              'debit_card_links',
+              'card_payment_allocations',
+              'cashback_rules',
+              'cashback_claims',
+              'cashback_receipts'
+            ].contains(e['table']))) {
+      throw const FormatException(
+          'Cartões de débito e cashback exigem a versão atual.');
     }
     if (v['schema'] < 19 &&
         (v['entries'] as List).any(

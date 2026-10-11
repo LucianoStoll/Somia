@@ -42,6 +42,7 @@ import '../../accounts/domain/money_minor.dart';
 import '../../categories/domain/categories_repository.dart';
 import '../../categories/domain/category.dart';
 import '../domain/financial_transaction.dart';
+import '../../cards/data/debit_cards_repository.dart';
 import '../domain/transactions_repository.dart';
 import 'transactions_cubit.dart';
 import 'transaction_settlements_page.dart';
@@ -242,6 +243,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   Future<void> _edit([FinancialTransaction? item]) async {
+    if (item?.id.startsWith('cashback-receipt-') ?? false) {
+      context.go('/cashback?receipt=${item!.id}');
+      return;
+    }
     final scope = item?.series == null
         ? SeriesScope.onlyThis
         : await chooseSeriesScope(context, deleting: false);
@@ -325,6 +330,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   Future<void> _editAmount(FinancialTransaction item) async {
+    if (item.id.startsWith('cashback-receipt-')) {
+      context.go('/cashback?receipt=${item.id}');
+      return;
+    }
     if (!mounted || _changingStatus.contains(item.id)) return;
     setState(() => _changingStatus.add(item.id));
     try {
@@ -1130,6 +1139,8 @@ class TransactionFormState extends State<TransactionForm> {
   late bool _isEffective;
   String? _accountId;
   String? _cardId;
+  String? _debitCardId;
+  List<DebitCard> _debitCards = [];
   DateTime? _cardMonth;
   final _firstInstallment = TextEditingController(text: '1');
   String? _categoryId;
@@ -1368,6 +1379,8 @@ class TransactionFormState extends State<TransactionForm> {
     _effectiveDate = item?.effectiveDate;
     _isEffective = item == null || item.effectiveDate != null;
     _cardId = item?.cardId ?? widget.initialCardId;
+    _debitCardId = item?.debitCardId;
+    if (getIt.isRegistered<DebitCardsRepository>()) _loadDebitCards();
     _cardMonth = item?.cardInvoiceMonth;
     _accountId = item?.cardId == null
         ? item?.accountId ?? _availableAccounts.firstOrNull?.id
@@ -1379,6 +1392,17 @@ class TransactionFormState extends State<TransactionForm> {
     _subcategoryId = selected?.parentId == null ? null : selected?.id;
     _description.addListener(_descriptionChanged);
     _historyLoading = _loadCategoryHistory();
+  }
+
+  Future<void> _loadDebitCards() async {
+    try {
+      final cards = await getIt<DebitCardsRepository>().list();
+      if (mounted) setState(() => _debitCards = cards);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Não foi possível carregar os cartões de débito.')));
+    }
   }
 
   List<Account> get _availableAccounts => widget.accounts
@@ -1524,6 +1548,9 @@ class TransactionFormState extends State<TransactionForm> {
         seriesPlan: _series.plan,
         scope: widget.scope,
         cardId: _cardId,
+        debitCardId: _type == TransactionType.expense && _cardId == null
+            ? _debitCardId
+            : null,
         cardInvoiceMonth: _cardMonth,
         cardFirstInstallment: int.tryParse(_firstInstallment.text) ?? 1,
         accountId: _cardId ?? _accountId!,
@@ -1570,6 +1597,7 @@ class TransactionFormState extends State<TransactionForm> {
         CategoryAllocation.encode(_allocations),
         _series.snapshot,
         _cardId,
+        _debitCardId,
         _cardMonth,
         _firstInstallment.text,
         _reimbursements?.map((r) => r.signature).join('|'),
@@ -1648,6 +1676,7 @@ class TransactionFormState extends State<TransactionForm> {
                       _cardId = value == true
                           ? widget.cards.where((c) => !c.isArchived).first.id
                           : null;
+                      _debitCardId = null;
                       _cardMonth = null;
                       _series.change(() {
                         if (value == true) {
@@ -1697,6 +1726,37 @@ class TransactionFormState extends State<TransactionForm> {
                   onTap: _pickInvoiceMonth,
                 ),
               ],
+              if (_cardId == null &&
+                  _type == TransactionType.expense &&
+                  (_debitCards.isNotEmpty || _debitCardId != null))
+                DropdownButtonFormField<String>(
+                  key: ValueKey('debit-card-$_debitCardId'),
+                  initialValue: _debitCardId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                      labelText: 'Cartão de débito (opcional)'),
+                  items: [
+                    const DropdownMenuItem<String>(
+                        value: null, child: Text('Sem cartão de débito')),
+                    for (final card in _debitCards
+                        .where((c) => !c.archived || c.id == _debitCardId))
+                      DropdownMenuItem(value: card.id, child: Text(card.name)),
+                    if (_debitCardId != null &&
+                        !_debitCards.any((c) => c.id == _debitCardId))
+                      DropdownMenuItem(
+                          value: _debitCardId,
+                          child: const Text('Cartão removido · histórico')),
+                  ],
+                  onChanged: (id) => setState(() {
+                    _debitCardId = id;
+                    if (id != null)
+                      _accountId = _debitCards
+                              .where((c) => c.id == id)
+                              .firstOrNull
+                              ?.accountId ??
+                          _accountId;
+                  }),
+                ),
               if (_cardId == null)
                 DropdownButtonFormField<String>(
                   menuMaxHeight: 280,
@@ -1716,7 +1776,9 @@ class TransactionFormState extends State<TransactionForm> {
                       .toList(),
                   validator: (value) =>
                       value == null ? 'Cadastre uma conta ativa.' : null,
-                  onChanged: (id) => setState(() => _accountId = id),
+                  onChanged: _debitCardId != null
+                      ? null
+                      : (id) => setState(() => _accountId = id),
                 ),
               if (!_rateioEnabled)
                 DropdownButtonFormField<String>(

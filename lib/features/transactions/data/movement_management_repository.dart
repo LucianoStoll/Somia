@@ -38,6 +38,9 @@ class MovementManagementRepository {
       .toList();
 
   Future<QueryRow> _check(MovementReference ref, String state) async {
+    if (ref.id.startsWith('cashback-receipt-'))
+      throw StateError(
+          'Use a aba Cashback para confirmar em lote ou desfazer recebimentos.');
     final rows = await db.customSelect('SELECT * FROM ${ref.table} WHERE id=?',
         variables: [Variable.withString(ref.id)]).get();
     if (rows.isEmpty) throw StateError('O lançamento não existe mais.');
@@ -148,6 +151,7 @@ class MovementManagementRepository {
                         : item.effectiveDate,
                     accountId: patch.accountId ?? item.accountId,
                     cardId: item.cardId,
+                    debitCardId: item.debitCardId,
                     cardInvoiceMonth: item.cardInvoiceMonth,
                     categoryId: patch.changeCategory
                         ? patch.categoryId

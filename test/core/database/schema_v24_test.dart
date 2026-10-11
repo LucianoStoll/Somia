@@ -60,7 +60,7 @@ void main() {
     expect(decoded.sourceSchema, 23);
     expect(decoded.publicationEmail, 'test@example.com');
     expect(decoded.replaces, packet.replaces);
-    expect(AppDatabase.currentSchemaVersion, 24);
+    expect(AppDatabase.currentSchemaVersion, 25);
   });
 
   test(
@@ -110,7 +110,7 @@ void main() {
         123);
     final upload =
         await db.customSelect('SELECT * FROM sync_uploads').getSingle();
-    expect(jsonDecode(upload.read<String>('payload'))['schema'], 24);
+    expect(jsonDecode(upload.read<String>('payload'))['schema'], 25);
     expect(upload.read<String>('packet_id'), isNot('old-v23-packet-0001'));
     expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
     expect(
