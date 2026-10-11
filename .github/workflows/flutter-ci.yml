@@ -85,11 +85,14 @@ jobs:
         run: flutter test test/features/reimbursements/reimbursement_pages_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render debt previews
         run: flutter test test/features/debts/debts_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render debit and cashback previews
+        run: flutter test test/features/cards/cashback_pages_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Publish dashboard preview
         uses: actions/upload-artifact@v4
         with:
           name: somia-dashboard-preview
           path: |
+            test/features/cards/*-preview.png
             test/features/analysis/*-preview.png
             test/features/dashboard/*mobile-preview.png
             test/features/dashboard/*desktop-preview.png

@@ -653,7 +653,8 @@ void main() {
       'Transferências',
       'Contas',
       'Análises',
-      'Categorias'
+      'Débito',
+      'Cashback'
     ]) {
       expect(find.text(label), findsWidgets);
     }
@@ -663,6 +664,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('Configurações'), 200,
         scrollable: drawerScroll);
     expect(find.text('Configurações'), findsWidgets);
+    expect(find.text('Categorias'), findsWidgets);
     await tester.drag(find.byType(Drawer), const Offset(0, 1000));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('menu-/income')));

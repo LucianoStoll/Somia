@@ -144,6 +144,65 @@ class _CashbackPageState extends State<CashbackPage> {
     }
   }
 
+  Widget _receiptCard(CashbackReceipt r) => Card(
+      color: r.id == widget.receiptId
+          ? Theme.of(context).colorScheme.primaryContainer
+          : null,
+      child: Padding(
+          padding: const EdgeInsets.all(12),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (batch && r.confirmed == 0)
+                Checkbox(
+                    value: selected.contains(r.id),
+                    onChanged: (v) => setState(() {
+                          if (v == true) {
+                            selected.add(r.id);
+                          } else {
+                            selected.remove(r.id);
+                          }
+                        }))
+              else
+                Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Icon(r.kind == 'return'
+                        ? Icons.undo
+                        : r.confirmed == 0
+                            ? Icons.schedule
+                            : Icons.check_circle_outline)),
+              Expanded(child: Text(r.description)),
+            ]),
+            const SizedBox(height: 8),
+            Text(r.cardName),
+            Text(
+                '${r.confirmed == 0 ? (r.kind == 'return' ? 'Devolução prevista' : 'Previsto') : (r.kind == 'return' ? 'Devolvido' : 'Recebido')} · ${cardDateLabel(r.date)}'),
+            Text(const {
+                  'forecast': 'Compra',
+                  'tier': 'Faixa maior',
+                  'cap': 'Redistribuição / teto',
+                  'refund': 'Estorno'
+                }[r.reason] ??
+                'Ajuste'),
+            Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12,
+                    children: [
+                      Text(cardMoney(r.amountMinor)),
+                      TextButton(
+                          onPressed: acting
+                              ? null
+                              : r.confirmed == 0
+                                  ? () => confirm([r])
+                                  : () => undo(r),
+                          child: Text(
+                              r.confirmed == 0 ? 'Confirmar' : 'Desfazer')),
+                    ])),
+          ])));
+
   @override
   Widget build(BuildContext context) {
     final pending = receipts
@@ -226,52 +285,7 @@ class _CashbackPageState extends State<CashbackPage> {
                             padding: EdgeInsets.all(24),
                             child: Text(
                                 'Nenhum cashback. Selecione um cartão e configure sua regra. Compras geram previsão quando o primeiro pagamento for efetivado.')),
-                      for (final r in receipts)
-                        Card(
-                            color: r.id == widget.receiptId
-                                ? Theme.of(context).colorScheme.primaryContainer
-                                : null,
-                            child: ListTile(
-                                leading: batch && r.confirmed == 0
-                                    ? Checkbox(
-                                        value: selected.contains(r.id),
-                                        onChanged: (v) => setState(() {
-                                              if (v == true) {
-                                                selected.add(r.id);
-                                              } else {
-                                                selected.remove(r.id);
-                                              }
-                                            }))
-                                    : Icon(r.kind == 'return'
-                                        ? Icons.undo
-                                        : r.confirmed == 0
-                                            ? Icons.schedule
-                                            : Icons.check_circle_outline),
-                                title: Text(r.description),
-                                subtitle: Text(
-                                    '${r.cardName}\n${r.confirmed == 0 ? (r.kind == 'return' ? 'Devolução prevista' : 'Previsto') : (r.kind == 'return' ? 'Devolvido' : 'Recebido')} · ${cardDateLabel(r.date)} · ${const {
-                                          'forecast': 'Compra',
-                                          'tier': 'Faixa maior',
-                                          'cap': 'Redistribuição / teto',
-                                          'refund': 'Estorno'
-                                        }[r.reason] ?? 'Ajuste'}'),
-                                isThreeLine: true,
-                                trailing: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(cardMoney(r.amountMinor)),
-                                      if (r.confirmed == 0)
-                                        TextButton(
-                                            onPressed: acting
-                                                ? null
-                                                : () => confirm([r]),
-                                            child: const Text('Confirmar'))
-                                      else
-                                        TextButton(
-                                            onPressed:
-                                                acting ? null : () => undo(r),
-                                            child: const Text('Desfazer'))
-                                    ]))),
+                      for (final r in receipts) _receiptCard(r),
                     ])));
   }
 }
@@ -481,6 +495,7 @@ class _CashbackSettingsFormState extends State<CashbackSettingsForm> {
                     (v) => setState(() => category = v),
                     'Categoria da receita'),
                 DropdownButtonFormField<CashbackSchedule>(
+                    isExpanded: true,
                     initialValue: schedule,
                     decoration: const InputDecoration(
                         labelText: 'Previsão de recebimento'),
