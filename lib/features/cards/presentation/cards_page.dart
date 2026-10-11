@@ -28,6 +28,7 @@ import '../data/cards_repository.dart';
 import '../data/card_payment_coverage_repository.dart';
 import '../domain/credit_card.dart';
 import 'card_forms.dart';
+import 'payment_coverage_form.dart';
 
 class CardsPage extends StatefulWidget {
   const CardsPage({
@@ -832,6 +833,26 @@ class _CardsPageState extends State<CardsPage> {
           ],
         ),
       );
+  Future<void> _coverage(CardPayment payment) async {
+    try {
+      final repo = CardPaymentCoverageRepository(_repo.db);
+      final data = await repo.forPayment(payment.id);
+      final invoice = await _repo.invoice(data.invoiceId);
+      if (!mounted) return;
+      final chosen = await showMovementForm<Map<String, int>>(
+          context,
+          (_) => PaymentCoverageForm(
+              payment: payment,
+              entries: invoice.entries,
+              available: data.available,
+              selected: data.selected));
+      if (chosen != null && mounted)
+        await _run(() => repo.replace(payment.id, chosen));
+    } catch (e) {
+      if (mounted) cardError(context, e);
+    }
+  }
+
   Widget _paymentTile(CardPayment p) => ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 4),
         leading: const Icon(Icons.account_balance_wallet_outlined),
@@ -839,21 +860,27 @@ class _CardsPageState extends State<CardsPage> {
         subtitle: Text(
           '${p.accountName} · ${cardDateLabel(p.date)}${cardDay(p.date) > cardDay(DateTime.now()) ? ' · Agendado' : ''}',
         ),
-        trailing: IconButton(
-          tooltip: 'Desfazer pagamento',
-          icon: const Icon(Icons.undo),
-          onPressed: _acting
-              ? null
-              : () async {
-                  if (await _confirm(
-                        'Desfazer pagamento?',
-                        'O débito sairá da conta e a dívida voltará à fatura. Encargos e desconto deste pagamento também serão desfeitos.',
-                      ) &&
-                      mounted) {
-                    await _run(() => _repo.undoPayment(p.id));
-                  }
-                },
-        ),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(
+              tooltip: 'Compras cobertas',
+              onPressed: _acting ? null : () => _coverage(p),
+              icon: const Icon(Icons.checklist)),
+          IconButton(
+            tooltip: 'Desfazer pagamento',
+            icon: const Icon(Icons.undo),
+            onPressed: _acting
+                ? null
+                : () async {
+                    if (await _confirm(
+                          'Desfazer pagamento?',
+                          'O débito sairá da conta e a dívida voltará à fatura. Encargos e desconto deste pagamento também serão desfeitos.',
+                        ) &&
+                        mounted) {
+                      await _run(() => _repo.undoPayment(p.id));
+                    }
+                  },
+          ),
+        ]),
       );
   @override
   Widget build(BuildContext context) {

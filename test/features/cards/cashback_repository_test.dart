@@ -7,6 +7,7 @@ import 'package:finapp/features/accounts/domain/account.dart';
 import 'package:finapp/features/categories/data/sqlite_categories_repository.dart';
 import 'package:finapp/features/categories/domain/category.dart';
 import 'package:finapp/features/cards/data/cards_repository.dart';
+import 'package:finapp/features/cards/data/card_payment_coverage_repository.dart';
 import 'package:finapp/features/cards/data/debit_cards_repository.dart';
 import 'package:finapp/features/cards/data/cashback_repository.dart';
 import 'package:finapp/features/cards/domain/credit_card.dart';
@@ -154,6 +155,45 @@ void main() {
     expect(complement.amountMinor, 1000);
     await receive(complement, 1000);
     expect((await cashback.list()).where((r) => r.confirmed == 0), isEmpty);
+    await validateFinancial(db);
+  });
+  test('historical payment coverage can be corrected without changing cash',
+      () async {
+    final id = await credit.createPurchase(TransactionDraft(
+        description: 'Antiga',
+        type: TransactionType.expense,
+        amountMinor: 100000,
+        date: today,
+        isEffective: false,
+        accountId: creditId,
+        cardId: creditId));
+    final entry = await credit.entry(id);
+    await credit.pay(entry.invoiceId, source.id, 10000, today);
+    final payment =
+        (await db.customSelect('SELECT * FROM card_payments').getSingle()).data;
+    final paymentId = payment['id'] as String;
+    await configure(kind: 'credit');
+    expect(await cashback.list(), isEmpty);
+    final coverage = CardPaymentCoverageRepository(db);
+    await coverage.replace(paymentId, {entry.id: 10000});
+    expect((await cashback.list()).single.amountMinor, 1000);
+    await expectLater(
+        coverage.replace(paymentId, {entry.id: 20000}), throwsArgumentError);
+    expect((await coverage.forPayment(paymentId)).selected, {entry.id: 10000});
+    await coverage.replace(paymentId, {});
+    expect(await cashback.list(), isEmpty);
+    await coverage.replace(paymentId, {entry.id: 10000});
+    expect((await cashback.list()).single.amountMinor, 1000);
+    expect(
+        (await db.customSelect('SELECT * FROM card_payments').getSingle()).data,
+        payment);
+    expect(
+        (await db
+                .customSelect(
+                    'SELECT COUNT(*) AS n FROM card_payment_allocations')
+                .getSingle())
+            .read<int>('n'),
+        1);
     await validateFinancial(db);
   });
   test(

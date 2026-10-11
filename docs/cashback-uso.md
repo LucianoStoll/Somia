@@ -29,6 +29,9 @@ compras por suposição. Preencher saldos é um atalho, sujeito à mesma valida�
 Na quitação integral, a cobertura disponível pode ser atribuída automaticamente.
 O atalho de pagamento parcial com cashback pede para abrir a fatura e selecionar
 as compras. Pagamentos antigos sem cobertura não são reinterpretados silenciosamente.
+No histórico de pagamentos, o botão Compras cobertas permite atribuir ou corrigir
+a cobertura sem alterar conta, valor ou data do pagamento. Ajustes de cashback
+continuam previstos e preservam recebimentos já confirmados.
 
 Compra de R$1.000 com primeiro pagamento de R$100 e 1% gera R$10 previstos;
 somente R$100 entram nas faixas daquele mês. Parcelas/pagamentos posteriores não

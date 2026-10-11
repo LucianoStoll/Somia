@@ -2,10 +2,45 @@ import 'package:drift/drift.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/entity_metadata.dart';
 import '../domain/cashback_calculator.dart';
+import 'cashback_repository.dart';
+import '../../../core/database/card_rewards_integrity.dart';
 
 class CardPaymentCoverageRepository {
   const CardPaymentCoverageRepository(this.db);
   final AppDatabase db;
+  Future<
+      ({
+        String invoiceId,
+        Map<String, int> available,
+        Map<String, int> selected
+      })> forPayment(String id) async {
+    final payment = await db.customSelect(
+        'SELECT invoice_id FROM card_payments WHERE id=? AND deleted_at IS NULL',
+        variables: [Variable.withString(id)]).getSingle();
+    final invoice = payment.read<String>('invoice_id');
+    final selected = {
+      for (final row in await db.customSelect(
+          'SELECT entry_id,amount_minor FROM card_payment_allocations WHERE payment_id=? AND deleted_at IS NULL',
+          variables: [Variable.withString(id)]).get())
+        row.read<String>('entry_id'): row.read<int>('amount_minor')
+    };
+    return (
+      invoiceId: invoice,
+      available: await available(invoice, exceptPayment: id),
+      selected: selected
+    );
+  }
+
+  Future<void> replace(String id, Map<String, int> selected) =>
+      db.transaction(() async {
+        final now = EntityMetadata.nowUtcMillis();
+        await db.customStatement(
+            'UPDATE card_payment_allocations SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE payment_id=? AND deleted_at IS NULL',
+            [now, now, id]);
+        await allocate(id, selected);
+        await CashbackRepository(db).reconcile();
+        await validateCardRewards(db);
+      });
   Future<Map<String, int>> available(String invoiceId,
           {String? exceptPayment}) async =>
       {
@@ -52,7 +87,9 @@ class CardPaymentCoverageRepository {
     final now = EntityMetadata.nowUtcMillis();
     for (final e in items.entries) {
       await db.customStatement(
-          'INSERT INTO card_payment_allocations(id,payment_id,entry_id,amount_minor,created_at,updated_at) VALUES(?,?,?,?,?,?)',
+          '''INSERT INTO card_payment_allocations(id,payment_id,entry_id,amount_minor,created_at,updated_at) VALUES(?,?,?,?,?,?)
+            ON CONFLICT(payment_id,entry_id) DO UPDATE SET amount_minor=excluded.amount_minor,deleted_at=NULL,
+            updated_at=excluded.updated_at,sync_version=card_payment_allocations.sync_version+1''',
           [
             'coverage-$paymentId-${e.key}',
             paymentId,
