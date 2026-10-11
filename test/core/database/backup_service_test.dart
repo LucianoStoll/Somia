@@ -27,6 +27,8 @@ class _LegacyV1 extends GeneratedDatabase {
 }
 
 void main() {
+  // Full disk backup/migration is slower on Windows CI; retain the other limits.
+  final diskTimeout = Timeout(Duration(seconds: Platform.isWindows ? 120 : 30));
   test(
       'backup v1 migra, restaura os quatro tipos de registro e preserva a base anterior',
       () async {
@@ -96,7 +98,7 @@ void main() {
             .read<String>('name'),
         'Atual');
     await previous.close();
-  });
+  }, timeout: diskTimeout);
 
   test('backup v1 migra e aplica sem reabrir a conexão operacional', () async {
     final directory = await Directory.systemTemp.createTemp('somia-live-v1-');
