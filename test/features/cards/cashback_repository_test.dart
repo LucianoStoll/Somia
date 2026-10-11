@@ -163,7 +163,9 @@ void main() {
     await buy(100000);
     final original = (await cashback.list()).single;
     await receive(original, 800);
-    for (var i = 0; i < 3; i++) await cashback.reconcile();
+    for (var i = 0; i < 3; i++) {
+      await cashback.reconcile();
+    }
     expect((await cashback.list()).single.amountMinor, 800);
     await buy(10000);
     final next = (await cashback.list()).singleWhere((r) => r.confirmed == 0);

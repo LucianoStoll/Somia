@@ -900,8 +900,9 @@ class CardsRepository {
                 now
               ]);
         }
-        if (newId != null)
+        if (newId != null) {
           await CardPaymentCoverageRepository(db).allocate(newId, null);
+        }
         return CardSettlement(
             invoiceId: id,
             date: date,

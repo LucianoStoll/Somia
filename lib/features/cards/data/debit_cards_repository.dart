@@ -39,15 +39,18 @@ class DebitCardsRepository {
           String? institutionId,
           int? colorArgb}) =>
       db.transaction(() async {
-        if (name.trim().isEmpty)
+        if (name.trim().isEmpty) {
           throw const FormatException('Informe o nome do cartão.');
-        if (colorArgb != null && (colorArgb < 0 || colorArgb > 0xffffffff))
+        }
+        if (colorArgb != null && (colorArgb < 0 || colorArgb > 0xffffffff)) {
           throw const FormatException('Cor inválida.');
+        }
         final accounts = await db.customSelect(
             "SELECT id FROM accounts WHERE id=? AND deleted_at IS NULL AND is_archived=0 AND currency_code='BRL'",
             variables: [Variable.withString(accountId)]).get();
-        if (accounts.isEmpty)
+        if (accounts.isEmpty) {
           throw StateError('Selecione uma conta ativa em BRL.');
+        }
         final key = id ?? EntityMetadata.newId(),
             now = EntityMetadata.nowUtcMillis();
         if (id == null) {

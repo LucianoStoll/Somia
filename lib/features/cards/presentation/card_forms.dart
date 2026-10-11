@@ -608,9 +608,7 @@ class CardAnticipationForm extends StatefulWidget {
       {super.key,
       required this.invoice,
       required this.entries,
-      required this.onSubmit,
-      this.availableCoverage = const {},
-      this.onSubmitWithCoverage});
+      required this.onSubmit});
   final CardInvoice invoice;
   final List<CardEntry> entries;
   final Future<void> Function(List<String>, int) onSubmit;

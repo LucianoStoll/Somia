@@ -511,9 +511,10 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   }
 
   Future<void> _guardCashback(String id) async {
-    if (id.startsWith('cashback-receipt-'))
+    if (id.startsWith('cashback-receipt-')) {
       throw StateError(
           'Abra Cashback para confirmar valores, categorias ou desfazer recebimentos.');
+    }
   }
 
   Future<FinancialTransaction> _find(String id) async {

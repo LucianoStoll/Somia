@@ -16,7 +16,9 @@ class LegacyV24 extends LegacyV23 {
   @override
   MigrationStrategy get migration => MigrationStrategy(onCreate: (m) async {
         await super.migration.onCreate(m);
-        for (final sql in schemaV24) await customStatement(sql);
+        for (final sql in schemaV24) {
+          await customStatement(sql);
+        }
       });
 }
 

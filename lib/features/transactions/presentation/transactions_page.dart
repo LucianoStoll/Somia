@@ -1399,9 +1399,10 @@ class TransactionFormState extends State<TransactionForm> {
       final cards = await getIt<DebitCardsRepository>().list();
       if (mounted) setState(() => _debitCards = cards);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Não foi possível carregar os cartões de débito.')));
+      }
     }
   }
 
@@ -1749,12 +1750,13 @@ class TransactionFormState extends State<TransactionForm> {
                   ],
                   onChanged: (id) => setState(() {
                     _debitCardId = id;
-                    if (id != null)
+                    if (id != null) {
                       _accountId = _debitCards
                               .where((c) => c.id == id)
                               .firstOrNull
                               ?.accountId ??
                           _accountId;
+                    }
                   }),
                 ),
               if (_cardId == null)

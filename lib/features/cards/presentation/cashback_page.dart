@@ -53,7 +53,7 @@ class _CashbackPageState extends State<CashbackPage> {
           cat = await getIt<CategoriesRepository>().list();
       final active = options.where((c) => c.key == target).firstOrNull;
       final items = await repo.list(kind: active?.kind, cardId: active?.id);
-      if (mounted)
+      if (mounted) {
         setState(() {
           cards = options;
           accounts = acc;
@@ -64,14 +64,16 @@ class _CashbackPageState extends State<CashbackPage> {
           selected.clear();
           if (active == null) target = null;
         });
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           loading = false;
           error = e is StateError
               ? e.message
               : 'Não foi possível carregar o cashback.';
         });
+      }
     }
   }
 
@@ -280,10 +282,21 @@ class CardCashbackOption {
   String get key => '$kind:$id';
 }
 
+bool cashbackCategoryUsable(
+    List<FinanceCategory> categories, String? id, String type) {
+  final c = categories.where((c) => c.id == id).firstOrNull;
+  return c != null &&
+      c.type.name == type &&
+      !c.isArchived &&
+      (c.parentId == null ||
+          categories.any((p) => p.id == c.parentId && !p.isArchived));
+}
+
 Widget cashbackCategoryPicker(List<FinanceCategory> categories, String type,
     String? value, ValueChanged<String?> changed, String label) {
-  final available =
-      categories.where((c) => c.type.name == type && !c.isArchived).toList();
+  final available = categories
+      .where((c) => cashbackCategoryUsable(categories, c.id, type))
+      .toList();
   final selected = available.where((c) => c.id == value).firstOrNull;
   final root = selected?.parentId ?? selected?.id;
   final children = available.where((c) => c.parentId == root).toList();
@@ -361,13 +374,20 @@ class _CashbackSettingsFormState extends State<CashbackSettingsForm> {
         accounts.firstOrNull?.id;
     category = current?.categoryId;
     returnCategory = current?.returnCategoryId;
+    if (!cashbackCategoryUsable(widget.categories, category, 'income')) {
+      category = null;
+    }
+    if (!cashbackCategoryUsable(widget.categories, returnCategory, 'expense')) {
+      returnCategory = null;
+    }
     enabled = current?.enabled ?? true;
     schedule = current?.rule.schedule ?? CashbackSchedule.firstPayment;
-    for (final t in current?.rule.tiers ?? <CashbackTier>[])
+    for (final t in current?.rule.tiers ?? <CashbackTier>[]) {
       tiers.add((
         TextEditingController(text: MoneyMinor.plain(t.minimumPaidMinor)),
         TextEditingController(text: MoneyMinor.plain(t.rateBasisPoints))
       ));
+    }
   }
 
   @override
@@ -407,9 +427,10 @@ class _CashbackSettingsFormState extends State<CashbackSettingsForm> {
           rule: rule);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         cardError(
             context, e is ArgumentError ? StateError(e.message.toString()) : e);
+      }
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -582,6 +603,10 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
             ?.id ??
         accounts.firstOrNull?.id;
     category = widget.receipts.first.categoryId;
+    if (!cashbackCategoryUsable(
+        widget.categories, category, returns ? 'expense' : 'income')) {
+      category = null;
+    }
   }
 
   @override
@@ -654,8 +679,9 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
                       final chosen = await pickCardDate(context, date);
-                      if (chosen != null && mounted)
+                      if (chosen != null && mounted) {
                         setState(() => date = chosen);
+                      }
                     }),
                 const Text(
                     'O total será distribuído proporcionalmente, fechando os centavos. O valor confirmado é definitivo; uma diferença aceita não fica pendente. Informar zero registra a confirmação sem movimentar dinheiro.'),

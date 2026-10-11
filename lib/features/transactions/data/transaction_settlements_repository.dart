@@ -41,8 +41,9 @@ class TransactionSettlementsRepository {
           required int amountMinor,
           required DateTime date}) =>
       _checked(() async {
-        if (transactionId.startsWith('cashback-receipt-'))
+        if (transactionId.startsWith('cashback-receipt-')) {
           throw StateError('Confirme o valor depositado na aba Cashback.');
+        }
         final t = await db.customSelect(
             '''SELECT t.*,a.currency_code FROM transactions t JOIN accounts a ON a.id=t.account_id
       WHERE t.id=? AND t.deleted_at IS NULL''',

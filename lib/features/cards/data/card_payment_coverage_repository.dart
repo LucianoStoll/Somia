@@ -40,9 +40,10 @@ class CardPaymentCoverageRepository {
           '''SELECT r.id FROM cashback_rules r JOIN card_invoices i ON i.card_id=r.card_id
         WHERE i.id=? AND r.card_kind='credit' AND r.enabled=1 AND r.deleted_at IS NULL''',
           variables: [Variable.withString(p.read<String>('invoice_id'))]).get();
-      if (rules.isNotEmpty)
+      if (rules.isNotEmpty) {
         throw StateError(
             'Pagamento parcial: abra a fatura e escolha as compras cobertas para calcular o cashback.');
+      }
     }
     validatePaymentCoverage(
         paymentMinor: amount,

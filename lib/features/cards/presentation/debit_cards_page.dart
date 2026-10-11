@@ -34,19 +34,21 @@ class _DebitCardsPageState extends State<DebitCardsPage> {
     try {
       final next = await repo.list();
       final acc = await getIt<AccountsRepository>().list();
-      if (mounted)
+      if (mounted) {
         setState(() {
           cards = next;
           accounts = acc;
           loading = false;
           error = null;
         });
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           loading = false;
           error = 'Não foi possível carregar. Tentar novamente';
         });
+      }
     }
   }
 
@@ -252,8 +254,9 @@ class _DebitCardFormState extends State<DebitCardForm> {
                         BankInstitution.find(bank)?.name ?? 'Sem instituição'),
                     onTap: () async {
                       final value = await showBankSelector(context, bank);
-                      if (value != null && mounted)
+                      if (value != null && mounted) {
                         setState(() => bank = value.isEmpty ? null : value);
+                      }
                     }),
                 DropdownButtonFormField<int>(
                     initialValue: color ?? -1,
