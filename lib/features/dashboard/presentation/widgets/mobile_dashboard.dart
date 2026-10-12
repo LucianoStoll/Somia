@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'dashboard_category_chart.dart';
+import 'dashboard_overview.dart';
 import 'history_tooltip_chart.dart';
-import 'balance_details_panel.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -121,6 +121,8 @@ class MobileDashboardBody extends StatelessWidget {
                 showCurrency: state.summary!.currencies.length > 1 ||
                     currency.currencyCode != 'BRL',
               ),
+            SummaryAccounts(currencies: state.summary!.currencies),
+            const SizedBox(height: 12),
             _RecentPanel(recent: state.summary!.recent),
           ],
         ),
@@ -138,55 +140,14 @@ class _CurrencySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final future = DateTime(month.year, month.month)
-        .isAfter(DateTime(now.year, now.month));
     final code = currency.currencyCode;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      if (showCurrency)
-        Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(code)),
-      BalanceDetailCard(
-          currencyCode: code,
-          child: _MetricCard(
-            key: ValueKey('mobile-balance-$code'),
-            wide: true,
-            label: future ? 'Saldo previsto' : 'Saldo do mês',
-            amount: future
-                ? currency.projectedBalanceMinor
-                : currency.currentBalanceMinor,
-            code: code,
-            color: SomiaColors.blue,
-            icon: Icons.account_balance_wallet_outlined,
-            detail: future
-                ? 'Saldo efetivado: ${_money(currency.currentBalanceMinor, code)}'
-                : 'Saldo projetado: ${_money(currency.projectedBalanceMinor, code)}',
-          )),
-      const SizedBox(height: 10),
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(
-            child: _MetricCard(
-          key: ValueKey('mobile-income-$code'),
-          onTap: () => context.go(AppRoutes.incomePath),
-          label: 'Receitas',
-          amount: currency.incomeMinor,
-          code: code,
-          color: SomiaColors.green,
-          icon: Icons.arrow_upward_rounded,
-          detail: 'Efetivados e previstos',
-        )),
-        const SizedBox(width: 10),
-        Expanded(
-            child: _MetricCard(
-          key: ValueKey('mobile-expense-$code'),
-          onTap: () => context.go(AppRoutes.expensesPath),
-          label: 'Despesas',
-          amount: currency.expenseMinor,
-          code: code,
-          color: SomiaColors.red,
-          icon: Icons.arrow_downward_rounded,
-          detail: 'Efetivados e previstos',
-        )),
-      ]),
+      if (showCurrency) Text(code),
+      SummaryMetrics(currency: currency, month: month),
+      const SizedBox(height: 12),
+      UpcomingPanel(currency: currency),
+      const SizedBox(height: 12),
+      BalanceEvolutionPanel(currency: currency),
       const SizedBox(height: 12),
       _HistoryPanel(key: ValueKey('mobile-history-$code'), currency: currency),
       const SizedBox(height: 12),
@@ -196,112 +157,6 @@ class _CurrencySection extends StatelessWidget {
               key: ValueKey('mobile-categories-$code'), currency: currency)),
       const SizedBox(height: 12),
     ]);
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard(
-      {super.key,
-      this.wide = false,
-      this.onTap,
-      required this.label,
-      required this.amount,
-      required this.code,
-      required this.color,
-      required this.icon,
-      required this.detail});
-  final bool wide;
-  final VoidCallback? onTap;
-  final String label;
-  final int amount;
-  final String code;
-  final Color color;
-  final IconData icon;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final badge = Container(
-      padding: const EdgeInsets.all(7),
-      decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(wide ? 11 : 24)),
-      child: Icon(icon, size: wide ? 22 : 19, color: color),
-    );
-    final chartIcon = ExcludeSemantics(
-        child: Container(
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(9)),
-      child: Icon(Icons.bar_chart_rounded, size: wide ? 22 : 17, color: color),
-    ));
-    final value = FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
-      child: Text(_money(amount, code),
-          style:
-              TextStyle(fontSize: wide ? 24 : 21, fontWeight: FontWeight.w700)),
-    );
-    final caption = Text(detail,
-        style: TextStyle(
-            fontSize: 11, color: wide ? SomiaColors.blue : SomiaColors.muted));
-    final content = Container(
-      constraints: BoxConstraints(minHeight: wide ? 108 : 128),
-      padding: EdgeInsets.all(wide ? 14 : 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color.withValues(alpha: 0.10), SomiaColors.surface]),
-        border: Border.all(color: SomiaColors.outline, width: 0.7),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: wide
-          ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              badge,
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(label,
-                        style: const TextStyle(
-                            fontSize: 12, color: SomiaColors.muted)),
-                    const SizedBox(height: 5),
-                    value,
-                    const SizedBox(height: 7),
-                    caption,
-                  ])),
-              const SizedBox(width: 6),
-              chartIcon,
-            ])
-          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                badge,
-                const SizedBox(width: 7),
-                Expanded(
-                    child: Text(label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: color))),
-                chartIcon,
-              ]),
-              const SizedBox(height: 9),
-              value,
-              const SizedBox(height: 7),
-              caption,
-            ]),
-    );
-    return onTap == null
-        ? content
-        : Semantics(
-            button: true,
-            label: 'Abrir $label',
-            child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(16),
-                child: content));
   }
 }
 
@@ -524,7 +379,7 @@ class _RecentPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _Panel(
-        title: 'Transações recentes',
+        title: 'Últimos cadastrados',
         action: TextButton(
           style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 4),

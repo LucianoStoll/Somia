@@ -57,6 +57,14 @@ void main() {
     final result =
         (await SqliteDashboardRepository(db).load(date)).currencies.single;
     expect(result.expenseMinor, 2700);
+    expect(result.dailyBalances.length, 30);
+    expect(result.dailyBalances.last.currentMinor, result.currentBalanceMinor);
+    expect(
+        result.dailyBalances.last.projectedMinor, result.projectedBalanceMinor);
+    expect(result.upcoming.single.amountMinor, 700);
+    expect(result.upcoming.single.kind, 'expense');
+    expect(result.upcoming.single.canSettle, isTrue);
+
     expect(result.expensesByCategory.length, 1);
     expect(result.expensesByCategory.single.name, 'Alimentação');
     expect(result.expensesByCategory.single.amountMinor, 2700);

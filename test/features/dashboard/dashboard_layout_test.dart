@@ -32,6 +32,19 @@ class _DashboardStub implements DashboardRepository {
                 DashboardCategoryExpense('Moradia', 200000),
                 DashboardCategoryExpense('Alimentação', 185000),
               ],
+        dailyBalances: [
+          for (var day = 1; day <= 30; day++)
+            DashboardDailyBalance(DateTime(month.year, month.month, day),
+                235000 - day * 1000, 290000 - day * 1500)
+        ],
+        upcoming: [
+          DashboardDue(
+              id: 'due',
+              description: 'Conta de energia',
+              date: DateTime(month.year, month.month, 20),
+              amountMinor: 12500,
+              kind: 'expense')
+        ],
         accounts: const [
           DashboardAccountBalance(
               'Conta principal', 'Conta corrente', 'BRL', 235000)
@@ -110,7 +123,8 @@ void main() {
         (tester) async {
       await _mount(tester, Size(width, 900));
       expect(find.byTooltip('Entender os saldos'), findsOneWidget);
-      expect(find.text('Efetivados e previstos'), findsNWidgets(2));
+      expect(find.text('A receber'), findsOneWidget);
+      expect(find.text('A pagar'), findsOneWidget);
       final selector = tester
           .getRect(find.byKey(const ValueKey('dashboard-month-selector')));
       final menu = tester.getRect(find.byTooltip('Abrir menu'));
@@ -128,9 +142,9 @@ void main() {
       final categories =
           tester.getRect(find.byKey(const ValueKey('mobile-categories-BRL')));
       expect(balance.width, closeTo(width - 32, 0.1));
-      expect(find.text('R\$ 2.350,00'), findsOneWidget);
-      expect(income.top, expense.top);
-      expect(income.right, lessThan(expense.left));
+
+      expect(expense.top, greaterThan(income.bottom));
+
       expect(balance.bottom, lessThan(income.top));
       expect(history.top, greaterThan(income.bottom));
       expect(categories.top, greaterThan(history.bottom));
@@ -147,7 +161,7 @@ void main() {
           greaterThan(tester
               .getRect(find.byKey(const ValueKey('mobile-categories-BRL')))
               .bottom));
-      expect(find.text('Saldo por conta'), findsNothing);
+      expect(find.text('Saldo por conta'), findsOneWidget);
       expect(find.byType(NavigationBar), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -205,9 +219,9 @@ void main() {
   testWidgets('desktop mantém métricas, categorias e saldo por conta',
       (tester) async {
     await _mount(tester, const Size(1440, 1000));
-    expect(find.byKey(const ValueKey('mobile-balance-BRL')), findsNothing);
-    expect(find.text('Saldo total'), findsOneWidget);
-    expect(find.text('Saldo projetado'), findsOneWidget);
+
+    expect(find.text('Saldo atual'), findsOneWidget);
+    expect(find.text('Saldo previsto no fim do mês'), findsOneWidget);
     expect(find.text('Gastos por categoria'), findsOneWidget);
     expect(find.text('Saldo por conta'), findsOneWidget);
     expect(tester.takeException(), isNull);
