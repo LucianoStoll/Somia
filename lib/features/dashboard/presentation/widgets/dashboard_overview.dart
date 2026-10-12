@@ -72,18 +72,23 @@ class SummaryMetrics extends StatelessWidget {
             const SizedBox(height: 10),
             Text(title, style: TextStyle(color: color)),
             const SizedBox(height: 8),
-            Text(MoneyMinor.display(value, c.currencyCode),
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(MoneyMinor.display(value, c.currencyCode),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w700))),
             const SizedBox(height: 8),
             Text(detail,
                 style: const TextStyle(color: SomiaColors.muted, fontSize: 12))
           ]));
-      if (balance)
+      if (balance) {
         return BalanceDetailCard(currencyCode: c.currencyCode, child: content);
+      }
       return InkWell(
+          key: ValueKey('dashboard-link-$route'),
           onTap: () => context.go(route!),
           borderRadius: BorderRadius.circular(16),
           child: content);
@@ -124,7 +129,8 @@ class SummaryMetrics extends StatelessWidget {
           'Após pendências e transferências',
           SomiaColors.blue,
           Icons.event_available,
-          balance: true),
+          balance: true,
+          key: ValueKey('desktop-projected-${c.currencyCode}')),
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       LayoutBuilder(builder: (context, box) {
@@ -134,6 +140,26 @@ class SummaryMetrics extends StatelessWidget {
             : box.maxWidth >= 600 && !large
                 ? 2
                 : 1;
+        if (box.maxWidth < 600) {
+          return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                cards[0],
+                const SizedBox(height: 12),
+                if (large) ...[
+                  cards[1],
+                  const SizedBox(height: 12),
+                  cards[2]
+                ] else
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(child: cards[1]),
+                    const SizedBox(width: 12),
+                    Expanded(child: cards[2])
+                  ]),
+                const SizedBox(height: 12),
+                cards[3]
+              ]);
+        }
         return Wrap(spacing: 12, runSpacing: 12, children: [
           for (final card in cards)
             SizedBox(width: (box.maxWidth - 12 * (n - 1)) / n, child: card)
@@ -165,10 +191,11 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
           .setEffective(item.id, effective: true, effectiveDate: date);
       if (mounted) await context.read<DashboardCubit>().load();
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text(
                 'Não foi possível efetivar. Abra o lançamento para conferir seus vínculos e pagamentos.')));
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -245,10 +272,11 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
   @override
   Widget build(BuildContext context) {
     final points = widget.currency.dailyBalances;
-    if (points.isEmpty)
+    if (points.isEmpty) {
       return const SummaryPanel(
           title: 'Evolução do saldo',
           child: Text('Sem histórico diário disponível.'));
+    }
     final index = (selected ?? points.length - 1).clamp(0, points.length - 1),
         p = points[index];
     final values = points.expand((p) => [p.currentMinor, p.projectedMinor]);

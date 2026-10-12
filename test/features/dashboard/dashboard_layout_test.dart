@@ -143,7 +143,7 @@ void main() {
           tester.getRect(find.byKey(const ValueKey('mobile-categories-BRL')));
       expect(balance.width, closeTo(width - 32, 0.1));
 
-      expect(expense.top, greaterThan(income.bottom));
+      expect(expense.top, income.top);
 
       expect(balance.bottom, lessThan(income.top));
       expect(history.top, greaterThan(income.bottom));

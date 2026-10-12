@@ -16,7 +16,6 @@ import '../../domain/entities/dashboard_summary.dart';
 import '../dashboard_cubit.dart';
 import '../widgets/mobile_dashboard.dart';
 import '../widgets/desktop_history_chart.dart';
-import '../widgets/balance_details_panel.dart';
 import '../widgets/dashboard_category_chart.dart';
 import '../widgets/dashboard_overview.dart';
 
