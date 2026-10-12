@@ -104,8 +104,10 @@ class DashboardDue {
       required this.date,
       required this.amountMinor,
       required this.kind,
-      this.canSettle = false});
+      this.canSettle = false,
+      this.cardId});
   final String id, description, kind;
+  final String? cardId;
   final DateTime date;
   final int amountMinor;
   final bool canSettle;

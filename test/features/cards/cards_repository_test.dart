@@ -87,6 +87,32 @@ void main() {
         projectedBalanceMinor: b.projectedMinor);
   }
 
+  test(
+      'resumo reconcilia vencimentos e curva com fatura parcial e crédito posterior',
+      () async {
+    final first = await cards
+        .createPurchase(draft(amount: 10000, date: DateTime(2026, 1, 10)));
+    final entry = (await cards.entries()).firstWhere((e) => e.id == first);
+    await cards
+        .createPurchase(draft(amount: 5000, date: DateTime(2026, 2, 10)));
+    await cards.pay(entry.invoiceId, account.id, 2000, DateTime(2026, 1, 20));
+    final invoiceId =
+        await cards.invoiceForPurchase(cardId, DateTime(2026, 2, 10));
+    await cards.refund(first, 4000, invoiceId, DateTime(2026, 2, 15));
+    final summary =
+        (await SqliteDashboardRepository(db).load(DateTime(2026, 3)))
+            .currencies
+            .single;
+    expect(
+        summary.upcoming
+            .where((d) => d.kind == 'invoice')
+            .fold<int>(0, (v, d) => v + d.amountMinor),
+        summary.balanceDetails!.pendingInvoicesMinor);
+    expect(summary.balanceDetails!.pendingInvoicesMinor, 9000);
+    expect(summary.dailyBalances.last.projectedMinor,
+        summary.projectedBalanceMinor);
+  });
+
   test('estabelecimento acompanha parcelas, edição e filtro sem alterar tags',
       () async {
     final id = await cards.createPurchase(

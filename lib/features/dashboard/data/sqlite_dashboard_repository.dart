@@ -202,23 +202,32 @@ class SqliteDashboardRepository implements DashboardRepository {
                   canSettle: r.read<int>('can_settle') == 1));
         }
         final previousInvoiceAmount = <String, int>{};
+        final increments = <String, int>{};
         for (final r in invoiceRows) {
-          // Cumulative debt includes opening balance and credit; show only the incremental amount at each maturity.
-          final description = r.read<String>('description');
-          final amount = r.read<int>('amount');
-          final increment =
-              amount - (previousInvoiceAmount[r.read<String>('card_id')] ?? 0);
-          previousInvoiceAmount[r.read<String>('card_id')] = amount;
-          if (increment <= 0) continue;
+          final card = r.read<String>('card_id'),
+              amount = r.read<int>('amount');
+          increments[r.read<String>('id')] =
+              amount - (previousInvoiceAmount[card] ?? 0);
+          previousInvoiceAmount[card] = amount;
+        }
+        // Apply later credits to outstanding maturities, never display more than the final card debt.
+        for (final r in invoiceRows.reversed) {
+          final card = r.read<String>('card_id');
+          final raw = increments[r.read<String>('id')] ?? 0;
+          final remaining = previousInvoiceAmount[card] ?? 0;
+          final amount = raw.clamp(0, remaining);
+          previousInvoiceAmount[card] = remaining - amount;
+          if (amount == 0) continue;
           upcoming.putIfAbsent(r.read<String>('currency_code'), () => []).add(
               DashboardDue(
                   id: r.read<String>('id'),
-                  description: description,
+                  description: r.read<String>('description'),
                   kind: 'invoice',
+                  cardId: card,
                   date: DateTime.fromMillisecondsSinceEpoch(
                       r.read<int>('due_at'),
                       isUtc: true),
-                  amountMinor: increment));
+                  amountMinor: amount));
         }
         for (final list in upcoming.values) {
           list.sort((a, b) => a.date.compareTo(b.date));

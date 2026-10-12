@@ -228,37 +228,44 @@ void main() {
   });
 
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
-    testWidgets('renderiza referência mobile para inspeção visual',
-        (tester) async {
-      final root = Platform.environment['FLUTTER_ROOT']!;
-      final directory = Directory('$root/bin/cache/artifacts/material_fonts');
-      final loader = FontLoader('Roboto');
-      for (final file in directory.listSync().whereType<File>()) {
-        if (file.path.endsWith('Roboto-Regular.ttf') ||
-            file.path.endsWith('Roboto-Bold.ttf')) {
-          loader.addFont(
-              Future.value(ByteData.sublistView(file.readAsBytesSync())));
+    for (final previewSize in [const Size(390, 844), const Size(1920, 1200)]) {
+      testWidgets('renderiza resumo $previewSize para inspeção visual',
+          (tester) async {
+        final root = Platform.environment['FLUTTER_ROOT']!;
+        final directory = Directory('$root/bin/cache/artifacts/material_fonts');
+        final loader = FontLoader('Roboto');
+        for (final file in directory.listSync().whereType<File>()) {
+          if (file.path.endsWith('Roboto-Regular.ttf') ||
+              file.path.endsWith('Roboto-Bold.ttf')) {
+            loader.addFont(
+                Future.value(ByteData.sublistView(file.readAsBytesSync())));
+          }
         }
-      }
-      await loader.load();
-      final icons = FontLoader('MaterialIcons');
-      icons.addFont(Future.value(File(
-              '$root/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf')
-          .readAsBytesSync()
-          .buffer
-          .asByteData()));
-      await icons.load();
-      await _mount(tester, const Size(390, 844));
-      await expectLater(find.byKey(const ValueKey('dashboard-preview')),
-          matchesGoldenFile('dashboard-mobile-preview.png'));
-      await tester.scrollUntilVisible(
-          find.byKey(const ValueKey('mobile-categories-BRL')), 250,
-          scrollable: find.descendant(
-              of: find.byKey(const ValueKey('dashboard-mobile-scroll')),
-              matching: find.byType(Scrollable)));
-      await tester.pumpAndSettle();
-      await expectLater(find.byKey(const ValueKey('dashboard-preview')),
-          matchesGoldenFile('dashboard-categories-mobile-preview.png'));
-    });
+        await loader.load();
+        final icons = FontLoader('MaterialIcons');
+        icons.addFont(Future.value(File(
+                '$root/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf')
+            .readAsBytesSync()
+            .buffer
+            .asByteData()));
+        await icons.load();
+        await _mount(tester, previewSize);
+        await expectLater(
+            find.byKey(const ValueKey('dashboard-preview')),
+            matchesGoldenFile(previewSize.width < 800
+                ? 'dashboard-mobile-preview.png'
+                : 'dashboard-desktop-preview.png'));
+        if (previewSize.width < 800) {
+          await tester.scrollUntilVisible(
+              find.byKey(const ValueKey('mobile-categories-BRL')), 250,
+              scrollable: find.descendant(
+                  of: find.byKey(const ValueKey('dashboard-mobile-scroll')),
+                  matching: find.byType(Scrollable)));
+          await tester.pumpAndSettle();
+          await expectLater(find.byKey(const ValueKey('dashboard-preview')),
+              matchesGoldenFile('dashboard-categories-mobile-preview.png'));
+        }
+      });
+    }
   }
 }

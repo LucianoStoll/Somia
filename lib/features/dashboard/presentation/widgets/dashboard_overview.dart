@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/filters/reference_month.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/effectuation_date_dialog.dart';
@@ -201,6 +202,48 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
     }
   }
 
+  Future<void> openDetails(DashboardDue item) async {
+    final open = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+                title: Text(item.description),
+                content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                          MoneyMinor.display(
+                              item.amountMinor, widget.currency.currencyCode),
+                          style: Theme.of(context).textTheme.headlineSmall),
+                      const SizedBox(height: 12),
+                      Text(
+                          'Vencimento: ${item.date.day}/${item.date.month}/${item.date.year}'),
+                      const SizedBox(height: 8),
+                      Text(item.kind == 'invoice'
+                          ? 'Saldo de fatura ainda não coberto por pagamentos.'
+                          : 'Valor restante previsto. Abra a lista para editar ou consultar pagamentos parciais.'),
+                    ]),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialog, false),
+                      child: const Text('Fechar')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(dialog, true),
+                      child: Text(item.kind == 'invoice'
+                          ? 'Abrir fatura'
+                          : 'Abrir lançamento'))
+                ]));
+    if (open != true || !mounted) return;
+    referenceMonth.select(item.date);
+    context.go(item.kind == 'invoice'
+        ? '${AppRoutes.cardsPath}?card=${item.cardId}&month=${item.date.year}-${item.date.month.toString().padLeft(2, '0')}-01'
+        : item.id.startsWith('cashback-receipt-')
+            ? '${AppRoutes.cashbackPath}?receipt=${item.id}'
+            : item.kind == 'income'
+                ? AppRoutes.incomePath
+                : AppRoutes.expensesPath);
+  }
+
   @override
   Widget build(BuildContext context) => SummaryPanel(
       title: 'Próximos vencimentos',
@@ -238,12 +281,7 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
                                       : SomiaColors.red)),
                           Wrap(children: [
                             TextButton(
-                                onPressed: () =>
-                                    context.go(item.kind == 'invoice'
-                                        ? AppRoutes.cardsPath
-                                        : item.kind == 'income'
-                                            ? AppRoutes.incomePath
-                                            : AppRoutes.expensesPath),
+                                onPressed: () => openDetails(item),
                                 child: const Text('Abrir')),
                             if (item.canSettle)
                               TextButton(
