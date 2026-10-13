@@ -107,7 +107,7 @@ class _AttachmentsPageState extends State<AttachmentsPage> {
         builder: (context) => AlertDialog(
                 title: const Text('Excluir anexo?'),
                 content: Text(
-                    'Excluir “${item.name}” deste lançamento? O arquivo original não será alterado.'),
+                    'Excluir “${item.name}” deste lançamento? A exclusão será enviada aos outros dispositivos sincronizados. O arquivo original não será alterado.'),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(context, false),
