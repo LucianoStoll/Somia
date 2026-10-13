@@ -186,11 +186,7 @@ class SyncManager extends ChangeNotifier {
       final data = entry.data!;
       AttachmentsRepository.validateMetadata(data);
       final hash = data['sha256'] as String, size = data['size'] as int;
-      try {
-        if (await repo.cached(hash, size) != null) continue;
-      } on FormatException {
-        /* A verified download can repair a corrupt local cache. */
-      }
+      if (await repo.hasCached(hash, size)) continue;
       files ??=
           _attachmentIndex(await cloud.listAttachments(session, base), base);
       await _account(session);
@@ -216,10 +212,12 @@ class SyncManager extends ChangeNotifier {
     final repo = AttachmentsRepository(store.db);
     var files = _attachmentIndex(
         await cloud.listAttachments(session, packet.base), packet.base);
+    final handled = <String>{};
     for (final entry in records) {
       final data = entry.data!;
       AttachmentsRepository.validateMetadata(data);
       final hash = data['sha256'] as String, size = data['size'] as int;
+      if (!handled.add('$hash/$size')) continue;
       final bytes = await repo.cached(hash, size);
       if (bytes == null) {
         throw const DriveFailure(

@@ -524,9 +524,8 @@ class SyncStore {
         await replaceFinancial(db, rows);
         final repo = AttachmentsRepository(db);
         for (final data in rows['attachment_manifest']!.values) {
-          if (await repo.cached(
-                  data['sha256'] as String, data['size'] as int) ==
-              null) {
+          if (!await repo.hasCached(
+              data['sha256'] as String, data['size'] as int)) {
             throw const FormatException(
                 'Um anexo recebido não possui conteúdo íntegro.');
           }

@@ -208,7 +208,7 @@ void main() {
         MaterialApp(home: AttachmentsPage(repository: repo, owner: owner)));
     await tester.pumpAndSettle();
     expect(find.text('comprovante.pdf'), findsOneWidget);
-    expect(find.textContaining('ainda não sincronizados'), findsOneWidget);
+    expect(find.textContaining('sincronização pelo Drive'), findsOneWidget);
     await tester.tap(find.byType(PopupMenuButton<String>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Excluir anexo'));

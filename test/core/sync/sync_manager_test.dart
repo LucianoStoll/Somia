@@ -424,6 +424,22 @@ void main() {
     expect(await a.db.customSelect('SELECT * FROM attachment_manifest').get(),
         isEmpty);
   });
+  test(
+      'anexo corrompido no cache é reparado no próximo sync sem reaplicar pacote',
+      () async {
+    await addOwner();
+    await AttachmentsRepository(a.db)
+        .add(attachmentOwner, 'recibo', Uint8List.fromList([1, 2]));
+    await link();
+    final repo = AttachmentsRepository(b.db),
+        item = (await AttachmentsRepository(b.db).list(attachmentOwner)).single;
+    await b.db.customStatement("UPDATE attachment_blobs SET content=X'0909'");
+    await expectLater(
+        repo.read(attachmentOwner, item.id), throwsFormatException);
+    await b.sync.synchronize();
+    expect(b.sync.error, isNull);
+    expect(await repo.read(attachmentOwner, item.id), [1, 2]);
+  });
   test('substituição envia anexos da nova geração e protege cópia anterior',
       () async {
     await addOwner();

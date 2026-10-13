@@ -93,17 +93,36 @@ class AttachmentsRepository {
   Future<void> cache(String hash, int size, Uint8List bytes) async {
     checkBytes(hash, size, bytes);
     await db.customStatement(
-        'INSERT OR REPLACE INTO attachment_blobs VALUES(?,?,?)',
+        'INSERT OR REPLACE INTO attachment_blobs VALUES(?,?,?,0)',
         [hash, size, bytes]);
+  }
+
+  Future<bool> hasCached(String hash, int size) async {
+    final rows = await db.customSelect(
+        'SELECT size,needs_refresh FROM attachment_blobs WHERE id=?',
+        variables: [Variable.withString(hash)]).get();
+    return rows.isNotEmpty &&
+        rows.single.read<int>('size') == size &&
+        rows.single.read<int>('needs_refresh') == 0;
   }
 
   Future<Uint8List?> cached(String hash, int size) async {
     final rows = await db.customSelect(
-        'SELECT content FROM attachment_blobs WHERE sha256=?',
+        'SELECT content,needs_refresh FROM attachment_blobs WHERE id=?',
         variables: [Variable.withString(hash)]).get();
     if (rows.isEmpty) return null;
     final bytes = rows.single.read<Uint8List>('content');
-    checkBytes(hash, size, bytes);
+    try {
+      checkBytes(hash, size, bytes);
+    } on FormatException {
+      await db.customStatement(
+          'UPDATE attachment_blobs SET needs_refresh=1 WHERE id=?', [hash]);
+      rethrow;
+    }
+    if (rows.single.read<int>('needs_refresh') == 1) {
+      await db.customStatement(
+          'UPDATE attachment_blobs SET needs_refresh=0 WHERE id=?', [hash]);
+    }
     return bytes;
   }
 
@@ -144,8 +163,8 @@ class AttachmentsRepository {
   Future<void> collectUnused() async {
     // Immutable pending uploads can still reference a removed file. Keep it until ack.
     await db.customStatement(
-        '''DELETE FROM attachment_blobs WHERE sha256 NOT IN (SELECT sha256 FROM attachment_manifest)
-      AND NOT EXISTS(SELECT 1 FROM sync_uploads u WHERE instr(u.payload,attachment_blobs.sha256)>0)''');
+        '''DELETE FROM attachment_blobs WHERE id NOT IN (SELECT sha256 FROM attachment_manifest)
+      AND NOT EXISTS(SELECT 1 FROM sync_uploads u WHERE instr(u.payload,attachment_blobs.id)>0)''');
   }
 
   static Future<void> validate(AppDatabase db) async {
@@ -160,8 +179,9 @@ class AttachmentsRepository {
         throw const FormatException('O backup contém um anexo sem conteúdo.');
       }
     }
-    final hashes =
-        await db.customSelect('SELECT sha256,size FROM attachment_blobs').get();
+    final hashes = await db
+        .customSelect('SELECT id AS sha256,size FROM attachment_blobs')
+        .get();
     for (final row in hashes) {
       await repo.cached(row.read<String>('sha256'), row.read<int>('size'));
     }
