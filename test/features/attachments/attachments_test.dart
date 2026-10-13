@@ -107,6 +107,30 @@ void main() {
         throwsFormatException);
     expect(await repo.read(owner, item.id), [3, 2, 1]);
   });
+  test(
+      '80 MB de anexos são referências pequenas, sem conteúdo no pacote financeiro',
+      () async {
+    final entries = [
+      for (var i = 0; i < 4; i++)
+        SyncEntry('attachment_manifest', 'attachment-$i', 0,
+            'device-attachments-001', false, {
+          'id': 'attachment-$i',
+          'owner_table': 'transactions',
+          'owner_id': 't',
+          'name': 'recibo$i.pdf',
+          'size': AttachmentsRepository.maxBytes,
+          'sha256': List.filled(64, 'abcd'[i]).join(),
+          'created_at': 1
+        })
+    ];
+    final packet = SyncPacket('packet-attachments-001', 'base-attachments-001',
+        'device-attachments-001', 'genesis', entries);
+    expect(packet.encode().length, lessThan(5000));
+    expect(utf8.decode(packet.encode()), isNot(contains('"content"')));
+    expect(
+        SyncPacket.decode(packet.encode(), await financialColumns(db)).entries,
+        hasLength(4));
+  });
   test('sync financeiro leva metadados e preserva cache de anexos', () async {
     await repo.add(owner, 'recibo', Uint8List.fromList([7]));
     final rows = await readFinancial(db);

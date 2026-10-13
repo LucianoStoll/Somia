@@ -46,8 +46,9 @@ void main() {
             contains('"somiaAttachment":"1"'));
         return jsonResponse({'id': 'created'});
       }
-      if (uri.queryParameters['alt'] == 'media')
+      if (uri.queryParameters['alt'] == 'media') {
         return DriveResponse(200, bytes);
+      }
       if (uri.path == '/drive/v3/files') {
         expect(uri.queryParameters['q'], contains(packet.base));
         return jsonResponse({

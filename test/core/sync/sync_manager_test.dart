@@ -372,7 +372,57 @@ void main() {
     expect(b.sync.error, isNull);
     expect(await AttachmentsRepository(b.db).list(attachmentOwner), isEmpty);
     expect(await b.sync.store.apply([initial]), isFalse);
+    final entry =
+        initial.entries.singleWhere((e) => e.table == 'attachment_manifest');
+    final oldCopy = SyncPacket('offline-attachment-0001', initial.base,
+        'offline-device-0001', 'changes', [
+      SyncEntry(
+          entry.table,
+          entry.id,
+          DateTime.now().millisecondsSinceEpoch + 1000,
+          'offline-device-0001',
+          false,
+          entry.data)
+    ]);
+    expect(await b.sync.store.apply([oldCopy]), isFalse);
+
     expect(await AttachmentsRepository(b.db).list(attachmentOwner), isEmpty);
+  });
+  test(
+      'lixeira preserva anexo, restauração reabre e purge remoto remove vínculo e cache',
+      () async {
+    await addOwner();
+    final ar = AttachmentsRepository(a.db), br = AttachmentsRepository(b.db);
+    await ar.add(attachmentOwner, 'recibo', Uint8List.fromList([3]));
+    await link();
+    await a.db.customStatement(
+        "UPDATE transactions SET deleted_at=2,trash_state='trashed' WHERE id='receipt-owner'");
+    await a.sync.synchronize();
+    await b.sync.synchronize();
+    expect(br.list(attachmentOwner), throwsStateError);
+    expect(await b.db.customSelect('SELECT * FROM attachment_manifest').get(),
+        hasLength(1));
+    await a.db.customStatement(
+        "UPDATE transactions SET deleted_at=NULL,trash_state='active' WHERE id='receipt-owner'");
+    await a.sync.synchronize();
+    await b.sync.synchronize();
+    expect(
+        await br.read(
+            attachmentOwner, (await br.list(attachmentOwner)).single.id),
+        [3]);
+    await a.db.customStatement(
+        "UPDATE transactions SET deleted_at=3,trash_state='purged' WHERE id='receipt-owner'");
+    await a.sync.synchronize();
+    await b.sync.synchronize();
+    await a.sync.synchronize();
+    expect(a.sync.error, isNull);
+    expect(b.sync.error, isNull);
+    expect(await b.db.customSelect('SELECT * FROM attachment_manifest').get(),
+        isEmpty);
+    expect(await b.db.customSelect('SELECT * FROM attachment_blobs').get(),
+        isEmpty);
+    expect(await a.db.customSelect('SELECT * FROM attachment_manifest').get(),
+        isEmpty);
   });
   test('substituição envia anexos da nova geração e protege cópia anterior',
       () async {

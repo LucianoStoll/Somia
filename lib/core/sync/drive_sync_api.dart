@@ -203,19 +203,22 @@ class DriveSyncApi extends SyncCloud {
     })));
     if (raw is! Map<String, dynamic> ||
         raw['appProperties'] is! Map ||
-        raw['appProperties']['base'] != file.base)
+        raw['appProperties']['base'] != file.base) {
       throw const DriveFailure(
           'O anexo mudou de base. Atualize a sincronização.');
+    }
     final fresh = DriveCopy.parse(raw, marker: 'somiaAttachment');
     if (fresh.id != file.copy.id ||
         fresh.size != file.copy.size ||
-        fresh.sha256Hash != file.copy.sha256Hash)
+        fresh.sha256Hash != file.copy.sha256Hash) {
       throw const DriveFailure('O anexo mudou no Drive.');
+    }
     final bytes = await api.request(session, 'GET', path, {'alt': 'media'});
     if (bytes.length != fresh.size ||
         crypto.md5.convert(bytes).toString() != fresh.md5Hash ||
-        crypto.sha256.convert(bytes).toString() != fresh.sha256Hash)
+        crypto.sha256.convert(bytes).toString() != fresh.sha256Hash) {
       throw const DriveFailure('Anexo corrompido ou incompleto no Drive.');
+    }
     return bytes;
   }
 
