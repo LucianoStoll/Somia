@@ -269,7 +269,7 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
                     Text(item.description,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     Text(
-                        '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')}/${item.date.year} • ${item.date.isBefore(DateUtils.dateOnly(DateTime.now())) ? 'Vencido' : 'Pendente'}',
+                        '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')}/${item.date.year} • ${item.isOverdue(DateTime.now()) ? 'Vencido' : 'Pendente'}',
                         style: const TextStyle(color: SomiaColors.muted)),
                     Wrap(
                         alignment: WrapAlignment.spaceBetween,

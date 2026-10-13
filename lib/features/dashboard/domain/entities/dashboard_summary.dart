@@ -111,4 +111,7 @@ class DashboardDue {
   final DateTime date;
   final int amountMinor;
   final bool canSettle;
+  bool isOverdue(DateTime today) =>
+      DateTime.utc(date.year, date.month, date.day)
+          .isBefore(DateTime.utc(today.year, today.month, today.day));
 }

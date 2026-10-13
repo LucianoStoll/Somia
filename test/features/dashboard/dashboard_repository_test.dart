@@ -13,6 +13,19 @@ import 'package:finapp/features/transfers/domain/transfer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('vencimento considera dia do calendário e não horário/UTC', () {
+    DashboardDue due(DateTime date) => DashboardDue(
+        id: 'due',
+        description: 'Conta',
+        date: date,
+        amountMinor: 100,
+        kind: 'expense');
+    final today = DateTime(2026, 10, 13, 9);
+    expect(due(DateTime.utc(2026, 10, 13)).isOverdue(today), isFalse);
+    expect(due(DateTime.utc(2026, 10, 12, 23)).isOverdue(today), isTrue);
+    expect(due(DateTime.utc(2026, 10, 14)).isOverdue(today), isFalse);
+  });
+
   test(
       'gráfico agrupa subcategorias, inclui pendentes e ignora contas fora das análises',
       () async {
