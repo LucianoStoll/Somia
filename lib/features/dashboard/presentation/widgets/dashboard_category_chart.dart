@@ -28,7 +28,7 @@ class DashboardCategoryChart extends StatelessWidget {
                   Text(c.name),
                   const SizedBox(height: 4),
                   Text(
-                      '${MoneyMinor.display(c.amountMinor, currency.currencyCode)} • ${(c.amountMinor * 100 / total).toStringAsFixed(1)}%',
+                      '${MoneyMinor.display(c.amountMinor, currency.currencyCode)} • ${(c.amountMinor * 100 / total).toStringAsFixed(1).replaceAll('.', ',')}%',
                       style: const TextStyle(color: SomiaColors.muted)),
                   const SizedBox(height: 6),
                   LinearProgressIndicator(

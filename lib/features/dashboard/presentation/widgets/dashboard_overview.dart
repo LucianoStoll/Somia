@@ -14,6 +14,10 @@ import '../../domain/entities/dashboard_summary.dart';
 import '../dashboard_cubit.dart';
 import 'balance_details_panel.dart';
 
+String _money(int minor, String code) =>
+    MoneyMinor.display(minor, code).replaceAllMapped(
+        RegExp(r'\d{1,3}(?=(\d{3})+,)'), (match) => '${match[0]}.');
+
 class SummaryPanel extends StatelessWidget {
   const SummaryPanel(
       {super.key, required this.title, required this.child, this.action});
@@ -76,7 +80,7 @@ class SummaryMetrics extends StatelessWidget {
             FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(MoneyMinor.display(value, c.currencyCode),
+                child: Text(_money(value, c.currencyCode),
                     style: Theme.of(context)
                         .textTheme
                         .headlineSmall
@@ -116,7 +120,7 @@ class SummaryMetrics extends StatelessWidget {
       metric(
           'A receber',
           d?.pendingIncomeMinor ?? 0,
-          'Recebido no mês: ${MoneyMinor.display(d?.incomeMinor ?? 0, c.currencyCode)}',
+          'Recebido no mês: ${_money(d?.incomeMinor ?? 0, c.currencyCode)}',
           SomiaColors.green,
           Icons.arrow_upward,
           route: AppRoutes.incomePath,
@@ -124,7 +128,7 @@ class SummaryMetrics extends StatelessWidget {
       metric(
           'A pagar',
           (d?.pendingExpenseMinor ?? 0) + (d?.pendingInvoicesMinor ?? 0),
-          'Pago no mês: ${MoneyMinor.display((d?.expenseMinor ?? 0) + (d?.cardPaymentsMinor ?? 0), c.currencyCode)} • inclui faturas',
+          'Pago no mês: ${_money((d?.expenseMinor ?? 0) + (d?.cardPaymentsMinor ?? 0), c.currencyCode)} • inclui faturas',
           SomiaColors.red,
           Icons.arrow_downward,
           route: AppRoutes.expensesPath,
@@ -173,7 +177,7 @@ class SummaryMetrics extends StatelessWidget {
       }),
       const SizedBox(height: 12),
       Text(
-          'Resultado do mês: ${MoneyMinor.display(c.monthlyResultMinor, c.currencyCode)} • receitas menos despesas, incluindo previstos; não é o saldo acumulado.',
+          'Resultado do mês: ${_money(c.monthlyResultMinor, c.currencyCode)} • receitas menos despesas, incluindo previstos; não é o saldo acumulado.',
           style: const TextStyle(color: SomiaColors.muted))
     ]);
   }
@@ -217,7 +221,7 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                          MoneyMinor.display(
+                          _money(
                               item.amountMinor, widget.currency.currencyCode),
                           style: Theme.of(context).textTheme.headlineSmall),
                       const SizedBox(height: 12),
@@ -277,7 +281,7 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
                         spacing: 8,
                         children: [
                           Text(
-                              MoneyMinor.display(item.amountMinor,
+                              _money(item.amountMinor,
                                   widget.currency.currencyCode),
                               style: TextStyle(
                                   fontWeight: FontWeight.w700,
@@ -330,15 +334,15 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(
-              'Dia ${p.date.day} • efetivado ${MoneyMinor.display(p.currentMinor, widget.currency.currencyCode)} • previsto ${MoneyMinor.display(p.projectedMinor, widget.currency.currencyCode)}'),
+              'Dia ${p.date.day} • efetivado ${_money(p.currentMinor, widget.currency.currencyCode)} • previsto ${_money(p.projectedMinor, widget.currency.currencyCode)}'),
           const SizedBox(height: 12),
-          Text(MoneyMinor.display(high, widget.currency.currencyCode),
+          Text(_money(high, widget.currency.currencyCode),
               style: const TextStyle(color: SomiaColors.muted, fontSize: 12)),
           SizedBox(
               height: 160,
               child: CustomPaint(
                   painter: _BalancePainter(points, low, high, index))),
-          Text(MoneyMinor.display(low, widget.currency.currencyCode),
+          Text(_money(low, widget.currency.currencyCode),
               style: const TextStyle(color: SomiaColors.muted, fontSize: 12)),
           Slider(
               label: 'Dia ${p.date.day}',
@@ -348,8 +352,16 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
               divisions: points.length - 1,
               onChanged: (v) => setState(() => selected = v.round())),
           const Wrap(spacing: 16, runSpacing: 8, children: [
-            Text('━ Efetivado', style: TextStyle(color: SomiaColors.blue)),
-            Text('┄ Previsto', style: TextStyle(color: SomiaColors.green))
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.show_chart, size: 18, color: SomiaColors.blue),
+              SizedBox(width: 6),
+              Text('Efetivado', style: TextStyle(color: SomiaColors.blue))
+            ]),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.more_horiz, size: 18, color: SomiaColors.green),
+              SizedBox(width: 6),
+              Text('Previsto', style: TextStyle(color: SomiaColors.green))
+            ])
           ]),
           const SizedBox(height: 8),
           const Text(
@@ -457,9 +469,7 @@ class _SummaryAccountsState extends State<SummaryAccounts> {
                                   style: const TextStyle(
                                       color: SomiaColors.muted, fontSize: 12)),
                               const SizedBox(height: 4),
-                              Text(
-                                  MoneyMinor.display(
-                                      a.currentMinor, a.currencyCode),
+                              Text(_money(a.currentMinor, a.currencyCode),
                                   style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 18,
