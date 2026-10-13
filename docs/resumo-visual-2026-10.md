@@ -40,7 +40,7 @@ Sem migração do banco de dados.
 
 ## Estado da entrega
 
-Issue #81 criada. Código e referência visual registrados localmente. Formatação Dart e `git diff --check` executados. Análise Flutter, testes e previews ainda não executados: cache de dependências indisponível e inicialização do Flutter não concluiu a recuperação das dependências. Publicação autorizada pelo usuário em 13/10/2026. Base conferida após fetch: `bf0d32a`, última integração disponível em `v0.3.0-alpha` (exportação de análises). CI e APK serão verificados após o push. Não considerar esta revisão validada ou integrada à alpha.
+Issue #81 e PR #82 permanecem abertas para validação no aparelho. Base: `bf0d32a`, última integração disponível em `v0.3.0-alpha` usada nesta revisão. A primeira entrega gerou o APK assinado build 340. O refinamento do gráfico (`97f718b`) passou por formatação, análise estática, testes do dashboard e suíte completa Linux, com prévias geradas pela CI. Os cálculos financeiros e o esquema do banco permanecem inalterados. Esta revisão ainda não foi integrada à alpha.
 
 ## Refinamento do gráfico — referência adicional
 

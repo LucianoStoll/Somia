@@ -437,7 +437,8 @@ void main() {
               cardTheme: const CardThemeData(color: Color(0xFF202226)),
             ),
             home: Scaffold(
-              body: RepaintBoundary(
+              body: SingleChildScrollView(
+                  child: RepaintBoundary(
                 key: const ValueKey('chart-reference-preview'),
                 child: BalanceEvolutionPanel(
                   today: DateTime(2026, 10, 20),
@@ -478,7 +479,7 @@ void main() {
                     ],
                   ),
                 ),
-              ),
+              )),
             ),
           ),
         );
@@ -491,6 +492,7 @@ void main() {
                 : 'balance-reference-desktop-preview.png',
           ),
         );
+        await tester.binding.setSurfaceSize(null);
         await _mount(tester, previewSize);
         await expectLater(
           find.byKey(const ValueKey('dashboard-preview')),
