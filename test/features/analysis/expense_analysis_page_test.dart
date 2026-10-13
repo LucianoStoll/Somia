@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,27 @@ import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/features/analysis/data/expense_analysis_repository.dart';
 import 'package:finapp/features/analysis/presentation/expense_analysis_page.dart';
 import 'expense_analysis_repository_test.dart' as fixture;
+import 'package:finapp/features/reports/data/report_export_service.dart';
+import 'package:finapp/features/reports/data/report_exporter.dart';
+import 'package:finapp/features/reports/domain/analysis_report.dart';
+
+class FakeReportExportService extends ReportExportService {
+  final pending = Completer<Uint8List>();
+  AnalysisReport? captured, saved;
+  bool result = true;
+  @override
+  Future<Uint8List> generate(AnalysisReport report, ReportFormat format) {
+    captured = report;
+    return pending.future;
+  }
+
+  @override
+  Future<bool> save(
+      AnalysisReport report, ReportFormat format, Uint8List bytes) async {
+    saved = report;
+    return result;
+  }
+}
 
 void main() {
   late AppDatabase db;
@@ -34,7 +56,7 @@ void main() {
     await db.close();
   });
   Future<void> open(WidgetTester t, TargetPlatform platform,
-      {double scale = 1}) async {
+      {double scale = 1, ReportExportService? exportService}) async {
     await t.pumpWidget(const SizedBox());
     await t.pumpAndSettle();
     t.view.physicalSize = platform == TargetPlatform.android
@@ -48,7 +70,7 @@ void main() {
             data: MediaQuery.of(context)
                 .copyWith(textScaler: TextScaler.linear(scale)),
             child: child!),
-        home: const ExpenseAnalysisPage()));
+        home: ExpenseAnalysisPage(exportService: exportService)));
     await t.pumpAndSettle();
   }
 
@@ -61,6 +83,26 @@ void main() {
   }
 
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
+    testWidgets('exportação mantém mês capturado e informa sucesso $platform',
+        (t) async {
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      final service = FakeReportExportService();
+      await open(t, platform, exportService: service);
+      await t.tap(find.byTooltip('Exportar análise'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Exportar Excel (.xlsx)'));
+      await t.pump();
+      expect(service.captured!.month, DateTime(2026, 10));
+      expect(find.byTooltip('Exportar análise'), findsNothing);
+      referenceMonth.select(DateTime(2026, 9));
+      await t.pump();
+      service.pending.complete(Uint8List.fromList([1]));
+      await t.pumpAndSettle();
+      expect(service.saved, same(service.captured));
+      expect(find.text('Relatório exportado.'), findsOneWidget);
+      expect(t.takeException(), isNull);
+    });
     testWidgets('categorias, detalhes e quatro análises $platform', (t) async {
       addTearDown(t.view.resetPhysicalSize);
       addTearDown(t.view.resetDevicePixelRatio);
@@ -79,6 +121,33 @@ void main() {
       await select(t, 3);
       expect(find.text('Investimento'), findsOneWidget);
       expect(find.text('R\$ -20,00'), findsOneWidget);
+      expect(t.takeException(), isNull);
+    });
+  }
+  for (final fails in [false, true]) {
+    testWidgets(
+        fails
+            ? 'erro permite tentar exportar novamente'
+            : 'cancelar não anuncia exportação', (t) async {
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      final service = FakeReportExportService()..result = false;
+      await open(t, TargetPlatform.android, exportService: service);
+      await t.tap(find.byTooltip('Exportar análise'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Exportar PDF'));
+      await t.pump();
+      if (fails) {
+        service.pending.completeError(StateError('Teste'));
+      } else {
+        service.pending.complete(Uint8List.fromList([1]));
+      }
+      await t.pumpAndSettle();
+      expect(find.text('Relatório exportado.'), findsNothing);
+      expect(find.byTooltip('Exportar análise'), findsOneWidget);
+      expect(
+          find.text('Não foi possível exportar o relatório. Tente novamente.'),
+          fails ? findsOneWidget : findsNothing);
       expect(t.takeException(), isNull);
     });
   }

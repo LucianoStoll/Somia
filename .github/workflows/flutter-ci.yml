@@ -79,6 +79,15 @@ jobs:
         run: flutter test test/features/attachments/attachments_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render expense analysis previews
         run: flutter test test/features/analysis/expense_analysis_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render report export samples
+        run: flutter test test/features/reports/report_exporter_test.dart --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Publish report export samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: somia-report-export-samples
+          path: |
+            test/features/reports/samples/
+            pubspec.lock
       - name: Render planning previews
         run: flutter test test/features/planning/planning_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render reimbursement previews
