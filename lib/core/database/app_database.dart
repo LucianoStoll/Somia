@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart' as crypto;
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -34,6 +35,7 @@ import 'schema_v22.dart';
 import 'schema_v23.dart';
 import 'schema_v24.dart';
 import 'schema_v25.dart';
+import 'schema_v26.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -153,7 +155,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 25;
+  static const currentSchemaVersion = 26;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -190,6 +192,7 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV23,
             ...schemaV24,
             ...schemaV25,
+            ...schemaV26,
           ]) {
             await customStatement(statement);
           }
@@ -222,8 +225,26 @@ class AppDatabase extends GeneratedDatabase {
               23 => schemaV23,
               24 => schemaV24,
               25 => schemaV25,
+              26 => schemaV26,
               _ => throw StateError('Migration v$version não implementada'),
             };
+            if (version == 26) {
+              for (final id
+                  in await customSelect('SELECT id FROM local_attachments')
+                      .get()) {
+                final row = await customSelect(
+                        'SELECT * FROM local_attachments WHERE id=?',
+                        variables: [Variable.withString(id.read<String>('id'))])
+                    .getSingle();
+                final bytes = row.read<Uint8List>('content');
+                if (bytes.length != row.read<int>('size') ||
+                    crypto.sha256.convert(bytes).toString() !=
+                        row.read<String>('sha256')) {
+                  throw const FormatException(
+                      'Um anexo antigo está corrompido. Restaure uma cópia íntegra antes de atualizar.');
+                }
+              }
+            }
             for (final statement in statements) {
               await customStatement(statement);
             }
@@ -285,6 +306,9 @@ class AppDatabase extends GeneratedDatabase {
             }
           }
           await installSyncTriggers(this);
+          if (from < 26) {
+            await customStatement('UPDATE attachment_manifest SET name=name');
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');

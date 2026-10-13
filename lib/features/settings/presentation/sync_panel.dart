@@ -52,6 +52,7 @@ class SyncPanel extends StatelessWidget {
         'card_payments' => 'Pagamento de fatura',
         'card_limit_history' => 'Limite do cartão',
         'card_entry_history' => 'Histórico do cartão',
+        'attachment_manifest' => 'Anexo',
         _ => 'Lançamento',
       };
   Future<void> _history(BuildContext context) async {
@@ -68,6 +69,11 @@ class SyncPanel extends StatelessWidget {
               const Text(
                 'A alteração mais recente prevalece. Recuperar uma versão cria uma nova alteração e preserva uma cópia dos dados atuais.',
               ),
+              if (manager.history.any((e) => e.table == 'attachment_manifest'))
+                const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                        'A exclusão de anexos é definitiva. Para recuperar um arquivo, adicione uma nova cópia ao lançamento.')),
               if (manager.history.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(16),
@@ -79,26 +85,32 @@ class SyncPanel extends StatelessWidget {
                   subtitle: Text(
                     '${entry.deleted ? 'Exclusão' : 'Versão anterior'} · ${entry.clock == 0 ? 'Versão inicial' : backupDate(DateTime.fromMillisecondsSinceEpoch(entry.clock))}',
                   ),
-                  trailing: TextButton(
-                    onPressed: () async {
-                      final description =
-                          entry.data?['description'] ?? entry.data?['name'];
-                      final amount = entry.data?['planned_amount_minor'] ??
-                          entry.data?['amount_minor'] ??
-                          entry.data?['initial_balance_minor'];
-                      if (!await _confirm(
-                        context,
-                        'Recuperar esta versão?',
-                        '${description ?? _title(entry)}\n${amount is int ? 'Valor: ${(amount / 100).toStringAsFixed(2).replaceAll('.', ',')}\n' : ''}${entry.deleted ? 'Esta versão remove o registro.' : 'Os dados desta versão voltarão a valer.'}\nA próxima sincronização enviará a recuperação.',
-                      )) {
-                        return;
-                      }
-                      if (!context.mounted) return;
-                      Navigator.pop(context);
-                      await manager.recover(entry);
-                    },
-                    child: const Text('Recuperar'),
-                  ),
+                  trailing: entry.table == 'attachment_manifest'
+                      ? const Tooltip(
+                          message:
+                              'Adicione uma nova cópia pelo menu Anexos do lançamento.',
+                          child: Icon(Icons.lock_outline))
+                      : TextButton(
+                          onPressed: () async {
+                            final description = entry.data?['description'] ??
+                                entry.data?['name'];
+                            final amount =
+                                entry.data?['planned_amount_minor'] ??
+                                    entry.data?['amount_minor'] ??
+                                    entry.data?['initial_balance_minor'];
+                            if (!await _confirm(
+                              context,
+                              'Recuperar esta versão?',
+                              '${description ?? _title(entry)}\n${amount is int ? 'Valor: ${(amount / 100).toStringAsFixed(2).replaceAll('.', ',')}\n' : ''}${entry.deleted ? 'Esta versão remove o registro.' : 'Os dados desta versão voltarão a valer.'}\nA próxima sincronização enviará a recuperação.',
+                            )) {
+                              return;
+                            }
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
+                            await manager.recover(entry);
+                          },
+                          child: const Text('Recuperar'),
+                        ),
                 ),
             ],
           ),

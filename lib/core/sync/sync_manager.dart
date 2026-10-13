@@ -1,3 +1,4 @@
+import '../../features/attachments/data/attachments_repository.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -160,6 +161,87 @@ class SyncManager extends ChangeNotifier {
     return p;
   }
 
+  Map<String, SyncAttachmentFile> _attachmentIndex(
+      List<SyncAttachmentFile> files, String base) {
+    final result = <String, SyncAttachmentFile>{};
+    for (final f in files) {
+      if (f.base != base) throw const DriveFailure('Anexo de outra base.');
+      final old = result[f.copy.sha256Hash];
+      if (old != null &&
+          (old.copy.size != f.copy.size ||
+              old.copy.md5Hash != f.copy.md5Hash)) {
+        throw const DriveFailure('Anexos repetidos com conteúdo divergente.');
+      }
+      result[f.copy.sha256Hash] = f;
+    }
+    return result;
+  }
+
+  Future<void> _cacheAttachments(
+      DriveSession session, String base, List<SyncEntry> records) async {
+    if (records.isEmpty) return;
+    final repo = AttachmentsRepository(store.db);
+    Map<String, SyncAttachmentFile>? files;
+    for (final entry in records) {
+      final data = entry.data!;
+      AttachmentsRepository.validateMetadata(data);
+      final hash = data['sha256'] as String, size = data['size'] as int;
+      if (await repo.hasCached(hash, size)) continue;
+      files ??=
+          _attachmentIndex(await cloud.listAttachments(session, base), base);
+      await _account(session);
+      final file = files[hash];
+      if (file == null || file.copy.size != size) {
+        throw const DriveFailure(
+            'Um anexo está ausente no Drive. Os dados atuais foram preservados. Tente novamente no dispositivo que adicionou o arquivo.');
+      }
+      final bytes = await cloud.downloadAttachment(session, file);
+      AttachmentsRepository.checkBytes(hash, size, bytes);
+      if (md5.convert(bytes).toString() != file.copy.md5Hash) {
+        throw const DriveFailure('Anexo incompleto ou corrompido no Drive.');
+      }
+      await _account(session);
+      await repo.cache(hash, size, bytes);
+    }
+  }
+
+  Future<void> _sendAttachments(DriveSession session, SyncPacket packet) async {
+    final records = packet.entries
+        .where((e) => e.table == 'attachment_manifest' && !e.deleted);
+    if (records.isEmpty) return;
+    final repo = AttachmentsRepository(store.db);
+    var files = _attachmentIndex(
+        await cloud.listAttachments(session, packet.base), packet.base);
+    final handled = <String>{};
+    for (final entry in records) {
+      final data = entry.data!;
+      AttachmentsRepository.validateMetadata(data);
+      final hash = data['sha256'] as String, size = data['size'] as int;
+      if (!handled.add('$hash/$size')) continue;
+      final bytes = await repo.cached(hash, size);
+      if (bytes == null) {
+        throw const DriveFailure(
+            'O conteúdo de um anexo pendente não está disponível. Seus dados foram preservados.');
+      }
+      final expectedMd5 = md5.convert(bytes).toString();
+      var file = files[hash];
+      if (file == null) {
+        await _account(session);
+        await cloud.uploadAttachment(session, packet.base, hash, bytes);
+        await _account(session);
+        files = _attachmentIndex(
+            await cloud.listAttachments(session, packet.base), packet.base);
+        file = files[hash];
+      }
+      if (file == null ||
+          file.copy.size != size ||
+          file.copy.md5Hash != expectedMd5) {
+        throw const DriveFailure(
+            'Não foi possível confirmar o envio do anexo. Tente novamente.');
+      }
+    }
+  }
+
   Future<List<SyncPacket>> _receive(
     DriveSession s,
     List<SyncRemoteFile> files, {
@@ -181,7 +263,21 @@ class SyncManager extends ChangeNotifier {
           'As alterações pendentes excedem 64 MB nesta operação.',
         );
       }
-      received.add(await _download(s, file));
+      final packet = await _download(s, file);
+      received.add(packet);
+    }
+    final groups = <String, List<SyncPacket>>{};
+    for (final packet in received) {
+      groups.putIfAbsent(packet.base, () => []).add(packet);
+    }
+    if (groups.isEmpty && !joining) {
+      final base = (await store.state()).base;
+      if (base != null) groups[base] = [];
+    }
+    for (final group in groups.entries) {
+      final needed =
+          await store.neededAttachments(group.value, joining: joining);
+      await _cacheAttachments(s, group.key, needed);
     }
     return received;
   }
@@ -191,6 +287,7 @@ class SyncManager extends ChangeNotifier {
     // Uma fila imutável é mantida no SQLite até confirmação. Uma resposta
     // perdida é conciliada com a lista antes de qualquer novo envio.
     for (final p in await store.uploads()) {
+      await _sendAttachments(s, p);
       final existing = files[p.id];
       if (existing != null) {
         if (existing.base != p.base || existing.copy.sha256Hash != p.digest) {
@@ -326,6 +423,7 @@ class SyncManager extends ChangeNotifier {
     final all = _unique(await cloud.list(s));
     await _account(s);
     _clock();
+    await _sendAttachments(s, packet);
     if (!all.containsKey(packet.id)) {
       if (_revision(all.values) != packet.remoteRevision) {
         throw const DriveFailure(

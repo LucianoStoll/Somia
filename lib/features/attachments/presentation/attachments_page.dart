@@ -107,7 +107,7 @@ class _AttachmentsPageState extends State<AttachmentsPage> {
         builder: (context) => AlertDialog(
                 title: const Text('Excluir anexo?'),
                 content: Text(
-                    'Excluir “${item.name}” deste lançamento? O arquivo original não será alterado.'),
+                    'Excluir “${item.name}” deste lançamento? A exclusão será enviada aos outros dispositivos sincronizados. O arquivo original não será alterado.'),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(context, false),
@@ -133,7 +133,7 @@ class _AttachmentsPageState extends State<AttachmentsPage> {
                   const Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
-                          'Arquivos locais, até 20 MB cada. Incluídos no backup completo; ainda não sincronizados entre dispositivos.')),
+                          'Arquivos de até 20 MB. Incluídos no backup completo e na sincronização pelo Drive. Atualize os dois dispositivos.')),
                   if (_busy) const LinearProgressIndicator(),
                   if (_error != null)
                     Padding(

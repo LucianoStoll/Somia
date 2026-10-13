@@ -64,7 +64,7 @@ void main() {
             'x',
             Uint8List(1)),
         throwsStateError);
-    await db.customStatement("UPDATE local_attachments SET sha256='bad'");
+    await db.customStatement("UPDATE attachment_blobs SET content=X'090909'");
     expect(repo.read(owner, file.id), throwsFormatException);
     expect(AttachmentsRepository.validate(db), throwsFormatException);
   });
@@ -75,7 +75,7 @@ void main() {
         "UPDATE transactions SET deleted_at=2,trash_state='trashed' WHERE id='t'");
     expect(repo.list(owner), throwsStateError);
     expect(
-        (await db.customSelect('SELECT id FROM local_attachments').get())
+        (await db.customSelect('SELECT id FROM attachment_manifest').get())
             .length,
         1);
     await db.customStatement(
@@ -95,25 +95,50 @@ void main() {
     await BackupService.restoreOpen(db, LocalBackupStore(dir), backup);
     final item = (await repo.list(owner)).single;
     expect(await repo.read(owner, item.id), [3, 2, 1]);
-    final validHash = (await db
-            .customSelect('SELECT sha256 FROM local_attachments')
+    final validContent = (await db
+            .customSelect('SELECT content FROM attachment_blobs')
             .getSingle())
-        .read<String>('sha256');
-    await db.customStatement("UPDATE local_attachments SET sha256='bad'");
+        .read<Uint8List>('content');
+    await db.customStatement("UPDATE attachment_blobs SET content=X'090909'");
     final bad = await BackupService.export(db, dir);
-    await db
-        .customStatement('UPDATE local_attachments SET sha256=?', [validHash]);
+    await db.customStatement(
+        'UPDATE attachment_blobs SET content=?', [validContent]);
     await expectLater(BackupService.restoreOpen(db, LocalBackupStore(dir), bad),
         throwsFormatException);
     expect(await repo.read(owner, item.id), [3, 2, 1]);
   });
-  test('sync financeiro preserva anexos locais e aceita schema 22', () async {
+  test(
+      '80 MB de anexos são referências pequenas, sem conteúdo no pacote financeiro',
+      () async {
+    final entries = [
+      for (var i = 0; i < 4; i++)
+        SyncEntry('attachment_manifest', 'attachment-$i', 0,
+            'device-attachments-001', false, {
+          'id': 'attachment-$i',
+          'owner_table': 'transactions',
+          'owner_id': 't',
+          'name': 'recibo$i.pdf',
+          'size': AttachmentsRepository.maxBytes,
+          'sha256': List.filled(64, 'abcd'[i]).join(),
+          'created_at': 1
+        })
+    ];
+    final packet = SyncPacket('packet-attachments-001', 'base-attachments-001',
+        'device-attachments-001', 'genesis', entries);
+    expect(packet.encode().length, lessThan(5000));
+    expect(utf8.decode(packet.encode()), isNot(contains('"content"')));
+    expect(
+        SyncPacket.decode(packet.encode(), await financialColumns(db)).entries,
+        hasLength(4));
+  });
+  test('sync financeiro leva metadados e preserva cache de anexos', () async {
     await repo.add(owner, 'recibo', Uint8List.fromList([7]));
     final rows = await readFinancial(db);
     await db.transaction(() => replaceFinancial(db, rows));
     expect(await repo.read(owner, (await repo.list(owner)).single.id), [7]);
     final columns = await financialColumns(db);
     expect(columns.containsKey('local_attachments'), false);
+    expect(columns.containsKey('attachment_manifest'), true);
     final packet = SyncPacket('packet-attachments-001', 'base-attachments-001',
         'device-attachments-001', 'changes', [],
         sourceSchema: 22);
@@ -130,8 +155,10 @@ void main() {
     await repo.add(owner, 'recibo', Uint8List.fromList([7]));
     await BackupService.restoreOpen(
         db, LocalBackupStore(dir), await file.readAsBytes());
-    expect(await db.customSelect('SELECT * FROM local_attachments').get(),
+    expect(await db.customSelect('SELECT * FROM attachment_manifest').get(),
         isEmpty);
+    expect(
+        await db.customSelect('SELECT * FROM attachment_blobs').get(), isEmpty);
     expect(await db.customSelect('SELECT * FROM transactions').get(), isEmpty);
   });
   test('migration v22 preserva lixeira e renova uploads para schema atual',
@@ -181,7 +208,7 @@ void main() {
         MaterialApp(home: AttachmentsPage(repository: repo, owner: owner)));
     await tester.pumpAndSettle();
     expect(find.text('comprovante.pdf'), findsOneWidget);
-    expect(find.textContaining('ainda não sincronizados'), findsOneWidget);
+    expect(find.textContaining('sincronização pelo Drive'), findsOneWidget);
     await tester.tap(find.byType(PopupMenuButton<String>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Excluir anexo'));
