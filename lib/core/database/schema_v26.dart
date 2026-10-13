@@ -1,3 +1,6 @@
+const _legacyAttachmentOwner =
+    "(owner_table='transactions' AND EXISTS(SELECT 1 FROM transactions WHERE id=local_attachments.owner_id)) OR (owner_table='transfers' AND EXISTS(SELECT 1 FROM transfers WHERE id=local_attachments.owner_id)) OR (owner_table='card_entries' AND EXISTS(SELECT 1 FROM card_entries WHERE id=local_attachments.owner_id))";
+
 const schemaV26 = <String>[
   '''CREATE TABLE attachment_blobs (
     id TEXT PRIMARY KEY NOT NULL CHECK(length(id)=64),
@@ -11,7 +14,7 @@ const schemaV26 = <String>[
     size INTEGER NOT NULL CHECK(size>0 AND size<=20971520),
     sha256 TEXT NOT NULL CHECK(length(sha256)=64), created_at INTEGER NOT NULL)""",
   'CREATE INDEX attachment_manifest_owner ON attachment_manifest(owner_table,owner_id)',
-  'INSERT OR IGNORE INTO attachment_blobs(id,size,content) SELECT sha256,size,content FROM local_attachments',
-  'INSERT INTO attachment_manifest SELECT id,owner_table,owner_id,name,size,sha256,created_at FROM local_attachments',
-  'DELETE FROM local_attachments',
+  'INSERT OR IGNORE INTO attachment_blobs(id,size,content) SELECT sha256,size,content FROM local_attachments WHERE $_legacyAttachmentOwner',
+  'INSERT INTO attachment_manifest SELECT id,owner_table,owner_id,name,size,sha256,created_at FROM local_attachments WHERE $_legacyAttachmentOwner',
+  'DELETE FROM local_attachments WHERE $_legacyAttachmentOwner',
 ];

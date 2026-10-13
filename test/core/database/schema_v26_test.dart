@@ -43,6 +43,17 @@ void main() {
         'INSERT INTO local_attachments VALUES(?,?,?,?,?,?,?,?)',
         ['old-file', 'transactions', 't', 'recibo.pdf', 3, hash, bytes, 1]);
     await old.customStatement(
+        'INSERT INTO local_attachments VALUES(?,?,?,?,?,?,?,?)', [
+      'old-orphan',
+      'transactions',
+      'missing',
+      'arquivo-antigo.pdf',
+      3,
+      hash,
+      bytes,
+      1
+    ]);
+    await old.customStatement(
         "UPDATE sync_state SET base_id='base-legacy-attachments',device_id='android-device-old1',email='same@example.com',capture_enabled=1 WHERE id=1");
     final row =
         (await old.customSelect('SELECT * FROM accounts').getSingle()).data;
@@ -65,8 +76,13 @@ void main() {
       const owner = MovementReference(MovementKind.transaction, 't', '');
       expect((await repo.list(owner)).single.id, 'old-file');
       expect(await repo.read(owner, 'old-file'), bytes);
-      expect(await db.customSelect('SELECT * FROM local_attachments').get(),
-          isEmpty);
+      expect(
+          (await db.customSelect('SELECT id FROM local_attachments').get())
+              .single
+              .read<String>('id'),
+          'old-orphan');
+      await validateFinancial(db);
+      await AttachmentsRepository.validate(db);
       expect(
           (await db
                   .customSelect(

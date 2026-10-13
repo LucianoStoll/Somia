@@ -169,6 +169,20 @@ class AttachmentsRepository {
 
   static Future<void> validate(AppDatabase db) async {
     final repo = AttachmentsRepository(db);
+    // Older sync generations could leave inaccessible files without an owner.
+    // Preserve those archives locally, but never attach them to another base.
+    for (final id
+        in await db.customSelect('SELECT id FROM local_attachments').get()) {
+      final row = await db.customSelect(
+          'SELECT * FROM local_attachments WHERE id=?',
+          variables: [Variable.withString(id.read<String>('id'))]).getSingle();
+      if (safeName(row.read<String>('name')) != row.read<String>('name')) {
+        throw const FormatException('Arquivo legado inválido.');
+      }
+      checkBytes(row.read<String>('sha256'), row.read<int>('size'),
+          row.read<Uint8List>('content'));
+    }
+
     final manifests =
         await db.customSelect('SELECT * FROM attachment_manifest').get();
     for (final row in manifests) {

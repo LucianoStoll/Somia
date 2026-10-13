@@ -20,6 +20,6 @@ Publicação inicial e substituição de base enviam os anexos antes de ativar a
 
 ## Migração e conferência
 
-A migração mantém IDs, nomes, vínculos e conteúdo dos anexos locais existentes, valida os hashes e captura seus metadados quando a base já está vinculada. Uploads financeiros v25 pendentes mantêm identidade e conteúdo; pacotes antigos permanecem legíveis. Clientes antigos recusam pacotes com o novo schema; é necessário atualizar ambos.
+A migração mantém IDs, nomes, vínculos e conteúdo dos anexos locais existentes com origem válida, valida os hashes e captura seus metadados quando a base já está vinculada. Arquivos órfãos deixados por bases anteriores permanecem no backup local, sem associação automática a lançamentos de outra base. Uploads financeiros v25 pendentes mantêm identidade e conteúdo; pacotes antigos permanecem legíveis. Clientes antigos recusam pacotes com o novo schema; é necessário atualizar ambos.
 
 Conferir no uso: adicionar no Android e abrir/salvar no Windows; adicionar no Windows e receber no Android; repetir sync sem duplicatas; excluir offline e sincronizar; mandar lançamento à lixeira/restaurar; excluir definitivamente; interromper o envio e repetir; receber/substituir base; exportar/restaurar backup. A #16 permanece aberta para validação manual do usuário.
