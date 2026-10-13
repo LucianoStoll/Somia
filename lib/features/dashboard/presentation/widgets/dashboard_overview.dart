@@ -494,74 +494,147 @@ class _SummaryAccountsState extends State<SummaryAccounts> {
 class AccountTypesPanel extends StatelessWidget {
   const AccountTypesPanel({super.key, required this.currency});
   final DashboardCurrencySummary currency;
+
+  static const _order = [
+    'Conta corrente',
+    'Carteira',
+    'Investimentos',
+    'Poupança',
+    'Outras'
+  ];
+
+  String _label(String type) => switch (type) {
+        'Carteira / dinheiro' || 'Carteira' => 'Carteira',
+        'Investimento' || 'Investimentos' => 'Investimentos',
+        'Outra' => 'Outras',
+        _ => type,
+      };
+
+  (IconData, Color) _appearance(String type) => switch (type) {
+        'Conta corrente' => (
+            Icons.credit_card_outlined,
+            const Color(0xFFA5CDE2)
+          ),
+        'Carteira' => (
+            Icons.account_balance_wallet_outlined,
+            const Color(0xFFBAA3DA)
+          ),
+        'Investimentos' => (Icons.trending_up, const Color(0xFF8FAFD4)),
+        'Poupança' => (Icons.savings_outlined, SomiaColors.green),
+        _ => (Icons.account_balance_outlined, SomiaColors.yellow),
+      };
+
   @override
   Widget build(BuildContext context) {
     final totals = <String, int>{};
     for (final account in currency.accounts) {
       totals.update(
-        account.typeLabel,
-        (value) => value + account.currentMinor,
-        ifAbsent: () => account.currentMinor,
-      );
+          _label(account.typeLabel), (value) => value + account.currentMinor,
+          ifAbsent: () => account.currentMinor);
     }
     final entries = totals.entries.toList()
-      ..sort((a, b) => b.value.abs().compareTo(a.value.abs()));
-    final max = entries.fold<int>(
-      1,
-      (value, entry) => math.max(value, entry.value.abs()),
-    );
+      ..sort((a, b) {
+        int rank(String name) =>
+            _order.contains(name) ? _order.indexOf(name) : _order.length;
+        final result = rank(a.key).compareTo(rank(b.key));
+        return result == 0 ? a.key.compareTo(b.key) : result;
+      });
+    // A shared scale with headroom preserves relative amounts and visible tracks.
+    final scale = entries.fold<int>(
+            1, (value, entry) => math.max(value, entry.value.abs())) *
+        1.5;
     return SummaryPanel(
       title: 'Saldo por tipo de conta',
-      action: const Tooltip(
-        message:
-            'Saldos efetivados de todas as contas, inclusive as excluídas do saldo principal. Cada moeda é apresentada separadamente.',
-        child: Icon(Icons.info_outline, color: SomiaColors.muted, size: 20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (entries.isEmpty) const Text('Nenhuma conta para mostrar.'),
-          for (final entry in entries)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    spacing: 12,
-                    runSpacing: 4,
-                    children: [
-                      Text(entry.key),
-                      Text(
-                        _money(entry.value, currency.currencyCode),
-                        style: TextStyle(
-                          color: entry.value < 0
-                              ? SomiaColors.red
-                              : SomiaColors.blue,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Semantics(
-                    label:
-                        '${entry.key}: ${_money(entry.value, currency.currencyCode)}',
-                    child: LinearProgressIndicator(
-                      value: entry.value.abs() / max,
-                      minHeight: 7,
-                      borderRadius: BorderRadius.circular(8),
-                      backgroundColor: SomiaColors.outline,
-                      color:
-                          entry.value < 0 ? SomiaColors.red : SomiaColors.blue,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
+      child: entries.isEmpty
+          ? const Text('Nenhuma conta para mostrar.')
+          : LayoutBuilder(builder: (context, constraints) {
+              final style = Theme.of(context).textTheme.bodyMedium!.copyWith(
+                  fontSize: constraints.maxWidth < 500 ? 12 : 14,
+                  color: const Color(0xFFCED4DC),
+                  fontWeight: FontWeight.w400);
+              final scaler = MediaQuery.textScalerOf(context);
+              double measure(String value) => (TextPainter(
+                      text: TextSpan(text: value, style: style),
+                      textScaler: scaler,
+                      textDirection: Directionality.of(context))
+                    ..layout())
+                  .width;
+              final labelWidth =
+                  entries.map((e) => measure(e.key)).reduce(math.max);
+              final amountWidth = entries
+                  .map((e) => measure(_money(e.value, currency.currencyCode)))
+                  .reduce(math.max);
+              final compact =
+                  constraints.maxWidth < labelWidth + amountWidth + 108;
+              return Column(children: [
+                for (final entry in entries)
+                  Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Semantics(
+                          label:
+                              '${entry.key}: ${_money(entry.value, currency.currencyCode)}',
+                          child: ExcludeSemantics(
+                              child: Builder(builder: (context) {
+                            final (icon, color) = _appearance(entry.key);
+                            final negative = entry.value < 0;
+                            final amount = Text(
+                                _money(entry.value, currency.currencyCode),
+                                textAlign: TextAlign.right,
+                                style: style.copyWith(
+                                    color: negative
+                                        ? SomiaColors.red
+                                        : style.color));
+                            final bar = Tooltip(
+                                message:
+                                    'Saldos efetivados de todas as contas deste tipo, inclusive as excluídas do saldo principal. ${currency.currencyCode}.',
+                                child: LinearProgressIndicator(
+                                    key: ValueKey(
+                                        'account-type-bar-${entry.key}'),
+                                    value: entry.value.abs() / scale,
+                                    minHeight:
+                                        constraints.maxWidth < 500 ? 9 : 12,
+                                    borderRadius: BorderRadius.circular(20),
+                                    backgroundColor: const Color(0xFF303640),
+                                    color: negative ? SomiaColors.red : color));
+                            return Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(icon,
+                                      size:
+                                          constraints.maxWidth < 500 ? 22 : 26,
+                                      color: SomiaColors.blue),
+                                  const SizedBox(width: 12),
+                                  if (compact)
+                                    Expanded(
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                          Wrap(
+                                              alignment:
+                                                  WrapAlignment.spaceBetween,
+                                              spacing: 12,
+                                              runSpacing: 6,
+                                              children: [
+                                                Text(entry.key, style: style),
+                                                amount
+                                              ]),
+                                          const SizedBox(height: 10),
+                                          bar,
+                                        ]))
+                                  else ...[
+                                    SizedBox(
+                                        width: labelWidth + 12,
+                                        child: Text(entry.key, style: style)),
+                                    Expanded(child: bar),
+                                    const SizedBox(width: 16),
+                                    SizedBox(
+                                        width: amountWidth + 1, child: amount),
+                                  ],
+                                ]);
+                          })))),
+              ]);
+            }),
     );
   }
 }

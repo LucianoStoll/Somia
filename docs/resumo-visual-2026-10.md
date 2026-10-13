@@ -45,3 +45,7 @@ Issue #81 e PR #82 permanecem abertas para validação no aparelho. Base: `bf0d3
 ## Refinamento do gráfico — referência adicional
 
 Legenda com amostras reais de linha e pontos, rótulos de dia com dois dígitos e eixo financeiro em unidades da moeda. Pontos espaçados por distância ao longo da curva, inclusive em quedas acentuadas. Sem suavização que altere extremos dos saldos. Datas, escala e formato da curva dependem dos dados; os números ilustrativos da referência não são fixados no app. Consulta acessível por leitor de tela e teste de meses passados/futuros, saldo zero, negativo e ponto único.
+
+## Saldo por tipo de conta — referência adicional
+
+Ícone de cartão, carteira e tendência à esquerda; nome, barra arredondada e valor na mesma linha, com colunas alinhadas. Ordem estável: Conta corrente, Carteira, Investimentos, Poupança e Outras (apenas tipos existentes). Azul claro, lavanda e azul suave nos três primeiros tipos. Os comprimentos usam uma escala comum com folga de 50% sobre a maior magnitude, preservando proporções reais. Valores negativos mantêm sinal e cor vermelha. Em telas muito estreitas ou com texto ampliado, a barra vai abaixo do nome/valor para preservar legibilidade. Contas excluídas do saldo principal continuam incluídas neste detalhamento e moedas continuam separadas.

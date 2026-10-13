@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:finapp/features/dashboard/presentation/widgets/dashboard_overview.dart'
+    show AccountTypesPanel;
 
 import 'package:finapp/features/dashboard/presentation/widgets/balance_evolution_panel.dart';
 
@@ -492,6 +494,38 @@ void main() {
                 : 'balance-reference-desktop-preview.png',
           ),
         );
+        await tester.binding
+            .setSurfaceSize(Size(previewSize.width < 800 ? 390 : 850, 500));
+        await tester.pumpWidget(MaterialApp(
+            theme: ThemeData.dark().copyWith(
+                scaffoldBackgroundColor: const Color(0xFF141518),
+                cardTheme: const CardThemeData(color: Color(0xFF202226))),
+            home: Scaffold(
+                body: SingleChildScrollView(
+                    child: RepaintBoundary(
+                        key: const ValueKey('account-types-reference-preview'),
+                        child: const AccountTypesPanel(
+                            currency: DashboardCurrencySummary(
+                                currencyCode: 'BRL',
+                                currentBalanceMinor: 940092,
+                                projectedBalanceMinor: 940092,
+                                incomeMinor: 0,
+                                expenseMinor: 0,
+                                accounts: [
+                              DashboardAccountBalance(
+                                  'Banco', 'Conta corrente', 'BRL', 489210),
+                              DashboardAccountBalance('Carteira',
+                                  'Carteira / dinheiro', 'BRL', 126350),
+                              DashboardAccountBalance(
+                                  'Reserva', 'Investimento', 'BRL', 324532,
+                                  isInvestment: true, includeInBalance: false),
+                            ])))))));
+        await tester.pumpAndSettle();
+        await expectLater(
+            find.byKey(const ValueKey('account-types-reference-preview')),
+            matchesGoldenFile(previewSize.width < 800
+                ? 'account-types-mobile-preview.png'
+                : 'account-types-desktop-preview.png'));
         await tester.binding.setSurfaceSize(null);
         await _mount(tester, previewSize);
         await expectLater(
