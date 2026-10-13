@@ -31,8 +31,18 @@ jobs:
         run: flutter analyze
       - name: Release publication guards
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Dashboard tests
+        run: |
+          flutter test test/features/dashboard --reporter expanded > "$RUNNER_TEMP/dashboard-tests.log" 2>&1
+      - name: Publish dashboard test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-test-diagnostics
+          path: ${{ runner.temp }}/dashboard-tests.log
+          if-no-files-found: ignore
       - name: Tests
-        run: flutter test
+        run: flutter test --reporter expanded
       - name: Render dashboard mobile preview
         run: flutter test test/features/dashboard/dashboard_layout_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render history tooltip previews
