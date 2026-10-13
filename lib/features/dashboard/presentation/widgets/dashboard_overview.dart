@@ -18,9 +18,10 @@ import 'balance_details_panel.dart';
 export 'balance_evolution_panel.dart';
 
 String _money(int minor, String code) => MoneyMinor.display(
-  minor,
-  code,
-).replaceAllMapped(RegExp(r'\d{1,3}(?=(\d{3})+,)'), (match) => '${match[0]}.');
+      minor,
+      code,
+    ).replaceAllMapped(
+        RegExp(r'\d{1,3}(?=(\d{3})+,)'), (match) => '${match[0]}.');
 
 class SummaryPanel extends StatelessWidget {
   const SummaryPanel({
@@ -34,30 +35,32 @@ class SummaryPanel extends StatelessWidget {
   final Widget? action;
   @override
   Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (action != null) action!,
+                ],
               ),
-              if (action != null) action!,
+              const SizedBox(height: 16),
+              child,
             ],
           ),
-          const SizedBox(height: 16),
-          child,
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class SummaryMetrics extends StatelessWidget {
@@ -75,59 +78,60 @@ class SummaryMetrics extends StatelessWidget {
     final period = DateTime(month.year, month.month);
     final current = DateTime(now.year, now.month);
     Widget amount(String label, int value, Color color) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: SomiaColors.muted)),
-        const SizedBox(height: 6),
-        Text(
-          _money(value, c.currencyCode),
-          style: TextStyle(
-            color: color,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-    Widget pair(Widget left, Widget right) => LayoutBuilder(
-      builder: (context, box) {
-        if (box.maxWidth < 270 ||
-            MediaQuery.textScalerOf(context).scale(16) > 22) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [left, const SizedBox(height: 12), right],
-          );
-        }
-        return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: left),
-            const SizedBox(width: 16),
-            Expanded(child: right),
+            Text(label, style: const TextStyle(color: SomiaColors.muted)),
+            const SizedBox(height: 6),
+            Text(
+              _money(value, c.currencyCode),
+              style: TextStyle(
+                color: color,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         );
-      },
-    );
+    Widget pair(Widget left, Widget right) => LayoutBuilder(
+          builder: (context, box) {
+            if (box.maxWidth < 270 ||
+                MediaQuery.textScalerOf(context).scale(16) > 22) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [left, const SizedBox(height: 12), right],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: left),
+                const SizedBox(width: 16),
+                Expanded(child: right),
+              ],
+            );
+          },
+        );
     Widget pending(
       String title,
       int value,
       Color color,
       String route,
       String key,
-    ) => Material(
-      color: color.withValues(alpha: .10),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        key: ValueKey('dashboard-link-$route'),
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => context.go(route),
-        child: Padding(
-          key: ValueKey('mobile-$key-${c.currencyCode}'),
-          padding: const EdgeInsets.all(16),
-          child: amount(title, value, color),
-        ),
-      ),
-    );
+    ) =>
+        Material(
+          color: color.withValues(alpha: .10),
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            key: ValueKey('dashboard-link-$route'),
+            borderRadius: BorderRadius.circular(18),
+            onTap: () => context.go(route),
+            child: Padding(
+              key: ValueKey('mobile-$key-${c.currencyCode}'),
+              padding: const EdgeInsets.all(16),
+              child: amount(title, value, color),
+            ),
+          ),
+        );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -144,8 +148,8 @@ class SummaryMetrics extends StatelessWidget {
                     period.isAfter(current)
                         ? 'Saldo previsto'
                         : period.isBefore(current)
-                        ? 'Saldo efetivado no mês'
-                        : 'Saldo atual',
+                            ? 'Saldo efetivado no mês'
+                            : 'Saldo atual',
                     style: const TextStyle(color: SomiaColors.blue),
                   ),
                   const SizedBox(height: 6),
@@ -303,88 +307,89 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
       item.kind == 'invoice'
           ? '${AppRoutes.cardsPath}?card=${item.cardId}&month=${item.date.year}-${item.date.month.toString().padLeft(2, '0')}-01'
           : item.id.startsWith('cashback-receipt-')
-          ? '${AppRoutes.cashbackPath}?receipt=${item.id}'
-          : item.kind == 'income'
-          ? AppRoutes.incomePath
-          : AppRoutes.expensesPath,
+              ? '${AppRoutes.cashbackPath}?receipt=${item.id}'
+              : item.kind == 'income'
+                  ? AppRoutes.incomePath
+                  : AppRoutes.expensesPath,
     );
   }
 
   @override
   Widget build(BuildContext context) => SummaryPanel(
-    title: 'Próximos vencimentos',
-    action: widget.currency.upcoming.length > 3
-        ? TextButton(
-            onPressed: () => setState(() => expanded = !expanded),
-            child: Text(expanded ? 'Ver menos' : 'Ver todos'),
-          )
-        : null,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Pendências até o fim do mês selecionado, incluindo atrasadas.',
-          style: TextStyle(color: SomiaColors.muted),
-        ),
-        if (widget.currency.upcoming.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Text('Nenhum vencimento pendente.'),
-          ),
-        for (final item in widget.currency.upcoming.take(
-          expanded ? widget.currency.upcoming.length : 3,
-        ))
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  item.description,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')}/${item.date.year} • ${item.isOverdue(DateTime.now()) ? 'Vencido' : 'Pendente'}',
-                  style: const TextStyle(color: SomiaColors.muted),
-                ),
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
+        title: 'Próximos vencimentos',
+        action: widget.currency.upcoming.length > 3
+            ? TextButton(
+                onPressed: () => setState(() => expanded = !expanded),
+                child: Text(expanded ? 'Ver menos' : 'Ver todos'),
+              )
+            : null,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Pendências até o fim do mês selecionado, incluindo atrasadas.',
+              style: TextStyle(color: SomiaColors.muted),
+            ),
+            if (widget.currency.upcoming.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('Nenhum vencimento pendente.'),
+              ),
+            for (final item in widget.currency.upcoming.take(
+              expanded ? widget.currency.upcoming.length : 3,
+            ))
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      _money(item.amountMinor, widget.currency.currencyCode),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: item.kind == 'income'
-                            ? SomiaColors.green
-                            : SomiaColors.red,
-                      ),
+                      item.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')}/${item.date.year} • ${item.isOverdue(DateTime.now()) ? 'Vencido' : 'Pendente'}',
+                      style: const TextStyle(color: SomiaColors.muted),
                     ),
                     Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
                       children: [
-                        TextButton(
-                          onPressed: () => openDetails(item),
-                          child: const Text('Abrir'),
-                        ),
-                        if (item.canSettle)
-                          TextButton(
-                            onPressed: busy ? null : () => settle(item),
-                            child: const Text('Efetivar'),
+                        Text(
+                          _money(
+                              item.amountMinor, widget.currency.currencyCode),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: item.kind == 'income'
+                                ? SomiaColors.green
+                                : SomiaColors.red,
                           ),
+                        ),
+                        Wrap(
+                          children: [
+                            TextButton(
+                              onPressed: () => openDetails(item),
+                              child: const Text('Abrir'),
+                            ),
+                            if (item.canSettle)
+                              TextButton(
+                                onPressed: busy ? null : () => settle(item),
+                                child: const Text('Efetivar'),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
+                    const Divider(height: 1),
                   ],
                 ),
-                const Divider(height: 1),
-              ],
-            ),
-          ),
-      ],
-    ),
-  );
+              ),
+          ],
+        ),
+      );
 }
 
 class SummaryAccounts extends StatefulWidget {
@@ -398,92 +403,92 @@ class _SummaryAccountsState extends State<SummaryAccounts> {
   bool hideZero = false;
   @override
   Widget build(BuildContext context) => SummaryPanel(
-    title: 'Saldo por conta',
-    action: TextButton(
-      onPressed: () => context.go(AppRoutes.accountsPath),
-      child: const Text('Ver todas'),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Ocultar contas zeradas'),
-          value: hideZero,
-          onChanged: (v) => setState(() => hideZero = v),
+        title: 'Saldo por conta',
+        action: TextButton(
+          onPressed: () => context.go(AppRoutes.accountsPath),
+          child: const Text('Ver todas'),
         ),
-        for (final currency in widget.currencies) ...[
-          for (final investment in [false, true]) ...[
-            if (currency.accounts.any(
-              (a) =>
-                  a.isInvestment == investment &&
-                  (!hideZero || a.currentMinor != 0),
-            ))
-              Padding(
-                padding: const EdgeInsets.only(top: 12, bottom: 8),
-                child: Text(
-                  '${investment ? 'Investimentos' : 'Dia a dia'} • ${currency.currencyCode}',
-                  style: const TextStyle(color: SomiaColors.muted),
-                ),
-              ),
-            for (final a in currency.accounts.where(
-              (a) =>
-                  a.isInvestment == investment &&
-                  (!hideZero || a.currentMinor != 0),
-            ))
-              InkWell(
-                onTap: () => context.go(
-                  a.id == null
-                      ? AppRoutes.accountsPath
-                      : '${AppRoutes.accountsPath}/${a.id}',
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(
-                    children: [
-                      AccountAvatar(institutionId: a.institutionId),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(a.name),
-                            Text(
-                              a.includeInBalance
-                                  ? 'Incluída no saldo'
-                                  : 'Fora do saldo principal',
-                              style: const TextStyle(
-                                color: SomiaColors.muted,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _money(a.currentMinor, a.currencyCode),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18,
-                                color: a.currentMinor < 0
-                                    ? SomiaColors.red
-                                    : null,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Ocultar contas zeradas'),
+              value: hideZero,
+              onChanged: (v) => setState(() => hideZero = v),
+            ),
+            for (final currency in widget.currencies) ...[
+              for (final investment in [false, true]) ...[
+                if (currency.accounts.any(
+                  (a) =>
+                      a.isInvestment == investment &&
+                      (!hideZero || a.currentMinor != 0),
+                ))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12, bottom: 8),
+                    child: Text(
+                      '${investment ? 'Investimentos' : 'Dia a dia'} • ${currency.currencyCode}',
+                      style: const TextStyle(color: SomiaColors.muted),
+                    ),
                   ),
-                ),
-              ),
+                for (final a in currency.accounts.where(
+                  (a) =>
+                      a.isInvestment == investment &&
+                      (!hideZero || a.currentMinor != 0),
+                ))
+                  InkWell(
+                    onTap: () => context.go(
+                      a.id == null
+                          ? AppRoutes.accountsPath
+                          : '${AppRoutes.accountsPath}/${a.id}',
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Row(
+                        children: [
+                          AccountAvatar(institutionId: a.institutionId),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(a.name),
+                                Text(
+                                  a.includeInBalance
+                                      ? 'Incluída no saldo'
+                                      : 'Fora do saldo principal',
+                                  style: const TextStyle(
+                                    color: SomiaColors.muted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _money(a.currentMinor, a.currencyCode),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 18,
+                                    color: a.currentMinor < 0
+                                        ? SomiaColors.red
+                                        : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+            if (widget.currencies.every(
+              (c) => c.accounts.every((a) => hideZero && a.currentMinor == 0),
+            ))
+              const Text('Nenhuma conta para mostrar.'),
           ],
-        ],
-        if (widget.currencies.every(
-          (c) => c.accounts.every((a) => hideZero && a.currentMinor == 0),
-        ))
-          const Text('Nenhuma conta para mostrar.'),
-      ],
-    ),
-  );
+        ),
+      );
 }
 
 class AccountTypesPanel extends StatelessWidget {
@@ -508,7 +513,8 @@ class AccountTypesPanel extends StatelessWidget {
     return SummaryPanel(
       title: 'Saldo por tipo de conta',
       action: const Tooltip(
-        message: 'Saldos efetivados de todas as contas, inclusive as excluídas do saldo principal. Cada moeda é apresentada separadamente.',
+        message:
+            'Saldos efetivados de todas as contas, inclusive as excluídas do saldo principal. Cada moeda é apresentada separadamente.',
         child: Icon(Icons.info_outline, color: SomiaColors.muted, size: 20),
       ),
       child: Column(
@@ -547,9 +553,8 @@ class AccountTypesPanel extends StatelessWidget {
                       minHeight: 7,
                       borderRadius: BorderRadius.circular(8),
                       backgroundColor: SomiaColors.outline,
-                      color: entry.value < 0
-                          ? SomiaColors.red
-                          : SomiaColors.blue,
+                      color:
+                          entry.value < 0 ? SomiaColors.red : SomiaColors.blue,
                     ),
                   ),
                 ],

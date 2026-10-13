@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../accounts/domain/money_minor.dart';
 import '../../domain/entities/dashboard_summary.dart';
@@ -51,28 +50,26 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
     ];
     final index =
         (selected ?? (todayIndex >= 0 ? todayIndex : points.length - 1)).clamp(
-          0,
-          points.length - 1,
-        );
+      0,
+      points.length - 1,
+    );
     final point = points[index];
     final axis = _BalanceAxis(values);
     final scaler = MediaQuery.textScalerOf(context);
     final labelStyle = Theme.of(context).textTheme.bodySmall!.copyWith(
-      color: SomiaColors.muted,
-      fontSize: 11,
-      fontWeight: FontWeight.w400,
-    );
+          color: SomiaColors.muted,
+          fontSize: 11,
+          fontWeight: FontWeight.w400,
+        );
     final direction = Directionality.of(context);
     final labels = axis.ticks.map(axis.label).toList();
-    final left =
-        labels
+    final left = labels
             .map((value) => _text(value, labelStyle, scaler, direction).width)
             .reduce(math.max) +
         12;
     final top = scaler.scale(11) + 13;
     final bottom = scaler.scale(11) + 18;
-    String detail(int i) =>
-        'Dia ${points[i].date.day} • '
+    String detail(int i) => 'Dia ${points[i].date.day} • '
         '${i <= actualEnd ? 'realizado' : 'previsto'} '
         '${MoneyMinor.display(values[i], widget.currency.currencyCode)}';
     return SummaryPanel(
@@ -91,18 +88,18 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
                 height - bottom,
               );
               void select(double x) => setState(
-                () => selected =
-                    ((x - plot.left) / plot.width * (points.length - 1))
-                        .round()
-                        .clamp(0, points.length - 1),
-              );
+                    () => selected =
+                        ((x - plot.left) / plot.width * (points.length - 1))
+                            .round()
+                            .clamp(0, points.length - 1),
+                  );
               return Semantics(
                 label: 'Consultar saldo diário',
-                hint: 'Toque ou arraste para consultar os valores. Previsão inclui pendências cadastradas e faturas, inclusive vencidas.',
+                hint:
+                    'Toque ou arraste para consultar os valores. Previsão inclui pendências cadastradas e faturas, inclusive vencidas.',
                 value: detail(index),
-                increasedValue: index < points.length - 1
-                    ? detail(index + 1)
-                    : null,
+                increasedValue:
+                    index < points.length - 1 ? detail(index + 1) : null,
                 decreasedValue: index > 0 ? detail(index - 1) : null,
                 onIncrease: index < points.length - 1
                     ? () => setState(() => selected = index + 1)
@@ -189,23 +186,22 @@ TextPainter _text(
   TextStyle style,
   TextScaler scaler,
   TextDirection direction,
-) => TextPainter(
-  text: TextSpan(text: text, style: style),
-  textScaler: scaler,
-  textDirection: direction,
-)..layout();
+) =>
+    TextPainter(
+      text: TextSpan(text: text, style: style),
+      textScaler: scaler,
+      textDirection: direction,
+    )..layout();
 
 class _BalanceAxis {
   _BalanceAxis(List<int> values) {
     final min = math.min(0, values.reduce(math.min)).toDouble();
     final max = math.max(0, values.reduce(math.max)).toDouble();
     final raw = math.max(100.0, max - min) / 3;
-    final magnitude = math
-        .pow(10, (math.log(raw) / math.ln10).floor())
-        .toDouble();
+    final magnitude =
+        math.pow(10, (math.log(raw) / math.ln10).floor()).toDouble();
     final normalized = raw / magnitude;
-    step =
-        [1.0, 1.5, 2.0, 2.5, 5.0, 10.0].firstWhere((v) => v >= normalized) *
+    step = [1.0, 1.5, 2.0, 2.5, 5.0, 10.0].firstWhere((v) => v >= normalized) *
         magnitude;
     low = (min / step).floor() * step;
     high = (max / step).ceil() * step;
@@ -214,16 +210,22 @@ class _BalanceAxis {
   late final double step, low;
   late double high;
   List<double> get ticks => [
-    for (var v = low; v <= high + step * .01; v += step) v,
-  ];
+        for (var v = low; v <= high + step * .01; v += step) v,
+      ];
   String label(double value) {
     final major = value / 100;
-    if (major.abs() >= 100000)
-      return NumberFormat.compact(locale: 'pt_BR').format(major);
-    return NumberFormat(
-      major == major.roundToDouble() ? '#,##0' : '#,##0.##',
-      'pt_BR',
-    ).format(major);
+    if (major.abs() >= 1000000) {
+      return '${(major / 1000000).toStringAsFixed(1).replaceAll('.', ',')} mi';
+    }
+    if (major.abs() >= 100000) {
+      return '${(major / 1000).toStringAsFixed(0)} mil';
+    }
+    final parts = major
+        .toStringAsFixed(major == major.roundToDouble() ? 0 : 2)
+        .split('.');
+    final integer = parts.first.replaceAllMapped(
+        RegExp(r'\d{1,3}(?=(\d{3})+$)'), (match) => '${match[0]}.');
+    return parts.length == 1 ? integer : '$integer,${parts.last}';
   }
 }
 
