@@ -354,6 +354,26 @@ void main() {
     await b.sync.join(b.sync.bases.single);
     expect(b.sync.error, isNull);
   });
+  test(
+      'receber estado final excluído dispensa binário histórico e não ressuscita pacote antigo',
+      () async {
+    await addOwner();
+    final repo = AttachmentsRepository(a.db);
+    await repo.add(attachmentOwner, 'recibo', Uint8List.fromList([6]));
+    final file = (await repo.list(attachmentOwner)).single;
+    await a.sync.createBase();
+    final initial = cloud.files.values.single;
+    await repo.remove(attachmentOwner, file.id);
+    await a.sync.synchronize();
+    expect(a.sync.error, isNull);
+    cloud.blobs.clear();
+    await b.sync.listBases();
+    await b.sync.join(b.sync.bases.single);
+    expect(b.sync.error, isNull);
+    expect(await AttachmentsRepository(b.db).list(attachmentOwner), isEmpty);
+    expect(await b.sync.store.apply([initial]), isFalse);
+    expect(await AttachmentsRepository(b.db).list(attachmentOwner), isEmpty);
+  });
   test('substituição envia anexos da nova geração e protege cópia anterior',
       () async {
     await addOwner();

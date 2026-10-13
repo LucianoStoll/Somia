@@ -1,8 +1,8 @@
 const schemaV26 = <String>[
-  """CREATE TABLE attachment_blobs (
+  '''CREATE TABLE attachment_blobs (
     sha256 TEXT PRIMARY KEY NOT NULL CHECK(length(sha256)=64),
     size INTEGER NOT NULL CHECK(size>0 AND size<=20971520),
-    content BLOB NOT NULL CHECK(length(content)=size))""",
+    content BLOB NOT NULL CHECK(length(content)=size))''',
   """CREATE TABLE attachment_manifest (
     id TEXT PRIMARY KEY NOT NULL,
     owner_table TEXT NOT NULL CHECK(owner_table IN ('transactions','transfers','card_entries')),

@@ -444,8 +444,9 @@ class SyncStore {
           if (entry.clock > maxClock) maxClock = entry.clock;
           final previous = versions[entry.key];
           if (entry.table == 'attachment_manifest') {
-            if (!entry.deleted)
+            if (!entry.deleted) {
               AttachmentsRepository.validateMetadata(entry.data!);
+            }
             if (previous?.deleted == true && !entry.deleted) continue;
             if (previous != null &&
                 !previous.deleted &&

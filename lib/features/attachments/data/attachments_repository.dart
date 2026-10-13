@@ -144,8 +144,8 @@ class AttachmentsRepository {
   Future<void> collectUnused() async {
     // Immutable pending uploads can still reference a removed file. Keep it until ack.
     await db.customStatement(
-        """DELETE FROM attachment_blobs WHERE sha256 NOT IN (SELECT sha256 FROM attachment_manifest)
-      AND NOT EXISTS(SELECT 1 FROM sync_uploads u WHERE instr(u.payload,attachment_blobs.sha256)>0)""");
+        '''DELETE FROM attachment_blobs WHERE sha256 NOT IN (SELECT sha256 FROM attachment_manifest)
+      AND NOT EXISTS(SELECT 1 FROM sync_uploads u WHERE instr(u.payload,attachment_blobs.sha256)>0)''');
   }
 
   static Future<void> validate(AppDatabase db) async {

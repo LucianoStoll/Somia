@@ -149,8 +149,9 @@ class DriveSyncApi extends SyncCloud {
   @override
   Future<List<SyncAttachmentFile>> listAttachments(
       DriveSession session, String base) async {
-    if (!RegExp(r'^[a-zA-Z0-9-]{16,80}$').hasMatch(base))
+    if (!RegExp(r'^[a-zA-Z0-9-]{16,80}$').hasMatch(base)) {
       throw const DriveFailure('Identidade da base inválida.');
+    }
     final result = <SyncAttachmentFile>[];
     final seen = <String>{};
     String? page;
@@ -194,8 +195,30 @@ class DriveSyncApi extends SyncCloud {
 
   @override
   Future<Uint8List> downloadAttachment(
-          DriveSession session, SyncAttachmentFile file) =>
-      api.download(session, file.copy, marker: 'somiaAttachment');
+      DriveSession session, SyncAttachmentFile file) async {
+    final path = '/drive/v3/files/${Uri.encodeComponent(file.copy.id)}';
+    final raw = jsonDecode(utf8.decode(await api.request(session, 'GET', path, {
+      'fields':
+          'id,name,createdTime,size,md5Checksum,appProperties,spaces,trashed'
+    })));
+    if (raw is! Map<String, dynamic> ||
+        raw['appProperties'] is! Map ||
+        raw['appProperties']['base'] != file.base)
+      throw const DriveFailure(
+          'O anexo mudou de base. Atualize a sincronização.');
+    final fresh = DriveCopy.parse(raw, marker: 'somiaAttachment');
+    if (fresh.id != file.copy.id ||
+        fresh.size != file.copy.size ||
+        fresh.sha256Hash != file.copy.sha256Hash)
+      throw const DriveFailure('O anexo mudou no Drive.');
+    final bytes = await api.request(session, 'GET', path, {'alt': 'media'});
+    if (bytes.length != fresh.size ||
+        crypto.md5.convert(bytes).toString() != fresh.md5Hash ||
+        crypto.sha256.convert(bytes).toString() != fresh.sha256Hash)
+      throw const DriveFailure('Anexo corrompido ou incompleto no Drive.');
+    return bytes;
+  }
+
   @override
   Future<void> uploadAttachment(
       DriveSession session, String base, String hash, Uint8List bytes) async {
