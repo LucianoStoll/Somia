@@ -338,12 +338,13 @@ class _BalancePainter extends CustomPainter {
         path.lineTo(locations[i].dx, locations[i].dy);
       }
       canvas.drawPath(path, line);
-      if (actualEnd == 0)
+      if (actualEnd == 0) {
         canvas.drawCircle(
           locations.first,
           2,
           Paint()..color = SomiaColors.blue,
         );
+      }
     }
     // A single arc-length cadence keeps round dots evenly spaced across day boundaries.
     if (actualEnd < points.length - 1) {
