@@ -337,8 +337,11 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
             return Semantics(
                 label: 'Consultar saldo diário',
                 value: 'Dia ${p.date.day}',
-                increasedValue: index < points.length - 1 ? 'Dia ${points[index + 1].date.day}' : null,
-                decreasedValue: index > 0 ? 'Dia ${points[index - 1].date.day}' : null,
+                increasedValue: index < points.length - 1
+                    ? 'Dia ${points[index + 1].date.day}'
+                    : null,
+                decreasedValue:
+                    index > 0 ? 'Dia ${points[index - 1].date.day}' : null,
                 onIncrease: index < points.length - 1
                     ? () => setState(() => selected = index + 1)
                     : null,
