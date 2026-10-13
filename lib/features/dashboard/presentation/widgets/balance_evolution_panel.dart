@@ -150,10 +150,11 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
                       child: CustomPaint(painter: _LegendPainter(projected)),
                     ),
                     const SizedBox(width: 9),
-                    Text(
+                    Flexible(
+                        child: Text(
                       projected ? 'Previsto' : 'Realizado',
                       style: const TextStyle(color: SomiaColors.muted),
-                    ),
+                    )),
                   ],
                 ),
             ],
