@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/filters/reference_month.dart';
 import '../../../../core/routing/app_router.dart';
-import '../../../../core/theme/app_theme.dart';
+import 'dashboard_palette.dart';
 import '../../../../core/widgets/effectuation_date_dialog.dart';
 import '../../../accounts/domain/money_minor.dart';
 import '../../../accounts/presentation/account_identity.dart';
@@ -56,129 +56,103 @@ class SummaryMetrics extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = currency, d = c.balanceDetails;
     final now = DateTime.now();
-    final future = DateTime(month.year, month.month)
-        .isAfter(DateTime(now.year, now.month));
-    final past = DateTime(month.year, month.month)
-        .isBefore(DateTime(now.year, now.month));
-    Widget metric(
-        String title, int value, String detail, Color color, IconData icon,
-        {String? route, bool balance = false, Key? key}) {
-      final content = Container(
-          key: key,
-          padding: const EdgeInsets.all(18),
-          constraints: const BoxConstraints(minHeight: 150),
-          decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              border: Border.all(color: SomiaColors.outline),
-              borderRadius: BorderRadius.circular(16)),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(icon, color: color),
-            const SizedBox(height: 10),
-            Text(title, style: TextStyle(color: color)),
-            const SizedBox(height: 8),
-            FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(_money(value, c.currencyCode),
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w700))),
-            const SizedBox(height: 8),
-            Text(detail,
-                style: const TextStyle(color: SomiaColors.muted, fontSize: 12))
-          ]));
-      if (balance) {
-        return BalanceDetailCard(
-            currencyCode: c.currencyCode,
-            interactionKey: title == 'Saldo previsto no fim do mês'
-                ? ValueKey('forecast-detail-${c.currencyCode}')
-                : null,
-            child: content);
-      }
-      return InkWell(
-          key: ValueKey('dashboard-link-$route'),
-          onTap: () => context.go(route!),
-          borderRadius: BorderRadius.circular(16),
-          child: content);
-    }
-
-    final cards = [
-      metric(
-          future
-              ? 'Saldo previsto'
-              : past
-                  ? 'Saldo efetivado no mês'
-                  : 'Saldo atual',
-          future ? c.projectedBalanceMinor : c.currentBalanceMinor,
-          'Contas incluídas no saldo • corte do mês selecionado',
-          SomiaColors.blue,
-          Icons.account_balance_wallet_outlined,
-          balance: true,
-          key: ValueKey('mobile-balance-${c.currencyCode}')),
-      metric(
-          'A receber',
-          d?.pendingIncomeMinor ?? 0,
-          'Recebido no mês: ${_money(d?.incomeMinor ?? 0, c.currencyCode)}',
-          SomiaColors.green,
-          Icons.arrow_upward,
-          route: AppRoutes.incomePath,
-          key: ValueKey('mobile-income-${c.currencyCode}')),
-      metric(
-          'A pagar',
-          (d?.pendingExpenseMinor ?? 0) + (d?.pendingInvoicesMinor ?? 0),
-          'Pago no mês: ${_money((d?.expenseMinor ?? 0) + (d?.cardPaymentsMinor ?? 0), c.currencyCode)} • inclui faturas',
-          SomiaColors.red,
-          Icons.arrow_downward,
-          route: AppRoutes.expensesPath,
-          key: ValueKey('mobile-expense-${c.currencyCode}')),
-      metric(
-          'Saldo previsto no fim do mês',
-          c.projectedBalanceMinor,
-          'Após pendências e transferências',
-          SomiaColors.blue,
-          Icons.event_available,
-          balance: true,
-          key: ValueKey('desktop-projected-${c.currencyCode}')),
-    ];
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      LayoutBuilder(builder: (context, box) {
-        final large = MediaQuery.textScalerOf(context).scale(16) > 22;
-        final n = box.maxWidth >= 1050 && !large
-            ? 4
-            : box.maxWidth >= 600 && !large
-                ? 2
-                : 1;
-        if (box.maxWidth < 600) {
-          return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                cards[0],
-                const SizedBox(height: 12),
-                if (large) ...[
-                  cards[1],
-                  const SizedBox(height: 12),
-                  cards[2]
-                ] else
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Expanded(child: cards[1]),
-                    const SizedBox(width: 12),
-                    Expanded(child: cards[2])
-                  ]),
-                const SizedBox(height: 12),
-                cards[3]
-              ]);
-        }
-        return Wrap(spacing: 12, runSpacing: 12, children: [
-          for (final card in cards)
-            SizedBox(width: (box.maxWidth - 12 * (n - 1)) / n, child: card)
+    final period = DateTime(month.year, month.month);
+    final current = DateTime(now.year, now.month);
+    Widget amount(String label, int value, Color color) =>
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(color: SomiaColors.muted)),
+          const SizedBox(height: 6),
+          Text(_money(value, c.currencyCode),
+              style: TextStyle(
+                  color: color, fontSize: 20, fontWeight: FontWeight.w600)),
         ]);
-      }),
+    Widget pair(Widget left, Widget right) =>
+        LayoutBuilder(builder: (context, box) {
+          if (box.maxWidth < 270 ||
+              MediaQuery.textScalerOf(context).scale(16) > 22) {
+            return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [left, const SizedBox(height: 12), right]);
+          }
+          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(child: left),
+            const SizedBox(width: 16),
+            Expanded(child: right)
+          ]);
+        });
+    Widget pending(
+            String title, int value, Color color, String route, String key) =>
+        Material(
+            color: color.withValues(alpha: .10),
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+                key: ValueKey('dashboard-link-$route'),
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => context.go(route),
+                child: Padding(
+                    key: ValueKey('mobile-$key-${c.currencyCode}'),
+                    padding: const EdgeInsets.all(16),
+                    child: amount(title, value, color))));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Card(
+          child: BalanceDetailCard(
+              currencyCode: c.currencyCode,
+              child: Padding(
+                  key: ValueKey('mobile-balance-${c.currencyCode}'),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                            period.isAfter(current)
+                                ? 'Saldo previsto'
+                                : period.isBefore(current)
+                                    ? 'Saldo efetivado no mês'
+                                    : 'Saldo atual',
+                            style: const TextStyle(color: SomiaColors.blue)),
+                        const SizedBox(height: 6),
+                        Text(
+                            _money(
+                                period.isAfter(current)
+                                    ? c.projectedBalanceMinor
+                                    : c.currentBalanceMinor,
+                                c.currencyCode),
+                            style: const TextStyle(
+                                fontSize: 34, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 10),
+                        Wrap(spacing: 8, runSpacing: 4, children: [
+                          const Text('Saldo previsto no fim do mês',
+                              style: TextStyle(color: SomiaColors.muted)),
+                          Text(_money(c.projectedBalanceMinor, c.currencyCode),
+                              key: ValueKey(
+                                  'desktop-projected-${c.currencyCode}'),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600))
+                        ]),
+                        const Divider(height: 28),
+                        pair(
+                            amount('Recebido no mês', d?.incomeMinor ?? 0,
+                                SomiaColors.green),
+                            amount(
+                                'Pago no mês',
+                                (d?.expenseMinor ?? 0) +
+                                    (d?.cardPaymentsMinor ?? 0),
+                                SomiaColors.red)),
+                        const SizedBox(height: 16),
+                        Text(
+                            'Resultado do mês: ${_money(c.monthlyResultMinor, c.currencyCode)}',
+                            style: const TextStyle(color: SomiaColors.muted)),
+                      ])))),
       const SizedBox(height: 12),
-      Text(
-          'Resultado do mês: ${_money(c.monthlyResultMinor, c.currencyCode)} • receitas menos despesas, incluindo previstos; não é o saldo acumulado.',
-          style: const TextStyle(color: SomiaColors.muted))
+      pair(
+          pending('A receber', d?.pendingIncomeMinor ?? 0, SomiaColors.green,
+              AppRoutes.incomePath, 'income'),
+          pending(
+              'A pagar',
+              (d?.pendingExpenseMinor ?? 0) + (d?.pendingInvoicesMinor ?? 0),
+              SomiaColors.red,
+              AppRoutes.expensesPath,
+              'expense')),
     ]);
   }
 }
@@ -192,6 +166,7 @@ class UpcomingPanel extends StatefulWidget {
 
 class _UpcomingPanelState extends State<UpcomingPanel> {
   bool busy = false;
+  bool expanded = false;
   Future<void> settle(DashboardDue item) async {
     final date = await chooseEffectuationDate(context, item.date);
     if (date == null || !mounted) return;
@@ -256,6 +231,11 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
   @override
   Widget build(BuildContext context) => SummaryPanel(
       title: 'Próximos vencimentos',
+      action: widget.currency.upcoming.length > 3
+          ? TextButton(
+              onPressed: () => setState(() => expanded = !expanded),
+              child: Text(expanded ? 'Ver menos' : 'Ver todos'))
+          : null,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const Text(
             'Pendências até o fim do mês selecionado, incluindo atrasadas.',
@@ -264,13 +244,16 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
           const Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
               child: Text('Nenhum vencimento pendente.')),
-        for (final item in widget.currency.upcoming.take(5))
+        for (final item in widget.currency.upcoming
+            .take(expanded ? widget.currency.upcoming.length : 3))
           Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(item.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     Text(
                         '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')}/${item.date.year} • ${item.isOverdue(DateTime.now()) ? 'Vencido' : 'Pendente'}',
@@ -300,10 +283,6 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
                         ]),
                     const Divider(height: 1)
                   ])),
-        if (widget.currency.upcoming.length > 5)
-          Text(
-              '${widget.currency.upcoming.length - 5} outras pendências nas listas de receitas, despesas e cartões.',
-              style: const TextStyle(color: SomiaColors.muted)),
       ]));
 }
 
@@ -324,13 +303,25 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
           title: 'Evolução do saldo',
           child: Text('Sem histórico diário disponível.'));
     }
-    final index = (selected ?? points.length - 1).clamp(0, points.length - 1),
+    final today = DateTime.now();
+    final todayIndex = points.indexWhere((p) =>
+        p.date.year == today.year &&
+        p.date.month == today.month &&
+        p.date.day == today.day);
+    final index =
+            (selected ?? (todayIndex >= 0 ? todayIndex : points.length - 1))
+                .clamp(0, points.length - 1),
         p = points[index];
     final values = points.expand((p) => [p.currentMinor, p.projectedMinor]);
     final low = math.min(0, values.reduce(math.min)),
         high = math.max(0, values.reduce(math.max));
     return SummaryPanel(
         title: 'Evolução do saldo',
+        action: const Tooltip(
+            message:
+                'A previsão inclui pendências cadastradas e faturas; não estima recorrências ainda não geradas. Valores diários são cumulativos, inclusive pendências vencidas.',
+            child:
+                Icon(Icons.info_outline, size: 20, color: SomiaColors.muted)),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(
@@ -338,19 +329,43 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
           const SizedBox(height: 12),
           Text(_money(high, widget.currency.currencyCode),
               style: const TextStyle(color: SomiaColors.muted, fontSize: 12)),
-          SizedBox(
-              height: 160,
-              child: CustomPaint(
-                  painter: _BalancePainter(points, low, high, index))),
+          LayoutBuilder(builder: (context, box) {
+            void select(double x) => setState(() => selected =
+                (x / box.maxWidth * (points.length - 1))
+                    .round()
+                    .clamp(0, points.length - 1));
+            return Semantics(
+                label: 'Consultar saldo diário',
+                value: 'Dia ${p.date.day}',
+                onIncrease: index < points.length - 1
+                    ? () => setState(() => selected = index + 1)
+                    : null,
+                onDecrease: index > 0
+                    ? () => setState(() => selected = index - 1)
+                    : null,
+                child: GestureDetector(
+                    key: const ValueKey('balance-evolution-plot'),
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (event) => select(event.localPosition.dx),
+                    onHorizontalDragUpdate: (event) =>
+                        select(event.localPosition.dx),
+                    child: SizedBox(
+                        height: 190,
+                        width: double.infinity,
+                        child: CustomPaint(
+                            painter:
+                                _BalancePainter(points, low, high, index)))));
+          }),
           Text(_money(low, widget.currency.currencyCode),
               style: const TextStyle(color: SomiaColors.muted, fontSize: 12)),
-          Slider(
-              label: 'Dia ${p.date.day}',
-              value: index.toDouble(),
-              min: 0,
-              max: (points.length - 1).toDouble(),
-              divisions: points.length - 1,
-              onChanged: (v) => setState(() => selected = v.round())),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            for (final i in {0, points.length ~/ 2, points.length - 1})
+              Text('${points[i].date.day}',
+                  style:
+                      const TextStyle(color: SomiaColors.muted, fontSize: 12))
+          ]),
+          const SizedBox(height: 16),
           const Wrap(spacing: 16, runSpacing: 8, children: [
             Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.show_chart, size: 18, color: SomiaColors.blue),
@@ -368,8 +383,7 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
             ])
           ]),
           const SizedBox(height: 8),
-          const Text(
-              'Arraste para consultar cada dia. A previsão inclui pendências cadastradas e faturas; não estima recorrências ainda não geradas.',
+          const Text('Toque ou arraste no gráfico para consultar o dia.',
               style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
         ]));
   }
@@ -393,23 +407,46 @@ class _BalancePainter extends CustomPainter {
         ..style = PaintingStyle.stroke;
       for (var i = 1; i < points.length; i++) {
         final a = Offset(
-            (i - 1) / (points.length - 1) * size.width,
+            (i - 1) / math.max(1, points.length - 1) * size.width,
             y(projected
                 ? points[i - 1].projectedMinor
                 : points[i - 1].currentMinor));
-        final b = Offset(i / (points.length - 1) * size.width,
+        final b = Offset(i / math.max(1, points.length - 1) * size.width,
             y(projected ? points[i].projectedMinor : points[i].currentMinor));
         if (projected) {
-          for (var t = 0.0; t < 1; t += 0.4) {
-            canvas.drawLine(Offset.lerp(a, b, t)!,
-                Offset.lerp(a, b, math.min(t + 0.23, 1))!, paint);
+          final distance = (b - a).distance;
+          for (var offset = 0.0; offset < distance; offset += 9) {
+            canvas.drawLine(
+                Offset.lerp(a, b, offset / distance)!,
+                Offset.lerp(a, b, math.min(offset + 4, distance) / distance)!,
+                paint);
           }
         } else {
           canvas.drawLine(a, b, paint);
         }
       }
     }
-    final x = selected / (points.length - 1) * size.width;
+    final now = DateTime.now();
+    final today = points.indexWhere((p) =>
+        p.date.year == now.year &&
+        p.date.month == now.month &&
+        p.date.day == now.day);
+    if (today >= 0) {
+      final tx = today / math.max(1, points.length - 1) * size.width;
+      canvas.drawLine(Offset(tx, 0), Offset(tx, size.height),
+          Paint()..color = SomiaColors.muted.withValues(alpha: .25));
+      final label = TextPainter(
+          text: const TextSpan(
+              text: 'Hoje',
+              style: TextStyle(color: SomiaColors.muted, fontSize: 11)),
+          textDirection: TextDirection.ltr)
+        ..layout();
+      label.paint(
+          canvas,
+          Offset(tx.clamp(0, math.max(0, size.width - label.width)).toDouble(),
+              0));
+    }
+    final x = selected / math.max(1, points.length - 1) * size.width;
     canvas.drawLine(Offset(x, 0), Offset(x, size.height),
         Paint()..color = SomiaColors.muted.withValues(alpha: 0.5));
   }
@@ -488,4 +525,64 @@ class _SummaryAccountsState extends State<SummaryAccounts> {
             (c) => c.accounts.every((a) => hideZero && a.currentMinor == 0)))
           const Text('Nenhuma conta para mostrar.'),
       ]));
+}
+
+class AccountTypesPanel extends StatelessWidget {
+  const AccountTypesPanel({super.key, required this.currency});
+  final DashboardCurrencySummary currency;
+  @override
+  Widget build(BuildContext context) {
+    final totals = <String, int>{};
+    for (final account in currency.accounts) {
+      totals.update(account.typeLabel, (value) => value + account.currentMinor,
+          ifAbsent: () => account.currentMinor);
+    }
+    final entries = totals.entries.toList()
+      ..sort((a, b) => b.value.abs().compareTo(a.value.abs()));
+    final max = entries.fold<int>(
+        1, (value, entry) => math.max(value, entry.value.abs()));
+    return SummaryPanel(
+        title: 'Saldo por tipo de conta',
+        action: const Tooltip(
+            message:
+                'Saldos efetivados de todas as contas, inclusive as excluídas do saldo principal. Cada moeda é apresentada separadamente.',
+            child:
+                Icon(Icons.info_outline, color: SomiaColors.muted, size: 20)),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (entries.isEmpty) const Text('Nenhuma conta para mostrar.'),
+          for (final entry in entries)
+            Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 12,
+                          runSpacing: 4,
+                          children: [
+                            Text(entry.key),
+                            Text(_money(entry.value, currency.currencyCode),
+                                style: TextStyle(
+                                    color: entry.value < 0
+                                        ? SomiaColors.red
+                                        : SomiaColors.blue,
+                                    fontWeight: FontWeight.w600))
+                          ]),
+                      const SizedBox(height: 8),
+                      Semantics(
+                          label:
+                              '${entry.key}: ${_money(entry.value, currency.currencyCode)}',
+                          child: LinearProgressIndicator(
+                              value: entry.value.abs() / max,
+                              minHeight: 7,
+                              borderRadius: BorderRadius.circular(8),
+                              backgroundColor: SomiaColors.outline,
+                              color: entry.value < 0
+                                  ? SomiaColors.red
+                                  : SomiaColors.blue)),
+                    ])),
+        ]));
+  }
 }

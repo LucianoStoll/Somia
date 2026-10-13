@@ -13,7 +13,7 @@ import '../../../../core/filters/reference_month.dart';
 import '../../../../core/widgets/month_selector.dart';
 import '../../../../core/widgets/balance_help_button.dart';
 import '../../../../core/routing/somia_shell.dart';
-import '../../../../core/theme/app_theme.dart';
+import 'dashboard_palette.dart';
 import '../../../../core/widgets/somia_brand.dart';
 import '../../../accounts/domain/money_minor.dart';
 import '../../domain/entities/dashboard_summary.dart';
@@ -92,9 +92,6 @@ class MobileDashboardBody extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           children: [
-            const Text('Olá, bem-vindo ao Somia!',
-                style: TextStyle(color: SomiaColors.muted, fontSize: 14)),
-            const SizedBox(height: 4),
             const Row(children: [
               Expanded(
                   child: Text('Resumo do mês',
@@ -145,16 +142,18 @@ class _CurrencySection extends StatelessWidget {
       if (showCurrency) Text(code),
       SummaryMetrics(currency: currency, month: month),
       const SizedBox(height: 12),
-      UpcomingPanel(currency: currency),
-      const SizedBox(height: 12),
       BalanceEvolutionPanel(currency: currency),
-      const SizedBox(height: 12),
-      _HistoryPanel(key: ValueKey('mobile-history-$code'), currency: currency),
       const SizedBox(height: 12),
       _Panel(
           title: 'Gastos por categoria',
           child: DashboardCategoryChart(
               key: ValueKey('mobile-categories-$code'), currency: currency)),
+      const SizedBox(height: 12),
+      _HistoryPanel(key: ValueKey('mobile-history-$code'), currency: currency),
+      const SizedBox(height: 12),
+      AccountTypesPanel(currency: currency),
+      const SizedBox(height: 12),
+      UpcomingPanel(currency: currency),
       const SizedBox(height: 12),
     ]);
   }

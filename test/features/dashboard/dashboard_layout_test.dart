@@ -161,7 +161,7 @@ void main() {
 
       expect(balance.bottom, lessThan(income.top));
       expect(history.top, greaterThan(income.bottom));
-      expect(categories.top, greaterThan(history.bottom));
+      expect(history.top, greaterThan(categories.bottom));
       expect(find.text('Gastos por categoria'), findsOneWidget);
       await tester.scrollUntilVisible(
           find.byKey(const ValueKey('mobile-recent')), 250,
@@ -271,7 +271,7 @@ void main() {
     expect(find.text('Carteira zerada'), findsNothing);
     expect(find.text('Reserva'), findsOneWidget);
     expect(find.text('Fora do saldo principal'), findsOneWidget);
-    final slider = find.byType(Slider);
+    final slider = find.byKey(const ValueKey('balance-evolution-plot'));
     await tester.ensureVisible(slider);
     await tester.pumpAndSettle();
     await tester.drag(slider, const Offset(-150, 0));
