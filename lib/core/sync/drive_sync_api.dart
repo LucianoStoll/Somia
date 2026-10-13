@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:crypto/crypto.dart' as crypto;
 
 import 'package:uuid/uuid.dart';
 
@@ -38,14 +39,29 @@ class SyncRemoteFile {
   }
 }
 
+class SyncAttachmentFile {
+  const SyncAttachmentFile(this.copy, this.base);
+  final DriveCopy copy;
+  final String base;
+}
+
 abstract class SyncCloud {
   DateTime? get serverTime;
   Future<List<SyncRemoteFile>> list(DriveSession session);
   Future<Uint8List> download(DriveSession session, SyncRemoteFile file);
   Future<void> upload(DriveSession session, SyncPacket packet);
+  Future<List<SyncAttachmentFile>> listAttachments(
+          DriveSession session, String base) async =>
+      [];
+  Future<Uint8List> downloadAttachment(
+          DriveSession session, SyncAttachmentFile file) =>
+      throw const DriveFailure('Este provedor não suporta anexos.');
+  Future<void> uploadAttachment(
+          DriveSession session, String base, String hash, Uint8List bytes) =>
+      throw const DriveFailure('Este provedor não suporta anexos.');
 }
 
-class DriveSyncApi implements SyncCloud {
+class DriveSyncApi extends SyncCloud {
   DriveSyncApi(this.api);
   final DriveBackupApi api;
   @override
@@ -128,5 +144,82 @@ class DriveSyncApi implements SyncCloud {
       body: body.takeBytes(),
       contentType: 'multipart/related; boundary=$boundary',
     );
+  }
+
+  @override
+  Future<List<SyncAttachmentFile>> listAttachments(
+      DriveSession session, String base) async {
+    if (!RegExp(r'^[a-zA-Z0-9-]{16,80}$').hasMatch(base))
+      throw const DriveFailure('Identidade da base inválida.');
+    final result = <SyncAttachmentFile>[];
+    final seen = <String>{};
+    String? page;
+    do {
+      final v = jsonDecode(
+          utf8.decode(await api.request(session, 'GET', '/drive/v3/files', {
+        'spaces': 'appDataFolder',
+        'q':
+            "trashed = false and appProperties has { key='somiaAttachment' and value='1' } and appProperties has { key='base' and value='$base' }",
+        'fields':
+            'nextPageToken,files(id,name,createdTime,size,md5Checksum,appProperties,spaces,trashed)',
+        'pageSize': '100',
+        if (page != null) 'pageToken': page,
+      })));
+      if (v is! Map || v['files'] is! List) {
+        throw const DriveFailure('Lista de anexos inválida.');
+      }
+      for (final raw in v['files'] as List) {
+        if (raw is! Map<String, dynamic> ||
+            raw['appProperties'] is! Map ||
+            raw['appProperties']['base'] != base) {
+          throw const DriveFailure('Anexo de outra base.');
+        }
+        final copy = DriveCopy.parse(raw, marker: 'somiaAttachment');
+        if (copy.size > 20 * 1024 * 1024) {
+          throw const DriveFailure('O anexo excede 20 MB.');
+        }
+        result.add(SyncAttachmentFile(copy, base));
+      }
+      final next = v['nextPageToken'];
+      if (next != null && next is! String) {
+        throw const DriveFailure('Página de anexos inválida.');
+      }
+      page = next as String?;
+      if (page != null && (!seen.add(page) || seen.length > 100)) {
+        throw const DriveFailure('A lista de anexos excede o limite.');
+      }
+    } while (page != null);
+    return result;
+  }
+
+  @override
+  Future<Uint8List> downloadAttachment(
+          DriveSession session, SyncAttachmentFile file) =>
+      api.download(session, file.copy, marker: 'somiaAttachment');
+  @override
+  Future<void> uploadAttachment(
+      DriveSession session, String base, String hash, Uint8List bytes) async {
+    if (bytes.isEmpty || bytes.length > 20 * 1024 * 1024) {
+      throw const DriveFailure('O anexo deve ter até 20 MB.');
+    }
+    if (!RegExp(r'^[a-zA-Z0-9-]{16,80}$').hasMatch(base) ||
+        crypto.sha256.convert(bytes).toString() != hash) {
+      throw const DriveFailure('Identidade ou hash de anexo inválido.');
+    }
+    final boundary = 'somia-attachment-${const Uuid().v4()}';
+    final meta = jsonEncode({
+      'name': 'somia-attachment-$hash.bin',
+      'parents': ['appDataFolder'],
+      'appProperties': {'somiaAttachment': '1', 'base': base, 'sha256': hash}
+    });
+    final body = BytesBuilder(copy: false)
+      ..add(utf8.encode(
+          '--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n--$boundary\r\nContent-Type: application/octet-stream\r\n\r\n'))
+      ..add(bytes)
+      ..add(utf8.encode('\r\n--$boundary--\r\n'));
+    await api.request(session, 'POST', '/upload/drive/v3/files',
+        {'uploadType': 'multipart', 'fields': 'id'},
+        body: body.takeBytes(),
+        contentType: 'multipart/related; boundary=$boundary');
   }
 }

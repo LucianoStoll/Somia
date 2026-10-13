@@ -125,11 +125,18 @@ abstract final class BackupService {
           final name = trigger.read<String>('name').replaceAll('"', '""');
           await database.customStatement('DROP TRIGGER main."$name"');
         }
-        for (final table in [...financialTables, 'local_attachments']) {
+        for (final table in [
+          ...financialTables,
+          'local_attachments',
+          'attachment_blobs'
+        ]) {
           await database.customStatement('DELETE FROM main."$table"');
         }
-        for (final entry in columns.entries.where(
-            (e) => [...financialTables, 'local_attachments'].contains(e.key))) {
+        for (final entry in columns.entries.where((e) => [
+              ...financialTables,
+              'local_attachments',
+              'attachment_blobs'
+            ].contains(e.key))) {
           final names = entry.value
               .map((column) => '"${column.split(':').first}"')
               .join(', ');

@@ -1,3 +1,5 @@
+import 'package:finapp/features/attachments/data/attachments_repository.dart';
+import 'package:finapp/features/transactions/domain/movement_management.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:finapp/features/investments/data/sqlite_investments_repository.dart';
@@ -46,8 +48,41 @@ class NoTransport implements DriveTransport {
       throw UnimplementedError();
 }
 
-class MemoryCloud implements SyncCloud {
+class MemoryCloud extends SyncCloud {
   final files = <String, SyncPacket>{};
+  final blobs = <String, Uint8List>{};
+  int attachmentSends = 0;
+  bool loseAttachmentResponse = false, corruptAttachment = false;
+  @override
+  Future<List<SyncAttachmentFile>> listAttachments(
+          DriveSession s, String base) async =>
+      [
+        for (final e in blobs.entries.where((e) => e.key.startsWith('$base/')))
+          SyncAttachmentFile(
+              DriveCopy(
+                  id: e.key,
+                  name: 'file.bin',
+                  createdAt: DateTime.now(),
+                  size: e.value.length,
+                  md5Hash: md5.convert(e.value).toString(),
+                  sha256Hash: e.key.split('/').last),
+              base)
+      ];
+  @override
+  Future<Uint8List> downloadAttachment(
+          DriveSession s, SyncAttachmentFile f) async =>
+      corruptAttachment ? Uint8List.fromList([99]) : blobs[f.copy.id]!;
+  @override
+  Future<void> uploadAttachment(
+      DriveSession s, String base, String hash, Uint8List bytes) async {
+    blobs['$base/$hash'] = bytes;
+    attachmentSends++;
+    if (loseAttachmentResponse) {
+      loseAttachmentResponse = false;
+      throw const DriveFailure('Resposta do anexo perdida');
+    }
+  }
+
   bool loseResponse = false, corrupt = false;
   int sends = 0;
   void Function()? afterDownload;
@@ -251,6 +286,95 @@ void main() {
     await b.close();
     await dir.delete(recursive: true);
   });
+  const attachmentOwner =
+      MovementReference(MovementKind.transaction, 'receipt-owner', '');
+  Future<void> addOwner() => a.db.customStatement(
+      "INSERT INTO transactions(id,description,type,planned_amount_minor,competence_at,posted_at,due_at,account_id,created_at,updated_at) VALUES('receipt-owner','Compra','expense',100,1,1,1,'a',1,1)");
+  test(
+      'anexos viajam na base inicial e alterações, deduplicam bytes e propagam exclusões',
+      () async {
+    await addOwner();
+    final ar = AttachmentsRepository(a.db), br = AttachmentsRepository(b.db);
+    await ar.add(attachmentOwner, 'recibo.pdf', Uint8List.fromList([1, 2, 3]));
+    await link();
+    final file = (await br.list(attachmentOwner)).single;
+    expect(await br.read(attachmentOwner, file.id), [1, 2, 3]);
+    expect(cloud.attachmentSends, 1);
+    await ar.add(attachmentOwner, 'outro.pdf', Uint8List.fromList([1, 2, 3]));
+    await a.sync.synchronize();
+    await b.sync.synchronize();
+    expect(await br.list(attachmentOwner), hasLength(2));
+    expect(cloud.attachmentSends, 1);
+    await br.remove(attachmentOwner, file.id);
+    await b.sync.synchronize();
+    await a.sync.synchronize();
+    expect((await ar.list(attachmentOwner)).map((x) => x.id),
+        isNot(contains(file.id)));
+    expect(a.sync.error, isNull);
+    expect(b.sync.error, isNull);
+  });
+  test(
+      'resposta perdida de anexo retoma sem duplicar arquivo ou publicar referência incompleta',
+      () async {
+    await addOwner();
+    await AttachmentsRepository(a.db)
+        .add(attachmentOwner, 'recibo', Uint8List.fromList([4, 5]));
+    cloud.loseAttachmentResponse = true;
+    await a.sync.createBase();
+    expect(a.sync.error, isNotNull);
+    expect(cloud.files, isEmpty);
+    expect(cloud.attachmentSends, 1);
+    await a.sync.synchronize();
+    expect(a.sync.error, isNull);
+    expect(cloud.attachmentSends, 1);
+    await b.sync.listBases();
+    await b.sync.join(b.sync.bases.single);
+    expect(b.sync.error, isNull);
+    expect(
+        await AttachmentsRepository(b.db).list(attachmentOwner), hasLength(1));
+  });
+  test(
+      'arquivo corrompido ou ausente não substitui base nem registra pacote como recebido',
+      () async {
+    await addOwner();
+    await AttachmentsRepository(a.db)
+        .add(attachmentOwner, 'recibo', Uint8List.fromList([4, 5]));
+    await a.sync.createBase();
+    await b.sync.listBases();
+    cloud.corruptAttachment = true;
+    await b.sync.join(b.sync.bases.single);
+    expect(b.sync.error, isNotNull);
+    expect((await b.sync.store.state()).base, isNull);
+    expect(
+        (await b.db.customSelect('SELECT id FROM accounts').get())
+            .single
+            .read<String>('id'),
+        'old');
+    cloud.corruptAttachment = false;
+    await b.sync.join(b.sync.bases.single);
+    expect(b.sync.error, isNull);
+  });
+  test('substituição envia anexos da nova geração e protege cópia anterior',
+      () async {
+    await addOwner();
+    await AttachmentsRepository(a.db)
+        .add(attachmentOwner, 'antigo', Uint8List.fromList([1]));
+    await link();
+    final oldBase = (await a.sync.store.state()).base!;
+    await AttachmentsRepository(a.db)
+        .add(attachmentOwner, 'novo', Uint8List.fromList([2]));
+    await a.sync.listBases();
+    await a.sync.replaceBase();
+    expect(a.sync.error, isNull);
+    expect(
+        cloud.blobs.keys.where((k) => k.startsWith('$oldBase/')), isNotEmpty);
+    await b.sync.listBases();
+    await b.sync.join(b.sync.bases.single);
+    expect(b.sync.error, isNull);
+    expect(
+        await AttachmentsRepository(b.db).list(attachmentOwner), hasLength(2));
+  });
+
   test(
       'replacement preserves local data and blocks old-device uploads until joining',
       () async {

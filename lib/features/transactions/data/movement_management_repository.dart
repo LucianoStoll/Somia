@@ -1,3 +1,4 @@
+import '../../attachments/data/attachments_repository.dart';
 import 'package:drift/drift.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/entity_metadata.dart';
@@ -322,9 +323,7 @@ class MovementManagementRepository {
               'UPDATE ${ref.table} SET trash_state=?,deleted_at=${restore ? 'NULL' : 'deleted_at'},updated_at=?,sync_version=sync_version+1 WHERE id=?',
               [restore ? 'active' : 'purged', now, ref.id]);
           if (!restore) {
-            await db.customStatement(
-                'DELETE FROM local_attachments WHERE owner_table=? AND owner_id=?',
-                [ref.table, ref.id]);
+            await AttachmentsRepository(db).purgeOwner(ref.table, ref.id);
           }
         }
         await _validate();

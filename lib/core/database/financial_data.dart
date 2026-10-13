@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart';
+import '../../features/attachments/data/attachments_repository.dart';
 import '../../features/transactions/domain/establishment.dart';
 import '../../features/transactions/domain/transaction_tags.dart';
 import 'app_database.dart';
@@ -37,6 +39,7 @@ const financialTables = [
   'cashback_rules',
   'cashback_claims',
   'cashback_receipts',
+  'attachment_manifest',
 ];
 typedef FinancialRows = Map<String, Map<String, Map<String, Object?>>>;
 
@@ -93,6 +96,17 @@ Future<void> replaceFinancial(AppDatabase db, FinancialRows rows) async {
 }
 
 Future<void> validateFinancial(AppDatabase db) async {
+  for (final row
+      in await db.customSelect('SELECT * FROM attachment_manifest').get()) {
+    AttachmentsRepository.validateMetadata(row.data);
+    final table = row.read<String>('owner_table');
+    final owners = await db.customSelect('SELECT id FROM "$table" WHERE id=?',
+        variables: [Variable.withString(row.read<String>('owner_id'))]).get();
+    if (owners.isEmpty) {
+      throw const FormatException('Anexo sem lançamento de origem.');
+    }
+  }
+
   await validateDebtFinancial(db);
   await validateReimbursements(db);
   await validatePlanning(db);

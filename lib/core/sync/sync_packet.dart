@@ -183,7 +183,8 @@ class SyncPacket {
             v['schema'] != 21 &&
             v['schema'] != 22 &&
             v['schema'] != 23 &&
-            v['schema'] != 24) ||
+            v['schema'] != 24 &&
+            v['schema'] != 25) ||
         !['genesis', 'changes', 'replacement'].contains(v['kind']) ||
         [
           'id',
@@ -211,6 +212,12 @@ class SyncPacket {
             !RegExp(r'^[a-f0-9]{64}$')
                 .hasMatch(v['remoteRevision'] as String))) {
       throw const FormatException('Substituição de base inválida.');
+    }
+    if (v['schema'] < 26 &&
+        (v['entries'] as List)
+            .any((e) => e is Map && e['table'] == 'attachment_manifest')) {
+      throw const FormatException(
+          'Anexos sincronizados exigem atualizar os dois dispositivos.');
     }
     if (v['schema'] < 25 &&
         (v['entries'] as List).any((e) =>

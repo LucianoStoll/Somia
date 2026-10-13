@@ -133,7 +133,7 @@ class _AttachmentsPageState extends State<AttachmentsPage> {
                   const Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
-                          'Arquivos locais, até 20 MB cada. Incluídos no backup completo; ainda não sincronizados entre dispositivos.')),
+                          'Arquivos de até 20 MB. Incluídos no backup completo e na sincronização pelo Drive. Atualize os dois dispositivos.')),
                   if (_busy) const LinearProgressIndicator(),
                   if (_error != null)
                     Padding(

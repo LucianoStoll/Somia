@@ -1,3 +1,4 @@
+import '../../features/attachments/data/attachments_repository.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -305,6 +306,63 @@ class SyncStore {
         .toList();
   }
 
+  Future<List<SyncEntry>> neededAttachments(List<SyncPacket> packets,
+      {bool joining = false}) async {
+    await _prepare();
+    final records = <String, SyncEntry>{};
+    final deleted = <String>{}, purgedOwners = <String>{};
+    if (!joining) {
+      for (final row in await db
+          .customSelect(
+              "SELECT * FROM sync_versions WHERE table_name='attachment_manifest'")
+          .get()) {
+        final entry = _entry(row);
+        if (entry.deleted) {
+          deleted.add(entry.id);
+        } else {
+          records[entry.id] = entry;
+        }
+      }
+      for (final row
+          in await db.customSelect('SELECT * FROM attachment_manifest').get()) {
+        records.putIfAbsent(
+            row.read<String>('id'),
+            () => SyncEntry(
+                'attachment_manifest',
+                row.read<String>('id'),
+                0,
+                'local-cache-device',
+                false,
+                Map<String, Object?>.from(row.data)));
+      }
+      for (final table in ['transactions', 'transfers', 'card_entries']) {
+        for (final row in await db
+            .customSelect("SELECT id FROM $table WHERE trash_state='purged'")
+            .get()) {
+          purgedOwners.add('$table/${row.read<String>('id')}');
+        }
+      }
+    }
+    for (final packet in packets) {
+      for (final entry in packet.entries) {
+        if (entry.data?['trash_state'] == 'purged') purgedOwners.add(entry.key);
+        if (entry.table != 'attachment_manifest') continue;
+        if (entry.deleted) {
+          deleted.add(entry.id);
+        } else {
+          final old = records[entry.id];
+          if (old == null || entry.compare(old) > 0) records[entry.id] = entry;
+        }
+      }
+    }
+    return records.values
+        .where((e) =>
+            !deleted.contains(e.id) &&
+            !purgedOwners
+                .contains('${e.data!['owner_table']}/${e.data!['owner_id']}'))
+        .toList();
+  }
+
   Future<Map<String, String>> applied() async => {
         for (final row
             in await db.customSelect('SELECT * FROM sync_applied').get())
@@ -324,6 +382,7 @@ class SyncStore {
           'INSERT OR REPLACE INTO sync_applied VALUES(?,?)',
           [packet.id, packet.digest],
         );
+        await AttachmentsRepository(db).collectUnused();
       });
 
   /// Integrity, rows, versions, history and receipt markers commit together.
@@ -364,6 +423,7 @@ class SyncStore {
             }
           : await readFinancial(db);
       var changed = initial;
+      final derivedDeletes = <SyncEntry>[];
       var maxClock = (await db
               .customSelect('SELECT clock FROM sync_state WHERE id=1')
               .getSingle())
@@ -383,6 +443,21 @@ class SyncStore {
           }
           if (entry.clock > maxClock) maxClock = entry.clock;
           final previous = versions[entry.key];
+          if (entry.table == 'attachment_manifest') {
+            if (!entry.deleted)
+              AttachmentsRepository.validateMetadata(entry.data!);
+            if (previous?.deleted == true && !entry.deleted) continue;
+            if (previous != null &&
+                !previous.deleted &&
+                !entry.deleted &&
+                !entry.sameData(previous)) {
+              throw const FormatException(
+                  'Um anexo existente mudou de identidade ou conteúdo.');
+            }
+          }
+          final attachmentDelete =
+              entry.table == 'attachment_manifest' && entry.deleted;
+
           final managed = [
             'transactions',
             'transfers',
@@ -405,7 +480,9 @@ class SyncStore {
                 'Versões iguais com dados diferentes.',
               );
             }
-            if (order <= 0 && !(incomingPurge && !previousPurge)) {
+            if (order <= 0 &&
+                !(incomingPurge && !previousPurge) &&
+                !attachmentDelete) {
               if (order < 0 && !entry.sameData(previous)) {
                 await _history(entry, 'conflict');
               }
@@ -423,7 +500,38 @@ class SyncStore {
         }
         seen[packet.id] = packet.digest;
       }
-      if (changed) await replaceFinancial(db, rows);
+      for (final record in rows['attachment_manifest']!.entries.toList()) {
+        final data = record.value;
+        AttachmentsRepository.validateMetadata(data);
+        final table = data['owner_table'] as String,
+            id = data['owner_id'] as String;
+        final owner = rows[table]?[id];
+        if (owner == null && versions['$table/$id']?.deleted != true) {
+          throw const FormatException('Anexo sem lançamento de origem.');
+        }
+        if (owner == null || owner['trash_state'] == 'purged') {
+          rows['attachment_manifest']!.remove(record.key);
+          maxClock++;
+          final tombstone = SyncEntry('attachment_manifest', record.key,
+              maxClock, deviceId, true, null);
+          versions[tombstone.key] = tombstone;
+          derivedDeletes.add(tombstone);
+          changed = true;
+        }
+      }
+      if (changed) {
+        await replaceFinancial(db, rows);
+        final repo = AttachmentsRepository(db);
+        for (final data in rows['attachment_manifest']!.values) {
+          if (await repo.cached(
+                  data['sha256'] as String, data['size'] as int) ==
+              null) {
+            throw const FormatException(
+                'Um anexo recebido não possui conteúdo íntegro.');
+          }
+        }
+      }
+
       if (initial) {
         await db.customStatement('DELETE FROM sync_versions');
         await db.customStatement('DELETE FROM sync_outbox');
@@ -447,6 +555,10 @@ class SyncStore {
       await db.customStatement('UPDATE sync_state SET clock=? WHERE id=1', [
         maxClock,
       ]);
+      for (final entry in derivedDeletes) {
+        await _write('sync_outbox', entry);
+      }
+      await AttachmentsRepository(db).collectUnused();
       return changed;
     });
   }
@@ -489,6 +601,10 @@ class SyncStore {
         throw const FormatException('Versão de histórico indisponível.');
       }
       final rows = await readFinancial(db);
+      if (entry.table == 'attachment_manifest') {
+        throw const FormatException(
+            'Anexos excluídos não podem ser recuperados pelo histórico de conflitos. Adicione uma nova cópia.');
+      }
       if (rows[entry.table]?[entry.id]?['trash_state'] == 'purged') {
         throw const FormatException(
           'Um lançamento excluído definitivamente não pode ser recuperado pelo histórico.',
