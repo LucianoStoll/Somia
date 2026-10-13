@@ -5,6 +5,7 @@ import 'package:finapp/core/filters/reference_month.dart';
 import 'package:finapp/core/routing/somia_shell.dart';
 import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/features/dashboard/domain/dashboard_repository.dart';
+import 'package:finapp/features/balances/domain/balance_details.dart';
 import 'package:finapp/features/dashboard/domain/entities/dashboard_summary.dart';
 import 'package:finapp/features/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,13 @@ class _DashboardStub implements DashboardRepository {
     return DashboardSummary(month: month, currencies: [
       DashboardCurrencySummary(
         currencyCode: 'BRL',
+        balanceDetails: const BalanceDetails(
+            openingMinor: 100000,
+            incomeMinor: 420000,
+            expenseMinor: 200000,
+            cardPaymentsMinor: 85000,
+            pendingIncomeMinor: 100000,
+            pendingExpenseMinor: 45000),
         currentBalanceMinor: 235000,
         projectedBalanceMinor: 290000,
         incomeMinor: 620000,
@@ -35,7 +43,7 @@ class _DashboardStub implements DashboardRepository {
         dailyBalances: [
           for (var day = 1; day <= 30; day++)
             DashboardDailyBalance(DateTime(month.year, month.month, day),
-                235000 - day * 1000, 290000 - day * 1500)
+                205000 + day * 1000, 245000 + day * 1500)
         ],
         upcoming: [
           DashboardDue(
@@ -47,7 +55,13 @@ class _DashboardStub implements DashboardRepository {
         ],
         accounts: const [
           DashboardAccountBalance(
-              'Conta principal', 'Conta corrente', 'BRL', 235000)
+              'Conta principal', 'Conta corrente', 'BRL', 235000,
+              institutionId: 'banco-do-brasil'),
+          DashboardAccountBalance('Carteira zerada', 'Carteira', 'BRL', 0),
+          DashboardAccountBalance('Reserva', 'Investimento', 'BRL', 50000,
+              isInvestment: true,
+              includeInBalance: false,
+              institutionId: 'mercado-pago')
         ],
         history: [
           for (var i = 0; i < 6; i++)
@@ -224,6 +238,45 @@ void main() {
     expect(find.text('Saldo previsto no fim do mês'), findsOneWidget);
     expect(find.text('Gastos por categoria'), findsOneWidget);
     expect(find.text('Saldo por conta'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('vencimento abre detalhes sem alterar mês ao cancelar',
+      (tester) async {
+    await _mount(tester, const Size(390, 900));
+    final initial = referenceMonth.value;
+    final button = find.widgetWithText(TextButton, 'Abrir');
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.textContaining('Vencimento:'), findsOneWidget);
+    await tester.tap(find.text('Fechar'));
+    await tester.pumpAndSettle();
+    expect(referenceMonth.value, initial);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ocultar zeradas preserva investimentos e consulta diária',
+      (tester) async {
+    await _mount(tester, const Size(1440, 1000));
+    final switchFinder =
+        find.widgetWithText(SwitchListTile, 'Ocultar contas zeradas');
+    await tester.ensureVisible(switchFinder);
+    await tester.pumpAndSettle();
+    expect(find.text('Carteira zerada'), findsOneWidget);
+    await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+    expect(find.text('Carteira zerada'), findsNothing);
+    expect(find.text('Reserva'), findsOneWidget);
+    expect(find.text('Fora do saldo principal'), findsOneWidget);
+    final slider = find.byType(Slider);
+    await tester.ensureVisible(slider);
+    await tester.pumpAndSettle();
+    await tester.drag(slider, const Offset(-150, 0));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Dia 30 •'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
