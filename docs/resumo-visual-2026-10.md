@@ -12,7 +12,7 @@ Reduzir a distância entre o topo e as análises, usando grafite, azul acinzenta
 
 1. Um cartão com saldo atual/efetivado/previsto conforme período, previsão no fechamento, recebido e pago, e resultado mensal separado do saldo.
 2. A receber e a pagar compactos, com acesso às listas existentes.
-3. Evolução diária, consultável ao tocar ou arrastar horizontalmente. Preservar duas séries cumulativas (efetivado e previsto), inclusive atrasados: esconder a projeção histórica perderia informação. Marcador Hoje apenas no mês atual; tracejado com tamanho em pixels para evitar grandes lacunas em quedas.
+3. Evolução diária conforme a referência adicional: grade discreta, escala automática incluindo zero, área azul suave, linha azul contínua até hoje e continuação azul pontilhada somente no futuro. Marcador vertical tracejado e rótulo Hoje no mês atual. Meses passados mostram realizado; futuros mostram previsto. Tocar/arrastar revela valores sem texto permanente sobre o gráfico. Pendências históricas continuam disponíveis na consulta; previsões futuras mantêm o saldo cumulativo original, inclusive atrasados, sem rebase artificial.
 4. Gastos por categoria em rosca. Mostrar até cinco grupos; acima disso, quatro maiores mais Outras. Legenda sempre com nome, valor e percentual.
 5. Receitas e despesas mensais com barras e consulta já existente.
 6. Saldo por tipo de conta, incluindo contas excluídas do saldo principal. Valores negativos destacados e barras proporcionais à magnitude, sem apresentar saldo negativo como positivo. Moedas separadas.
@@ -41,3 +41,7 @@ Sem migração do banco de dados.
 ## Estado da entrega
 
 Issue #81 criada. Código e referência visual registrados localmente. Formatação Dart e `git diff --check` executados. Análise Flutter, testes e previews ainda não executados: cache de dependências indisponível e inicialização do Flutter não concluiu a recuperação das dependências. Publicação autorizada pelo usuário em 13/10/2026. Base conferida após fetch: `bf0d32a`, última integração disponível em `v0.3.0-alpha` (exportação de análises). CI e APK serão verificados após o push. Não considerar esta revisão validada ou integrada à alpha.
+
+## Refinamento do gráfico — referência adicional
+
+Legenda com amostras reais de linha e pontos, rótulos de dia com dois dígitos e eixo financeiro em unidades da moeda. Pontos espaçados por distância ao longo da curva, inclusive em quedas acentuadas. Sem suavização que altere extremos dos saldos. Datas, escala e formato da curva dependem dos dados; os números ilustrativos da referência não são fixados no app. Consulta acessível por leitor de tela e teste de meses passados/futuros, saldo zero, negativo e ponto único.
