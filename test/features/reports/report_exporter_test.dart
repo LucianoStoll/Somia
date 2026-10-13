@@ -102,10 +102,11 @@ void main() {
     final detail = book['Lançamentos'].rows;
     final formulaRow = detail.firstWhere((row) =>
         row[1]?.value is x.TextCellValue &&
-        (row[1]!.value as x.TextCellValue).value == '=SUM(A1:A3)');
+        (row[1]!.value as x.TextCellValue).value.toString() == '=SUM(A1:A3)');
     expect(detail[1][0]!.value, isA<x.DateCellValue>());
     expect(formulaRow[1]!.value, isA<x.TextCellValue>());
-    expect((formulaRow[1]!.value as x.TextCellValue).value, '=SUM(A1:A3)');
+    expect((formulaRow[1]!.value as x.TextCellValue).value.toString(),
+        '=SUM(A1:A3)');
     expect((formulaRow[5]!.value as x.DoubleCellValue).value, 1.01);
     expect((book['Categorias'].rows.last[1]!.value as x.DoubleCellValue).value,
         2.03);

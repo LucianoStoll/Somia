@@ -53,11 +53,12 @@ class ReportExporter {
           final cell = sheet.cell(x.CellIndex.indexByColumnRow(
               columnIndex: col, rowIndex: row + 1));
           if (value is ReportMoney) {
-            cell.cellStyle =
-                x.CellStyle(numberFormat: x.CustomNumericNumFormat('#,##0.00'));
+            cell.cellStyle = x.CellStyle(
+                numberFormat: x.CustomNumericNumFormat(formatCode: '#,##0.00'));
           } else if (value is DateTime) {
             cell.cellStyle = x.CellStyle(
-                numberFormat: x.CustomDateTimeNumFormat('dd/mm/yyyy'));
+                numberFormat:
+                    x.CustomDateTimeNumFormat(formatCode: 'dd/mm/yyyy'));
           } else {
             cell.cellStyle = x.CellStyle(textWrapping: x.TextWrapping.WrapText);
           }
