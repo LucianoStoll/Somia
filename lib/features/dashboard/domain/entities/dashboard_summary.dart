@@ -10,8 +10,12 @@ class DashboardCurrencySummary {
       this.expensesByCategory = const [],
       this.history = const [],
       this.accounts = const [],
-      this.balanceDetails});
+      this.balanceDetails,
+      this.dailyBalances = const [],
+      this.upcoming = const []});
 
+  final List<DashboardDailyBalance> dailyBalances;
+  final List<DashboardDue> upcoming;
   final BalanceDetails? balanceDetails;
   final String currencyCode;
   final int currentBalanceMinor;
@@ -33,7 +37,13 @@ class DashboardMonthTotal {
 
 class DashboardAccountBalance {
   const DashboardAccountBalance(
-      this.name, this.typeLabel, this.currencyCode, this.currentMinor);
+      this.name, this.typeLabel, this.currencyCode, this.currentMinor,
+      {this.id,
+      this.institutionId,
+      this.includeInBalance = true,
+      this.isInvestment = false});
+  final String? id, institutionId;
+  final bool includeInBalance, isInvestment;
   final String name;
   final String typeLabel;
   final String currencyCode;
@@ -78,4 +88,30 @@ class DashboardSummary {
   final List<DashboardActivity> recent;
 
   bool get isEmpty => currencies.isEmpty && recent.isEmpty;
+}
+
+class DashboardDailyBalance {
+  const DashboardDailyBalance(
+      this.date, this.currentMinor, this.projectedMinor);
+  final DateTime date;
+  final int currentMinor, projectedMinor;
+}
+
+class DashboardDue {
+  const DashboardDue(
+      {required this.id,
+      required this.description,
+      required this.date,
+      required this.amountMinor,
+      required this.kind,
+      this.canSettle = false,
+      this.cardId});
+  final String id, description, kind;
+  final String? cardId;
+  final DateTime date;
+  final int amountMinor;
+  final bool canSettle;
+  bool isOverdue(DateTime today) =>
+      DateTime.utc(date.year, date.month, date.day)
+          .isBefore(DateTime.utc(today.year, today.month, today.day));
 }

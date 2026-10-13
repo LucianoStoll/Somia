@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- #77: Resumo responsivo Android/Windows, indicadores de pendências e caixa, vencimentos com efetivação, curva diária, categorias em barras, contas agrupadas com logos e últimos cadastrados. Sem migração adicional; validação manual pelo uso.
+
 - #76: cadastro e seleção de cartão de débito, cobertura de pagamentos de crédito, cashback previsto em Receitas e aba própria, confirmação individual/em lote, faixas, teto, estornos, complementos, histórico imutável e schema 25 com backup/sync. Validação manual pendente.
 
 - Análises (#75): categorias/subcategorias, comparação mensal, compromissos dos próximos seis meses e saldo por tipo de conta, moedas separadas e detalhamento dos lançamentos.

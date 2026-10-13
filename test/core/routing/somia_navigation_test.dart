@@ -262,6 +262,7 @@ void main() {
         final key = size.width < 800
             ? (path == '/income' ? 'mobile-income-BRL' : 'mobile-expense-BRL')
             : 'dashboard-link-$path';
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
         await tester.tap(find.byKey(ValueKey(key)));
         await tester.pumpAndSettle();
         expect(appRouter.routeInformationProvider.value.uri.path, path);

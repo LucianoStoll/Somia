@@ -53,24 +53,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SomiaBrand), findsWidgets);
-    expect(find.text('Saldo total'), findsOneWidget);
+    expect(find.text('Saldo atual'), findsOneWidget);
     expect(find.text('R\$ 120,00'), findsOneWidget);
-    expect(find.text('Resultado do mês'), findsOneWidget);
-    expect(find.text('R\$ 20,00'), findsWidgets);
+    expect(find.textContaining('Resultado do mês:'), findsOneWidget);
+    expect(find.textContaining('R\$ 20,00'), findsWidgets);
     expect(find.text('Receitas'), findsWidgets);
-    expect(tester.getTopLeft(find.text('Saldo total')).dy,
-        lessThan(tester.getTopLeft(find.text('Resultado do mês')).dy));
+    expect(
+        tester.getTopLeft(find.text('Saldo atual')).dy,
+        lessThan(
+            tester.getTopLeft(find.textContaining('Resultado do mês:')).dy));
 
     await tester.tap(find.byTooltip('Próximo mês'));
     await tester.pumpAndSettle();
     expect(find.text('Saldo previsto'), findsOneWidget);
     expect(find.text('R\$ 130,00'), findsWidgets);
-    expect(find.text('Saldo efetivado: R\$ 120,00'), findsOneWidget);
-    expect(find.text('Saldo total'), findsNothing);
+
+    expect(find.text('Saldo atual'), findsNothing);
 
     await tester.tap(find.byTooltip('Mês anterior'));
     await tester.pumpAndSettle();
-    expect(find.text('Saldo total'), findsOneWidget);
+    expect(find.text('Saldo atual'), findsOneWidget);
     expect(find.text('R\$ 120,00'), findsOneWidget);
   });
 
@@ -90,7 +92,7 @@ void main() {
     await tester.pumpWidget(const FinApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Saldo do mês'), findsOneWidget);
+    expect(find.text('Saldo atual'), findsOneWidget);
     expect(find.text('Gastos por categoria'), findsOneWidget);
     await tester.scrollUntilVisible(
         find.byKey(const ValueKey('mobile-recent')), 250,

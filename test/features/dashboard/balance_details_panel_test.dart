@@ -245,6 +245,7 @@ void main() {
         platform: TargetPlatform.windows, size: const Size(1280, 900));
     final card = find.byKey(const ValueKey('desktop-projected-USD'));
     await tester.ensureVisible(card);
+    await tester.pumpAndSettle();
     await tester.tap(card);
     await tester.pumpAndSettle();
     expect(find.text('Outubro 2026 · USD'), findsOneWidget);
