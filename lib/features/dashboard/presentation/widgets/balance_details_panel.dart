@@ -7,8 +7,12 @@ import '../dashboard_cubit.dart';
 
 class BalanceDetailCard extends StatelessWidget {
   const BalanceDetailCard(
-      {super.key, required this.currencyCode, required this.child});
+      {super.key,
+      required this.currencyCode,
+      required this.child,
+      this.interactionKey});
   final String currencyCode;
+  final Key? interactionKey;
   final Widget child;
   @override
   Widget build(BuildContext context) => Semantics(
@@ -17,7 +21,7 @@ class BalanceDetailCard extends StatelessWidget {
       child: Material(
           color: Colors.transparent,
           child: InkWell(
-              key: ValueKey('balance-detail-$currencyCode'),
+              key: interactionKey ?? ValueKey('balance-detail-$currencyCode'),
               borderRadius: BorderRadius.circular(16),
               onTap: () => showBalanceDetails(context, currencyCode),
               child: child)));

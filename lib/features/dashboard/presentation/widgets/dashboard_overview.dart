@@ -86,7 +86,12 @@ class SummaryMetrics extends StatelessWidget {
                 style: const TextStyle(color: SomiaColors.muted, fontSize: 12))
           ]));
       if (balance) {
-        return BalanceDetailCard(currencyCode: c.currencyCode, child: content);
+        return BalanceDetailCard(
+            currencyCode: c.currencyCode,
+            interactionKey: title == 'Saldo previsto no fim do mês'
+                ? ValueKey('forecast-detail-${c.currencyCode}')
+                : null,
+            child: content);
       }
       return InkWell(
           key: ValueKey('dashboard-link-$route'),
