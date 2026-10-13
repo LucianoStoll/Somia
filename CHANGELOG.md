@@ -2,6 +2,12 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+### Exportação de análises — primeira etapa da #14
+
+- Android/Windows: exportar as quatro análises em Excel (.xlsx) e PDF pelo menu da barra superior, respeitando mês e moeda selecionados.
+- Totais e detalhes rastreáveis, datas/valores nativos no Excel, fonte incorporada e paginação no PDF; geração offline em segundo plano, cancelamento e erros tratados.
+- Sem alteração de dados/schema. Regras e roteiro em `docs/exportacao-relatorios.md`; importações adicionais e conciliação permanecem na #14.
+
 - #16: anexos sincronizados Android/Windows, conteúdo binário separado por base/hash no Drive, retomada e integridade, exclusões sem ressurreição, cache deduplicado e migração dos anexos locais para schema 26. Atualizar ambos os dispositivos antes de sincronizar; validação pelo uso pendente.
 
 - #77: Resumo responsivo Android/Windows, indicadores de pendências e caixa, vencimentos com efetivação, curva diária, categorias em barras, contas agrupadas com logos e últimos cadastrados. Sem migração adicional; validação manual pelo uso.

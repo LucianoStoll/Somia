@@ -8,9 +8,13 @@ import '../../../core/widgets/month_selector.dart';
 import '../../accounts/domain/money_minor.dart';
 import '../data/expense_analysis_repository.dart';
 import '../domain/expense_analysis.dart';
+import '../../reports/domain/analysis_report.dart';
+import '../../reports/data/report_exporter.dart';
+import '../../reports/data/report_export_service.dart';
 
 class ExpenseAnalysisPage extends StatefulWidget {
-  const ExpenseAnalysisPage({super.key});
+  const ExpenseAnalysisPage({super.key, this.exportService});
+  final ReportExportService? exportService;
   @override
   State<ExpenseAnalysisPage> createState() => _ExpenseAnalysisPageState();
 }
@@ -20,6 +24,7 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
   ExpenseAnalysis? data;
   String? error, currency;
   bool loading = true;
+  bool exporting = false;
   int view = 0, request = 0;
   @override
   void initState() {
@@ -73,12 +78,59 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
   String money(int value) => MoneyMinor.display(value, currency ?? 'BRL');
   String monthLabel(DateTime d) =>
       '${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  Future<void> export(ReportFormat format) async {
+    if (exporting || loading || data == null || currency == null) return;
+    // Capture filters and data before any asynchronous operation or app resume.
+    final report = AnalysisReport.fromAnalysis(data!, currency!, view);
+    final service = widget.exportService ?? ReportExportService();
+    setState(() => exporting = true);
+    try {
+      final bytes = await service.generate(report, format);
+      if (!mounted) return;
+      final saved = await service.save(report, format, bytes);
+      if (mounted && saved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Relatório exportado.')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Não foi possível exportar o relatório. Tente novamente.')));
+      }
+    } finally {
+      if (mounted) setState(() => exporting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
           title: const Text('Análises'),
           leading: somiaMenuLeading(context),
           actions: [
+            if (exporting)
+              const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2)))
+            else
+              PopupMenuButton<ReportFormat>(
+                  tooltip: 'Exportar análise',
+                  enabled: !loading && data != null && currency != null,
+                  icon: const Icon(Icons.file_download_outlined),
+                  onSelected: export,
+                  itemBuilder: (_) => const [
+                        PopupMenuItem(
+                            value: ReportFormat.excel,
+                            child: Text('Exportar Excel (.xlsx)')),
+                        PopupMenuItem(
+                            value: ReportFormat.pdf,
+                            child: Text('Exportar PDF'))
+                      ]),
             IconButton(
                 tooltip: 'Atualizar análises',
                 onPressed: loading ? null : load,
