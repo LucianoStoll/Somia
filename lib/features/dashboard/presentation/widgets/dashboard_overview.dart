@@ -355,12 +355,16 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
             Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.show_chart, size: 18, color: SomiaColors.blue),
               SizedBox(width: 6),
-              Text('Efetivado', style: TextStyle(color: SomiaColors.blue))
+              Flexible(
+                  child: Text('Efetivado',
+                      style: TextStyle(color: SomiaColors.blue)))
             ]),
             Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.more_horiz, size: 18, color: SomiaColors.green),
               SizedBox(width: 6),
-              Text('Previsto', style: TextStyle(color: SomiaColors.green))
+              Flexible(
+                  child: Text('Previsto',
+                      style: TextStyle(color: SomiaColors.green)))
             ])
           ]),
           const SizedBox(height: 8),
