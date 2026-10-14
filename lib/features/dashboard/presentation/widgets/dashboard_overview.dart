@@ -109,16 +109,20 @@ class _SummaryMetricsState extends State<SummaryMetrics> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [left, const SizedBox(height: 12), right]);
           }
-          return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            Expanded(child: left),
-            if (divider)
-              const SizedBox(
-                  height: 56,
-                  child: VerticalDivider(width: 26, color: SomiaColors.outline))
-            else
-              const SizedBox(width: 10),
-            Expanded(child: right),
-          ]);
+          return IntrinsicHeight(
+              child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                Expanded(child: left),
+                if (divider)
+                  const SizedBox(
+                      height: 56,
+                      child: VerticalDivider(
+                          width: 26, color: SomiaColors.outline))
+                else
+                  const SizedBox(width: 10),
+                Expanded(child: right),
+              ]));
         });
     Widget pending(String title, int value, Color color, String route,
             String key, IconData icon) =>
