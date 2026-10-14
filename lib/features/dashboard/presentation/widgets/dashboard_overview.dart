@@ -63,166 +63,175 @@ class SummaryPanel extends StatelessWidget {
       );
 }
 
-class SummaryMetrics extends StatelessWidget {
-  const SummaryMetrics({
-    super.key,
-    required this.currency,
-    required this.month,
-  });
+class SummaryMetrics extends StatefulWidget {
+  const SummaryMetrics(
+      {super.key, required this.currency, required this.month});
   final DashboardCurrencySummary currency;
   final DateTime month;
   @override
+  State<SummaryMetrics> createState() => _SummaryMetricsState();
+}
+
+class _SummaryMetricsState extends State<SummaryMetrics> {
+  bool hidden = false;
+  @override
   Widget build(BuildContext context) {
-    final c = currency, d = c.balanceDetails;
+    final c = widget.currency, d = c.balanceDetails;
     final now = DateTime.now();
-    final period = DateTime(month.year, month.month);
+    final period = DateTime(widget.month.year, widget.month.month);
     final current = DateTime(now.year, now.month);
-    Widget amount(String label, int value, Color color) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(color: SomiaColors.muted)),
-            const SizedBox(height: 6),
-            Text(
-              _money(value, c.currencyCode),
+    String money(int value) => hidden ? '••••' : _money(value, c.currencyCode);
+    Widget amount(String label, int value, Color color, {bool small = false}) =>
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
               style: TextStyle(
-                color: color,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        );
-    Widget pair(Widget left, Widget right) => LayoutBuilder(
-          builder: (context, box) {
-            if (box.maxWidth < 270 ||
-                MediaQuery.textScalerOf(context).scale(16) > 22) {
-              return Column(
+                  color: SomiaColors.muted, fontSize: small ? 12 : 13)),
+          const SizedBox(height: 6),
+          if (small)
+            FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(money(value),
+                    style: TextStyle(
+                        color: color,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600)))
+          else
+            Text(money(value),
+                style: TextStyle(
+                    color: color, fontSize: 20, fontWeight: FontWeight.w600)),
+        ]);
+    Widget pair(Widget left, Widget right, {bool divider = false}) =>
+        LayoutBuilder(builder: (context, box) {
+          if (box.maxWidth < 270 ||
+              MediaQuery.textScalerOf(context).scale(16) > 22) {
+            return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [left, const SizedBox(height: 12), right],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: left),
-                const SizedBox(width: 16),
-                Expanded(child: right),
-              ],
-            );
-          },
-        );
-    Widget pending(
-      String title,
-      int value,
-      Color color,
-      String route,
-      String key,
-    ) =>
+                children: [left, const SizedBox(height: 12), right]);
+          }
+          return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Expanded(child: left),
+            if (divider)
+              const SizedBox(
+                  height: 56,
+                  child: VerticalDivider(width: 26, color: SomiaColors.outline))
+            else
+              const SizedBox(width: 10),
+            Expanded(child: right),
+          ]);
+        });
+    Widget pending(String title, int value, Color color, String route,
+            String key, IconData icon) =>
         Material(
-          color: color.withValues(alpha: .10),
-          borderRadius: BorderRadius.circular(18),
-          child: InkWell(
-            key: ValueKey('dashboard-link-$route'),
+            color: color.withValues(alpha: .17),
             borderRadius: BorderRadius.circular(18),
-            onTap: () => context.go(route),
-            child: Padding(
-              key: ValueKey('mobile-$key-${c.currencyCode}'),
-              padding: const EdgeInsets.all(16),
-              child: amount(title, value, color),
-            ),
-          ),
-        );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Card(
+            child: InkWell(
+                key: ValueKey('dashboard-link-$route'),
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => context.go(route),
+                child: Padding(
+                    key: ValueKey('mobile-$key-${c.currencyCode}'),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 16),
+                    child: Row(children: [
+                      Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: color, width: 1.5)),
+                          child: Icon(icon, size: 20, color: color)),
+                      const SizedBox(width: 9),
+                      Expanded(child: amount(title, value, color, small: true)),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.chevron_right,
+                          color: SomiaColors.muted, size: 16),
+                    ]))));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Card(
           child: BalanceDetailCard(
-            currencyCode: c.currencyCode,
-            child: Padding(
-              key: ValueKey('mobile-balance-${c.currencyCode}'),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    period.isAfter(current)
-                        ? 'Saldo previsto'
-                        : period.isBefore(current)
-                            ? 'Saldo efetivado no mês'
-                            : 'Saldo atual',
-                    style: const TextStyle(color: SomiaColors.blue),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _money(
-                      period.isAfter(current)
-                          ? c.projectedBalanceMinor
-                          : c.currentBalanceMinor,
-                      c.currencyCode,
-                    ),
-                    style: const TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      const Text(
-                        'Saldo previsto no fim do mês',
-                        style: TextStyle(color: SomiaColors.muted),
-                      ),
-                      Text(
-                        _money(c.projectedBalanceMinor, c.currencyCode),
-                        key: ValueKey('desktop-projected-${c.currencyCode}'),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 28),
-                  pair(
-                    amount(
-                      'Recebido no mês',
-                      d?.incomeMinor ?? 0,
-                      SomiaColors.green,
-                    ),
-                    amount(
-                      'Pago no mês',
-                      (d?.expenseMinor ?? 0) + (d?.cardPaymentsMinor ?? 0),
-                      SomiaColors.red,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Resultado do mês: ${_money(c.monthlyResultMinor, c.currencyCode)}',
-                    style: const TextStyle(color: SomiaColors.muted),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        pair(
+              currencyCode: c.currencyCode,
+              child: Padding(
+                  key: ValueKey('mobile-balance-${c.currencyCode}'),
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                    Text(
+                                        period.isAfter(current)
+                                            ? 'Saldo previsto'
+                                            : period.isBefore(current)
+                                                ? 'Saldo efetivado no mês'
+                                                : 'Saldo atual',
+                                        style: const TextStyle(
+                                            color: SomiaColors.blue,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w500)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                        money(period.isAfter(current)
+                                            ? c.projectedBalanceMinor
+                                            : c.currentBalanceMinor),
+                                        style: const TextStyle(
+                                            color: SomiaColors.blue,
+                                            fontSize: 34,
+                                            fontWeight: FontWeight.w700)),
+                                  ])),
+                              IconButton(
+                                  key: const ValueKey('summary-visibility'),
+                                  tooltip: hidden
+                                      ? 'Mostrar valores do resumo'
+                                      : 'Ocultar valores do resumo',
+                                  onPressed: () =>
+                                      setState(() => hidden = !hidden),
+                                  icon: Icon(
+                                      hidden
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: SomiaColors.blue)),
+                            ]),
+                        const SizedBox(height: 10),
+                        Wrap(spacing: 8, runSpacing: 4, children: [
+                          const Text('Previsto no fim do mês',
+                              style: TextStyle(
+                                  color: SomiaColors.muted, fontSize: 13)),
+                          Text(money(c.projectedBalanceMinor),
+                              key: ValueKey(
+                                  'desktop-projected-${c.currencyCode}'),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 14)),
+                        ]),
+                        const Divider(height: 26, color: SomiaColors.outline),
+                        pair(
+                            amount('Recebido no mês', d?.incomeMinor ?? 0,
+                                SomiaColors.green),
+                            amount(
+                                'Pago no mês',
+                                (d?.expenseMinor ?? 0) +
+                                    (d?.cardPaymentsMinor ?? 0),
+                                SomiaColors.red),
+                            divider: true),
+                      ])))),
+      const SizedBox(height: 10),
+      pair(
+          pending('A receber', d?.pendingIncomeMinor ?? 0, SomiaColors.green,
+              AppRoutes.incomePath, 'income', Icons.arrow_downward),
           pending(
-            'A receber',
-            d?.pendingIncomeMinor ?? 0,
-            SomiaColors.green,
-            AppRoutes.incomePath,
-            'income',
-          ),
-          pending(
-            'A pagar',
-            (d?.pendingExpenseMinor ?? 0) + (d?.pendingInvoicesMinor ?? 0),
-            SomiaColors.red,
-            AppRoutes.expensesPath,
-            'expense',
-          ),
-        ),
-      ],
-    );
+              'A pagar',
+              (d?.pendingExpenseMinor ?? 0) + (d?.pendingInvoicesMinor ?? 0),
+              SomiaColors.red,
+              AppRoutes.expensesPath,
+              'expense',
+              Icons.arrow_upward)),
+    ]);
   }
 }
 

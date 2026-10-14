@@ -296,7 +296,7 @@ void main() {
     await _mount(tester, const Size(1440, 1000));
 
     expect(find.text('Saldo atual'), findsOneWidget);
-    expect(find.text('Saldo previsto no fim do mês'), findsOneWidget);
+    expect(find.text('Previsto no fim do mês'), findsOneWidget);
     expect(find.text('Gastos por categoria'), findsOneWidget);
     expect(find.text('Saldo por conta'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -403,6 +403,27 @@ void main() {
       ]);
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('olho oculta e restaura valores sem abrir detalhes',
+      (tester) async {
+    await _mount(tester, const Size(390, 900));
+    final card = find.byKey(const ValueKey('mobile-balance-BRL'));
+    final eye = find.byKey(const ValueKey('summary-visibility'));
+    expect(find.descendant(of: card, matching: find.textContaining('2.350,00')),
+        findsOneWidget);
+    await tester.tap(eye);
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.descendant(of: card, matching: find.textContaining('2.350,00')),
+        findsNothing);
+    expect(find.descendant(of: card, matching: find.text('••••')),
+        findsNWidgets(4));
+    await tester.tap(eye);
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: card, matching: find.textContaining('2.350,00')),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {

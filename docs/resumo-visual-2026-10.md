@@ -13,7 +13,7 @@ Reduzir a distância entre o topo e as análises, usando grafite, azul acinzenta
 1. Um cartão com saldo atual/efetivado/previsto conforme período, previsão no fechamento, recebido e pago, e resultado mensal separado do saldo.
 2. A receber e a pagar compactos, com acesso às listas existentes.
 3. Evolução diária conforme a referência adicional: grade discreta, escala automática incluindo zero, área azul suave, linha azul contínua até hoje e continuação azul pontilhada somente no futuro. Marcador vertical tracejado e rótulo Hoje no mês atual. Meses passados mostram realizado; futuros mostram previsto. Tocar/arrastar revela valores sem texto permanente sobre o gráfico. Pendências históricas continuam disponíveis na consulta; previsões futuras mantêm o saldo cumulativo original, inclusive atrasados, sem rebase artificial.
-4. Gastos por categoria em rosca. Mostrar até cinco grupos; acima disso, quatro maiores mais Outras. Legenda sempre com nome, valor e percentual.
+4. Gastos por categoria em rosca. Mostrar até quatro grupos; acima disso, três maiores mais Outras. Legenda sempre com nome, valor e percentual.
 5. Receitas e despesas mensais com barras e consulta já existente.
 6. Saldo por tipo de conta, incluindo contas excluídas do saldo principal. Valores negativos destacados e barras proporcionais à magnitude, sem apresentar saldo negativo como positivo. Moedas separadas.
 7. Três próximos vencimentos; Ver todos expande a lista, Ver menos recolhe. Descrição completa no detalhe. Ações Abrir/Efetivar preservadas.
@@ -26,7 +26,7 @@ No Windows, evolução e categorias ficam lado a lado quando há largura; histó
 - Paleta local ao dashboard: fundo #141518, cartões #202226, azul #A5BCD0, receitas #A8C5B0, despesas #D6A3A3, lavanda #B8B3D9 e areia #D8C49E.
 - Não modificar cálculos, efetivação, vencimentos, pagamentos de faturas, contas incluídas ou conversão de moedas nesta revisão visual.
 - Ajuda sobre previsão disponível por tooltip; detalhamento de saldo preservado ao tocar no cartão.
-- A primeira implementação mantém o histórico de seis meses existente. Alternância 6/12 meses, personalização dos blocos e ocultação global de valores ficam para evolução própria; o ícone de olho do conceito não é incluído como controle sem função.
+- A primeira implementação mantém o histórico de seis meses existente. Alternância 6/12 meses, personalização dos blocos e ocultação global de valores ficam para evolução própria; o ícone de olho agora oculta os valores do resumo, conforme a referência adicional.
 - A cor da legenda deve coincidir com o respectivo segmento, corrigindo a inconsistência ilustrativa do conceito.
 
 ## Validação
@@ -49,3 +49,9 @@ Legenda com amostras reais de linha e pontos, rótulos de dia com dois dígitos 
 ## Saldo por tipo de conta — referência adicional
 
 Ícone de cartão, carteira e tendência à esquerda; nome, barra arredondada e valor na mesma linha, com colunas alinhadas. Ordem estável: Conta corrente, Carteira, Investimentos, Poupança e Outras (apenas tipos existentes). Azul claro, lavanda e azul suave nos três primeiros tipos. Os comprimentos usam uma escala comum com folga de 50% sobre a maior magnitude, preservando proporções reais. Valores negativos mantêm sinal e cor vermelha. Em telas muito estreitas ou com texto ampliado, a barra vai abaixo do nome/valor para preservar legibilidade. Contas excluídas do saldo principal continuam incluídas neste detalhamento e moedas continuam separadas.
+
+## Resumo e categorias — referências adicionais
+
+Resumo com saldo azul, botão funcional para ocultar/mostrar os valores do próprio resumo, previsão na mesma linha e separador entre recebido e pago. Cartões de pendências com setas circulares e acesso às listas existentes. Resultado mensal segue calculado no domínio, mas não ocupa uma linha adicional no cartão da referência.
+
+Categorias com rosca espessa à esquerda, total no centro e legenda em colunas (nome, percentual, valor) à direita. Até quatro segmentos; acima disso, três maiores mais Outras. Cor da legenda coincide com o segmento. Toque abre a análise; tooltip explica que inclui previstos e efetivados. Em telas estreitas ou com fonte ampliada, os blocos empilham para manter a leitura. Valores vêm do banco real.
