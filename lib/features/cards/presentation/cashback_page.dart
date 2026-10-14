@@ -694,8 +694,9 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
             ?.id ??
         accounts.firstOrNull?.id;
     category = widget.receipts.firstOrNull?.categoryId;
-    if (widget.editing && widget.receipts.isNotEmpty)
+    if (widget.editing && widget.receipts.isNotEmpty) {
       date = widget.receipts.first.date;
+    }
     if (!cashbackCategoryUsable(
         widget.categories, category, returns ? 'expense' : 'income')) {
       category = null;

@@ -122,7 +122,7 @@ void main() {
         seriesPlan: const SeriesPlan(kind: SeriesKind.installments, count: 3)));
     final series = await db
         .customSelect(
-            "SELECT * FROM transactions WHERE series_id IS NOT NULL ORDER BY series_index")
+            'SELECT * FROM transactions WHERE series_id IS NOT NULL ORDER BY series_index')
         .get();
     // Simulate the pre-fix calculation, where every installment was independent.
     await db.customStatement(

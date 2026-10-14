@@ -321,7 +321,9 @@ class CashbackRepository {
       if ((await rows(
               "SELECT id FROM cashback_receipts WHERE claim_id=? AND confirmed=0 AND reason='manual' AND deleted_at IS NULL",
               [id]))
-          .isNotEmpty) continue;
+          .isNotEmpty) {
+        continue;
+      }
       final confirmed = await rows(
           '''SELECT r.*,t.account_id,t.actual_amount_minor,t.planned_amount_minor FROM cashback_receipts r JOIN transactions t ON t.id=r.id
         WHERE r.claim_id=? AND r.confirmed<>0 AND r.deleted_at IS NULL ORDER BY r.updated_at,r.id''',
