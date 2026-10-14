@@ -55,13 +55,11 @@ void main() {
     expect(find.byType(SomiaBrand), findsWidgets);
     expect(find.text('Saldo atual'), findsOneWidget);
     expect(find.text('R\$ 120,00'), findsOneWidget);
-    expect(find.textContaining('Resultado do mês:'), findsOneWidget);
+    expect(find.text('Previsto no fim do mês'), findsOneWidget);
     expect(find.textContaining('R\$ 20,00'), findsWidgets);
     expect(find.text('Receitas'), findsWidgets);
-    expect(
-        tester.getTopLeft(find.text('Saldo atual')).dy,
-        lessThan(
-            tester.getTopLeft(find.textContaining('Resultado do mês:')).dy));
+    expect(tester.getTopLeft(find.text('Saldo atual')).dy,
+        lessThan(tester.getTopLeft(find.text('Previsto no fim do mês')).dy));
 
     await tester.tap(find.byTooltip('Próximo mês'));
     await tester.pumpAndSettle();
