@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/di/injection.dart';
 import '../../../core/routing/somia_shell.dart';
 import '../../../core/widgets/movement_form_frame.dart';
@@ -47,7 +48,7 @@ class _CashbackPageState extends State<CashbackPage> {
         for (final c in credit)
           CardCashbackOption('credit', c.id, c.name, c.paymentAccountId),
         for (final c in debit)
-          CardCashbackOption('debit', c.id, c.name, c.accountId)
+          CardCashbackOption('debit', c.id, c.name, c.accountId),
       ];
       final acc = await getIt<AccountsRepository>().list(),
           cat = await getIt<CategoriesRepository>().list();
@@ -117,6 +118,53 @@ class _CashbackPageState extends State<CashbackPage> {
     if (mounted) await load();
   }
 
+  Future<void> edit([CashbackReceipt? receipt]) async {
+    final card = cards.where((c) => c.key == target).firstOrNull;
+    if (receipt == null && card == null) {
+      cardError(
+          context, StateError('Selecione um cartão para adicionar cashback.'));
+      return;
+    }
+    await showMovementForm<bool>(
+        context,
+        (_) => CashbackConfirmationForm(
+            receipts: receipt == null ? [] : [receipt],
+            accounts: accounts,
+            categories: categories,
+            repo: repo,
+            editing: true,
+            card: card));
+    if (mounted) await load();
+  }
+
+  Future<void> remove(CashbackReceipt receipt) async {
+    final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+                title: const Text('Excluir cashback?'),
+                content: Text(receipt.confirmed == 1
+                    ? 'O recebimento será removido do saldo e do histórico de cashback. A compra será mantida.'
+                    : 'A previsão será excluída. A compra será mantida.'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c, false),
+                      child: const Text('Cancelar')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(c, true),
+                      child: const Text('Excluir')),
+                ]));
+    if (ok != true || !mounted) return;
+    setState(() => acting = true);
+    try {
+      await repo.delete(receipt);
+      await load();
+    } catch (e) {
+      if (mounted) cardError(context, e);
+    } finally {
+      if (mounted) setState(() => acting = false);
+    }
+  }
+
   Future<void> undo(CashbackReceipt receipt) async {
     final ok = await showDialog<bool>(
         context: context,
@@ -130,7 +178,7 @@ class _CashbackPageState extends State<CashbackPage> {
                       child: const Text('Cancelar')),
                   FilledButton(
                       onPressed: () => Navigator.pop(c, true),
-                      child: const Text('Desfazer'))
+                      child: const Text('Desfazer')),
                 ]));
     if (ok != true) return;
     if (mounted) setState(() => acting = true);
@@ -179,9 +227,10 @@ class _CashbackPageState extends State<CashbackPage> {
                 '${r.confirmed == 0 ? (r.kind == 'return' ? 'Devolução prevista' : 'Previsto') : (r.kind == 'return' ? 'Devolvido' : 'Recebido')} · ${cardDateLabel(r.date)}'),
             Text(const {
                   'forecast': 'Compra',
+                  'manual': 'Ajuste manual',
                   'tier': 'Faixa maior',
                   'cap': 'Redistribuição / teto',
-                  'refund': 'Estorno'
+                  'refund': 'Estorno',
                 }[r.reason] ??
                 'Ajuste'),
             Align(
@@ -191,7 +240,21 @@ class _CashbackPageState extends State<CashbackPage> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 12,
                     children: [
-                      Text(cardMoney(r.amountMinor)),
+                      TextButton(
+                          onPressed: acting ? null : () => edit(r),
+                          child: Text(cardMoney(r.amountMinor))),
+                      PopupMenuButton<String>(
+                          enabled: !acting,
+                          onSelected: (value) {
+                            if (value == 'edit') edit(r);
+                            if (value == 'delete') remove(r);
+                          },
+                          itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                    value: 'edit', child: Text('Editar')),
+                                PopupMenuItem(
+                                    value: 'delete', child: Text('Excluir')),
+                              ]),
                       TextButton(
                           onPressed: acting
                               ? null
@@ -216,6 +279,10 @@ class _CashbackPageState extends State<CashbackPage> {
             leading: somiaMenuLeading(context),
             actions: [
               IconButton(
+                  tooltip: 'Adicionar cashback',
+                  onPressed: loading || acting ? null : () => edit(),
+                  icon: const Icon(Icons.add)),
+              IconButton(
                   tooltip: 'Configurar cashback do cartão',
                   onPressed: target == null || loading ? null : settings,
                   icon: const Icon(Icons.tune)),
@@ -225,7 +292,7 @@ class _CashbackPageState extends State<CashbackPage> {
                         batch = !batch;
                         selected.clear();
                       }),
-                  icon: Icon(batch ? Icons.close : Icons.checklist))
+                  icon: Icon(batch ? Icons.close : Icons.checklist)),
             ]),
         body: loading
             ? const Center(child: CircularProgressIndicator())
@@ -251,7 +318,7 @@ class _CashbackPageState extends State<CashbackPage> {
                               DropdownMenuItem(
                                   value: card.key,
                                   child: Text(
-                                      '${card.name} · ${card.kind == 'credit' ? 'Crédito' : 'Débito'}'))
+                                      '${card.name} · ${card.kind == 'credit' ? 'Crédito' : 'Débito'}')),
                           ],
                           onChanged: (v) {
                             setState(() => target = v);
@@ -265,7 +332,7 @@ class _CashbackPageState extends State<CashbackPage> {
                                 'Configurar regra, conta e categorias')),
                       Wrap(spacing: 16, runSpacing: 8, children: [
                         Text('Previsto: ${cardMoney(pending)}'),
-                        Text('Recebido líquido: ${cardMoney(received)}')
+                        Text('Recebido líquido: ${cardMoney(received)}'),
                       ]),
                       const Padding(
                           padding: EdgeInsets.symmetric(vertical: 12),
@@ -324,7 +391,7 @@ Widget cashbackCategoryPicker(List<FinanceCategory> categories, String type,
           const DropdownMenuItem<String>(
               value: null, child: Text('Sem categoria')),
           for (final c in available.where((c) => c.parentId == null))
-            DropdownMenuItem(value: c.id, child: Text(c.name))
+            DropdownMenuItem(value: c.id, child: Text(c.name)),
         ],
         onChanged: changed),
     if (children.isNotEmpty)
@@ -337,20 +404,21 @@ Widget cashbackCategoryPicker(List<FinanceCategory> categories, String type,
             const DropdownMenuItem<String>(
                 value: null, child: Text('Sem subcategoria')),
             for (final c in children)
-              DropdownMenuItem(value: c.id, child: Text(c.name))
+              DropdownMenuItem(value: c.id, child: Text(c.name)),
           ],
           onChanged: (v) => changed(v ?? root)),
   ]);
 }
 
 class CashbackSettingsForm extends StatefulWidget {
-  const CashbackSettingsForm(
-      {super.key,
-      required this.card,
-      required this.accounts,
-      required this.categories,
-      required this.repo,
-      this.current});
+  const CashbackSettingsForm({
+    super.key,
+    required this.card,
+    required this.accounts,
+    required this.categories,
+    required this.repo,
+    this.current,
+  });
   final CardCashbackOption card;
   final List<Account> accounts;
   final List<FinanceCategory> categories;
@@ -425,7 +493,7 @@ class _CashbackSettingsFormState extends State<CashbackSettingsForm> {
           tiers: [
             for (final t in tiers)
               CashbackTier(
-                  MoneyMinor.parse(t.$1.text), MoneyMinor.parse(t.$2.text))
+                  MoneyMinor.parse(t.$1.text), MoneyMinor.parse(t.$2.text)),
           ],
           monthlyCapMinor:
               cap.text.trim().isEmpty ? null : MoneyMinor.parse(cap.text),
@@ -483,7 +551,7 @@ class _CashbackSettingsFormState extends State<CashbackSettingsForm> {
                     items: [
                       for (final a in accounts)
                         DropdownMenuItem(
-                            value: a.id, child: AccountOption(account: a))
+                            value: a.id, child: AccountOption(account: a)),
                     ],
                     validator: (v) =>
                         v == null ? 'Cadastre uma conta ativa em BRL.' : null,
@@ -505,7 +573,7 @@ class _CashbackSettingsFormState extends State<CashbackSettingsForm> {
                           child: Text('No primeiro pagamento')),
                       DropdownMenuItem(
                           value: CashbackSchedule.nextMonth,
-                          child: Text('Dia fixo do mês seguinte'))
+                          child: Text('Dia fixo do mês seguinte')),
                     ],
                     onChanged: (v) => setState(() => schedule = v!)),
                 if (schedule == CashbackSchedule.nextMonth)
@@ -553,7 +621,7 @@ class _CashbackSettingsFormState extends State<CashbackSettingsForm> {
                                         t.$1.dispose();
                                         t.$2.dispose();
                                       }),
-                                  child: const Text('Remover faixa'))
+                                  child: const Text('Remover faixa')),
                             ])),
                       TextButton(
                           onPressed: () => setState(() => tiers.add((
@@ -581,16 +649,21 @@ class _CashbackSettingsFormState extends State<CashbackSettingsForm> {
 }
 
 class CashbackConfirmationForm extends StatefulWidget {
-  const CashbackConfirmationForm(
-      {super.key,
-      required this.receipts,
-      required this.accounts,
-      required this.categories,
-      required this.repo});
+  const CashbackConfirmationForm({
+    super.key,
+    required this.receipts,
+    required this.accounts,
+    required this.categories,
+    required this.repo,
+    this.editing = false,
+    this.card,
+  });
   final List<CashbackReceipt> receipts;
   final List<Account> accounts;
   final List<FinanceCategory> categories;
   final CashbackRepository repo;
+  final bool editing;
+  final CardCashbackOption? card;
   @override
   State<CashbackConfirmationForm> createState() =>
       _CashbackConfirmationFormState();
@@ -602,7 +675,7 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
   String? account, category;
   DateTime date = DateTime.now();
   bool saving = false;
-  bool get returns => widget.receipts.first.kind == 'return';
+  bool get returns => widget.receipts.firstOrNull?.kind == 'return';
   List<Account> get accounts => widget.accounts
       .where((a) => !a.isArchived && a.currencyCode == 'BRL')
       .toList();
@@ -613,11 +686,17 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
         text: MoneyMinor.plain(
             widget.receipts.fold(0, (v, r) => v + r.amountMinor)));
     account = accounts
-            .where((a) => a.id == widget.receipts.first.accountId)
+            .where((a) =>
+                a.id ==
+                (widget.receipts.firstOrNull?.accountId ??
+                    widget.card?.account))
             .firstOrNull
             ?.id ??
         accounts.firstOrNull?.id;
-    category = widget.receipts.first.categoryId;
+    category = widget.receipts.firstOrNull?.categoryId;
+    if (widget.editing && widget.receipts.isNotEmpty) {
+      date = widget.receipts.first.date;
+    }
     if (!cashbackCategoryUsable(
         widget.categories, category, returns ? 'expense' : 'income')) {
       category = null;
@@ -634,11 +713,29 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
     if (saving || !form.currentState!.validate()) return;
     setState(() => saving = true);
     try {
-      await widget.repo.confirm(widget.receipts,
-          totalMinor: MoneyMinor.parse(amount.text),
-          accountId: account!,
-          categoryId: category,
-          date: date);
+      if (widget.editing) {
+        if (widget.receipts.isEmpty) {
+          await widget.repo.create(
+              kind: widget.card!.kind,
+              cardId: widget.card!.id,
+              amountMinor: MoneyMinor.parse(amount.text),
+              accountId: account!,
+              categoryId: category,
+              date: date);
+        } else {
+          await widget.repo.edit(widget.receipts.single,
+              amountMinor: MoneyMinor.parse(amount.text),
+              accountId: account!,
+              categoryId: category,
+              date: date);
+        }
+      } else {
+        await widget.repo.confirm(widget.receipts,
+            totalMinor: MoneyMinor.parse(amount.text),
+            accountId: account!,
+            categoryId: category,
+            date: date);
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) cardError(context, e);
@@ -651,10 +748,20 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
   Widget build(BuildContext context) => UnsavedChangesGuard(
       value: () => (amount.text, account, category, date),
       builder: (context, cancel) => MovementFormFrame(
-          title: returns ? 'Confirmar devolução' : 'Confirmar cashback',
+          title: widget.editing
+              ? (widget.receipts.isEmpty
+                  ? 'Adicionar cashback'
+                  : 'Editar cashback')
+              : returns
+                  ? 'Confirmar devolução'
+                  : 'Confirmar cashback',
           onSave: save,
           onCancel: saving ? () {} : cancel,
-          saveLabel: saving ? 'Confirmando…' : 'Confirmar',
+          saveLabel: saving
+              ? 'Salvando…'
+              : widget.editing
+                  ? 'Salvar'
+                  : 'Confirmar',
           child: Form(
               key: form,
               child: Column(spacing: 16, children: [
@@ -662,11 +769,13 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
                     '${widget.receipts.length} lançamento(s) · previsto ${cardMoney(widget.receipts.fold(0, (v, r) => v + r.amountMinor))}'),
                 MonetaryCalculatorField(
                     controller: amount,
-                    labelText: returns
-                        ? 'Total realmente devolvido'
-                        : 'Total realmente depositado',
+                    labelText: widget.editing
+                        ? 'Valor do cashback'
+                        : returns
+                            ? 'Total realmente devolvido'
+                            : 'Total realmente depositado',
                     currencyCode: 'BRL',
-                    minimumMinor: 0),
+                    minimumMinor: widget.editing ? 1 : 0),
                 DropdownButtonFormField<String>(
                     initialValue: account,
                     isExpanded: true,
@@ -677,7 +786,7 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
                     items: [
                       for (final a in accounts)
                         DropdownMenuItem(
-                            value: a.id, child: AccountOption(account: a))
+                            value: a.id, child: AccountOption(account: a)),
                     ],
                     validator: (v) =>
                         v == null ? 'Selecione uma conta ativa em BRL.' : null,
@@ -689,7 +798,10 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
                     (v) => setState(() => category = v),
                     'Categoria'),
                 ListTile(
-                    title: const Text('Data efetiva'),
+                    title: Text(widget.editing &&
+                            widget.receipts.firstOrNull?.confirmed != 1
+                        ? 'Data prevista'
+                        : 'Data efetiva'),
                     subtitle: Text(cardDateLabel(date)),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
@@ -698,7 +810,11 @@ class _CashbackConfirmationFormState extends State<CashbackConfirmationForm> {
                         setState(() => date = chosen);
                       }
                     }),
-                const Text(
-                    'O total será distribuído proporcionalmente, fechando os centavos. O valor confirmado é definitivo; uma diferença aceita não fica pendente. Informar zero registra a confirmação sem movimentar dinheiro.'),
+                if (widget.editing)
+                  const Text(
+                      'A edição mantém o estado atual do lançamento. Novos cashbacks são criados como previsão.')
+                else
+                  const Text(
+                      'O total será distribuído proporcionalmente, fechando os centavos. O valor confirmado é definitivo; uma diferença aceita não fica pendente. Informar zero registra a confirmação sem movimentar dinheiro.'),
               ]))));
 }

@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:finapp/core/series/movement_series.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/core/database/financial_data.dart';
@@ -59,8 +60,11 @@ void main() {
         .id;
   });
   tearDown(() => db.close());
-  Future<void> configure(
-          {String kind = 'debit', CashbackRule? rule, bool enabled = true}) =>
+  Future<void> configure({
+    String kind = 'debit',
+    CashbackRule? rule,
+    bool enabled = true,
+  }) =>
       cashback.saveSettings(
           kind: kind,
           cardId: kind == 'debit' ? debitId : creditId,
@@ -69,8 +73,11 @@ void main() {
           categoryId: incomeCategory,
           returnCategoryId: returnCategory,
           rule: rule ?? CashbackRule(rateBasisPoints: 100));
-  Future<FinancialTransaction> buy(int amount,
-          {bool effective = true, DateTime? date}) =>
+  Future<FinancialTransaction> buy(
+    int amount, {
+    bool effective = true,
+    DateTime? date,
+  }) =>
       transactions.create(TransactionDraft(
           description: 'Compra',
           type: TransactionType.expense,
@@ -85,6 +92,195 @@ void main() {
       date: today,
       categoryId: r.kind == 'return' ? returnCategory : incomeCategory);
 
+  test('deleting a pending complement accepts removal without recreating it',
+      () async {
+    await configure(
+        rule: CashbackRule(
+            rateBasisPoints: 100, tiers: [const CashbackTier(20000, 200)]));
+    await buy(10000);
+    await receive((await cashback.list()).single, 100);
+    await buy(10000);
+    final complement =
+        (await cashback.list()).singleWhere((r) => r.kind == 'complement');
+    await cashback.delete(complement);
+    expect(
+        (await cashback.list()).where((r) => r.kind == 'complement'), isEmpty);
+    await validateFinancial(db);
+  });
+
+  test('legacy installment receipts consolidate without erasing received money',
+      () async {
+    await configure();
+    final purchase = await transactions.create(TransactionDraft(
+        description: 'Legada',
+        type: TransactionType.expense,
+        amountMinor: 90000,
+        date: today,
+        isEffective: false,
+        accountId: source.id,
+        debitCardId: debitId,
+        seriesPlan: const SeriesPlan(kind: SeriesKind.installments, count: 3)));
+    final series = await db
+        .customSelect(
+            'SELECT * FROM transactions WHERE series_id IS NOT NULL ORDER BY series_index')
+        .get();
+    // Simulate the pre-fix calculation, where every installment was independent.
+    await db.customStatement(
+        "UPDATE transactions SET series_kind='recurring' WHERE series_id IS NOT NULL");
+    for (final row in series.take(2)) {
+      await transactions.setEffective(row.read<String>('id'),
+          effective: true, effectiveDate: today);
+      await receive(
+          (await cashback.list()).singleWhere((r) => r.confirmed == 0), 300);
+    }
+    await db.customStatement(
+        "UPDATE transactions SET series_kind='installments' WHERE series_id IS NOT NULL");
+    final receipts = await cashback.list();
+    expect(
+        receipts
+            .where((r) => r.confirmed == 1)
+            .fold<int>(0, (v, r) => v + r.amountMinor),
+        600);
+    expect(receipts.singleWhere((r) => r.confirmed == 0).amountMinor, 300);
+    await receive(receipts.singleWhere((r) => r.confirmed == 0), 300);
+    await transactions.setEffective(series.last.read<String>('id'),
+        effective: true, effectiveDate: today);
+    expect((await cashback.list()).where((r) => r.confirmed == 0), isEmpty);
+    expect(
+        (await cashback.list()).every((r) => r.claimId.contains(purchase.id)),
+        isTrue);
+    await validateFinancial(db);
+  });
+
+  test('manual CRUD persists across reconciliation and backup', () async {
+    await cashback.create(
+        kind: 'debit',
+        cardId: debitId,
+        amountMinor: 450,
+        accountId: destination.id,
+        categoryId: incomeCategory,
+        date: today);
+    var receipt = (await cashback.list()).single;
+    expect(receipt.confirmed, 0);
+    await cashback.edit(receipt,
+        amountMinor: 555,
+        accountId: source.id,
+        categoryId: incomeCategory,
+        date: today);
+    receipt = (await cashback.list()).single;
+    expect(receipt.amountMinor, 555);
+    expect(receipt.accountId, source.id);
+    await receive(receipt, 555);
+    receipt = (await cashback.list()).single;
+    await cashback.edit(receipt,
+        amountMinor: 600,
+        accountId: destination.id,
+        categoryId: incomeCategory,
+        date: today);
+    receipt = (await cashback.list()).single;
+    expect(receipt.amountMinor, 600);
+    expect(receipt.confirmed, 1);
+    await validateFinancial(db);
+    final snapshot = await readFinancial(db);
+    await db.transaction(() => replaceFinancial(db, snapshot));
+    expect((await cashback.list()).single.amountMinor, 600);
+    await cashback.delete((await cashback.list()).single);
+    expect(await cashback.list(), isEmpty);
+    await validateFinancial(db);
+  });
+
+  test('automatic forecasts can be edited and deleted without regeneration',
+      () async {
+    await configure();
+    await buy(100000);
+    var receipt = (await cashback.list()).single;
+    await cashback.edit(receipt,
+        amountMinor: 777,
+        accountId: destination.id,
+        categoryId: incomeCategory,
+        date: today);
+    receipt = (await cashback.list()).single;
+    expect(receipt.amountMinor, 777);
+    await expectLater(
+        cashback.edit(receipt,
+            amountMinor: -1, accountId: destination.id, date: today),
+        throwsFormatException);
+    await cashback.delete(receipt);
+    expect(await cashback.list(), isEmpty);
+    expect(await cashback.list(), isEmpty);
+    await validateFinancial(db);
+  });
+
+  test('received automatic cashback can be edited then deleted', () async {
+    await configure();
+    await buy(100000);
+    await receive((await cashback.list()).single, 1000);
+    await cashback.edit((await cashback.list()).single,
+        amountMinor: 850,
+        accountId: destination.id,
+        categoryId: incomeCategory,
+        date: today);
+    expect((await cashback.list()).single.amountMinor, 850);
+    await cashback.delete((await cashback.list()).single);
+    expect(await cashback.list(), isEmpty);
+    await validateFinancial(db);
+  });
+
+  test('debit installments receive the full cashback only once', () async {
+    await configure();
+    final purchase = await transactions.create(TransactionDraft(
+        description: 'Parcelada débito',
+        type: TransactionType.expense,
+        amountMinor: 100001,
+        date: today,
+        isEffective: false,
+        accountId: source.id,
+        debitCardId: debitId,
+        seriesPlan: const SeriesPlan(kind: SeriesKind.installments, count: 3)));
+    await transactions.setEffective(purchase.id,
+        effective: true, effectiveDate: today);
+    var receipt = (await cashback.list()).single;
+    expect(receipt.amountMinor, 1000);
+    await receive(receipt, 1000);
+    final installments = (await transactions.list())
+        .where((t) => t.debitCardId == debitId && t.id != purchase.id);
+    for (final installment in installments) {
+      await transactions.setEffective(installment.id,
+          effective: true, effectiveDate: today);
+    }
+    receipt = (await cashback.list()).single;
+    expect(receipt.amountMinor, 1000);
+    expect(receipt.confirmed, 1);
+    await validateFinancial(db);
+  });
+
+  test('credit installments activate total at first installment payment',
+      () async {
+    await configure(kind: 'credit');
+    final id = await credit.createPurchase(TransactionDraft(
+        description: 'Parcelada crédito',
+        type: TransactionType.expense,
+        amountMinor: 100001,
+        date: today,
+        isEffective: false,
+        accountId: creditId,
+        cardId: creditId,
+        seriesPlan: const SeriesPlan(kind: SeriesKind.installments, count: 3)));
+    final entry = await credit.entry(id);
+    await credit.pay(entry.invoiceId, source.id, entry.amountMinor, today);
+    expect((await cashback.list()).single.amountMinor, 1000);
+    await receive((await cashback.list()).single, 1000);
+    final entries = await db
+        .customSelect(
+            "SELECT * FROM card_entries WHERE kind='purchase' ORDER BY installment_index")
+        .get();
+    for (final row in entries.skip(1)) {
+      await credit.pay(row.read<String>('invoice_id'), source.id,
+          row.read<int>('amount_minor'), today);
+    }
+    expect(await cashback.list(), hasLength(1));
+    await validateFinancial(db);
+  });
   test(
       'debit is one account expense, never a credit invoice; edits preserve history',
       () async {
@@ -179,7 +375,9 @@ void main() {
     expect((await cashback.list()).single.amountMinor, 1000);
     await expectLater(
         coverage.replace(paymentId, {entry.id: 20000}), throwsArgumentError);
-    expect((await coverage.forPayment(paymentId)).selected, {entry.id: 10000});
+    expect((await coverage.forPayment(paymentId)).selected, {
+      entry.id: 10000,
+    });
     await coverage.replace(paymentId, {});
     expect(await cashback.list(), isEmpty);
     await coverage.replace(paymentId, {entry.id: 10000});
