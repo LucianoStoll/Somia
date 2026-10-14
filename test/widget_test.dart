@@ -56,7 +56,7 @@ void main() {
     expect(find.text('Saldo atual'), findsOneWidget);
     expect(find.text('R\$ 120,00'), findsOneWidget);
     expect(find.text('Previsto no fim do mês'), findsOneWidget);
-    expect(find.textContaining('R\$ 20,00'), findsWidgets);
+    expect(find.text('R\$ 130,00'), findsOneWidget);
     expect(find.text('Receitas'), findsWidgets);
     expect(tester.getTopLeft(find.text('Saldo atual')).dy,
         lessThan(tester.getTopLeft(find.text('Previsto no fim do mês')).dy));
