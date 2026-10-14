@@ -82,6 +82,32 @@ void main() {
   }
 
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
+    testWidgets('cashback edit and delete controls $platform', (t) async {
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      await open(t, platform, CashbackPage(kind: 'debit', cardId: cardId));
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Editar'));
+      await t.pumpAndSettle();
+      final field = t.widget<MonetaryCalculatorField>(
+          find.byType(MonetaryCalculatorField).first);
+      field.controller.text = '12,34';
+      await t.ensureVisible(find.text('Salvar'));
+      await t.tap(find.text('Salvar'));
+      await t.pumpAndSettle();
+      expect((await cashback.list()).single.amountMinor, 1234);
+      expect((await cashback.list()).single.confirmed, 0);
+      await t.tap(find.byType(PopupMenuButton<String>).first);
+      await t.pumpAndSettle();
+      await t.tap(find.text('Excluir'));
+      await t.pumpAndSettle();
+      await t.tap(find.widgetWithText(FilledButton, 'Excluir'));
+      await t.pumpAndSettle();
+      expect(await cashback.list(), isEmpty);
+      expect(t.takeException(), isNull);
+    });
+
     testWidgets('cashback confirmation, accepted difference and undo $platform',
         (t) async {
       addTearDown(t.view.resetPhysicalSize);
@@ -143,6 +169,32 @@ void main() {
         await loader.load();
       }
       for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
+        testWidgets('cashback edit and delete controls $platform', (t) async {
+          addTearDown(t.view.resetPhysicalSize);
+          addTearDown(t.view.resetDevicePixelRatio);
+          await open(t, platform, CashbackPage(kind: 'debit', cardId: cardId));
+          await t.tap(find.byType(PopupMenuButton<String>).first);
+          await t.pumpAndSettle();
+          await t.tap(find.text('Editar'));
+          await t.pumpAndSettle();
+          final field = t.widget<MonetaryCalculatorField>(
+              find.byType(MonetaryCalculatorField).first);
+          field.controller.text = '12,34';
+          await t.ensureVisible(find.text('Salvar'));
+          await t.tap(find.text('Salvar'));
+          await t.pumpAndSettle();
+          expect((await cashback.list()).single.amountMinor, 1234);
+          expect((await cashback.list()).single.confirmed, 0);
+          await t.tap(find.byType(PopupMenuButton<String>).first);
+          await t.pumpAndSettle();
+          await t.tap(find.text('Excluir'));
+          await t.pumpAndSettle();
+          await t.tap(find.widgetWithText(FilledButton, 'Excluir'));
+          await t.pumpAndSettle();
+          expect(await cashback.list(), isEmpty);
+          expect(t.takeException(), isNull);
+        });
+
         final suffix =
             platform == TargetPlatform.android ? 'mobile' : 'desktop';
         await open(t, platform, const DebitCardsPage());

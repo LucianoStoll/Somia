@@ -95,3 +95,15 @@ Confirmação parcial ou contraditória recebida pelo sync é rejeitada para rev
 
 Internacionais, adicionais e importação são entregas específicas ainda abertas
 na #76; esta documentação descreve a integração de débito/cashback.
+
+
+## Criar, editar e excluir cashback
+
+- Selecione o cartão e toque em **Adicionar cashback (+)** para criar uma previsão manual.
+- Toque no valor ou use **⋮ → Editar** para alterar valor, conta, categoria e data. Uma previsão continua prevista; um recebimento continua efetivado.
+- **⋮ → Excluir** remove somente o cashback escolhido e seu efeito no saldo, após confirmação. A compra permanece.
+- Ajustes manuais de previsões são preservados durante o recálculo; a confirmação continua usando o valor informado.
+- Compras parceladas no débito são agrupadas pela série; no crédito, pela compra. O primeiro pagamento efetivado ativa o cashback sobre o total, uma única vez. Os pagamentos seguintes não geram outro cashback da mesma compra, salvo ajustes de faixa, teto ou estorno já previstos pela regra.
+- Previsões antigas por parcela são consolidadas; valores já recebidos são preservados, descontando-os do total ainda devido.
+
+Exemplo: compra de R$ 900 em três parcelas, com cashback fixo de 1%, gera R$ 9 no primeiro pagamento, e não R$ 3 a cada parcela. A regra de recebimento em dia fixo continua sendo respeitada.

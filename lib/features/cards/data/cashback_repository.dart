@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:drift/drift.dart';
+
 import '../../../core/database/app_database.dart';
 import '../../../core/database/entity_metadata.dart';
 import '../../../core/database/card_rewards_integrity.dart';
@@ -17,19 +19,20 @@ class CashbackSettings {
 }
 
 class CashbackReceipt {
-  const CashbackReceipt(
-      {required this.id,
-      required this.claimId,
-      required this.cardName,
-      required this.description,
-      required this.kind,
-      required this.reason,
-      required this.amountMinor,
-      required this.accountId,
-      required this.date,
-      required this.confirmed,
-      required this.revision,
-      this.categoryId});
+  const CashbackReceipt({
+    required this.id,
+    required this.claimId,
+    required this.cardName,
+    required this.description,
+    required this.kind,
+    required this.reason,
+    required this.amountMinor,
+    required this.accountId,
+    required this.date,
+    required this.confirmed,
+    required this.revision,
+    this.categoryId,
+  });
   final String id,
       claimId,
       cardName,
@@ -95,22 +98,24 @@ class CashbackRepository {
     }
   }
 
-  Future<void> saveSettings(
-          {required String kind,
-          required String cardId,
-          required bool enabled,
-          required String accountId,
-          String? categoryId,
-          String? returnCategoryId,
-          required CashbackRule rule}) =>
+  Future<void> saveSettings({
+    required String kind,
+    required String cardId,
+    required bool enabled,
+    required String accountId,
+    String? categoryId,
+    String? returnCategoryId,
+    required CashbackRule rule,
+  }) =>
       db.transaction(() async {
         if (!['credit', 'debit'].contains(kind)) {
           throw const FormatException('Tipo de cartão inválido.');
         }
         final table = kind == 'credit' ? 'credit_cards' : 'debit_cards';
         if ((await rows(
-                'SELECT id FROM $table WHERE id=? AND deleted_at IS NULL',
-                [cardId]))
+                'SELECT id FROM $table WHERE id=? AND deleted_at IS NULL', [
+          cardId,
+        ]))
             .isEmpty) {
           throw StateError('Cartão não encontrado.');
         }
@@ -134,7 +139,7 @@ class CashbackRepository {
               returnCategoryId,
               encodeCashbackRule(rule),
               now,
-              now
+              now,
             ]);
         await reconcile();
         await validateCardRewards(db);
@@ -186,36 +191,53 @@ class CashbackRepository {
             cardDate(row.read<int>('effective_at'))));
       }
     } else {
-      for (final row in await rows(
-          '''SELECT t.*,l.deleted_at AS link_deleted FROM debit_card_links l JOIN transactions t ON t.id=l.id WHERE l.card_id=?''',
-          [cardId])) {
-        final id = row.read<String>('id');
-        final f =
-            facts[id] = _PurchaseFact(id, row.read<String>('description'));
-        f.original = row.read<int>('planned_amount_minor');
+      final debitRows = await rows(
+          '''SELECT t.*,l.deleted_at AS link_deleted FROM debit_card_links l JOIN transactions t ON t.id=l.id WHERE l.card_id=? ORDER BY t.series_index,t.id''',
+          [cardId]);
+      final seriesIds = <String, String>{};
+      final groupedIds = <String, List<String>>{};
+      for (final row in debitRows) {
+        final series = row.readNullable<String>('series_id');
+        final transactionId = row.read<String>('id');
+        final id = series != null &&
+                row.readNullable<String>('series_kind') == 'installments'
+            ? seriesIds.putIfAbsent(series, () => transactionId)
+            : transactionId;
+        (groupedIds[id] ??= []).add(transactionId);
+        final f = facts.putIfAbsent(
+            id, () => _PurchaseFact(id, row.read<String>('description')));
+        final amount = row.read<int>('planned_amount_minor');
+        f.original += amount;
         if (row.readNullable<int>('deleted_at') == null &&
             row.readNullable<int>('link_deleted') == null) {
-          f.total = f.original;
+          f.total += amount;
         }
         final effective = row.readNullable<int>('effective_at');
         if (effective != null) {
           payments.add(CashbackPayment(
               id,
-              row.readNullable<int>('actual_amount_minor') ?? f.original,
+              row.readNullable<int>('actual_amount_minor') ?? amount,
               cardDate(effective)));
         }
         for (final s in await rows(
             'SELECT amount_minor,effective_at FROM transaction_settlements WHERE transaction_id=? AND deleted_at IS NULL ORDER BY effective_at,id',
-            [id])) {
+            [transactionId])) {
           payments.add(CashbackPayment(id, s.read<int>('amount_minor'),
               cardDate(s.read<int>('effective_at'))));
         }
       }
+      for (final group in groupedIds.entries) {
+        if (group.value.length > 1) {
+          await _mergeInstallmentClaims(
+              ruleId, group.key, group.value, facts[group.key]!.total);
+        }
+      }
     }
-    final existing =
-        await rows('SELECT * FROM cashback_claims WHERE rule_id=?', [ruleId]);
+    final existing = await rows(
+        "SELECT * FROM cashback_claims WHERE rule_id=? AND purchase_id NOT LIKE 'manual:%'",
+        [ruleId]);
     final claims = {
-      for (final row in existing) row.read<String>('purchase_id'): row
+      for (final row in existing) row.read<String>('purchase_id'): row,
     };
     // A moved/removed debit association still reconciles its old claim to zero.
     for (final claim in existing) {
@@ -228,6 +250,7 @@ class CashbackRepository {
             id, f.original, cardDate(claim.read<int>('first_payment_at'))));
       }
     }
+    payments.sort((a, b) => a.date.compareTo(b.date));
     final paid = <String, int>{};
     final eligible = <CashbackPayment>[];
     final first = <String, DateTime>{};
@@ -262,11 +285,11 @@ class CashbackRepository {
             currentJson,
             f.total,
             now,
-            now
+            now,
           ]);
     }
     final live = await rows(
-        'SELECT * FROM cashback_claims WHERE rule_id=? AND deleted_at IS NULL',
+        "SELECT * FROM cashback_claims WHERE rule_id=? AND deleted_at IS NULL AND purchase_id NOT LIKE 'manual:%'",
         [ruleId]);
     final liveIds = {for (final c in live) c.read<String>('purchase_id')};
     final purchases = <CashbackPurchase>[];
@@ -295,6 +318,10 @@ class CashbackRepository {
     for (final claim in live) {
       final id = claim.read<String>('id'),
           purchaseId = claim.read<String>('purchase_id');
+      if ((await rows(
+              "SELECT id FROM cashback_receipts WHERE claim_id=? AND confirmed=0 AND reason='manual' AND deleted_at IS NULL",
+              [id]))
+          .isNotEmpty) continue;
       final confirmed = await rows(
           '''SELECT r.*,t.account_id,t.actual_amount_minor,t.planned_amount_minor FROM cashback_receipts r JOIN transactions t ON t.id=r.id
         WHERE r.claim_id=? AND r.confirmed<>0 AND r.deleted_at IS NULL ORDER BY r.updated_at,r.id''',
@@ -366,7 +393,9 @@ class CashbackRepository {
                   : 'cap';
       final receiptId = pending.isNotEmpty
           ? pending.single.read<String>('id')
-          : 'cashback-receipt-$id-${confirmed.length}';
+          : 'cashback-receipt-$id-${(await rows('SELECT id FROM cashback_receipts WHERE claim_id=?', [
+                  id
+                ])).length}';
       var account = setting.read<String>('account_id');
       if (kind == 'return') {
         account = confirmed
@@ -402,6 +431,79 @@ class CashbackRepository {
           category,
           due,
           f.description,
+          now);
+    }
+  }
+
+  // Consolidate legacy per-installment forecasts without deleting deposits.
+  Future<void> _mergeInstallmentClaims(
+      String ruleId, String leader, List<String> members, int total) async {
+    final claims = await rows(
+        'SELECT * FROM cashback_claims WHERE rule_id=? AND deleted_at IS NULL',
+        [ruleId]);
+    final grouped = claims
+        .where((r) => members.contains(r.read<String>('purchase_id')))
+        .toList();
+    if (!grouped.any((r) => r.read<String>('purchase_id') != leader)) return;
+    final now = EntityMetadata.nowUtcMillis();
+    final id = 'claim-$ruleId-$leader';
+    var root = grouped
+        .where((r) => r.read<String>('purchase_id') == leader)
+        .firstOrNull;
+    if (root == null) {
+      final first = grouped.first;
+      await db.customStatement(
+          '''INSERT INTO cashback_claims(id,rule_id,purchase_id,first_payment_at,
+          rule_json,accepted_base_minor,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)''',
+          [
+            id,
+            ruleId,
+            leader,
+            first.read<int>('first_payment_at'),
+            first.read<String>('rule_json'),
+            total,
+            now,
+            now,
+          ]);
+      root = (await rows('SELECT * FROM cashback_claims WHERE id=?', [
+        id,
+      ]))
+          .single;
+    }
+    final rootId = root.read<String>('id');
+    final theory = grouped.fold<int>(
+        0, (sum, r) => sum + r.read<int>('confirmed_theory_minor'));
+    for (final old in grouped) {
+      final oldId = old.read<String>('id');
+      if (oldId == rootId) continue;
+      for (final pending in await rows(
+          'SELECT id FROM cashback_receipts WHERE claim_id=? AND confirmed=0 AND deleted_at IS NULL',
+          [oldId])) {
+        await _cancel(pending.read<String>('id'), now);
+      }
+      await db.customStatement(
+          'UPDATE cashback_receipts SET claim_id=?,updated_at=?,sync_version=sync_version+1 WHERE claim_id=? AND confirmed<>0 AND deleted_at IS NULL',
+          [rootId, now, oldId]);
+      await db.customStatement(
+          'UPDATE cashback_claims SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+          [now, now, oldId]);
+    }
+    final received = await rows(
+        'SELECT * FROM cashback_receipts WHERE claim_id=? AND confirmed<>0 AND deleted_at IS NULL ORDER BY updated_at DESC,id DESC',
+        [rootId]);
+    if (received.isNotEmpty) {
+      final latest = received.first;
+      await db.customStatement(
+          'UPDATE cashback_receipts SET theory_minor=?,base_minor=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+          [theory, total, now, latest.read<String>('id')]);
+      await _baseline(
+          rootId,
+          theory,
+          total,
+          received.fold<int>(
+              0,
+              (rate, r) =>
+                  r.read<int>('rate') > rate ? r.read<int>('rate') : rate),
           now);
     }
   }
@@ -467,7 +569,7 @@ class CashbackRepository {
             cardDay(due),
             cardDay(due),
             now,
-            id
+            id,
           ]);
       await db.customStatement(
           '''UPDATE cashback_receipts SET kind=?,reason=?,theory_minor=?,base_minor=?,rate=?,deleted_at=NULL,updated_at=?,sync_version=sync_version+1 WHERE id=?''',
@@ -486,7 +588,7 @@ class CashbackRepository {
             account,
             category,
             now,
-            now
+            now,
           ]);
       await db.customStatement(
           '''INSERT INTO cashback_receipts(id,claim_id,kind,reason,theory_minor,base_minor,rate,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)''',
@@ -524,11 +626,13 @@ class CashbackRepository {
         .toList();
   }
 
-  Future<void> confirm(List<CashbackReceipt> selected,
-          {required int totalMinor,
-          required String accountId,
-          required DateTime date,
-          String? categoryId}) =>
+  Future<void> confirm(
+    List<CashbackReceipt> selected, {
+    required int totalMinor,
+    required String accountId,
+    required DateTime date,
+    String? categoryId,
+  }) =>
       db.transaction(() async {
         if (selected.isEmpty ||
             selected.map((r) => r.id).toSet().length != selected.length) {
@@ -555,20 +659,23 @@ class CashbackRepository {
                 'O cashback mudou. Atualize a lista antes de confirmar.');
           }
         }
-        final amounts = distributeMinor(
-            totalMinor, {for (final r in selected) r.id: r.amountMinor});
+        final amounts = distributeMinor(totalMinor, {
+          for (final r in selected) r.id: r.amountMinor,
+        });
         final now = EntityMetadata.nowUtcMillis();
         for (final receipt in selected) {
           final amount = amounts[receipt.id]!;
           final waived = amount == 0;
-          final row = (await rows(
-                  'SELECT * FROM cashback_receipts WHERE id=?', [receipt.id]))
-              .single;
+          final row =
+              (await rows('SELECT * FROM cashback_receipts WHERE id=?', [
+            receipt.id,
+          ]))
+                  .single;
           final snapshot = jsonEncode({
             'amount': amount,
             'account': accountId,
             'category': categoryId,
-            'date': cardDay(date)
+            'date': cardDay(date),
           });
           await db.customStatement(
               '''UPDATE transactions SET actual_amount_minor=?,effective_at=?,account_id=?,category_id=?,deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?''',
@@ -579,7 +686,7 @@ class CashbackRepository {
                 categoryId,
                 waived ? now : null,
                 now,
-                receipt.id
+                receipt.id,
               ]);
           await db.customStatement(
               'UPDATE cashback_receipts SET confirmed=?,confirmation_json=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
@@ -602,6 +709,176 @@ class CashbackRepository {
         '''UPDATE cashback_claims SET confirmed_theory_minor=?,accepted_difference_minor=?,accepted_base_minor=?,confirmed_rate=MAX(confirmed_rate,?),updated_at=?,sync_version=sync_version+1 WHERE id=?''',
         [theory, sum - theory, base, rate, now, claim]);
   }
+
+  /// User edits are atomic across the receipt, ledger and accepted baseline.
+  Future<void> edit(
+    CashbackReceipt receipt, {
+    required int amountMinor,
+    required String accountId,
+    required DateTime date,
+    String? categoryId,
+  }) =>
+      db.transaction(() async {
+        await _current(receipt);
+        await _validateInput(
+            amountMinor, accountId, categoryId, receipt.kind == 'return', date);
+        final now = EntityMetadata.nowUtcMillis();
+        final confirmed = receipt.confirmed != 0;
+        if (confirmed && amountMinor == 0) {
+          throw const FormatException(
+              'Use Excluir para remover o recebimento.');
+        }
+        await db.customStatement(
+            '''UPDATE transactions SET planned_amount_minor=?,actual_amount_minor=?,effective_at=?,due_at=?,
+            account_id=?,category_id=?,deleted_at=NULL,updated_at=?,sync_version=sync_version+1 WHERE id=?''',
+            [
+              amountMinor,
+              confirmed ? amountMinor : null,
+              confirmed ? cardDay(date) : null,
+              cardDay(date),
+              accountId,
+              categoryId,
+              now,
+              receipt.id,
+            ]);
+        await db.customStatement(
+            '''UPDATE cashback_receipts SET reason='manual',confirmed=?,confirmation_json=?,
+            updated_at=?,sync_version=sync_version+1 WHERE id=?''',
+            [
+              confirmed ? 1 : 0,
+              confirmed
+                  ? jsonEncode({
+                      'amount': amountMinor,
+                      'account': accountId,
+                      'category': categoryId,
+                      'date': cardDay(date),
+                    })
+                  : null,
+              now,
+              receipt.id,
+            ]);
+        if (confirmed) await _refreshBaseline(receipt.claimId, now);
+        await validateCardRewards(db);
+      });
+
+  Future<void> _validateInput(int amount, String account, String? category,
+      bool returns, DateTime date) async {
+    if (amount <= 0 ||
+        amount > 9000000000000000 ||
+        date.year < 2000 ||
+        date.year > 2100) {
+      throw const FormatException('Informe valor positivo e data válida.');
+    }
+    await _account(account);
+    await _category(category, returns ? 'expense' : 'income');
+  }
+
+  Future<void> _current(CashbackReceipt receipt) async {
+    final current = (await list()).where((r) => r.id == receipt.id).firstOrNull;
+    if (current == null || current.revision != receipt.revision) {
+      throw StateError('O cashback mudou. Atualize a lista.');
+    }
+  }
+
+  Future<void> _refreshBaseline(
+    String claim,
+    int now, {
+    QueryRow? fallback,
+  }) async {
+    final latest = (await rows(
+                '''SELECT * FROM cashback_receipts WHERE claim_id=? AND confirmed<>0
+        AND deleted_at IS NULL ORDER BY updated_at DESC,id DESC''', [claim]))
+            .firstOrNull ??
+        fallback;
+    if (latest != null) {
+      await _baseline(claim, latest.read<int>('theory_minor'),
+          latest.read<int>('base_minor'), latest.read<int>('rate'), now);
+    }
+  }
+
+  Future<void> delete(CashbackReceipt receipt) => db.transaction(() async {
+        await _current(receipt);
+        final row = (await rows('SELECT * FROM cashback_receipts WHERE id=?', [
+          receipt.id,
+        ]))
+            .single;
+        final now = EntityMetadata.nowUtcMillis();
+        await _cancel(receipt.id, now);
+        if (receipt.confirmed == 0) {
+          final latest = (await rows(
+                  'SELECT id FROM cashback_receipts WHERE claim_id=? AND confirmed<>0 AND deleted_at IS NULL ORDER BY updated_at DESC,id DESC',
+                  [receipt.claimId]))
+              .firstOrNull;
+          if (latest != null) {
+            await db.customStatement(
+                'UPDATE cashback_receipts SET theory_minor=?,base_minor=?,rate=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+                [
+                  row.read<int>('theory_minor'),
+                  row.read<int>('base_minor'),
+                  row.read<int>('rate'),
+                  now,
+                  latest.read<String>('id')
+                ]);
+          }
+        }
+        // Accept removal so automatic reconciliation does not recreate it.
+        await _refreshBaseline(receipt.claimId, now, fallback: row);
+        await validateCardRewards(db);
+      });
+
+  Future<void> create({
+    required String kind,
+    required String cardId,
+    required int amountMinor,
+    required String accountId,
+    required DateTime date,
+    String? categoryId,
+  }) =>
+      db.transaction(() async {
+        await _validateInput(amountMinor, accountId, categoryId, false, date);
+        var config = await settings(kind, cardId);
+        if (config == null) {
+          await saveSettings(
+              kind: kind,
+              cardId: cardId,
+              enabled: false,
+              accountId: accountId,
+              categoryId: categoryId,
+              rule: CashbackRule(rateBasisPoints: 0));
+          config = (await settings(kind, cardId))!;
+        }
+        final purchase = 'manual:${EntityMetadata.newId()}';
+        final claim = 'claim-$purchase';
+        final now = EntityMetadata.nowUtcMillis();
+        await db.customStatement(
+            '''INSERT INTO cashback_claims(id,rule_id,purchase_id,first_payment_at,
+            rule_json,accepted_base_minor,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)''',
+            [
+              claim,
+              config.id,
+              purchase,
+              cardDay(date),
+              encodeCashbackRule(CashbackRule(rateBasisPoints: 0)),
+              amountMinor,
+              now,
+              now,
+            ]);
+        await _pending(
+            'cashback-receipt-$claim-0',
+            claim,
+            'original',
+            'manual',
+            amountMinor,
+            amountMinor,
+            amountMinor,
+            0,
+            accountId,
+            categoryId,
+            date,
+            'Lançamento manual',
+            now);
+        await validateCardRewards(db);
+      });
 
   Future<bool> isReceipt(String id) async => (await rows(
           'SELECT id FROM cashback_receipts WHERE id=? AND deleted_at IS NULL',
@@ -656,7 +933,7 @@ class CashbackRepository {
             'UPDATE cashback_claims SET confirmed_rate=? WHERE id=?', [
           others.fold<int>(
               0, (v, r) => r.read<int>('rate') > v ? r.read<int>('rate') : v),
-          claim
+          claim,
         ]);
         await reconcile();
         await validateCardRewards(db);
