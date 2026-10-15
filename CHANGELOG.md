@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.0-alpha — em desenvolvimento
+
+- Importação e conciliação: CSV, perfis de banco, lotes, conciliação assistida, Excel e diagnóstico. Validação por etapa antes da publicação.
+
 ## v0.3.0-alpha — 2026-10-15
 
 Publicação autorizada pelo usuário em 15/10/2026. [Notas da versão](docs/releases/v0.3.0-alpha.md). As pendências adicionais de relatórios, importação e conciliação permanecem para a próxima alpha.

@@ -6,7 +6,7 @@ Primeira etapa da importação no fechamento #54 da v0.2.0-alpha. A entrada fica
 
 CSV com cabeçalho, até 2 MB, 5.000 linhas de dados, 50 colunas e 4.096 caracteres por campo. Aceita UTF-8/BOM e Windows-1252, separadores `;`, `,` ou tabulação, diretiva `sep=`, aspas escapadas e campos multilinha. O separador é detectado e pode ser corrigido antes da prévia.
 
-Escolha uma conta ativa. Cada campo usa uma coluna distinta. Descrição, valor e data de lançamento são obrigatórios; vencimento, efetivação, tipo, categoria e subcategoria são opcionais. Cabeçalhos comuns são sugeridos, mas a seleção pode ser alterada. O valor usa a moeda da conta; não há conversão de moedas.
+Escolha uma conta ativa. Descrição, valor e data de lançamento são obrigatórios; vencimento, efetivação, tipo, categoria e subcategoria são opcionais. Os três campos de data podem compartilhar uma coluna por escolha explícita; os demais campos usam colunas distintas. Cabeçalhos comuns são sugeridos, mas a seleção pode ser alterada. É possível salvar um perfil local com nome de banco, separador, cabeçalhos e formatos, e reaplicá-lo mesmo quando a ordem das colunas mudar. Um cabeçalho ausente ou ambíguo bloqueia a aplicação do perfil para evitar leitura incorreta. O valor usa a moeda da conta; não há conversão de moedas.
 
 O formato decimal é explícito: brasileiro `1.234,56` ou internacional `1,234.56`. Valores são convertidos diretamente em centavos inteiros, sem ponto flutuante, arredondamento ou troca automática de separadores. Zero e valores fora do limite financeiro são inválidos.
 

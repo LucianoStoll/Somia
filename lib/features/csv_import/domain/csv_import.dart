@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import '../../accounts/domain/account.dart';
 import '../../categories/domain/category.dart';
 import '../../transactions/domain/financial_transaction.dart';
@@ -21,18 +22,19 @@ String csvNormalize(String text) {
 }
 
 class CsvMapping {
-  CsvMapping(
-      {this.description,
-      this.amount,
-      this.date,
-      this.due,
-      this.effective,
-      this.type,
-      this.category,
-      this.subcategory,
-      this.dateFormat = CsvDateFormat.dayFirst,
-      this.amountFormat = CsvAmountFormat.comma,
-      this.direction = CsvDirection.signed});
+  CsvMapping({
+    this.description,
+    this.amount,
+    this.date,
+    this.due,
+    this.effective,
+    this.type,
+    this.category,
+    this.subcategory,
+    this.dateFormat = CsvDateFormat.dayFirst,
+    this.amountFormat = CsvAmountFormat.comma,
+    this.direction = CsvDirection.signed,
+  });
   int? description, amount, date, due, effective, type, category, subcategory;
   CsvDateFormat dateFormat;
   CsvAmountFormat amountFormat;
@@ -44,30 +46,32 @@ class CsvMapping {
     }
 
     return CsvMapping(
-        description: find(['descricao', 'historico', 'description', 'memo']),
-        amount: find(['valor', 'amount', 'valor do lancamento']),
-        date: find([
-          'data',
-          'data de lancamento',
-          'data do lancamento',
-          'lancamento',
-          'date'
-        ]),
-        due: find(['vencimento', 'data de vencimento', 'due date']),
-        effective: find([
-          'efetivacao',
-          'data de efetivacao',
-          'data de pagamento',
-          'effective date'
-        ]),
-        type: find(['tipo', 'type', 'natureza']),
-        category: find(['categoria', 'category']),
-        subcategory: find(['subcategoria', 'subcategory']));
+      description: find(['descricao', 'historico', 'description', 'memo']),
+      amount: find(['valor', 'amount', 'valor do lancamento']),
+      date: find([
+        'data',
+        'data de lancamento',
+        'data do lancamento',
+        'lancamento',
+        'date',
+      ]),
+      due: find(['vencimento', 'data de vencimento', 'due date']),
+      effective: find([
+        'efetivacao',
+        'data de efetivacao',
+        'data de pagamento',
+        'effective date',
+      ]),
+      type: find(['tipo', 'type', 'natureza']),
+      category: find(['categoria', 'category']),
+      subcategory: find(['subcategoria', 'subcategory']),
+    );
   }
   void validate(int columns) {
     if (description == null || amount == null || date == null) {
       throw const FormatException(
-          'Escolha as colunas de descrição, valor e data.');
+        'Escolha as colunas de descrição, valor e data.',
+      );
     }
     final selected = [
       description,
@@ -77,10 +81,18 @@ class CsvMapping {
       effective,
       type,
       category,
-      subcategory
+      subcategory,
+    ].whereType<int>().toList();
+    final nonDates = [
+      description,
+      amount,
+      type,
+      category,
+      subcategory,
     ].whereType<int>().toList();
     if (selected.any((i) => i < 0 || i >= columns) ||
-        selected.toSet().length != selected.length) {
+        nonDates.toSet().length != nonDates.length ||
+        [date, due, effective].whereType<int>().any(nonDates.contains)) {
       throw const FormatException('Use uma coluna diferente para cada campo.');
     }
   }
@@ -88,7 +100,8 @@ class CsvMapping {
   CsvCandidate parse(CsvRawRow row, int columns) {
     if (row.cells.length != columns) {
       throw const FormatException(
-          'Quantidade de colunas diferente do cabeçalho.');
+        'Quantidade de colunas diferente do cabeçalho.',
+      );
     }
     String value(int? i) => i == null ? '' : row.cells[i].trim();
     final history = value(description);
@@ -105,17 +118,16 @@ class CsvMapping {
         'credito' ||
         'credit' ||
         'entrada' ||
-        'c' =>
-          TransactionType.income,
+        'c' => TransactionType.income,
         'despesa' ||
         'expense' ||
         'debito' ||
         'debit' ||
         'saida' ||
-        'd' =>
-          TransactionType.expense,
+        'd' => TransactionType.expense,
         _ => throw const FormatException(
-            'Tipo desconhecido; informe receita ou despesa.'),
+          'Tipo desconhecido; informe receita ou despesa.',
+        ),
       };
     } else {
       movement = switch (direction) {
@@ -129,21 +141,26 @@ class CsvMapping {
       throw const FormatException('Valor negativo não pode ser receita.');
     }
     final posted = parseDate(value(date), dateFormat);
-    final dueDate =
-        value(due).isEmpty ? posted : parseDate(value(due), dateFormat);
-    final effectiveDate = value(effective).isEmpty
+    final dueDate = due == date || value(due).isEmpty
+        ? posted
+        : parseDate(value(due), dateFormat);
+    final effectiveDate =
+        effective != null && (effective == date || effective == due)
+        ? parseDate(value(effective), dateFormat)
+        : value(effective).isEmpty
         ? null
         : parseDate(value(effective), dateFormat);
     return CsvCandidate(
-        line: row.line,
-        description: history,
-        type: movement,
-        amountMinor: signedAmount.abs(),
-        date: posted,
-        dueDate: dueDate,
-        effectiveDate: effectiveDate,
-        categoryText: value(category),
-        subcategoryText: value(subcategory));
+      line: row.line,
+      description: history,
+      type: movement,
+      amountMinor: signedAmount.abs(),
+      date: posted,
+      dueDate: dueDate,
+      effectiveDate: effectiveDate,
+      categoryText: value(category),
+      subcategoryText: value(subcategory),
+    );
   }
 
   static int parseAmount(String text, CsvAmountFormat format) {
@@ -175,7 +192,8 @@ class CsvMapping {
     if (whole == null || whole > 90000000000000) {
       throw const FormatException('Valor acima do limite.');
     }
-    final minor = whole * 100 +
+    final minor =
+        whole * 100 +
         (parts.length == 1 ? 0 : int.parse(parts[1].padRight(2, '0')));
     if (minor > 9000000000000000) {
       throw const FormatException('Valor acima do limite.');
@@ -184,13 +202,15 @@ class CsvMapping {
   }
 
   static DateTime parseDate(String text, CsvDateFormat format) {
-    final match = (format == CsvDateFormat.iso
-            ? RegExp(r'^(\d{4})-(\d{2})-(\d{2})$')
-            : RegExp(r'^(\d{1,2})/(\d{1,2})/(\d{4})$'))
-        .firstMatch(text);
+    final match =
+        (format == CsvDateFormat.iso
+                ? RegExp(r'^(\d{4})-(\d{2})-(\d{2})$')
+                : RegExp(r'^(\d{1,2})/(\d{1,2})/(\d{4})$'))
+            .firstMatch(text);
     if (match == null) {
       throw const FormatException(
-          'Data inválida. Confira o formato escolhido.');
+        'Data inválida. Confira o formato escolhido.',
+      );
     }
     final a = int.parse(match.group(1)!),
         b = int.parse(match.group(2)!),
@@ -213,16 +233,17 @@ class CsvMapping {
 }
 
 class CsvCandidate {
-  const CsvCandidate(
-      {required this.line,
-      required this.description,
-      required this.type,
-      required this.amountMinor,
-      required this.date,
-      required this.dueDate,
-      this.effectiveDate,
-      this.categoryText = '',
-      this.subcategoryText = ''});
+  const CsvCandidate({
+    required this.line,
+    required this.description,
+    required this.type,
+    required this.amountMinor,
+    required this.date,
+    required this.dueDate,
+    this.effectiveDate,
+    this.categoryText = '',
+    this.subcategoryText = '',
+  });
   final int line, amountMinor;
   final String description, categoryText, subcategoryText;
   final TransactionType type;
@@ -230,55 +251,59 @@ class CsvCandidate {
   final DateTime? effectiveDate;
   // Ignore category and effectuation when spotting an already-entered movement.
   String fingerprint(String accountId) => jsonEncode([
-        accountId,
-        csvNormalize(description),
-        type.name,
-        amountMinor,
-        date.millisecondsSinceEpoch,
-        dueDate.millisecondsSinceEpoch
-      ]);
+    accountId,
+    csvNormalize(description),
+    type.name,
+    amountMinor,
+    date.millisecondsSinceEpoch,
+    dueDate.millisecondsSinceEpoch,
+  ]);
   TransactionDraft draft(String accountId, String? categoryId) =>
       TransactionDraft(
-          description: description,
-          type: type,
-          amountMinor: amountMinor,
-          date: date,
-          dueDate: dueDate,
-          effectiveDate: effectiveDate,
-          isEffective: effectiveDate != null,
-          accountId: accountId,
-          categoryId: categoryId);
+        description: description,
+        type: type,
+        amountMinor: amountMinor,
+        date: date,
+        dueDate: dueDate,
+        effectiveDate: effectiveDate,
+        isEffective: effectiveDate != null,
+        accountId: accountId,
+        categoryId: categoryId,
+      );
 }
 
 class CsvPreviewRow {
-  const CsvPreviewRow(
-      {required this.line,
-      this.candidate,
-      this.error,
-      this.warning,
-      this.duplicate = false,
-      this.selected = false,
-      this.categoryId});
+  const CsvPreviewRow({
+    required this.line,
+    this.candidate,
+    this.error,
+    this.warning,
+    this.duplicate = false,
+    this.selected = false,
+    this.categoryId,
+  });
   final int line;
   final CsvCandidate? candidate;
   final String? error, warning, categoryId;
   final bool duplicate, selected;
   CsvPreviewRow select(bool value) => CsvPreviewRow(
-      line: line,
-      candidate: candidate,
-      error: error,
-      warning: warning,
-      duplicate: duplicate,
-      selected: value && candidate != null,
-      categoryId: categoryId);
+    line: line,
+    candidate: candidate,
+    error: error,
+    warning: warning,
+    duplicate: duplicate,
+    selected: value && candidate != null,
+    categoryId: categoryId,
+  );
   CsvPreviewRow category(String? value) => CsvPreviewRow(
-      line: line,
-      candidate: candidate,
-      error: error,
-      warning: warning,
-      duplicate: duplicate,
-      selected: selected,
-      categoryId: value);
+    line: line,
+    candidate: candidate,
+    error: error,
+    warning: warning,
+    duplicate: duplicate,
+    selected: selected,
+    categoryId: value,
+  );
 }
 
 class CsvReferences {
@@ -295,6 +320,9 @@ class CsvImportResult {
 abstract interface class CsvImportRepository {
   Future<CsvReferences> references();
   Future<List<CsvPreviewRow>> preview(
-      CsvDocument document, CsvMapping mapping, String accountId);
+    CsvDocument document,
+    CsvMapping mapping,
+    String accountId,
+  );
   Future<CsvImportResult> commit(List<CsvPreviewRow> rows, String accountId);
 }
