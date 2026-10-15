@@ -8,7 +8,7 @@ import '../../../../core/widgets/month_selector.dart';
 import '../../../../core/widgets/balance_help_button.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/routing/somia_shell.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../widgets/dashboard_palette.dart';
 import '../../../../core/widgets/somia_brand.dart';
 import '../../../accounts/domain/money_minor.dart';
 import '../../domain/dashboard_repository.dart';
@@ -26,7 +26,20 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) => BlocProvider(
         create: (_) => DashboardCubit(getIt<DashboardRepository>(),
             selection: referenceMonth),
-        child: const _DashboardView(),
+        child: Builder(builder: (context) {
+          final theme = Theme.of(context);
+          return Theme(
+              data: theme.copyWith(
+                scaffoldBackgroundColor: SomiaColors.background,
+                colorScheme: theme.colorScheme.copyWith(
+                    primary: SomiaColors.blue, surface: SomiaColors.surface),
+                appBarTheme: theme.appBarTheme
+                    .copyWith(backgroundColor: SomiaColors.background),
+                cardTheme: theme.cardTheme.copyWith(color: SomiaColors.surface),
+                dividerColor: SomiaColors.outline,
+              ),
+              child: const _DashboardView());
+        }),
       );
 }
 
@@ -175,30 +188,33 @@ class _DashboardViewState extends State<_DashboardView>
       SummaryMetrics(currency: currency, month: month),
       const SizedBox(height: 16),
       LayoutBuilder(builder: (context, box) {
-        final due = UpcomingPanel(currency: currency);
         final evolution = BalanceEvolutionPanel(currency: currency);
-        return box.maxWidth >= 1000
+        final categories = _categoryPanel(context, currency);
+        return box.maxWidth >= 900 &&
+                MediaQuery.textScalerOf(context).scale(16) < 24
             ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: due),
-                const SizedBox(width: 12),
-                Expanded(child: evolution)
+                Expanded(flex: 6, child: evolution),
+                const SizedBox(width: 16),
+                Expanded(flex: 5, child: categories)
               ])
-            : Column(children: [due, const SizedBox(height: 12), evolution]);
+            : Column(
+                children: [evolution, const SizedBox(height: 16), categories]);
       }),
-      const SizedBox(height: 12),
-      LayoutBuilder(builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 790 &&
-            MediaQuery.textScalerOf(context).scale(16) < 24;
-        final chart = _historyPanel(context, currency);
-        final donut = _categoryPanel(context, currency);
-        return wide
+      const SizedBox(height: 16),
+      LayoutBuilder(builder: (context, box) {
+        final history = _historyPanel(context, currency);
+        final types = AccountTypesPanel(currency: currency);
+        return box.maxWidth >= 900 &&
+                MediaQuery.textScalerOf(context).scale(16) < 24
             ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(flex: 11, child: chart),
-                const SizedBox(width: 12),
-                Expanded(flex: 9, child: donut),
+                Expanded(flex: 6, child: history),
+                const SizedBox(width: 16),
+                Expanded(flex: 5, child: types)
               ])
-            : Column(children: [chart, const SizedBox(height: 12), donut]);
+            : Column(children: [history, const SizedBox(height: 16), types]);
       }),
+      const SizedBox(height: 16),
+      UpcomingPanel(currency: currency),
       const SizedBox(height: 6),
     ]);
   }

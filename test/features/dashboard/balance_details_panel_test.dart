@@ -111,10 +111,14 @@ void main() {
     testWidgets('abre, reconcilia, rola e fecha $config', (tester) async {
       await open(tester,
           platform: config.$1, size: config.$2, scale: config.$3);
-      await tester.ensureVisible(
-          find.byKey(const ValueKey('balance-detail-BRL')).first);
+      final balanceTitle = find
+          .descendant(
+              of: find.byKey(const ValueKey('balance-detail-BRL')).first,
+              matching: find.byType(Text))
+          .first;
+      await tester.ensureVisible(balanceTitle);
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('balance-detail-BRL')).first);
+      await tester.tap(balanceTitle);
       await tester.pumpAndSettle();
       expect(
           find.byKey(const ValueKey('balance-details-panel')), findsOneWidget);
