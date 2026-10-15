@@ -45,6 +45,7 @@ class _CsvImportPageState extends State<CsvImportPage> {
   CsvProfileStore? _profileStore;
   List<CsvProfile> _profiles = [];
   String? _profileName;
+  String _bankBalance = '';
   bool _picking = false;
   CsvPreviewFilter _filter = CsvPreviewFilter.all;
 
@@ -259,13 +260,15 @@ class _CsvImportPageState extends State<CsvImportPage> {
     );
     final duplicates =
         state.rows.where((r) => r.selected && r.duplicate).length;
+    final links =
+        state.rows.where((r) => r.selected && r.linkTarget != null).length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         scrollable: true,
         title: const Text('Importar lançamentos?'),
         content: Text(
-          'Serão adicionados ${state.selected} lançamentos em ${account.name} (${account.currencyCode}). '
+          'Serão criados ${state.selected - links} lançamentos e vinculadas $links linhas existentes em ${account.name} (${account.currencyCode}). '
           'Sem data de efetivação, entram como pendentes.'
           '${duplicates == 0 ? '' : '\nVocê selecionou $duplicates possíveis duplicados. Eles também serão adicionados.'}',
         ),
@@ -284,6 +287,33 @@ class _CsvImportPageState extends State<CsvImportPage> {
     if (confirmed == true && mounted) {
       await _cubit.commit(_accountId!, sourceName: _file?.name ?? 'Extrato');
     }
+  }
+
+  Future<void> _chooseMatch(int index) async {
+    final row = _cubit.state.rows[index];
+    final choice = await showDialog<CsvMatch?>(
+        context: context,
+        builder: (context) => SimpleDialog(
+              title: const Text('Conciliar linha do extrato'),
+              children: [
+                for (final match in row.matches)
+                  SimpleDialogOption(
+                    onPressed: () => Navigator.pop(context, match),
+                    child: Text(
+                        '${match.description} • ${match.date.day.toString().padLeft(2, '0')}/${match.date.month.toString().padLeft(2, '0')}/${match.date.year} '
+                        '(${switch (match.table) {
+                      'transfers' => 'transferência',
+                      'card_payments' => 'pagamento de fatura',
+                      'transaction_settlements' => 'baixa parcial',
+                      _ => 'lançamento'
+                    }})'),
+                  ),
+                SimpleDialogOption(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancelar')),
+              ],
+            ));
+    if (choice != null && mounted) _cubit.link(index, choice);
   }
 
   Future<void> _chooseCategory(int index) async {
@@ -640,12 +670,31 @@ class _CsvImportPageState extends State<CsvImportPage> {
     final account =
         state.references!.accounts.firstWhere((a) => a.id == _accountId);
     var income = 0, expense = 0;
+    var balanceAfter = account.currentBalanceMinor;
+    final now = DateTime.now();
+    final tomorrow = DateTime.utc(now.year, now.month, now.day + 1);
     for (final row in state.rows.where((r) => r.selected)) {
       final candidate = row.candidate!;
       if (candidate.type.name == 'income') {
         income += candidate.amountMinor;
       } else {
         expense += candidate.amountMinor;
+      }
+      final effective = candidate.effectiveDate;
+      if (row.linkTarget == null &&
+          effective != null &&
+          effective.isBefore(tomorrow)) {
+        balanceAfter += candidate.type.name == 'income'
+            ? candidate.amountMinor
+            : -candidate.amountMinor;
+      }
+    }
+    int? bankMinor;
+    if (_bankBalance.trim().isNotEmpty) {
+      try {
+        bankMinor = MoneyMinor.parse(_bankBalance);
+      } on FormatException {
+        bankMinor = null;
       }
     }
     return Column(
@@ -666,6 +715,23 @@ class _CsvImportPageState extends State<CsvImportPage> {
         Text(
             'Selecionados: receitas ${MoneyMinor.display(income, account.currencyCode)} '
             '• despesas ${MoneyMinor.display(expense, account.currencyCode)}'),
+        const SizedBox(height: 8),
+        Text('Saldo Somia após confirmar os lançamentos efetivados até hoje: '
+            '${MoneyMinor.display(balanceAfter, account.currencyCode)}'),
+        TextField(
+          keyboardType: const TextInputType.numberWithOptions(
+              decimal: true, signed: true),
+          decoration: const InputDecoration(
+              labelText: 'Saldo atual informado pelo banco (opcional)',
+              helperText:
+                  'Compare um extrato atualizado até hoje; use 123,45.'),
+          onChanged: (value) => setState(() => _bankBalance = value),
+        ),
+        if (_bankBalance.isNotEmpty && bankMinor == null)
+          const Text('Saldo inválido. Informe até duas casas decimais.'),
+        if (bankMinor != null)
+          Text('Diferença banco − Somia: '
+              '${MoneyMinor.display(bankMinor - balanceAfter, account.currencyCode)}'),
         const SizedBox(height: 8),
         Wrap(spacing: 6, children: [
           for (final (filter, label) in [
@@ -746,6 +812,27 @@ class _CsvImportPageState extends State<CsvImportPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(row.warning!),
             ),
+          if (row.linkTarget != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child:
+                  Text('Vincular ao registro: ${row.linkTarget!.description}'),
+            ),
+          if (candidate != null && row.matches.isNotEmpty)
+            Wrap(children: [
+              TextButton(
+                  onPressed: state.busy ? null : () => _chooseMatch(index),
+                  child: Text('Conciliar (${row.matches.length} sugestões)')),
+              if (row.linkTarget != null)
+                TextButton(
+                    onPressed: state.busy
+                        ? null
+                        : () {
+                            _cubit.link(index, null);
+                            _cubit.select(index, true);
+                          },
+                    child: const Text('Criar novo lançamento')),
+            ]),
           if (candidate != null)
             TextButton(
               onPressed: state.busy ? null : () => _chooseCategory(index),

@@ -50,6 +50,66 @@ class SqliteCsvImportRepository implements CsvImportRepository {
         .toSet();
   }
 
+  Future<List<QueryRow>> _matchSources(String accountId) async {
+    final queries = [
+      '''SELECT 'transactions' target_table,id,description,type,
+        planned_amount_minor amount_minor,COALESCE(effective_at,due_at) date_at
+        FROM transactions WHERE account_id=? AND deleted_at IS NULL
+        AND trash_state='active' ''',
+      '''SELECT 'transaction_settlements' target_table,s.id,t.description,
+        t.type,s.amount_minor,s.effective_at date_at
+        FROM transaction_settlements s JOIN transactions t ON t.id=s.transaction_id
+        WHERE s.account_id=? AND s.deleted_at IS NULL AND t.deleted_at IS NULL''',
+      '''SELECT 'transfers' target_table,id,description,
+        CASE WHEN source_account_id=? THEN 'expense' ELSE 'income' END type,
+        amount_minor,COALESCE(effective_at,due_at) date_at
+        FROM transfers WHERE (source_account_id=? OR destination_account_id=?)
+        AND deleted_at IS NULL AND trash_state='active' ''',
+      '''SELECT 'card_payments' target_table,id,'Pagamento de fatura' description,
+        'expense' type,amount_minor,effective_at date_at
+        FROM card_payments WHERE account_id=? AND deleted_at IS NULL''',
+    ];
+    final result = <QueryRow>[];
+    for (var i = 0; i < queries.length; i++) {
+      result.addAll(await db.customSelect(queries[i], variables: [
+        for (var n = 0; n < (i == 2 ? 3 : 1); n++)
+          Variable.withString(accountId)
+      ]).get());
+    }
+    return result;
+  }
+
+  List<CsvMatch> _suggest(
+      CsvCandidate candidate, List<QueryRow> sources, Set<String> linked) {
+    final date = candidate.effectiveDate ?? candidate.dueDate;
+    final matches = <CsvMatch>[];
+    for (final source in sources) {
+      final table = source.read<String>('target_table');
+      final id = source.read<String>('id');
+      if (linked.contains('$table:$id') ||
+          source.read<int>('amount_minor') != candidate.amountMinor ||
+          source.read<String>('type') != candidate.type.name) {
+        continue;
+      }
+      final stamp = source.readNullable<int>('date_at');
+      if (stamp == null) {
+        continue;
+      }
+      final sourceDate =
+          DateTime.fromMillisecondsSinceEpoch(stamp, isUtc: true);
+      final days = date.difference(sourceDate).inDays.abs();
+      if (days > 3) {
+        continue;
+      }
+      final label = source.read<String>('description');
+      final same = csvNormalize(label) == csvNormalize(candidate.description);
+      matches.add(CsvMatch(
+          table, id, label, sourceDate, (days == 0 ? 2 : 0) + (same ? 3 : 0)));
+    }
+    matches.sort((a, b) => b.score.compareTo(a.score));
+    return matches.take(4).toList();
+  }
+
   @override
   Future<List<CsvPreviewRow>> preview(
       CsvDocument document, CsvMapping mapping, String accountId) async {
@@ -59,6 +119,14 @@ class SqliteCsvImportRepository implements CsvImportRepository {
       throw const FormatException('Selecione uma conta ativa.');
     }
     final existing = await _existing(accountId);
+    final sources = await _matchSources(accountId);
+    final linked = {
+      for (final row in await db
+          .customSelect(
+              'SELECT target_table,target_id FROM import_batch_entries')
+          .get())
+        '${row.read<String>('target_table')}:${row.read<String>('target_id')}'
+    };
     final seen = <String>{};
     final history = <TransactionType, Map<String, String>>{};
     for (final type in TransactionType.values) {
@@ -109,6 +177,7 @@ class SqliteCsvImportRepository implements CsvImportRepository {
             duplicate: duplicate,
             selected: !duplicate,
             categoryId: categoryId,
+            matches: _suggest(candidate, sources, linked),
             warning: warning));
       } on FormatException catch (e) {
         result.add(CsvPreviewRow(line: raw.line, error: e.message));
@@ -141,12 +210,53 @@ class SqliteCsvImportRepository implements CsvImportRepository {
                 'A conta foi removida ou arquivada. Gere a prévia novamente.');
           }
           final existing = await _existing(accountId);
-          var imported = 0, skipped = 0;
+          final sources = await _matchSources(accountId);
+          final linkedTargets = {
+            for (final row in await db
+                .customSelect(
+                    'SELECT target_table,target_id FROM import_batch_entries')
+                .get())
+              '${row.read<String>('target_table')}:${row.read<String>('target_id')}'
+          };
+          var imported = 0, skipped = 0, linked = 0;
           final batchId = const Uuid().v4();
+          await db.customStatement('''INSERT INTO import_batches
+                  (id,account_id,source_name,created_at) VALUES(?,?,?,?)''', [
+            batchId,
+            accountId,
+            label,
+            DateTime.now().millisecondsSinceEpoch
+          ]);
           final repository = SqliteTransactionsRepository(db);
           for (final row in selected) {
             final candidate = row.candidate!;
             final key = candidate.fingerprint(accountId);
+            if (row.linkTarget != null) {
+              final target = row.linkTarget!;
+              final targetKey = '${target.table}:${target.id}';
+              if (linkedTargets.contains(targetKey) ||
+                  !_suggest(candidate, sources, linkedTargets).any(
+                      (m) => m.table == target.table && m.id == target.id)) {
+                throw const FormatException(
+                    'Um vínculo mudou desde a prévia. Gere a prévia novamente.');
+              }
+              await db.customStatement('''INSERT INTO import_batch_entries
+                  (id,batch_id,target_table,target_id,action,source_line,
+                   initial_updated_at,initial_sync_version)
+                  VALUES(?,?,?,?,?,?,?,?)''', [
+                const Uuid().v4(),
+                batchId,
+                target.table,
+                target.id,
+                'linked',
+                row.line,
+                0,
+                0
+              ]);
+              linkedTargets.add(targetKey);
+              linked++;
+              continue;
+            }
             // A duplicate selected explicitly in the preview is intentional. New
             // duplicates appearing after preview are rechecked inside the commit.
             if (existing.contains(key) && !row.duplicate) {
@@ -159,11 +269,14 @@ class SqliteCsvImportRepository implements CsvImportRepository {
                 'SELECT updated_at,sync_version FROM transactions WHERE id=?',
                 variables: [Variable.withString(created.id)]).getSingle();
             await db.customStatement('''INSERT INTO import_batch_entries
-                  (id,batch_id,transaction_id,source_line,initial_updated_at,initial_sync_version)
-                  VALUES(?,?,?,?,?,?)''', [
+                  (id,batch_id,target_table,target_id,action,source_line,
+                   initial_updated_at,initial_sync_version)
+                  VALUES(?,?,?,?,?,?,?,?)''', [
               const Uuid().v4(),
               batchId,
+              'transactions',
               created.id,
+              'created',
               row.line,
               stored.read<int>('updated_at'),
               stored.read<int>('sync_version')
@@ -171,17 +284,12 @@ class SqliteCsvImportRepository implements CsvImportRepository {
             existing.add(key);
             imported++;
           }
-          if (imported > 0) {
-            await db.customStatement('''INSERT INTO import_batches
-                  (id,account_id,source_name,created_at) VALUES(?,?,?,?)''', [
-              batchId,
-              accountId,
-              label,
-              DateTime.now().millisecondsSinceEpoch
-            ]);
+          if (imported + linked == 0) {
+            await db.customStatement(
+                'DELETE FROM import_batches WHERE id=?', [batchId]);
           }
           return CsvImportResult(imported, skipped,
-              batchId: imported > 0 ? batchId : null);
+              batchId: imported + linked > 0 ? batchId : null, linked: linked);
         });
     if (maintenance == null) return action();
     CsvImportResult? committed;

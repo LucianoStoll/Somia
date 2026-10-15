@@ -281,11 +281,15 @@ class CsvPreviewRow {
     this.duplicate = false,
     this.selected = false,
     this.categoryId,
+    this.matches = const [],
+    this.linkTarget,
   });
   final int line;
   final CsvCandidate? candidate;
   final String? error, warning, categoryId;
   final bool duplicate, selected;
+  final List<CsvMatch> matches;
+  final CsvMatch? linkTarget;
   CsvPreviewRow select(bool value) => CsvPreviewRow(
         line: line,
         candidate: candidate,
@@ -294,6 +298,19 @@ class CsvPreviewRow {
         duplicate: duplicate,
         selected: value && candidate != null,
         categoryId: categoryId,
+        matches: matches,
+        linkTarget: value ? linkTarget : null,
+      );
+  CsvPreviewRow link(CsvMatch? value) => CsvPreviewRow(
+        line: line,
+        candidate: candidate,
+        error: error,
+        warning: warning,
+        duplicate: duplicate,
+        selected: value != null,
+        categoryId: categoryId,
+        matches: matches,
+        linkTarget: value,
       );
   CsvPreviewRow category(String? value) => CsvPreviewRow(
         line: line,
@@ -303,7 +320,16 @@ class CsvPreviewRow {
         duplicate: duplicate,
         selected: selected,
         categoryId: value,
+        matches: matches,
+        linkTarget: linkTarget,
       );
+}
+
+class CsvMatch {
+  const CsvMatch(this.table, this.id, this.description, this.date, this.score);
+  final String table, id, description;
+  final DateTime date;
+  final int score;
 }
 
 class CsvReferences {
@@ -313,8 +339,9 @@ class CsvReferences {
 }
 
 class CsvImportResult {
-  const CsvImportResult(this.imported, this.skipped, {this.batchId});
-  final int imported, skipped;
+  const CsvImportResult(this.imported, this.skipped,
+      {this.batchId, this.linked = 0});
+  final int imported, skipped, linked;
   final String? batchId;
 }
 

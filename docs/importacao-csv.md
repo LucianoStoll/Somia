@@ -22,13 +22,15 @@ Categorias/subcategorias já cadastradas são associadas por nome e tipo, ignora
 
 Duplicidade considera conta, descrição normalizada, receita/despesa, valor, lançamento e vencimento. Categoria e efetivação não tornam um lançamento existente novo. Há sinalização no arquivo e contra receitas/despesas já cadastradas; nunca se substituem registros existentes. Pode haver lançamentos legítimos iguais: selecionar um duplicado e confirmar o aviso adiciona outra ocorrência intencionalmente.
 
+Na conciliação assistida, linhas de mesmo valor e tipo com até três dias de diferença oferecem até quatro sugestões entre receitas/despesas, baixas parciais, transferências e pagamentos de fatura da mesma conta. O usuário escolhe vincular, criar novo ou desmarcar/ignorar. Vínculos são revalidados na confirmação e não geram outra movimentação de caixa. Um registro já vinculado em outro lote não pode ser vinculado novamente. A prévia aceita o saldo **atual** informado pelo banco para comparação com o Somia após novos lançamentos efetivados até hoje; não use essa comparação para extratos históricos.
+
 ## Confirmação e segurança dos dados
 
-A confirmação informa a quantidade e os duplicados selecionados. O lote é gravado numa única transação, com UUIDs e os mesmos repositórios/regras das entradas manuais. A identidade do lote, nome do arquivo e vínculo de cada linha ao lançamento são preservados no banco, backup e sincronização. Qualquer falha reverte todo o lote, incluindo alterações capturadas para sincronização. Conta/categoria são revalidadas; duplicados surgidos após a prévia são ignorados, exceto os selecionados explicitamente como duplicados.
+A confirmação informa a quantidade criada/vinculada e os duplicados selecionados. O lote é gravado numa única transação, com UUIDs e os mesmos repositórios/regras das entradas manuais. A identidade do lote, nome do arquivo, ação e vínculo de cada linha ao registro são preservados no banco, backup e sincronização. Qualquer falha reverte todo o lote, incluindo alterações capturadas para sincronização. Conta/categoria são revalidadas; duplicados surgidos após a prévia são ignorados, exceto os selecionados explicitamente como duplicados.
 
 A gravação é serializada com manutenção local. A tela de importação protege a prévia contra aplicação automática de dados remotos. Depois de concluir e fechar a prévia, as seções atualizam com o app aberto; a sincronização existente captura o lote confirmado. Cancelar ou voltar antes da confirmação mantém o banco intacto.
 
-Esta etapa adiciona receitas/despesas em uma conta por importação. Não cria transferências, compras/faturas de cartão, séries, categorias ou contas; não altera saldo inicial. Excel, PDF, OFX, conciliação e demais relatórios da epic #14 ficam para entregas futuras.
+Esta etapa cria receitas/despesas em uma conta por importação ou vincula linhas a registros existentes. Não cria transferências, compras/faturas de cartão, séries, categorias ou contas; não altera saldo inicial. Excel, PDF e OFX são entradas futuras da epic #14.
 
 ## Validação manual
 

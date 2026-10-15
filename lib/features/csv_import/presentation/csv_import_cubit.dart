@@ -76,6 +76,14 @@ class CsvImportCubit extends Cubit<CsvImportState> {
         references: state.references, rows: rows, previewed: true));
   }
 
+  void link(int index, CsvMatch? match) {
+    if (state.busy) return;
+    final rows = [...state.rows];
+    rows[index] = rows[index].link(match);
+    emit(CsvImportState(
+        references: state.references, rows: rows, previewed: true));
+  }
+
   void selectNew(bool selected) {
     if (state.busy) return;
     emit(CsvImportState(

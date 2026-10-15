@@ -57,6 +57,10 @@ class PreviewRepository implements CsvImportRepository {
       CsvPreviewRow(
           line: 3,
           duplicate: true,
+          matches: [
+            CsvMatch('transactions', 'existing', 'Possível duplicado',
+                DateTime.utc(2026, 10, 5), 5)
+          ],
           candidate: CsvCandidate(
               line: 3,
               description: 'Possível duplicado',
@@ -199,6 +203,23 @@ void main() {
     expect(find.widgetWithText(CheckboxListTile, 'Possível duplicado'),
         findsOneWidget);
     expect(find.textContaining('despesas R\$ 133,45'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('sugestão de conciliação escolhe vínculo e não cria duplicado',
+      (tester) async {
+    final repo = PreviewRepository();
+    await openPreview(tester, repo, size: const Size(800, 900), scale: 1);
+    await tester.scrollUntilVisible(find.text('Conciliar (1 sugestões)'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Conciliar (1 sugestões)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Possível duplicado •'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Importar 2 lançamentos'));
+    await tester.tap(find.text('Importar 2 lançamentos'));
+    await tester.pumpAndSettle();
+    expect(
+        find.textContaining('vinculadas 1 linhas existentes'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {

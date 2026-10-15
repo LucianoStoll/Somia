@@ -93,6 +93,44 @@ void main() {
         (await repo.commit([again[0].select(true)], account.id)).imported, 1);
     expect((await movements.list()).length, 2);
   });
+  test('conciliação vincula lançamento existente sem afetar o saldo', () async {
+    final original = await movements.create(TransactionDraft(
+        description: 'Aluguel',
+        type: TransactionType.expense,
+        amountMinor: 12000,
+        date: DateTime.utc(2026, 10, 5),
+        dueDate: DateTime.utc(2026, 10, 5),
+        isEffective: true,
+        effectiveDate: DateTime.utc(2026, 10, 5),
+        accountId: account.id));
+    final before =
+        (await SqliteAccountsRepository(db).list()).single.currentBalanceMinor;
+    final rows = await preview(
+        'Descrição;Valor;Data;Efetivação\nAluguel;-120;05/10/2026;05/10/2026');
+    expect(rows.single.matches.any((m) => m.id == original.id), isTrue);
+    final match = rows.single.matches.firstWhere((m) => m.id == original.id);
+    final result = await repo
+        .commit([rows.single.link(match)], account.id, sourceName: 'banco.csv');
+    expect(result.imported, 0);
+    expect(result.linked, 1);
+    expect((await movements.list()).length, 1);
+    expect(
+        (await SqliteAccountsRepository(db).list()).single.currentBalanceMinor,
+        before);
+    final entry =
+        (await db.customSelect('SELECT * FROM import_batch_entries').get())
+            .single;
+    expect(entry.read<String>('action'), 'linked');
+    expect(entry.read<String>('target_id'), original.id);
+    expect(
+        (await db
+                .customSelect('SELECT source_name FROM import_batches')
+                .getSingle())
+            .read<String>('source_name'),
+        'banco.csv');
+    await expectLater(repo.commit([rows.single.link(match)], account.id),
+        throwsFormatException);
+  });
   test(
       'duplicado surgido após prévia é ignorado ao confirmar e categorias não alteram comparação',
       () async {

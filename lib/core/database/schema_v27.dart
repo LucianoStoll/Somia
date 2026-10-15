@@ -8,9 +8,13 @@ const schemaV27 = <String>[
   '''CREATE TABLE import_batch_entries (
     id TEXT PRIMARY KEY NOT NULL,
     batch_id TEXT NOT NULL,
-    transaction_id TEXT NOT NULL UNIQUE,
+    target_table TEXT NOT NULL CHECK(target_table IN
+      ('transactions','transfers','transaction_settlements','card_payments')),
+    target_id TEXT NOT NULL,
+    action TEXT NOT NULL CHECK(action IN ('created','linked')),
     source_line INTEGER NOT NULL,
     initial_updated_at INTEGER NOT NULL,
-    initial_sync_version INTEGER NOT NULL)''',
+    initial_sync_version INTEGER NOT NULL,
+    UNIQUE(target_table,target_id))''',
   'CREATE INDEX import_batch_entries_batch ON import_batch_entries(batch_id)',
 ];
