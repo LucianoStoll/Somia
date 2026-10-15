@@ -56,13 +56,37 @@ void main() {
           .id;
   Future<DashboardCurrencySummary> load(DateTime date,
       {String code = 'BRL'}) async {
-    final s = (await SqliteDashboardRepository(db).load(date))
+    final s = (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+            .load(date))
         .currencies
         .singleWhere((c) => c.currencyCode == code);
     expect(s.balanceDetails!.currentMinor, s.currentBalanceMinor);
     expect(s.balanceDetails!.projectedMinor, s.projectedBalanceMinor);
     return s;
   }
+
+  test('future scheduled expense stays pending until its effective day',
+      () async {
+    final due = DateTime.utc(2026, 11, 6);
+    final id = await tx(bank.id, 4446, due, effective: true, at: due);
+    Future<DashboardCurrencySummary> snapshot(DateTime today) async =>
+        (await SqliteDashboardRepository(db, asOf: today).load(due))
+            .currencies
+            .singleWhere((c) => c.currencyCode == 'BRL');
+    final before = await snapshot(DateTime.utc(2026, 10, 15));
+    expect(before.balanceDetails!.expenseMinor, 0);
+    expect(before.balanceDetails!.pendingExpenseMinor, 4446);
+    expect(before.balanceDetails!.currentMinor, before.currentBalanceMinor);
+    expect(before.balanceDetails!.projectedMinor, before.projectedBalanceMinor);
+    final onDay = await snapshot(due);
+    expect(onDay.balanceDetails!.expenseMinor, 4446);
+    expect(onDay.balanceDetails!.pendingExpenseMinor, 0);
+    expect(onDay.projectedBalanceMinor, before.projectedBalanceMinor);
+    await transactions.setEffective(id, effective: false);
+    final cleared = await snapshot(DateTime.utc(2026, 10, 15));
+    expect(cleared.balanceDetails!.expenseMinor, 0);
+    expect(cleared.projectedBalanceMinor, before.projectedBalanceMinor);
+  });
 
   test(
       'consolida por saldo, corte mensal agendado, abertura e pendências anteriores',
@@ -182,6 +206,16 @@ void main() {
           DateTime.utc(2026, 10, 5));
       await cards.pay(bill.id, bank.id, 2000, DateTime.utc(2026, 10, 28));
       await cards.pay(bill.id, bank.id, 4000, DateTime.utc(2026, 11, 5));
+      final midMonth =
+          (await SqliteDashboardRepository(db, asOf: DateTime.utc(2026, 10, 15))
+                  .load(month))
+              .currencies
+              .singleWhere((c) => c.currencyCode == 'BRL');
+      expect(
+          midMonth.balanceDetails!.cardPaymentsMinor, alternative ? 0 : 3000);
+      expect(midMonth.balanceDetails!.pendingInvoicesMinor, 5000);
+      expect(midMonth.balanceDetails!.projectedMinor,
+          midMonth.projectedBalanceMinor);
       final oct = (await load(month)).balanceDetails!;
       expect(oct.expenseMinor, 0);
       expect(oct.cardPaymentsMinor, alternative ? 2000 : 5000);

@@ -67,7 +67,7 @@ void main() {
     expect(applied.currentBalanceMinor, 52000);
     expect(applied.includeInBalance, false);
     expect(applied.includeInAnalytics, true);
-    final dashboard = SqliteDashboardRepository(db);
+    final dashboard = SqliteDashboardRepository(db, asOf: DateTime.utc(2030));
     final summary = (await dashboard.load(DateTime(2026, 1))).currencies.single;
     expect(summary.currentBalanceMinor, 13000);
     expect(summary.projectedBalanceMinor, 12300);
