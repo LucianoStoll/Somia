@@ -7,6 +7,7 @@ import 'package:finapp/features/cards/domain/credit_card.dart';
 import 'package:finapp/features/dashboard/data/sqlite_dashboard_repository.dart';
 import 'package:finapp/features/dashboard/domain/entities/dashboard_summary.dart';
 import 'package:finapp/features/transactions/data/sqlite_transactions_repository.dart';
+import 'package:finapp/features/transactions/data/transaction_settlements_repository.dart';
 import 'package:finapp/features/transactions/domain/financial_transaction.dart';
 import 'package:finapp/features/transfers/data/sqlite_transfers_repository.dart';
 import 'package:finapp/features/transfers/domain/transfer.dart';
@@ -86,6 +87,45 @@ void main() {
     final cleared = await snapshot(DateTime.utc(2026, 10, 15));
     expect(cleared.balanceDetails!.expenseMinor, 0);
     expect(cleared.projectedBalanceMinor, before.projectedBalanceMinor);
+  });
+
+  test('future income, transfer and partial settlement remain projected',
+      () async {
+    final due = DateTime.utc(2026, 11, 6);
+    await tx(bank.id, 10000, due,
+        effective: true, at: due, type: TransactionType.income);
+    await SqliteTransfersRepository(db).create(TransferDraft(
+        sourceAccountId: bank.id,
+        destinationAccountId: excluded.id,
+        amountMinor: 2000,
+        date: due,
+        effectiveDate: due,
+        isEffective: true));
+    final expense = await tx(bank.id, 5000, due);
+    await TransactionSettlementsRepository(db)
+        .add(expense, accountId: wallet.id, amountMinor: 1000, date: due);
+    final before =
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2026, 10, 15))
+                .load(due))
+            .currencies
+            .singleWhere((c) => c.currencyCode == 'BRL');
+    final d = before.balanceDetails!;
+    expect(d.incomeMinor, 0);
+    expect(d.expenseMinor, 0);
+    expect(d.transferOutMinor, 0);
+    expect(d.pendingIncomeMinor, 10000);
+    expect(d.pendingExpenseMinor, 5000);
+    expect(d.pendingTransferOutMinor, 2000);
+    expect(d.currentMinor, 110000);
+    expect(d.projectedMinor, 113000);
+    final after = (await SqliteDashboardRepository(db, asOf: due).load(due))
+        .currencies
+        .singleWhere((c) => c.currencyCode == 'BRL');
+    expect(after.balanceDetails!.incomeMinor, 10000);
+    expect(after.balanceDetails!.expenseMinor, 1000);
+    expect(after.balanceDetails!.pendingExpenseMinor, 4000);
+    expect(after.balanceDetails!.transferOutMinor, 2000);
+    expect(after.projectedBalanceMinor, before.projectedBalanceMinor);
   });
 
   test(

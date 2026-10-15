@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- Resumo: agendamentos futuros permanecem no previsto e não entram em “Pago/Recebido no mês” antes da data de efetivação. Corte alinhado à lista para despesas, receitas, baixas parciais, transferências, cartões e evolução do saldo, sem alterar dados.
+
 - Identidade grafite/pastel do Resumo aplicada aos sete módulos financeiros: indicadores, cards separados, ações compactas, informações expansíveis e campos discretos. Sem mudança de dados; roteiro em `docs/identidade-modulos-alpha.md`.
 
 ### Experiência diária e preferências do Resumo — #59
