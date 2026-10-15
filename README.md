@@ -2,11 +2,19 @@
 
 Seu dinheiro, mais claro. Aplicativo de finanças pessoais para Android e Windows, com dados locais e funcionamento offline.
 
-## v0.2.0-alpha — ciclo validado
+## v0.3.0-alpha
+
+[Baixar para Android e Windows](https://github.com/LucianoStoll/Somia/releases/tag/v0.3.0-alpha) · [Notas da versão](docs/releases/v0.3.0-alpha.md)
+
+Novo Resumo e identidade visual dos módulos, preferência para ocultar contas zeradas, listas por dia, rateios/baixas parciais, pessoas/reembolsos, cashback, planejamento, análises, investimentos, bens/dívidas e anexos sincronizados. Agendamentos futuros permanecem no previsto até sua efetivação.
+
+Publicação autorizada em 15/10/2026. Atualize os dois dispositivos antes de sincronizar: schema atual **26**. Relatórios adicionais, importação e conciliação ficam para a próxima alpha; análises e exportações existentes permanecem disponíveis. Escopo e histórico na [#58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](docs/ciclos/v0.3.0-alpha.md).
+
+## v0.2.0-alpha — publicada e validada
 
 O ciclo pós-MVP foi validado pelo usuário em 06/10/2026. Inclui calculadora, séries, cartões/faturas, sugestões pelo histórico, extrato diário, detalhamento de saldo, backups local/Google Drive Android/Windows, [sincronização manual](docs/sincronizacao-drive.md) e [automática com app aberto](docs/sincronizacao-automatica.md), e [importação CSV](docs/importacao-csv.md). Consulte as [notas da versão](docs/releases/v0.2.0-alpha.md) e o [inventário completo de alterações](docs/releases/v0.2.0-alpha-files.md).
 
-O próximo ciclo será `v0.3.0-alpha`, criado a partir do merge desta versão em `main`. Funcionalidades futuras precisam de escopo aprovado; não estão incluídas automaticamente.
+A [release v0.2.0-alpha](https://github.com/LucianoStoll/Somia/releases/tag/v0.2.0-alpha) reúne os pacotes Android e Windows validados. Funcionalidades futuras precisam de escopo aprovado.
 
 ## MVP — v0.1.0-alpha
 
@@ -23,7 +31,7 @@ Primeiro ciclo implementado e validado pelo usuário em 01/10/2026, incluindo o 
 
 ### Como os saldos funcionam
 
-O saldo do mês é acumulado: saldo inicial das contas incluídas mais movimentos efetivados até o fim do mês selecionado. A projeção considera também compromissos até essa data. Cada conta tem seu cálculo individual; excluir uma aplicação do consolidado não esconde sua conta nem seus movimentos.
+O saldo do mês é acumulado: saldo inicial das contas incluídas mais movimentos efetivados até hoje, limitados ao fim do mês selecionado. A projeção considera também compromissos até essa data. Cada conta tem seu cálculo individual; excluir uma aplicação do consolidado não esconde sua conta nem seus movimentos.
 
 Os totais de receitas/despesas e os gráficos usam a data de efetivação quando preenchida e, caso contrário, o vencimento. Incluem efetivados e previstos. As listas mantêm vencimento como filtro mensal inicial e permitem ajustar os critérios no menu de filtros. A ajuda do Resumo e dos Ajustes explica essas diferenças.
 
@@ -52,6 +60,8 @@ A CI executa formatação, análise, testes no Linux e Windows, prévias de inte
 
 ## Documentação
 
+- [Rateio por categoria — alpha 3.0](docs/rateio-categorias.md)
+
 - [Changelog](CHANGELOG.md)
 - [Roadmap e próximos ciclos](docs/roadmap.md)
 - [Visão e escopo](docs/requisitos.md)
@@ -61,4 +71,6 @@ A CI executa formatação, análise, testes no Linux e Windows, prévias de inte
 - [Identidade visual](docs/identidade-visual.md)
 - [Atualização Android e backup](docs/atualizacao-apk.md)
 
-Cartões, recorrências, calculadora, backup automático, sincronização e CSV já foram entregues nesta versão. Planejamento, rateio/reembolsos, anexos, relatórios avançados e conciliação continuam no backlog.
+Planejamento, rateios/reembolsos e anexos integram a v0.3.0-alpha. Relatórios adicionais, importação e conciliação permanecem no próximo ciclo.
+
+Dívidas e empréstimos (#65): Menu → Dívidas e empréstimos. Cadastro em BRL, vínculo com bem e amortização manual das despesas existentes; saldo atual/projetado integrado ao patrimônio. [Regras e validação](docs/dividas-emprestimos.md). Schema atual 26: atualizar Android e Windows antes de sincronizar.

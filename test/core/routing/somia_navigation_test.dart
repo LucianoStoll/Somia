@@ -1,3 +1,5 @@
+import 'package:finapp/features/cards/data/cards_repository.dart';
+import 'package:finapp/features/cards/domain/credit_card.dart';
 import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
@@ -35,10 +37,47 @@ class _LiveUiBackupManager extends BackupManager {
   Future<void> refresh() async {}
 }
 
+class _CardsNavigationStub extends Fake implements CardsRepository {
+  @override
+  Future<List<CreditCard>> list() async => [
+        const CreditCard(
+            id: 'card',
+            name: 'Cartão teste',
+            paymentAccountId: 'a',
+            closingDay: 1,
+            dueDay: 10,
+            limitMinor: 50000)
+      ];
+  @override
+  Future<List<CardInvoice>> invoices(String cardId,
+          {DateTime? selected}) async =>
+      [
+        CardInvoice(
+            id: 'invoice',
+            cardId: cardId,
+            month: selected!,
+            closingAt: DateTime(selected.year, selected.month, 1),
+            dueAt: DateTime(selected.year, selected.month, 10),
+            previousMinor: 0,
+            chargesMinor: 0,
+            paidMinor: 0,
+            scheduledMinor: 0)
+      ];
+}
+
 class _DashboardStub implements DashboardRepository {
   @override
   Future<DashboardSummary> load(DateTime month) async =>
-      DashboardSummary(month: month, currencies: const [], recent: const []);
+      DashboardSummary(month: month, currencies: const [
+        DashboardCurrencySummary(
+            currencyCode: 'BRL',
+            currentBalanceMinor: 10000,
+            projectedBalanceMinor: 10000,
+            incomeMinor: 20000,
+            expenseMinor: 10000,
+            accounts: [],
+            history: [])
+      ], recent: const []);
 }
 
 class _AccountsStub implements AccountsRepository {
@@ -211,6 +250,59 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  for (final size in [const Size(390, 844), const Size(1280, 900)]) {
+    testWidgets('cards do resumo abrem abas preservando mês $size',
+        (tester) async {
+      await openBackTest(tester, size: size);
+      referenceMonth.select(DateTime(2027, 2));
+      await tester.pumpAndSettle();
+      for (final path in ['/income', '/expenses']) {
+        appRouter.go('/');
+        await tester.pumpAndSettle();
+        final key = size.width < 800
+            ? (path == '/income' ? 'mobile-income-BRL' : 'mobile-expense-BRL')
+            : 'dashboard-link-$path';
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
+        await tester.tap(find.byKey(ValueKey(key)));
+        await tester.pumpAndSettle();
+        expect(appRouter.routeInformationProvider.value.uri.path, path);
+        expect(referenceMonth.value, DateTime(2027, 2));
+        expect(
+            (getIt<TransactionsRepository>() as _TransactionsStub)
+                .requestedFilters
+                .last
+                .from,
+            DateTime(2027, 2));
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+  testWidgets('balão usa mesmos ícones e cores do menu lateral',
+      (tester) async {
+    await openBackTest(tester);
+    await tester.tap(find.byTooltip('Abrir menu'));
+    await tester.pumpAndSettle();
+    final icons = <Icon>[];
+    for (final path in ['/income', '/expenses', '/transfers']) {
+      icons.add(tester
+          .widget<ListTile>(find.byKey(ValueKey('menu-$path')))
+          .leading! as Icon);
+    }
+    await tester.tap(find.byTooltip('Fechar menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
+    await tester.pumpAndSettle();
+    final labels = ['Receita', 'Despesa', 'Transferência'];
+    for (var i = 0; i < labels.length; i++) {
+      final icon = tester
+          .widget<ListTile>(find.widgetWithText(ListTile, labels[i]))
+          .leading! as Icon;
+      expect(icon.icon, icons[i].icon);
+      expect(icon.color, icons[i].color);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'restauração com app aberto descarta formulário e recarrega contas',
       (tester) async {
@@ -281,6 +373,30 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets(
+      'roteador real volta do detalhe à lista de cartões antes do resumo',
+      (tester) async {
+    await openBackTest(tester);
+    getIt.registerSingleton<CardsRepository>(_CardsNavigationStub());
+    appRouter.go('/cards');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('card-open-card')));
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.queryParameters['card'],
+        'card');
+    expect(find.text('Detalhes do cartão'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/cards');
+    expect(appRouter.routeInformationProvider.value.uri.queryParameters['card'],
+        isNull);
+    expect(find.byKey(const ValueKey('card-open-card')), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(appRouter.routeInformationProvider.value.uri.path, '/');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'conta abre extrato e Voltar Android retorna à lista antes do Resumo',
       (tester) async {
@@ -537,11 +653,21 @@ void main() {
       'Despesas',
       'Transferências',
       'Contas',
-      'Categorias',
-      'Configurações'
+      'Análises',
+      'Débito',
+      'Cashback'
     ]) {
       expect(find.text(label), findsWidgets);
     }
+    final drawerScroll = find
+        .descendant(of: find.byType(Drawer), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(find.text('Configurações'), 200,
+        scrollable: drawerScroll);
+    expect(find.text('Configurações'), findsWidgets);
+    expect(find.text('Categorias'), findsWidgets);
+    await tester.drag(find.byType(Drawer), const Offset(0, 1000));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('menu-/income')));
     await tester.pumpAndSettle();
     expect(find.text('Salário'), findsOneWidget);

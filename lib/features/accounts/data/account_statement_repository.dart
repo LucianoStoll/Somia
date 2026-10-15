@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:drift/drift.dart';
+import '../../../core/allocations/category_allocation.dart';
 import '../../../core/database/app_database.dart';
 import '../../cards/domain/credit_card.dart';
 import '../domain/account_statement.dart';
@@ -32,7 +33,7 @@ class AccountStatementRepository {
         final actual = <StatementEntry>[], forecast = <StatementEntry>[];
         final tx = await _rows(
             '''SELECT t.*,c.name AS category_name,p.name AS parent_name
-      FROM transactions t LEFT JOIN categories c ON c.id=t.category_id
+      FROM transaction_events t LEFT JOIN categories c ON c.id=t.category_id
       LEFT JOIN categories p ON p.id=c.parent_id
       WHERE t.account_id=? AND t.deleted_at IS NULL AND t.ignore_balance=0
       AND COALESCE(t.effective_at,t.due_at,t.posted_at)<?''', [accountId, end]);
@@ -55,10 +56,14 @@ class AccountStatementRepository {
               amountMinor: income ? amount : -amount,
               kind: income ? StatementKind.income : StatementKind.expense,
               effective: effective,
-              detail: [
-                r.readNullable<String>('parent_name'),
-                r.readNullable<String>('category_name')
-              ].whereType<String>().join(' / '));
+              detail:
+                  CategoryAllocation.decode(r.read<String>('allocations_json'))
+                          .isNotEmpty
+                      ? 'Rateio entre categorias'
+                      : [
+                          r.readNullable<String>('parent_name'),
+                          r.readNullable<String>('category_name')
+                        ].whereType<String>().join(' / '));
           forecast.add(e);
           if (effective) actual.add(e);
         }

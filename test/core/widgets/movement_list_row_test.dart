@@ -21,7 +21,10 @@ Widget row(
         effective: effective,
         busy: busy,
         color: SomiaColors.red,
-        tags: const ['Investimentos e patrimônio', 'Financiamento'],
+        categoryTags: const [
+          MovementTag('Investimentos e patrimônio', Color(0xFF79D9B6)),
+          MovementTag('Financiamento', Color(0xFFB9A8EB))
+        ],
         onEdit: edit ?? () {},
         onEffective: status ?? () {},
         onAmount: amount,
@@ -69,6 +72,19 @@ Future<void> open(
 }
 
 void main() {
+  testWidgets('categorias longas ficam lado a lado e status centralizado',
+      (tester) async {
+    await open(tester, row(), const Size(320, 844), 2);
+    final first = tester.getRect(find.text('Investimentos e patrimônio'));
+    final second = tester.getRect(find.text('Financiamento'));
+    expect(first.top, closeTo(second.top, 1));
+    expect(first.right, lessThan(second.left));
+    final status =
+        tester.getRect(find.byKey(const ValueKey('movement-status-a')));
+    final body = tester.getRect(find.byType(Row).first);
+    expect(status.center.dy, closeTo(body.center.dy, 1));
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('status, descrição, valor e menu têm toques independentes',
       (tester) async {
     var edits = 0, statuses = 0, values = 0;
@@ -85,6 +101,11 @@ void main() {
     expect(edits, 0);
     expect(values, 0);
     await tester.tap(find.byKey(const ValueKey('movement-edit-a')));
+    await tester.pumpAndSettle();
+    expect(edits, 0);
+    expect(find.text('Editar lançamento'), findsOneWidget);
+    await tester.tap(find.text('Editar lançamento'));
+    await tester.pumpAndSettle();
     expect(edits, 1);
     await tester.tap(find.byKey(const ValueKey('movement-amount-a')));
     expect(values, 1);
@@ -94,6 +115,36 @@ void main() {
     expect(find.text('Editar'), findsOneWidget);
     expect(edits, 1);
     expect(statuses, 1);
+  });
+  testWidgets('etiquetas preservam cores e linha curta é compacta',
+      (tester) async {
+    await open(
+        tester,
+        MovementListRow(
+            id: 'compact',
+            description: 'Salário',
+            account: 'Banco',
+            amount: 'R\$ 1.314,56',
+            dueDate: DateTime(2026, 10, 6),
+            effectiveDate: null,
+            effective: true,
+            color: SomiaColors.green,
+            categoryTags: const [
+              MovementTag('Renda', Color(0xFF79D9B6)),
+              MovementTag('Salário', Color(0xFFB9A8EB))
+            ],
+            onEdit: () {},
+            onEffective: () {},
+            menu: const SizedBox(width: 48, height: 48)),
+        const Size(390, 844),
+        1);
+    expect(tester.getSize(find.byType(MovementListRow)).height,
+        lessThanOrEqualTo(100));
+    expect(tester.widget<Text>(find.text('Renda')).style!.color,
+        const Color(0xFF79D9B6));
+    expect(tester.widget<Text>(find.text('Salário').last).style!.color,
+        const Color(0xFFB9A8EB));
+    expect(tester.takeException(), isNull);
   });
   testWidgets('efetivado e ocupado não efetivam novamente', (tester) async {
     var calls = 0;

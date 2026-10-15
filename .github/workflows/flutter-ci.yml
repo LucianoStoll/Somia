@@ -31,8 +31,18 @@ jobs:
         run: flutter analyze
       - name: Release publication guards
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Dashboard tests
+        run: |
+          flutter test test/features/dashboard --reporter expanded > "$RUNNER_TEMP/dashboard-tests.log" 2>&1
+      - name: Publish dashboard test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-test-diagnostics
+          path: ${{ runner.temp }}/dashboard-tests.log
+          if-no-files-found: ignore
       - name: Tests
-        run: flutter test
+        run: flutter test --reporter expanded
       - name: Render dashboard mobile preview
         run: flutter test test/features/dashboard/dashboard_layout_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render history tooltip previews
@@ -47,6 +57,8 @@ jobs:
         run: flutter test test/core/routing/movement_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render account and category form previews
         run: flutter test test/core/routing/reference_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render experience pages preview
+        run: flutter test test/core/routing/experience_pages_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render bank catalog preview
         run: flutter test test/core/routing/bank_selector_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render series form preview
@@ -63,18 +75,65 @@ jobs:
         run: flutter test test/core/widgets/movement_list_row_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render CSV import preview
         run: flutter test test/features/csv_import/csv_import_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render allocation previews
+        run: flutter test test/core/allocations/allocation_editor_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render investment previews
+        run: flutter test test/features/investments/investments_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render assets previews
+        run: flutter test test/features/assets/assets_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render partial settlement previews
+        run: flutter test test/features/transactions/transaction_settlements_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render bulk editing and trash previews
+        run: flutter test test/features/transactions/movement_management_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render attachment previews
+        run: flutter test test/features/attachments/attachments_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render expense analysis previews
+        run: flutter test test/features/analysis/expense_analysis_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render report export samples
+        run: flutter test test/features/reports/report_exporter_test.dart --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Publish report export samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: somia-report-export-samples
+          path: |
+            test/features/reports/samples/
+            pubspec.lock
+      - name: Render planning previews
+        run: flutter test test/features/planning/planning_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render reimbursement previews
+        run: flutter test test/features/reimbursements/reimbursement_pages_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render debt previews
+        run: flutter test test/features/debts/debts_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render debit and cashback previews
+        run: flutter test test/features/cards/cashback_pages_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Publish dashboard preview
         uses: actions/upload-artifact@v4
         with:
           name: somia-dashboard-preview
           path: |
+            test/features/cards/*-preview.png
+            test/features/analysis/*-preview.png
             test/features/dashboard/*mobile-preview.png
             test/features/dashboard/*desktop-preview.png
+            test/features/attachments/*-preview.png
             test/features/settings/*mobile-preview.png
             test/features/settings/*desktop-preview.png
             test/core/routing/*mobile-preview.png
+            test/core/routing/*desktop-preview.png
+            test/core/allocations/*mobile-preview.png
+            test/core/allocations/*desktop-preview.png
             test/core/widgets/*mobile-preview.png
             test/features/csv_import/*mobile-preview.png
+            test/features/investments/*mobile-preview.png
+            test/features/investments/*desktop-preview.png
+            test/features/assets/*mobile-preview.png
+            test/features/assets/*desktop-preview.png
+            test/features/transactions/*-preview.png
+            test/features/planning/*-preview.png
+            test/features/reimbursements/*mobile-preview.png
+            test/features/reimbursements/*desktop-preview.png
+            test/features/debts/*mobile-preview.png
+            test/features/debts/*desktop-preview.png
           if-no-files-found: error
           retention-days: 30
 
@@ -89,7 +148,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Tests on Windows
-        run: flutter test
+        run: flutter test --concurrency=2
       - name: Read app version
         shell: bash
         run: |

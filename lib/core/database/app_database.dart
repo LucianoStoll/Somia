@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart' as crypto;
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -19,6 +21,21 @@ import 'schema_v8.dart';
 import 'schema_v9.dart';
 import 'schema_v10.dart';
 import 'schema_v11.dart';
+import 'schema_v12.dart';
+import 'schema_v13.dart';
+import 'schema_v14.dart';
+import 'schema_v15.dart';
+import 'schema_v16.dart';
+import 'schema_v17.dart';
+import 'schema_v18.dart';
+import 'schema_v19.dart';
+import 'schema_v20.dart';
+import 'schema_v21.dart';
+import 'schema_v22.dart';
+import 'schema_v23.dart';
+import 'schema_v24.dart';
+import 'schema_v25.dart';
+import 'schema_v26.dart';
 import 'financial_data.dart';
 import 'backup_service.dart';
 
@@ -33,8 +50,9 @@ class AppDatabase extends GeneratedDatabase {
   final _writeZoneKey = Object();
   Stream<void> get financialChanges => _financialChanges.stream;
   static final _financialWrite = RegExp(
-      r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
-      caseSensitive: false);
+    r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM)\s+["`\[]?(\w+)',
+    caseSensitive: false,
+  );
 
   @override
   Future<void> customStatement(String statement, [List<Object?>? args]) async {
@@ -56,24 +74,33 @@ class AppDatabase extends GeneratedDatabase {
   }
 
   @override
-  Future<int> customUpdate(String query,
-      {List<Variable> variables = const [],
-      Set<ResultSetImplementation>? updates,
-      UpdateKind? updateKind}) async {
-    final changed = await super.customUpdate(query,
-        variables: variables, updates: updates, updateKind: updateKind);
+  Future<int> customUpdate(
+    String query, {
+    List<Variable> variables = const [],
+    Set<ResultSetImplementation>? updates,
+    UpdateKind? updateKind,
+  }) async {
+    final changed = await super.customUpdate(
+      query,
+      variables: variables,
+      updates: updates,
+      updateKind: updateKind,
+    );
     if (changed > 0) _recordFinancialWrite(query);
     return changed;
   }
 
   @override
-  Future<T> transaction<T>(Future<T> Function() action,
-      {bool requireNew = false}) async {
+  Future<T> transaction<T>(
+    Future<T> Function() action, {
+    bool requireNew = false,
+  }) async {
     final parent = Zone.current[_writeZoneKey] as _FinancialWrites?;
     final writes = _FinancialWrites();
     final result = await super.transaction(
-        () => runZoned(action, zoneValues: {_writeZoneKey: writes}),
-        requireNew: requireNew);
+      () => runZoned(action, zoneValues: {_writeZoneKey: writes}),
+      requireNew: requireNew,
+    );
     if (writes.changed) {
       if (parent != null) {
         parent.changed = true;
@@ -103,7 +130,9 @@ class AppDatabase extends GeneratedDatabase {
 
   /// Preserve a consistent copy before opening an older published database.
   static Future<void> protectBeforeMigration(
-      File file, Directory directory) async {
+    File file,
+    Directory directory,
+  ) async {
     if (!await file.exists()) return;
     final previous = sqlite.sqlite3.open(file.path);
     try {
@@ -112,8 +141,10 @@ class AppDatabase extends GeneratedDatabase {
       if (version > 0 && version < currentSchemaVersion) {
         final folder = Directory(p.join(directory.path, 'somia-backups'));
         await folder.create(recursive: true);
-        final snapshot = p.join(folder.path,
-            'beforeMigration-${DateTime.now().microsecondsSinceEpoch}-${const Uuid().v4()}.sqlite');
+        final snapshot = p.join(
+          folder.path,
+          'beforeMigration-${DateTime.now().microsecondsSinceEpoch}-${const Uuid().v4()}.sqlite',
+        );
         previous.execute('VACUUM INTO ?', [snapshot]);
       }
     } finally {
@@ -124,7 +155,7 @@ class AppDatabase extends GeneratedDatabase {
   @override
   int get schemaVersion => currentSchemaVersion;
 
-  static const currentSchemaVersion = 11;
+  static const currentSchemaVersion = 26;
 
   @override
   Iterable<TableInfo<Table, dynamic>> get allTables => const [];
@@ -146,7 +177,22 @@ class AppDatabase extends GeneratedDatabase {
             ...schemaV8,
             ...schemaV9,
             ...schemaV10,
-            ...schemaV11
+            ...schemaV11,
+            ...schemaV12,
+            ...schemaV13,
+            ...schemaV14,
+            ...schemaV15,
+            ...schemaV16,
+            ...schemaV17,
+            ...schemaV18,
+            ...schemaV19,
+            ...schemaV20,
+            ...schemaV21,
+            ...schemaV22,
+            ...schemaV23,
+            ...schemaV24,
+            ...schemaV25,
+            ...schemaV26,
           ]) {
             await customStatement(statement);
           }
@@ -165,13 +211,104 @@ class AppDatabase extends GeneratedDatabase {
               9 => schemaV9,
               10 => schemaV10,
               11 => schemaV11,
+              12 => schemaV12,
+              13 => schemaV13,
+              14 => schemaV14,
+              15 => schemaV15,
+              16 => schemaV16,
+              17 => schemaV17,
+              18 => schemaV18,
+              19 => schemaV19,
+              20 => schemaV20,
+              21 => schemaV21,
+              22 => schemaV22,
+              23 => schemaV23,
+              24 => schemaV24,
+              25 => schemaV25,
+              26 => schemaV26,
               _ => throw StateError('Migration v$version não implementada'),
             };
+            if (version == 26) {
+              for (final id
+                  in await customSelect('SELECT id FROM local_attachments')
+                      .get()) {
+                final row = await customSelect(
+                        'SELECT * FROM local_attachments WHERE id=?',
+                        variables: [Variable.withString(id.read<String>('id'))])
+                    .getSingle();
+                final bytes = row.read<Uint8List>('content');
+                if (bytes.length != row.read<int>('size') ||
+                    crypto.sha256.convert(bytes).toString() !=
+                        row.read<String>('sha256')) {
+                  throw const FormatException(
+                      'Um anexo antigo está corrompido. Restaure uma cópia íntegra antes de atualizar.');
+                }
+              }
+            }
             for (final statement in statements) {
               await customStatement(statement);
             }
           }
+          if (from < 24) {
+            // Requeue unsent v11–v13 packets with new identities: an earlier upload
+            // may already exist remotely with the original content hash.
+            final uploads =
+                await customSelect('SELECT * FROM sync_uploads').get();
+            for (final row in uploads) {
+              final packet = jsonDecode(row.read<String>('payload'))
+                  as Map<String, dynamic>;
+              // A resposta de um replacement v23 pode ter sido perdida. Como
+              // v24 não muda suas colunas, preservar identidade/hash permite
+              // confirmar o mesmo pacote já publicado após a atualização.
+              if (packet['kind'] == 'replacement' && packet['schema'] == 23) {
+                continue;
+              }
+              packet['schema'] = currentSchemaVersion;
+              packet['id'] = const Uuid().v4();
+              for (final entry in packet['entries'] as List) {
+                if (from < 22 &&
+                    [
+                      'transactions',
+                      'transfers',
+                      'card_entries',
+                    ].contains(entry['table']) &&
+                    entry['data'] != null) {
+                  entry['data']['trash_state'] = 'active';
+                }
+                if (['transactions', 'card_entries'].contains(entry['table']) &&
+                    entry['data'] != null) {
+                  if (from < 20) {
+                    entry['data']['tags_json'] = '[]';
+                  }
+                  if (from < 21) {
+                    entry['data']['establishment'] = '';
+                  }
+                }
+                if (from < 16 &&
+                    entry['table'] == 'credit_cards' &&
+                    entry['data'] != null) {
+                  entry['data']['color_argb'] = null;
+                }
+                if (from < 12 &&
+                    ['transactions', 'card_entries'].contains(entry['table']) &&
+                    entry['data'] != null) {
+                  entry['data']['allocations_json'] = '[]';
+                }
+              }
+              await customStatement(
+                'UPDATE sync_uploads SET packet_id=?,payload=? WHERE packet_id=?',
+                [
+                  packet['id'],
+                  jsonEncode(packet),
+                  row.read<String>('packet_id')
+                ],
+              );
+            }
+          }
           await installSyncTriggers(this);
+          if (from < 26) {
+            await customStatement('UPDATE attachment_manifest SET name=name');
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');

@@ -1,5 +1,9 @@
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
+import 'package:finapp/core/database/financial_data.dart';
+import 'package:finapp/core/allocations/category_allocation.dart';
+import 'package:finapp/features/categories/data/sqlite_categories_repository.dart';
+import 'package:finapp/features/categories/domain/category.dart';
 import 'package:finapp/core/series/movement_series.dart';
 import 'package:finapp/features/accounts/data/sqlite_accounts_repository.dart';
 import 'package:finapp/features/accounts/domain/account.dart';
@@ -45,9 +49,13 @@ void main() {
           DateTime? month,
           String? selectedCard,
           int first = 1,
+          List<String> tags = const [],
+          String establishment = '',
           SeriesScope scope = SeriesScope.onlyThis}) =>
       TransactionDraft(
           description: 'Mercado',
+          tags: tags,
+          establishment: establishment,
           type: TransactionType.expense,
           amountMinor: amount,
           date: date ?? DateTime(2026, 1, 10),
@@ -79,6 +87,101 @@ void main() {
         projectedBalanceMinor: b.projectedMinor);
   }
 
+  test(
+      'resumo reconcilia vencimentos e curva com fatura parcial e crédito posterior',
+      () async {
+    final first = await cards
+        .createPurchase(draft(amount: 10000, date: DateTime(2026, 1, 10)));
+    final entry = (await cards.entries()).firstWhere((e) => e.id == first);
+    await cards
+        .createPurchase(draft(amount: 5000, date: DateTime(2026, 2, 10)));
+    await cards.pay(entry.invoiceId, account.id, 2000, DateTime(2026, 1, 20));
+    final invoiceId =
+        await cards.invoiceForPurchase(cardId, DateTime(2026, 2, 10));
+    await cards.refund(first, 4000, invoiceId, DateTime(2026, 2, 15));
+    final summary =
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 3)))
+            .currencies
+            .single;
+    expect(
+        summary.upcoming
+            .where((d) => d.kind == 'invoice')
+            .fold<int>(0, (v, d) => v + d.amountMinor),
+        summary.balanceDetails!.pendingInvoicesMinor);
+    expect(summary.balanceDetails!.pendingInvoicesMinor, 9000);
+    expect(summary.dailyBalances.last.projectedMinor,
+        summary.projectedBalanceMinor);
+  });
+
+  test('estabelecimento acompanha parcelas, edição e filtro sem alterar tags',
+      () async {
+    final id = await cards.createPurchase(
+        draft(count: 2, tags: ['Viagem'], establishment: ' Mercado  Central '));
+    expect(
+        (await cards.entries())
+            .every((e) => e.establishment == 'Mercado Central'),
+        isTrue);
+    expect(
+        await cards.movements(
+            const TransactionFilter(establishment: 'mercado central')),
+        hasLength(2));
+    expect(
+        await cards.movements(const TransactionFilter(establishment: 'Outro')),
+        isEmpty);
+    await cards
+        .createPurchase(draft(tags: ['Outra'], establishment: 'Farmácia'));
+    expect(
+        await cards.movements(
+            const TransactionFilter(establishment: 'Farmácia', tag: 'Viagem')),
+        isEmpty);
+    await cards.editPurchase(
+        id, draft(amount: 5000, tags: ['Viagem'], establishment: 'Farmácia'));
+    final movement = await cards.findMovement(id);
+    expect(movement.establishment, 'Farmácia');
+    expect(movement.tags, ['Viagem']);
+  });
+  test('tags acompanham parcelas, edição e filtro da fatura', () async {
+    final id = await cards.createPurchase(draft(count: 2, tags: ['Viagem']));
+    expect((await cards.entries()).every((e) => e.tags.contains('Viagem')),
+        isTrue);
+    expect((await cards.findMovement(id)).tags, ['Viagem']);
+    expect(
+        await cards.movements(const TransactionFilter(tag: 'outra')), isEmpty);
+    expect(await cards.movements(const TransactionFilter(tag: 'VIAGEM')),
+        hasLength(2));
+    await cards.editPurchase(id, draft(amount: 5000, tags: ['Trabalho']));
+    expect((await cards.findMovement(id)).tags, ['Trabalho']);
+    expect(await cards.movements(const TransactionFilter(tag: 'viagem')),
+        hasLength(1));
+  });
+  test('cor do cartão persiste na criação e edição sem mudar limites',
+      () async {
+    final old = await cards.find(cardId);
+    await cards.save(
+        CardDraft(
+            name: old.name,
+            paymentAccountId: old.paymentAccountId,
+            closingDay: old.closingDay,
+            dueDay: old.dueDay,
+            limitMinor: old.limitMinor,
+            institutionId: old.institutionId,
+            colorArgb: 0xffb59add),
+        id: cardId);
+    expect((await cards.find(cardId)).colorArgb, 0xffb59add);
+    expect((await cards.limitHistory(cardId)).length, 1);
+    await expectLater(
+        cards.save(
+            CardDraft(
+                name: old.name,
+                paymentAccountId: old.paymentAccountId,
+                closingDay: 25,
+                dueDay: 5,
+                colorArgb: -1),
+            id: cardId),
+        throwsFormatException);
+    expect((await cards.find(cardId)).colorArgb, 0xffb59add);
+  });
   test('fechamento inclusivo próxima, último dia, mensal âncora e manual',
       () async {
     final before =
@@ -116,7 +219,8 @@ void main() {
     expect(b.currentBalanceMinor, 96666);
     expect(b.projectedBalanceMinor, 89999);
     expect((await cards.find(cardId)).committedMinor, 6667);
-    final dash = await SqliteDashboardRepository(db).load(DateTime(2026, 2));
+    final dash = await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+        .load(DateTime(2026, 2));
     expect(dash.currencies.single.expenseMinor, 3334);
     expect((await tx.list()).length, 3);
     expect(movement.cardId, cardId);
@@ -151,7 +255,8 @@ void main() {
             .currentBalanceMinor,
         96000);
     expect(
-        (await SqliteDashboardRepository(db).load(DateTime(2026, 2)))
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 2)))
             .currencies
             .single
             .expenseMinor,
@@ -214,7 +319,7 @@ void main() {
         70000);
   });
   test(
-      'edição exclusiva e próximos preserva anteriores e faturas com pagamentos',
+      'edição de próximas inclui agendadas, preservando anteriores e pagamentos',
       () async {
     final repo = SqliteTransactionsRepository(db);
     await repo.create(draft(amount: 30000, count: 3));
@@ -227,11 +332,15 @@ void main() {
         scope: SeriesScope.thisAndNext);
     expect((await cards.entry(entries.first.id)).amountMinor, 10000);
     expect((await cards.entry(entries[1].id)).amountMinor, 12000);
-    expect((await cards.entry(entries.last.id)).amountMinor, 10000);
-    await expectLater(
-        repo.updateAmount('card:${entries.last.id}',
-            expectedAmountMinor: 10000, amountMinor: 11000),
-        throwsStateError);
+    expect((await cards.entry(entries.last.id)).amountMinor, 12000);
+    await repo.updateAmount('card:${entries.last.id}',
+        expectedAmountMinor: 12000, amountMinor: 11000);
+    expect(
+        (await cards.invoice(entries.last.invoiceId))
+            .payments
+            .single
+            .amountMinor,
+        1000);
     await repo.update('card:${entries[1].id}',
         draft(amount: 12000, month: DateTime(2026, 5)));
     expect(
@@ -241,6 +350,129 @@ void main() {
     expect(await cards.entries(cardId: cardId), hasLength(2));
   });
   test(
+      'compra incorreta em fatura paga: editar data, rateio e mover para destino pago',
+      () async {
+    final original = await cards.createPurchase(draft());
+    final feb = (await cards.entry(original)).invoiceId;
+    await cards.pay(feb, account.id, 10000, DateTime(2026, 2, 5));
+    final wrong = await cards.createPurchase(draft(amount: 2000));
+    final mar = await cards.ensureInvoice(cardId, DateTime(2026, 3));
+    await cards.pay(mar, account.id, 1000, DateTime(2026, 3, 5));
+    final payments = (await readFinancial(db))['card_payments'];
+    final cats = SqliteCategoriesRepository(db);
+    final a = await cats
+        .create(const CategoryDraft(name: 'Casa', type: CategoryType.expense));
+    final b = await cats.create(
+        const CategoryDraft(name: 'Mercado', type: CategoryType.expense));
+    expect(
+        await cards.purchaseHasPayments(wrong, SeriesScope.onlyThis,
+            invoiceMonth: DateTime(2026, 3)),
+        isTrue);
+    await SqliteTransactionsRepository(db).update(
+        'card:$wrong',
+        TransactionDraft(
+            description: 'Compra corrigida',
+            type: TransactionType.expense,
+            amountMinor: 2500,
+            date: DateTime(2026, 1, 20),
+            isEffective: false,
+            accountId: account.id,
+            cardId: cardId,
+            cardInvoiceMonth: DateTime(2026, 3),
+            allocations: [
+              CategoryAllocation(a.id, 1000),
+              CategoryAllocation(b.id, 1500)
+            ]));
+    final edited = await cards.entry(wrong);
+    expect(edited.description, 'Compra corrigida');
+    expect(edited.postedAt, DateTime.utc(2026, 1, 20));
+    expect(edited.invoiceId, mar);
+    expect(edited.allocations.map((p) => p.amountMinor), [1000, 1500]);
+    expect((await readFinancial(db))['card_payments'], payments);
+    expect((await cards.invoice(feb)).balanceMinor, 0);
+    expect((await cards.invoice(mar)).balanceMinor, 1500);
+    expect((await balance(asOf: DateTime(2026, 4))).currentBalanceMinor, 89000);
+    expect((await cards.find(cardId)).committedMinor, 1500);
+    final dashboard =
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 3)))
+            .currencies
+            .single;
+    expect(dashboard.expenseMinor, 2500);
+    expect(dashboard.expensesByCategory.fold(0, (s, p) => s + p.amountMinor),
+        2500);
+    expect(await cards.entryHistory(wrong), hasLength(1));
+    await validateFinancial(db);
+  });
+  test(
+      'excluir compra de fatura paga preserva caixa, crédito, histórico e backup',
+      () async {
+    final id = await cards.createPurchase(draft());
+    final e = await cards.entry(id);
+    await cards.pay(e.invoiceId, account.id, 10000, DateTime(2026, 2, 5));
+    final payments = (await readFinancial(db))['card_payments'];
+    await SqliteTransactionsRepository(db).delete('card:$id');
+    expect(await cards.entries(cardId: cardId), isEmpty);
+    expect((await readFinancial(db))['card_payments'], payments);
+    expect((await balance(asOf: DateTime(2026, 3))).currentBalanceMinor, 90000);
+    expect((await cards.find(cardId)).creditMinor, 10000);
+    expect((await cards.invoice(e.invoiceId)).balanceMinor, -10000);
+    expect(
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 2)))
+            .currencies
+            .single
+            .expenseMinor,
+        0);
+    expect((await cards.entryHistory(id)).single, contains('Exclusão'));
+    final rows = await readFinancial(db);
+    expect(rows['card_entries']![id]!['deleted_at'], isNotNull);
+    final restored = AppDatabase(NativeDatabase.memory());
+    addTearDown(restored.close);
+    await restored.transaction(() => replaceFinancial(restored, rows));
+    expect((await readFinancial(restored))['card_payments'], payments);
+    expect((await CardsRepository(restored).entryHistory(id)).single,
+        contains('Exclusão'));
+    await validateFinancial(restored);
+  });
+  test('excluir próximas inclui pagamentos agendados sem mexer no agendamento',
+      () async {
+    await cards.createPurchase(draft(amount: 30000, count: 3));
+    final entries = await cards.entries(cardId: cardId);
+    await cards.pay(
+        entries.last.invoiceId, account.id, 1000, DateTime(2090, 1, 1));
+    final payments = (await readFinancial(db))['card_payments'];
+    expect(
+        await cards.purchaseHasPayments(entries.first.id, SeriesScope.onlyThis),
+        isFalse);
+    expect(
+        await cards.purchaseHasPayments(entries.first.id, SeriesScope.onlyThis,
+            purchaseDate: DateTime(2026, 3, 10)),
+        isTrue);
+    await cards.deletePurchase(entries[1].id, SeriesScope.thisAndNext);
+    expect((await cards.entries(cardId: cardId)).single.id, entries.first.id);
+    expect((await readFinancial(db))['card_payments'], payments);
+    expect((await cards.invoice(entries.last.invoiceId)).scheduledMinor, 1000);
+    await validateFinancial(db);
+  });
+  test(
+      'correção não reduz compra abaixo dos estornos e exclusão mantém vínculo',
+      () async {
+    final id = await cards.createPurchase(draft());
+    final e = await cards.entry(id);
+    await cards.refund(id, 4000, e.invoiceId, DateTime(2026, 2, 3));
+    await cards.pay(e.invoiceId, account.id, 6000, DateTime(2026, 2, 5));
+    await expectLater(cards.updateAmount(id, 10000, 3000, SeriesScope.onlyThis),
+        throwsStateError);
+    await expectLater(
+        cards.editPurchase(id, draft(amount: 3000)), throwsStateError);
+    await expectLater(
+        cards.deletePurchase(id, SeriesScope.onlyThis), throwsStateError);
+    expect((await cards.entry(id)).amountMinor, 10000);
+    expect(await cards.entryHistory(id), isEmpty);
+    await validateFinancial(db);
+  });
+  test(
       'datas reais alteradas, histórico de limite, arquivar e saldo inicial não vira gasto',
       () async {
     final feb = await cards.ensureInvoice(cardId, DateTime(2026, 2));
@@ -248,7 +480,8 @@ void main() {
     final e = await cards.createPurchase(draft(date: DateTime(2026, 1, 26)));
     expect((await cards.entry(e)).invoiceId, feb);
     await cards.opening(cardId, DateTime(2026, 2), 5000);
-    final dash = await SqliteDashboardRepository(db).load(DateTime(2026, 2));
+    final dash = await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+        .load(DateTime(2026, 2));
     expect(dash.currencies.single.expenseMinor, 10000);
     expect((await cards.invoice(feb)).balanceMinor, 15000);
     await cards.save(
@@ -313,6 +546,72 @@ void main() {
           expectedAccountId: account.id,
           date: DateTime.now());
 
+  test('corrige compra na fatura paga sem alterar pagamentos ou saldo da conta',
+      () async {
+    final tx = SqliteTransactionsRepository(db);
+    final correctId = await cards.createPurchase(draft(amount: 10000));
+    final old = await cards.entry(correctId);
+    await cards.pay(old.invoiceId, account.id, 10000, DateTime(2026, 2, 5));
+    final before = await balance(asOf: DateTime(2026, 2, 28));
+    final wrongId = await cards.createPurchase(draft(amount: 2500));
+    final payment = (await cards.invoice(old.invoiceId)).payments.single;
+    await tx.update(
+        'card:$wrongId',
+        draft(
+            amount: 3000,
+            date: DateTime(2026, 2, 12),
+            month: DateTime(2026, 3)));
+    final moved = await cards.entry(wrongId);
+    expect(moved.postedAt, DateTime.utc(2026, 2, 12));
+    expect(moved.invoiceMonth, DateTime.utc(2026, 3));
+    expect(moved.amountMinor, 3000);
+    final previous = await cards.invoice(old.invoiceId);
+    expect(previous.balanceMinor, 0);
+    expect(previous.payments.single.id, payment.id);
+    expect(previous.payments.single.amountMinor, 10000);
+    expect((await balance(asOf: DateTime(2026, 2, 28))).currentBalanceMinor,
+        before.currentBalanceMinor);
+    expect(await cards.entryHistory(wrongId), hasLength(1));
+    final anotherWrong = await cards.createPurchase(draft(amount: 1500));
+    await tx.delete('card:$anotherWrong');
+    expect((await cards.invoice(old.invoiceId)).balanceMinor, 0);
+    expect((await cards.invoice(old.invoiceId)).payments.single.id, payment.id);
+    expect(
+        (await cards.entryHistory(anotherWrong)).single, contains('Exclusão'));
+  });
+  test('fatura mensal não acumula anteriores na virada do ano', () async {
+    final tx = SqliteTransactionsRepository(db);
+    await cards.createPurchase(draft(amount: 50000, month: DateTime(2026, 12)));
+    final id = await cards
+        .createPurchase(draft(amount: 30000, month: DateTime(2027, 1)));
+    final invoiceId = (await cards.entry(id)).invoiceId;
+    Future<FinancialTransaction> row(int month) async =>
+        (await tx.list(TransactionFilter(
+                from: DateTime(2027, month), to: DateTime(2027, month + 1, 0))))
+            .single;
+    final january = await row(1);
+    expect(january.amountMinor, 30000);
+    expect(january.cardPreviousMinor, 50000);
+    expect(january.cardBalanceMinor, 80000);
+    // Janeiro preserva o pagamento da própria fatura e o saldo total,
+    // mas seu valor principal continua sendo a competência mensal.
+    await cards.pay(invoiceId, account.id, 10000, DateTime(2026, 10, 1));
+    final partial = await row(1);
+    expect(partial.amountMinor, 30000);
+    expect(partial.cardBalanceMinor, 70000);
+    expect(
+        await tx.list(TransactionFilter(
+            from: DateTime(2027, 2), to: DateTime(2027, 2, 28))),
+        isEmpty);
+    final empty = (await cards.invoices(cardId, selected: DateTime(2027, 2)))
+        .firstWhere((i) => i.month == DateTime.utc(2027, 2));
+    expect(empty.chargesMinor, 0);
+    expect(empty.previousMinor, 70000);
+    expect(empty.balanceMinor, 70000);
+    expect((await cards.invoice(invoiceId)).paidMinor, 10000);
+    expect((await balance(asOf: DateTime.now())).currentBalanceMinor, 90000);
+  });
+
   test('lista agrupa compras e mantém total após pagamento parcial', () async {
     final tx = SqliteTransactionsRepository(db);
     final first = await cards.createPurchase(draft(amount: 10000));
@@ -338,7 +637,8 @@ void main() {
     expect(paid.isEffective, true);
     expect(paid.amountMinor, 15000);
     expect(
-        (await SqliteDashboardRepository(db).load(DateTime(2026, 2)))
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 2)))
             .currencies
             .single
             .expenseMinor,
@@ -385,7 +685,7 @@ void main() {
     await expectLater(cards.undoSettlement(action), throwsStateError);
   });
 
-  test('conta arquivada falha atomicamente e saldo trazido aparece no mês',
+  test('conta arquivada falha atomicamente e saldo anterior fica separado',
       () async {
     final e = await cards.entry(await cards.createPurchase(draft()));
     await cards.pay(e.invoiceId, other.id, 4000, DateTime(2090, 2, 5));
@@ -398,8 +698,7 @@ void main() {
     expect(bill.balanceMinor, 10000);
     final rows = await SqliteTransactionsRepository(db).list(TransactionFilter(
         from: DateTime(2026, 10), to: DateTime(2026, 10, 31)));
-    expect(rows.single.amountMinor, 10000);
-    expect(rows.single.cardEntryCount, 0);
+    expect(rows, isEmpty);
   });
 
   test(

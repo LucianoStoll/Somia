@@ -1,4 +1,14 @@
+import 'package:drift/drift.dart';
+import '../../features/attachments/data/attachments_repository.dart';
+import '../../features/transactions/domain/establishment.dart';
+import '../../features/transactions/domain/transaction_tags.dart';
 import 'app_database.dart';
+import 'debt_integrity.dart';
+import 'reimbursement_integrity.dart';
+import 'planning_integrity.dart';
+import 'settlement_integrity.dart';
+import 'card_rewards_integrity.dart';
+import '../allocations/category_allocation.dart';
 
 const financialTables = [
   'accounts',
@@ -11,6 +21,25 @@ const financialTables = [
   'card_entries',
   'card_payments',
   'card_entry_history',
+  'investments',
+  'assets',
+  'asset_valuations',
+  'debts',
+  'debt_payments',
+  'people',
+  'reimbursements',
+  'reimbursement_receipts',
+  'budget_limits',
+  'planning_goals',
+  'goal_accounts',
+  'transaction_settlements',
+  'debit_cards',
+  'debit_card_links',
+  'card_payment_allocations',
+  'cashback_rules',
+  'cashback_claims',
+  'cashback_receipts',
+  'attachment_manifest',
 ];
 typedef FinancialRows = Map<String, Map<String, Map<String, Object?>>>;
 
@@ -67,6 +96,25 @@ Future<void> replaceFinancial(AppDatabase db, FinancialRows rows) async {
 }
 
 Future<void> validateFinancial(AppDatabase db) async {
+  for (final row
+      in await db.customSelect('SELECT * FROM attachment_manifest').get()) {
+    AttachmentsRepository.validateMetadata(row.data);
+    final table = row.read<String>('owner_table');
+    final owners = await db.customSelect('SELECT id FROM "$table" WHERE id=?',
+        variables: [Variable.withString(row.read<String>('owner_id'))]).get();
+    if (owners.isEmpty) {
+      throw const FormatException('Anexo sem lançamento de origem.');
+    }
+  }
+
+  await validateDebtFinancial(db);
+  await validateReimbursements(db);
+  await validatePlanning(db);
+  await validateSettlements(db);
+  await validateCardRewards(db);
+  final now = DateTime.now();
+  final today =
+      DateTime.utc(now.year, now.month, now.day).millisecondsSinceEpoch;
   if ((await db.customSelect('PRAGMA foreign_key_check').get()).isNotEmpty) {
     throw const FormatException(
         'Os dados recebidos contêm vínculos incompletos. Os dados atuais foram preservados.');
@@ -86,9 +134,54 @@ Future<void> validateFinancial(AppDatabase db) async {
     WHERE a.currency_code<>'BRL'
     UNION ALL SELECT 1 FROM card_payments p JOIN accounts a ON a.id=p.account_id
     WHERE a.currency_code<>'BRL'
+    UNION ALL SELECT 1 FROM investments v JOIN accounts a ON a.id=v.account_id
+    WHERE a.currency_code<>'BRL' OR (v.deleted_at IS NULL AND a.deleted_at IS NOT NULL)
+    UNION ALL SELECT 1 FROM asset_valuations v JOIN assets a ON a.id=v.asset_id
+    WHERE v.deleted_at IS NULL AND (a.deleted_at IS NOT NULL OR v.assessed_at<a.acquired_at OR v.assessed_at>$today
+      OR (v.debt_minor>0 AND length(trim(v.creditor))=0))
+    UNION ALL SELECT 1 FROM assets a WHERE a.deleted_at IS NULL AND (a.acquired_at>$today OR NOT EXISTS
+      (SELECT 1 FROM asset_valuations v WHERE v.asset_id=a.id AND v.deleted_at IS NULL))
     UNION ALL SELECT 1 FROM card_entries e
     WHERE (e.kind IN ('purchase','fee') AND e.amount_minor<0)
       OR (e.kind IN ('refund','discount') AND e.amount_minor>0) LIMIT 1''').get();
+  final categories = {
+    for (final r
+        in await db.customSelect('SELECT id,type FROM categories').get())
+      r.read<String>('id'): r.read<String>('type'),
+  };
+  for (final table in ['transactions', 'card_entries']) {
+    for (final row in await db
+        .customSelect('SELECT tags_json, establishment FROM $table')
+        .get()) {
+      TransactionTags.decode(row.read<String>('tags_json'));
+      Establishment.normalize(row.read<String>('establishment'));
+    }
+    for (final row in await db.customSelect('SELECT * FROM $table').get()) {
+      final parts = CategoryAllocation.decode(
+        row.read<String>('allocations_json'),
+      );
+      final total = row
+          .read<int>(
+            table == 'transactions' ? 'planned_amount_minor' : 'amount_minor',
+          )
+          .abs();
+      CategoryAllocation.validate(parts, total);
+      if (table == 'transactions' &&
+          parts.isNotEmpty &&
+          row.readNullable<int>('actual_amount_minor') != null &&
+          row.read<int>('actual_amount_minor') != total) {
+        throw const FormatException(
+            'Valor efetivado incompatível com o rateio.');
+      }
+      final type =
+          table == 'transactions' ? row.read<String>('type') : 'expense';
+      if ((parts.isNotEmpty &&
+              row.readNullable<String>('category_id') != null) ||
+          parts.any((p) => categories[p.categoryId] != type)) {
+        throw const FormatException('Categorias do rateio incompatíveis.');
+      }
+    }
+  }
   if (invalid.isNotEmpty) {
     throw const FormatException(
         'Os dados recebidos não formam registros financeiros válidos. Os dados atuais foram preservados.');
@@ -105,7 +198,10 @@ Future<void> installSyncTriggers(AppDatabase db) async {
           ? 'NULL'
           : 'json_object(${columns[table]!.keys.map((n) => "'$n',NEW.\"$n\"").join(',')})';
       await db.customStatement(
-          '''CREATE TRIGGER IF NOT EXISTS sync_${table}_${action.toLowerCase()}
+        'DROP TRIGGER IF EXISTS sync_${table}_${action.toLowerCase()}',
+      );
+      await db.customStatement(
+        '''CREATE TRIGGER IF NOT EXISTS sync_${table}_${action.toLowerCase()}
         AFTER $action ON "$table"
         WHEN (SELECT capture_enabled FROM sync_state WHERE id=1)=1
         BEGIN
@@ -120,7 +216,8 @@ Future<void> installSyncTriggers(AppDatabase db) async {
             (SELECT device_id FROM sync_state WHERE id=1),${isDelete ? 1 : 0},$data);
           INSERT OR REPLACE INTO sync_outbox
             SELECT * FROM sync_versions WHERE table_name='$table' AND row_id=$source.id;
-        END''');
+        END''',
+      );
     }
   }
 }

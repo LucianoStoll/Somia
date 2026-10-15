@@ -1,9 +1,20 @@
+import '../domain/establishment.dart';
+import '../domain/transaction_tags.dart';
+import '../../reimbursements/data/reimbursements_repository.dart';
+import '../../../core/database/reimbursement_integrity.dart';
+import '../../../core/database/settlement_integrity.dart';
+import '../../../core/allocations/category_allocation.dart';
+import '../../../core/allocations/allocation_store.dart';
 import '../../cards/data/cards_repository.dart';
+import '../../cards/data/debit_cards_repository.dart';
+import '../../cards/data/cashback_repository.dart';
+import '../../../core/database/card_rewards_integrity.dart';
 import '../../../core/series/series_store.dart';
 import '../../../core/series/movement_series.dart';
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/database/debt_integrity.dart';
 import '../../../core/database/entity_metadata.dart';
 import '../domain/financial_transaction.dart';
 import '../domain/transactions_repository.dart';
@@ -12,12 +23,26 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   const SqliteTransactionsRepository(this._db);
   final AppDatabase _db;
 
+  Future<T> _checked<T>(Future<T> Function() action) =>
+      _db.transaction(() async {
+        final result = await action();
+        await validateDebtFinancial(_db);
+        await validateReimbursements(_db);
+        await validateSettlements(_db);
+        await CashbackRepository(_db).reconcile();
+        await validateCardRewards(_db);
+        return result;
+      });
+
   static const _select = '''
-    SELECT t.id, t.description, t.type, t.planned_amount_minor,
+    SELECT (SELECT l.card_id FROM debit_card_links l WHERE l.id=t.id AND l.deleted_at IS NULL) AS debit_card_id, t.updated_at, t.sync_version, t.establishment, t.tags_json, t.id, t.description, t.type, t.planned_amount_minor,
       t.series_id, t.series_index, t.series_kind, t.series_count, t.series_unit, t.series_interval,
-      t.posted_at, t.due_at, t.effective_at, t.account_id, t.category_id,
+      t.posted_at, t.due_at, t.effective_at, t.account_id, t.category_id, t.allocations_json,
       a.name AS account_name, a.currency_code,
-      c.name AS category_name
+      c.name AS category_name,
+      (SELECT COUNT(*) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL) AS settlement_count,
+      COALESCE((SELECT SUM(s.amount_minor) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.effective_at<CAST(strftime('%s','now','localtime','start of day','+1 day') AS INTEGER)*1000),0) AS settled_minor,
+      COALESCE((SELECT SUM(s.amount_minor) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.effective_at>=CAST(strftime('%s','now','localtime','start of day','+1 day') AS INTEGER)*1000),0) AS scheduled_minor
     FROM transactions t
     JOIN accounts a ON a.id = t.account_id
     LEFT JOIN categories c ON c.id = t.category_id
@@ -27,6 +52,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   Future<List<FinancialTransaction>> list([
     TransactionFilter filter = const TransactionFilter(),
   ]) async {
+    await CashbackRepository(_db).reconcile();
     final where = <String>['t.deleted_at IS NULL'];
     final variables = <Variable>[];
     final todayEnd = _dayMillis(DateTime.now().add(const Duration(days: 1)));
@@ -35,20 +61,30 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       variables.add(Variable.withString(filter.type!.name));
     }
     if (filter.accountId != null) {
-      where.add('t.account_id = ?');
+      where.add(
+          '(t.account_id = ? OR EXISTS(SELECT 1 FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.account_id=?))');
+      variables.add(Variable.withString(filter.accountId!));
       variables.add(Variable.withString(filter.accountId!));
     }
     if (filter.categoryId != null) {
-      where.add('(t.category_id = ? OR c.parent_id = ?)');
+      where.add(
+        '''(t.category_id = ? OR c.parent_id = ? OR EXISTS (SELECT 1 FROM json_each(t.allocations_json) part JOIN categories ac ON ac.id=json_extract(part.value,'\$.categoryId') WHERE ac.id=? OR ac.parent_id=?))''',
+      );
+      variables.add(Variable.withString(filter.categoryId!));
+      variables.add(Variable.withString(filter.categoryId!));
       variables.add(Variable.withString(filter.categoryId!));
       variables.add(Variable.withString(filter.categoryId!));
     }
     switch (filter.status) {
       case TransactionStatus.effective:
-        where.add('t.effective_at IS NOT NULL AND t.effective_at < ?');
+        where.add(
+            '(t.effective_at IS NOT NULL AND t.effective_at < ? OR t.planned_amount_minor=(SELECT COALESCE(SUM(s.amount_minor),0) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.effective_at< ?))');
+        variables.add(Variable.withInt(todayEnd));
         variables.add(Variable.withInt(todayEnd));
       case TransactionStatus.pending:
-        where.add('(t.effective_at IS NULL OR t.effective_at >= ?)');
+        where.add(
+            '(t.effective_at IS NULL OR t.effective_at >= ?) AND t.planned_amount_minor>(SELECT COALESCE(SUM(s.amount_minor),0) FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL AND s.effective_at< ?)');
+        variables.add(Variable.withInt(todayEnd));
         variables.add(Variable.withInt(todayEnd));
       case TransactionStatus.all:
         break;
@@ -58,15 +94,23 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       TransactionDateField.due => 't.due_at',
       TransactionDateField.effective => 't.effective_at',
     };
+    final byEffectuation = filter.dateField == TransactionDateField.effective;
+    final range = <String>[];
+    final rangeColumn = byEffectuation ? 'e.effective_at' : dateColumn;
     if (filter.from != null) {
-      where.add('$dateColumn >= ?');
+      range.add('$rangeColumn >= ?');
       variables.add(Variable.withInt(_dayMillis(filter.from!)));
     }
     if (filter.to != null) {
-      where.add('$dateColumn < ?');
+      range.add('$rangeColumn < ?');
       final day =
           DateTime.utc(filter.to!.year, filter.to!.month, filter.to!.day + 1);
       variables.add(Variable.withInt(day.millisecondsSinceEpoch));
+    }
+    if (range.isNotEmpty) {
+      where.add(byEffectuation
+          ? "EXISTS(SELECT 1 FROM transaction_events e WHERE e.deleted_at IS NULL AND (e.id=t.id OR e.id IN (SELECT 'settlement:'||s.id FROM transaction_settlements s WHERE s.transaction_id=t.id)) AND ${range.join(' AND ')})"
+          : range.join(' AND '));
     }
     variables.add(Variable.withInt(todayEnd));
     final rows = await _db.customSelect('''
@@ -74,7 +118,17 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       ORDER BY CASE WHEN t.effective_at < ? THEN 0 ELSE 1 END, t.due_at DESC, t.created_at DESC, t.id DESC
     ''', variables: variables).get();
     final items = [
-      ...rows.map(_map),
+      ...rows
+          .map(_map)
+          .where((item) =>
+              filter.establishment == null ||
+              Establishment.key(item.establishment) ==
+                  Establishment.key(filter.establishment!))
+          .where((item) =>
+              filter.tag == null ||
+              item.tags.any((tag) =>
+                  TransactionTags.key(tag) ==
+                  TransactionTags.key(filter.tag!))),
       ...await CardsRepository(_db).movements(filter)
     ];
     items.sort((a, b) {
@@ -90,8 +144,13 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       final repo = CardsRepository(_db);
       return repo.findMovement(await repo.createPurchase(draft));
     }
+    _validateDraft(draft);
     final plan = draft.seriesPlan;
-    if (plan == null) return _createSingle(draft);
+    if (plan == null) return _checked(() => _createSingle(draft));
+    if (draft.reimbursements?.isNotEmpty ?? false) {
+      throw const FormatException(
+          'Crie o lançamento individual antes de vincular reembolsos.');
+    }
     plan.validate();
     if (plan.dateAt(draft.date, plan.count - 1).year > 2100 ||
         plan.dateAt(draft.dueDate ?? draft.date, plan.count - 1).year > 2100) {
@@ -105,10 +164,17 @@ class SqliteTransactionsRepository implements TransactionsRepository {
         throw const FormatException('A série deve terminar até o ano 2100.');
       }
       return (await _createSingle(TransactionDraft(
+              tags: draft.tags,
+              debitCardId: draft.debitCardId,
+              establishment: draft.establishment,
               description: draft.description,
               type: draft.type,
               accountId: draft.accountId,
               categoryId: draft.categoryId,
+              allocations: CategoryAllocation.distribute(
+                draft.allocations,
+                amount,
+              ),
               amountMinor: amount,
               date: date,
               dueDate: due,
@@ -120,7 +186,8 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<FinancialTransaction> update(String id, TransactionDraft draft) =>
-      _db.transaction(() async {
+      _checked(() async {
+        await _guardCashback(id);
         if (id.startsWith('invoice:')) {
           throw StateError('Abra a fatura para alterar seus lançamentos.');
         }
@@ -139,6 +206,10 @@ class SqliteTransactionsRepository implements TransactionsRepository {
             SeriesStore.info(original) == null) {
           return _updateSingle(id, draft);
         }
+        if (draft.reimbursements != null) {
+          throw const FormatException(
+              'Altere o reembolso somente neste lançamento.');
+        }
         final targets = await store.targets(id, draft.scope);
         for (final row in targets) {
           final date =
@@ -152,10 +223,14 @@ class SqliteTransactionsRepository implements TransactionsRepository {
           await _updateSingle(
               row.read<String>('id'),
               TransactionDraft(
+                  tags: draft.tags,
+                  debitCardId: draft.debitCardId,
+                  establishment: draft.establishment,
                   description: draft.description,
                   type: draft.type,
                   accountId: draft.accountId,
                   categoryId: draft.categoryId,
+                  allocations: draft.allocations,
                   amountMinor: draft.amountMinor,
                   date: date,
                   dueDate: due,
@@ -167,6 +242,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   Future<FinancialTransaction> _createSingle(TransactionDraft draft) async {
     _validateDraft(draft);
     await _validateReferences(draft);
+    await validateAllocationReferences(_db, draft.allocations, draft.type.name);
     final id = EntityMetadata.newId();
     final now = EntityMetadata.nowUtcMillis();
     final day = _dayMillis(draft.date);
@@ -178,8 +254,8 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       INSERT INTO transactions
         (id, description, type, planned_amount_minor, actual_amount_minor,
          competence_at, posted_at, due_at, effective_at, account_id, category_id,
-         created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         created_at, updated_at, allocations_json, tags_json, establishment)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       id,
       draft.description.trim(),
@@ -193,15 +269,37 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       draft.accountId,
       draft.categoryId,
       now,
-      now
+      now,
+      CategoryAllocation.encode(draft.allocations),
+      TransactionTags.encode(draft.tags),
+      Establishment.normalize(draft.establishment),
     ]);
+    if (draft.reimbursements != null) {
+      await ReimbursementsRepository(_db).replace(id, draft.reimbursements!);
+    }
+    await DebitCardsRepository(_db)
+        .link(id, draft.debitCardId, draft.accountId);
     return _find(id);
   }
 
   Future<FinancialTransaction> _updateSingle(
       String id, TransactionDraft draft) async {
+    await _guardCashback(id);
     _validateDraft(draft);
     final original = await _find(id);
+    if (original.settlementCount > 0 &&
+        (draft.type != original.type || draft.cardId != null)) {
+      throw const FormatException(
+          'Desfaça as baixas antes de mudar o tipo ou a forma de pagamento.');
+    }
+    await validateAllocationReferences(
+      _db,
+      draft.allocations,
+      draft.type.name,
+      historicalIds: original.type == draft.type
+          ? original.allocations.map((p) => p.categoryId).toSet()
+          : {},
+    );
     final accountChanged = original.accountId != draft.accountId;
     final categoryChanged = original.categoryId != draft.categoryId;
     final typeChanged = original.type != draft.type;
@@ -213,6 +311,9 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     // Não revalida conta/categoria arquivada ao editar só descrição, data ou
     // valor de um lançamento histórico; mudar o vínculo exige entidade ativa.
     final fields = <String>[
+      'establishment = ?',
+      'tags_json = ?',
+      'allocations_json = ?',
       'description = ?',
       'planned_amount_minor = ?',
       'actual_amount_minor = ?',
@@ -225,6 +326,9 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     ];
     final day = _dayMillis(draft.date);
     final args = <Object?>[
+      Establishment.normalize(draft.establishment),
+      TransactionTags.encode(draft.tags),
+      CategoryAllocation.encode(draft.allocations),
       draft.description.trim(),
       draft.amountMinor,
       draft.isEffective ? draft.amountMinor : null,
@@ -251,6 +355,12 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       UPDATE transactions SET ${fields.join(', ')}
       WHERE id = ? AND deleted_at IS NULL
     ''', args);
+    if (draft.reimbursements != null) {
+      await ReimbursementsRepository(_db).replace(id, draft.reimbursements!);
+    }
+    await DebitCardsRepository(_db).link(id, draft.debitCardId, draft.accountId,
+        preserve: draft.debitCardId == original.debitCardId &&
+            draft.accountId == original.accountId);
     return _find(id);
   }
 
@@ -259,7 +369,8 @@ class SqliteTransactionsRepository implements TransactionsRepository {
           {required int expectedAmountMinor,
           required int amountMinor,
           SeriesScope scope = SeriesScope.onlyThis}) =>
-      _db.transaction(() async {
+      _checked(() async {
+        await _guardCashback(id);
         if (id.startsWith('invoice:')) {
           throw StateError('Abra a fatura para alterar seus lançamentos.');
         }
@@ -287,12 +398,18 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       throw const FormatException(
           'Informe um valor maior que zero e dentro do limite.');
     }
+    final original = await _find(id);
+    final parts = CategoryAllocation.distribute(
+      original.allocations,
+      amountMinor,
+    );
     final changed = await _db.customUpdate('''
-      UPDATE transactions SET planned_amount_minor = ?,
+      UPDATE transactions SET allocations_json = ?, planned_amount_minor = ?,
         actual_amount_minor = CASE WHEN effective_at IS NULL THEN NULL ELSE ? END,
         updated_at = ?, sync_version = sync_version + 1
       WHERE id = ? AND deleted_at IS NULL AND planned_amount_minor = ?
     ''', variables: [
+      Variable.withString(CategoryAllocation.encode(parts)),
       Variable.withInt(amountMinor),
       Variable.withInt(amountMinor),
       Variable.withInt(EntityMetadata.nowUtcMillis()),
@@ -309,13 +426,31 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       id.startsWith('invoice:')
           ? Future.error(
               StateError('Abra a fatura para alterar seus lançamentos.'))
-          : id.startsWith('card:')
-              ? CardsRepository(_db).deletePurchase(id.substring(5), scope)
-              : SeriesStore(_db, 'transactions').delete(id, scope);
+          : id.startsWith('cashback-receipt-')
+              ? Future.error(StateError(
+                  'Abra Cashback para corrigir ou desfazer o recebimento.'))
+              : id.startsWith('card:')
+                  ? CardsRepository(_db).deletePurchase(id.substring(5), scope)
+                  : _checked(
+                      () => SeriesStore(_db, 'transactions').delete(id, scope));
 
   @override
   Future<void> setEffective(String id,
+          {required bool effective, DateTime? effectiveDate}) =>
+      _checked(() => _setEffective(id,
+          effective: effective, effectiveDate: effectiveDate));
+
+  Future<void> _setEffective(String id,
       {required bool effective, DateTime? effectiveDate}) async {
+    if (id.startsWith('cashback-receipt-')) {
+      if (!effective) {
+        await CashbackRepository(_db).undo(id);
+      } else {
+        await CashbackRepository(_db)
+            .confirmDefault(id, effectiveDate ?? DateTime.now());
+      }
+      return;
+    }
     if (id.startsWith('invoice:')) {
       throw StateError('Pague pela ação da fatura.');
     }
@@ -344,6 +479,11 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<void> changeEffectiveDate(String id,
+          {required DateTime expectedDate, DateTime? effectiveDate}) =>
+      _checked(() => _changeEffectiveDate(id,
+          expectedDate: expectedDate, effectiveDate: effectiveDate));
+
+  Future<void> _changeEffectiveDate(String id,
       {required DateTime expectedDate, DateTime? effectiveDate}) async {
     if (id.startsWith('invoice:')) {
       throw StateError('Pague pela ação da fatura.');
@@ -351,6 +491,7 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     if (id.startsWith('card:')) {
       throw StateError('Pague pela fatura do cartão.');
     }
+    await _guardCashback(id);
     final changed = await _db.customUpdate('''
       UPDATE transactions SET effective_at = ?, actual_amount_minor = ${effectiveDate == null ? 'NULL' : 'planned_amount_minor'},
         updated_at = ?, sync_version = sync_version + 1
@@ -366,6 +507,13 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     if (changed != 1) {
       throw StateError(
           'O movimento já mudou. Atualize a lista antes de tentar novamente.');
+    }
+  }
+
+  Future<void> _guardCashback(String id) async {
+    if (id.startsWith('cashback-receipt-')) {
+      throw StateError(
+          'Abra Cashback para confirmar valores, categorias ou desfazer recebimentos.');
     }
   }
 
@@ -403,6 +551,15 @@ class SqliteTransactionsRepository implements TransactionsRepository {
   }
 
   void _validateDraft(TransactionDraft draft) {
+    if (draft.debitCardId != null &&
+        (draft.type != TransactionType.expense || draft.cardId != null)) {
+      throw const FormatException(
+          'Cartão de débito exige uma despesa de conta.');
+    }
+    CategoryAllocation.validate(draft.allocations, draft.amountMinor);
+    if (draft.allocations.isNotEmpty && draft.categoryId != null) {
+      throw const FormatException('Use categoria única ou rateio.');
+    }
     if (draft.description.trim().isEmpty) {
       throw const FormatException('Informe a descrição.');
     }
@@ -420,10 +577,24 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   FinancialTransaction _map(QueryRow row) => FinancialTransaction(
         id: row.read<String>('id'),
+        debitCardId: row.readNullable<String>('debit_card_id'),
+        revision:
+            "${row.read<int>('updated_at')}:${row.read<int>('sync_version')}",
+        tags: TransactionTags.decode(row.read<String>('tags_json')),
+        establishment: row.read<String>('establishment'),
+        settlementCount: row.read<int>('settlement_count'),
+        settledMinor: row.read<int>('settled_minor'),
+        scheduledSettlementMinor: row.read<int>('scheduled_minor'),
+        allocations: CategoryAllocation.decode(
+          row.read<String>('allocations_json'),
+        ),
         series: SeriesStore.info(row),
         description: row.read<String>('description'),
         type: TransactionType.values.byName(row.read<String>('type')),
-        amountMinor: row.read<int>('planned_amount_minor'),
+        amountMinor: row.read<String>('id').startsWith('cashback-receipt-')
+            ? row.readNullable<int>('actual_amount_minor') ??
+                row.read<int>('planned_amount_minor')
+            : row.read<int>('planned_amount_minor'),
         date: DateTime.fromMillisecondsSinceEpoch(
           row.read<int>('posted_at'),
           isUtc: true,
@@ -434,9 +605,11 @@ class SqliteTransactionsRepository implements TransactionsRepository {
             ? null
             : DateTime.fromMillisecondsSinceEpoch(row.read<int>('effective_at'),
                 isUtc: true),
-        isEffective: row.readNullable<int>('effective_at') != null &&
-            row.read<int>('effective_at') <
-                _dayMillis(DateTime.now().add(const Duration(days: 1))),
+        isEffective: row.read<int>('settled_minor') ==
+                row.read<int>('planned_amount_minor') ||
+            row.readNullable<int>('effective_at') != null &&
+                row.read<int>('effective_at') <
+                    _dayMillis(DateTime.now().add(const Duration(days: 1))),
         accountId: row.read<String>('account_id'),
         accountName: row.read<String>('account_name'),
         categoryId: row.readNullable<String>('category_id'),

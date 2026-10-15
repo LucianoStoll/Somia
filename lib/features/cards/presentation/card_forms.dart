@@ -51,6 +51,7 @@ class _CardFormState extends State<CardForm> {
   final _opening = TextEditingController(text: '0,00');
   late DateTime _month;
   String? _account, _bank;
+  int? _colorArgb;
   late bool _controlLimit;
   bool _saving = false;
   List<Account> get _accounts => widget.accounts
@@ -68,6 +69,7 @@ class _CardFormState extends State<CardForm> {
     _due = TextEditingController(text: '${c?.dueDay ?? 5}');
     _account = c?.paymentAccountId ?? _accounts.firstOrNull?.id;
     _bank = c?.institutionId;
+    _colorArgb = c?.colorArgb;
     _controlLimit = c == null || c.limitMinor != null;
     _month = widget.month;
   }
@@ -96,7 +98,8 @@ class _CardFormState extends State<CardForm> {
               closingDay: int.parse(_closing.text),
               dueDay: int.parse(_due.text),
               limitMinor: _controlLimit ? MoneyMinor.parse(_limit.text) : null,
-              institutionId: _bank),
+              institutionId: _bank,
+              colorArgb: _colorArgb),
           widget.card == null ? MoneyMinor.parse(_opening.text) : 0,
           _month);
       if (mounted) Navigator.pop(context, true);
@@ -117,6 +120,7 @@ class _CardFormState extends State<CardForm> {
             _opening.text,
             _account,
             _bank,
+            _colorArgb,
             _controlLimit,
             _month
           ),
@@ -155,7 +159,39 @@ class _CardFormState extends State<CardForm> {
                                 _bank = selected.isEmpty ? null : selected);
                           }
                         }),
+                    DropdownButtonFormField<int>(
+                        initialValue: _colorArgb ?? -1,
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        isExpanded: true,
+                        decoration:
+                            const InputDecoration(labelText: 'Cor do cartão'),
+                        items: [
+                          const DropdownMenuItem<int>(
+                              value: -1, child: Text('Padrão Somia')),
+                          for (final entry in const <int, String>{
+                            0xff6f9dd5: 'Azul',
+                            0xff69b89a: 'Verde',
+                            0xffb59add: 'Roxo',
+                            0xffd59c76: 'Laranja',
+                            0xffcf8390: 'Rosa',
+                            0xff8c9baa: 'Cinza',
+                          }.entries)
+                            DropdownMenuItem(
+                                value: entry.key,
+                                child: Row(children: [
+                                  Icon(Icons.circle,
+                                      color: Color(entry.key), size: 20),
+                                  const SizedBox(width: 10),
+                                  Text(entry.value),
+                                ])),
+                        ],
+                        onChanged: (value) => setState(
+                            () => _colorArgb = value == -1 ? null : value)),
                     DropdownButtonFormField<String>(
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        itemHeight: 48,
                         initialValue: _account,
                         isExpanded: true,
                         decoration: const InputDecoration(
@@ -231,16 +267,22 @@ class CardPaymentForm extends StatefulWidget {
       required this.invoice,
       required this.card,
       required this.accounts,
-      required this.onSubmit});
+      required this.onSubmit,
+      this.availableCoverage = const {},
+      this.onSubmitWithCoverage});
   final CardInvoice invoice;
   final CreditCard card;
   final List<Account> accounts;
   final Future<void> Function(String, int, DateTime, int, int) onSubmit;
+  final Map<String, int> availableCoverage;
+  final Future<void> Function(
+      String, int, DateTime, int, int, Map<String, int>)? onSubmitWithCoverage;
   @override
   State<CardPaymentForm> createState() => _CardPaymentFormState();
 }
 
 class _CardPaymentFormState extends State<CardPaymentForm> {
+  final coverage = <String, TextEditingController>{};
   final _key = GlobalKey<FormState>();
   late final TextEditingController _amount;
   final _fee = TextEditingController(text: '0,00'),
@@ -258,6 +300,10 @@ class _CardPaymentFormState extends State<CardPaymentForm> {
         text: MoneyMinor.plain(widget.invoice.projectedMinor > 0
             ? widget.invoice.projectedMinor
             : 0));
+    for (final e
+        in widget.availableCoverage.entries.where((e) => e.value > 0)) {
+      coverage[e.key] = TextEditingController(text: '0,00');
+    }
     _account = _accounts.any((a) => a.id == widget.card.paymentAccountId)
         ? widget.card.paymentAccountId
         : _accounts.firstOrNull?.id;
@@ -266,6 +312,9 @@ class _CardPaymentFormState extends State<CardPaymentForm> {
   @override
   void dispose() {
     _amount.dispose();
+    for (final c in coverage.values) {
+      c.dispose();
+    }
     _fee.dispose();
     _discount.dispose();
     super.dispose();
@@ -275,8 +324,23 @@ class _CardPaymentFormState extends State<CardPaymentForm> {
     if (_saving || !_key.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
-      await widget.onSubmit(_account!, MoneyMinor.parse(_amount.text), _date,
-          MoneyMinor.parse(_fee.text), MoneyMinor.parse(_discount.text));
+      if (widget.onSubmitWithCoverage != null) {
+        final selected = {
+          for (final e in coverage.entries)
+            if (MoneyMinor.parse(e.value.text) > 0)
+              e.key: MoneyMinor.parse(e.value.text)
+        };
+        await widget.onSubmitWithCoverage!(
+            _account!,
+            MoneyMinor.parse(_amount.text),
+            _date,
+            MoneyMinor.parse(_fee.text),
+            MoneyMinor.parse(_discount.text),
+            selected);
+      } else {
+        await widget.onSubmit(_account!, MoneyMinor.parse(_amount.text), _date,
+            MoneyMinor.parse(_fee.text), MoneyMinor.parse(_discount.text));
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) cardError(context, e);
@@ -287,7 +351,14 @@ class _CardPaymentFormState extends State<CardPaymentForm> {
 
   @override
   Widget build(BuildContext context) => UnsavedChangesGuard(
-      value: () => (_amount.text, _fee.text, _discount.text, _account, _date),
+      value: () => (
+            _amount.text,
+            _fee.text,
+            _discount.text,
+            _account,
+            _date,
+            [for (final c in coverage.values) c.text]
+          ),
       builder: (context, cancel) => MovementFormFrame(
           title: 'Pagar fatura ${cardMonthLabel(widget.invoice.month)}',
           saveLabel: _saving ? 'Salvando…' : 'Registrar pagamento',
@@ -302,6 +373,9 @@ class _CardPaymentFormState extends State<CardPaymentForm> {
                     Text(
                         'Saldo da fatura: ${cardMoney(widget.invoice.balanceMinor)}'),
                     DropdownButtonFormField<String>(
+                        menuMaxHeight: 280,
+                        borderRadius: BorderRadius.circular(16),
+                        itemHeight: 48,
                         initialValue: _account,
                         isExpanded: true,
                         decoration: const InputDecoration(
@@ -338,6 +412,33 @@ class _CardPaymentFormState extends State<CardPaymentForm> {
                         labelText: 'Desconto',
                         currencyCode: 'BRL',
                         minimumMinor: 0),
+                    if (coverage.isNotEmpty)
+                      ExpansionTile(
+                          title:
+                              const Text('Compras cobertas por este pagamento'),
+                          subtitle: const Text(
+                              'Informe a parte paga de cada compra. O restante pode cobrir dívida anterior ou encargos.'),
+                          children: [
+                            TextButton(
+                                onPressed: () {
+                                  for (final e in coverage.entries) {
+                                    e.value.text = MoneyMinor.plain(
+                                        widget.availableCoverage[e.key]!);
+                                  }
+                                },
+                                child:
+                                    const Text('Preencher saldos das compras')),
+                            for (final entry in widget.invoice.entries
+                                .where((e) => coverage.containsKey(e.id)))
+                              Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: MonetaryCalculatorField(
+                                      controller: coverage[entry.id]!,
+                                      labelText:
+                                          '${entry.description} · saldo ${cardMoney(widget.availableCoverage[entry.id]!)}',
+                                      currencyCode: 'BRL',
+                                      minimumMinor: 0)),
+                          ]),
                     const Text(
                         'O valor pago é o débito real da conta. Encargos e desconto ajustam a dívida. Pagamento parcial carrega o restante; pagamento a maior gera crédito. Data futura agenda o débito.'),
                   ]))));

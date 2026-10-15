@@ -1,20 +1,31 @@
+import '../../features/attachments/data/attachments_repository.dart';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
+
 import '../database/app_database.dart';
 import '../database/financial_data.dart';
 import '../database/local_backup_store.dart';
 import 'sync_packet.dart';
 
 class SyncState {
-  const SyncState(this.base, this.email, this.device, this.lastSync,
-      this.pending, this.uploads,
-      {this.clock = 0});
+  const SyncState(
+    this.base,
+    this.email,
+    this.device,
+    this.lastSync,
+    this.pending,
+    this.uploads, {
+    this.clock = 0,
+    this.replacementPending = false,
+  });
   final String? base, email, device;
   final DateTime? lastSync;
   final int pending, uploads;
   final int clock;
+  final bool replacementPending;
 }
 
 class SyncStore {
@@ -55,13 +66,21 @@ class SyncStore {
         .read<int>('n');
     final time = row.readNullable<int>('last_sync_at');
     return SyncState(
-        row.readNullable<String>('base_id'),
-        row.readNullable<String>('email'),
-        row.readNullable<String>('device_id'),
-        time == null ? null : DateTime.fromMillisecondsSinceEpoch(time),
-        pending,
-        uploads,
-        clock: row.read<int>('clock'));
+      row.readNullable<String>('base_id'),
+      row.readNullable<String>('email'),
+      row.readNullable<String>('device_id'),
+      time == null ? null : DateTime.fromMillisecondsSinceEpoch(time),
+      pending,
+      uploads,
+      clock: row.read<int>('clock'),
+      replacementPending: (await db
+                  .customSelect(
+                    "SELECT count(*) n FROM sync_uploads WHERE payload LIKE '%\"kind\":\"replacement\"%'",
+                  )
+                  .getSingle())
+              .read<int>('n') >
+          0,
+    );
   }
 
   Future<Map<String, Map<String, String>>> columns() => financialColumns(db);
@@ -83,35 +102,39 @@ class SyncStore {
   }
 
   Future<void> _write(String table, SyncEntry entry) => db.customStatement(
-          'INSERT OR REPLACE INTO $table(table_name,row_id,clock,device_id,is_deleted,data) VALUES(?,?,?,?,?,?)',
-          [
-            entry.table,
-            entry.id,
-            entry.clock,
-            entry.device,
-            entry.deleted ? 1 : 0,
-            entry.data == null ? null : jsonEncode(entry.data)
-          ]);
+        'INSERT OR REPLACE INTO $table(table_name,row_id,clock,device_id,is_deleted,data) VALUES(?,?,?,?,?,?)',
+        [
+          entry.table,
+          entry.id,
+          entry.clock,
+          entry.device,
+          entry.deleted ? 1 : 0,
+          entry.data == null ? null : jsonEncode(entry.data),
+        ],
+      );
   Future<void> _history(SyncEntry entry, String reason) => db.customStatement(
-          '''INSERT INTO sync_history VALUES(?,?,?,?,?,?,?,?)
+        '''INSERT INTO sync_history VALUES(?,?,?,?,?,?,?,?)
       ON CONFLICT(table_name,row_id,clock,device_id) DO UPDATE SET
       reason=CASE WHEN excluded.reason='conflict' THEN 'conflict' ELSE sync_history.reason END''',
-          [
-            entry.table,
-            entry.id,
-            entry.clock,
-            entry.device,
-            entry.deleted ? 1 : 0,
-            entry.data == null ? null : jsonEncode(entry.data),
-            reason,
-            DateTime.now().millisecondsSinceEpoch
-          ]);
+        [
+          entry.table,
+          entry.id,
+          entry.clock,
+          entry.device,
+          entry.deleted ? 1 : 0,
+          entry.data == null ? null : jsonEncode(entry.data),
+          reason,
+          DateTime.now().millisecondsSinceEpoch,
+        ],
+      );
   Future<void> _queue(SyncPacket packet) async {
     if (packet.encode().length > maxSyncBytes) {
       throw const FormatException('A sincronização excede 64 MB.');
     }
-    await db.customStatement('INSERT INTO sync_uploads VALUES(?,?)',
-        [packet.id, utf8.decode(packet.encode())]);
+    await db.customStatement('INSERT INTO sync_uploads VALUES(?,?)', [
+      packet.id,
+      utf8.decode(packet.encode()),
+    ]);
   }
 
   Future<SyncPacket> createBase(String email) async {
@@ -126,18 +149,120 @@ class SyncStore {
       final entries = [
         for (final t in financialTables)
           for (final row in rows[t]!.entries)
-            SyncEntry(t, row.key, 0, deviceId, false, row.value)
+            SyncEntry(t, row.key, 0, deviceId, false, row.value),
       ];
       await db.customStatement(
-          'UPDATE sync_state SET base_id=?,email=?,device_id=?,capture_enabled=1,clock=? WHERE id=1',
-          [base, email, deviceId, DateTime.now().millisecondsSinceEpoch]);
+        'UPDATE sync_state SET base_id=?,email=?,device_id=?,capture_enabled=1,clock=? WHERE id=1',
+        [base, email, deviceId, DateTime.now().millisecondsSinceEpoch],
+      );
       for (final entry in entries) {
         await _write('sync_versions', entry);
       }
-      final packet =
-          SyncPacket(const Uuid().v4(), base, deviceId, 'genesis', entries);
+      final packet = SyncPacket(
+        const Uuid().v4(),
+        base,
+        deviceId,
+        'genesis',
+        entries,
+      );
       await _queue(packet);
       return packet;
+    });
+  }
+
+  /// Persist the publication intent before networking; retries reuse its identity.
+  Future<SyncPacket> stageReplacement(
+    List<String> replaces,
+    String revision,
+    String email,
+  ) async {
+    await _prepare();
+    final pending = (await uploads()).where((p) => p.kind == 'replacement');
+    if (pending.isNotEmpty) return pending.single;
+    await backups.create(db, BackupKind.manual);
+    final deviceId = await device();
+    return db.transaction(() async {
+      await validateFinancial(db);
+      final rows = await readFinancial(db);
+      final packet = SyncPacket(
+        const Uuid().v4(),
+        const Uuid().v4(),
+        deviceId,
+        'replacement',
+        [
+          for (final table in financialTables)
+            for (final row in rows[table]!.entries)
+              SyncEntry(table, row.key, 0, deviceId, false, row.value),
+        ],
+        replaces: replaces,
+        remoteRevision: revision,
+        publicationEmail: email,
+      );
+      SyncPacket.decode(packet.encode(), _columns!);
+      await _queue(packet);
+      return packet;
+    });
+  }
+
+  Future<void> discardReplacement(String id) =>
+      db.customStatement('DELETE FROM sync_uploads WHERE packet_id=?', [id]);
+
+  /// Switch metadata only. Edits made during upload become changes in the new base.
+  Future<void> activateReplacement(SyncPacket packet, String email) async {
+    await _prepare();
+    await db.transaction(() async {
+      final rows = await readFinancial(db);
+      final original = {for (final entry in packet.entries) entry.key: entry};
+      final current = <String, SyncEntry>{};
+      final clock = DateTime.now().millisecondsSinceEpoch;
+      for (final table in financialTables) {
+        for (final row in rows[table]!.entries) {
+          final entry = SyncEntry(
+            table,
+            row.key,
+            clock,
+            packet.device,
+            false,
+            row.value,
+          );
+          current[entry.key] = entry;
+        }
+      }
+      for (final table in [
+        'sync_versions',
+        'sync_outbox',
+        'sync_applied',
+        'sync_uploads',
+        'sync_history',
+      ]) {
+        await db.customStatement('DELETE FROM $table');
+      }
+      for (final key in {...original.keys, ...current.keys}) {
+        final before = original[key];
+        final now = current[key];
+        final changed = before == null || now == null || !before.sameData(now);
+        final entry = changed
+            ? now ??
+                SyncEntry(
+                  before!.table,
+                  before.id,
+                  clock,
+                  packet.device,
+                  true,
+                  null,
+                )
+            : before;
+        await _write('sync_versions', entry);
+        if (changed) await _write('sync_outbox', entry);
+      }
+      await db.customStatement('INSERT INTO sync_applied VALUES(?,?)', [
+        packet.id,
+        packet.digest,
+      ]);
+      await db.customStatement(
+        'UPDATE sync_state SET base_id=?,email=?,device_id=?,capture_enabled=1,clock=?,last_sync_at=NULL WHERE id=1',
+        [packet.base, email, packet.device, clock],
+      );
     });
   }
 
@@ -149,13 +274,21 @@ class SyncStore {
       if (stateNow.base == null) return;
       final entries = (await db
               .customSelect(
-                  'SELECT * FROM sync_outbox ORDER BY table_name,row_id')
+                'SELECT * FROM sync_outbox ORDER BY table_name,row_id',
+              )
               .get())
           .map(_entry)
           .toList();
       if (entries.isEmpty) return;
-      await _queue(SyncPacket(const Uuid().v4(), stateNow.base!,
-          stateNow.device!, 'changes', entries));
+      await _queue(
+        SyncPacket(
+          const Uuid().v4(),
+          stateNow.base!,
+          stateNow.device!,
+          'changes',
+          entries,
+        ),
+      );
     });
   }
 
@@ -164,9 +297,69 @@ class SyncStore {
     return (await db
             .customSelect('SELECT payload FROM sync_uploads ORDER BY rowid')
             .get())
-        .map((r) => SyncPacket.decode(
+        .map(
+          (r) => SyncPacket.decode(
             Uint8List.fromList(utf8.encode(r.read<String>('payload'))),
-            _columns!))
+            _columns!,
+          ),
+        )
+        .toList();
+  }
+
+  Future<List<SyncEntry>> neededAttachments(List<SyncPacket> packets,
+      {bool joining = false}) async {
+    await _prepare();
+    final records = <String, SyncEntry>{};
+    final deleted = <String>{}, purgedOwners = <String>{};
+    if (!joining) {
+      for (final row in await db
+          .customSelect(
+              "SELECT * FROM sync_versions WHERE table_name='attachment_manifest'")
+          .get()) {
+        final entry = _entry(row);
+        if (entry.deleted) {
+          deleted.add(entry.id);
+        } else {
+          records[entry.id] = entry;
+        }
+      }
+      for (final row
+          in await db.customSelect('SELECT * FROM attachment_manifest').get()) {
+        records.putIfAbsent(
+            row.read<String>('id'),
+            () => SyncEntry(
+                'attachment_manifest',
+                row.read<String>('id'),
+                0,
+                'local-cache-device',
+                false,
+                Map<String, Object?>.from(row.data)));
+      }
+      for (final table in ['transactions', 'transfers', 'card_entries']) {
+        for (final row in await db
+            .customSelect("SELECT id FROM $table WHERE trash_state='purged'")
+            .get()) {
+          purgedOwners.add('$table/${row.read<String>('id')}');
+        }
+      }
+    }
+    for (final packet in packets) {
+      for (final entry in packet.entries) {
+        if (entry.data?['trash_state'] == 'purged') purgedOwners.add(entry.key);
+        if (entry.table != 'attachment_manifest') continue;
+        if (entry.deleted) {
+          deleted.add(entry.id);
+        } else {
+          final old = records[entry.id];
+          if (old == null || entry.compare(old) > 0) records[entry.id] = entry;
+        }
+      }
+    }
+    return records.values
+        .where((e) =>
+            !deleted.contains(e.id) &&
+            !purgedOwners
+                .contains('${e.data!['owner_table']}/${e.data!['owner_id']}'))
         .toList();
   }
 
@@ -178,14 +371,18 @@ class SyncStore {
   Future<void> ack(SyncPacket packet) => db.transaction(() async {
         for (final entry in packet.entries) {
           await db.customStatement(
-              'DELETE FROM sync_outbox WHERE table_name=? AND row_id=? AND device_id=? AND clock<=?',
-              [entry.table, entry.id, entry.device, entry.clock]);
+            'DELETE FROM sync_outbox WHERE table_name=? AND row_id=? AND device_id=? AND clock<=?',
+            [entry.table, entry.id, entry.device, entry.clock],
+          );
         }
+        await db.customStatement('DELETE FROM sync_uploads WHERE packet_id=?', [
+          packet.id,
+        ]);
         await db.customStatement(
-            'DELETE FROM sync_uploads WHERE packet_id=?', [packet.id]);
-        await db.customStatement(
-            'INSERT OR REPLACE INTO sync_applied VALUES(?,?)',
-            [packet.id, packet.digest]);
+          'INSERT OR REPLACE INTO sync_applied VALUES(?,?)',
+          [packet.id, packet.digest],
+        );
+        await AttachmentsRepository(db).collectUnused();
       });
 
   /// Integrity, rows, versions, history and receipt markers commit together.
@@ -198,17 +395,21 @@ class SyncStore {
     return db.transaction(() async {
       final current = await state();
       if (initial &&
-          (current.base != null ||
-              packets.where((p) => p.kind == 'genesis').length != 1)) {
+          (packets.where((p) => p.isBase).length != 1 ||
+              (current.base != null &&
+                  !packets.any(
+                    (p) =>
+                        p.kind == 'replacement' &&
+                        p.replaces.contains(current.base),
+                  )))) {
         throw const FormatException('Vínculo inicial inválido.');
       }
-      final base = initial
-          ? packets.firstWhere((p) => p.kind == 'genesis').base
-          : current.base;
+      final base =
+          initial ? packets.firstWhere((p) => p.isBase).base : current.base;
       if (base == null || packets.any((p) => p.base != base)) {
         throw const FormatException('As alterações pertencem a outra base.');
       }
-      final seen = await applied();
+      final seen = initial ? <String, String>{} : await applied();
       final versions = initial
           ? <String, SyncEntry>{}
           : {
@@ -218,10 +419,11 @@ class SyncStore {
             };
       final rows = initial
           ? <String, Map<String, Map<String, Object?>>>{
-              for (final t in financialTables) t: {}
+              for (final t in financialTables) t: {},
             }
           : await readFinancial(db);
       var changed = initial;
+      final derivedDeletes = <SyncEntry>[];
       var maxClock = (await db
               .customSelect('SELECT clock FROM sync_state WHERE id=1')
               .getSingle())
@@ -236,17 +438,52 @@ class SyncStore {
         for (final entry in packet.entries) {
           if (entry.clock > DateTime.now().millisecondsSinceEpoch + 300000) {
             throw const FormatException(
-                'Relógio divergente. Ajuste data e hora dos dispositivos antes de sincronizar.');
+              'Relógio divergente. Ajuste data e hora dos dispositivos antes de sincronizar.',
+            );
           }
           if (entry.clock > maxClock) maxClock = entry.clock;
           final previous = versions[entry.key];
+          if (entry.table == 'attachment_manifest') {
+            if (!entry.deleted) {
+              AttachmentsRepository.validateMetadata(entry.data!);
+            }
+            if (previous?.deleted == true && !entry.deleted) continue;
+            if (previous != null &&
+                !previous.deleted &&
+                !entry.deleted &&
+                !entry.sameData(previous)) {
+              throw const FormatException(
+                  'Um anexo existente mudou de identidade ou conteúdo.');
+            }
+          }
+          final attachmentDelete =
+              entry.table == 'attachment_manifest' && entry.deleted;
+
+          final managed = [
+            'transactions',
+            'transfers',
+            'card_entries',
+          ].contains(entry.table);
+          final incomingPurge =
+              managed && entry.data?['trash_state'] == 'purged';
+          final previousPurge =
+              managed && previous?.data?['trash_state'] == 'purged';
+          if (previousPurge && !incomingPurge) {
+            if (previous != null && !entry.sameData(previous)) {
+              await _history(entry, 'conflict');
+            }
+            continue;
+          }
           if (previous != null) {
             final order = entry.compare(previous);
             if (order == 0 && !entry.sameData(previous)) {
               throw const FormatException(
-                  'Versões iguais com dados diferentes.');
+                'Versões iguais com dados diferentes.',
+              );
             }
-            if (order <= 0) {
+            if (order <= 0 &&
+                !(incomingPurge && !previousPurge) &&
+                !attachmentDelete) {
               if (order < 0 && !entry.sameData(previous)) {
                 await _history(entry, 'conflict');
               }
@@ -264,37 +501,78 @@ class SyncStore {
         }
         seen[packet.id] = packet.digest;
       }
-      if (changed) await replaceFinancial(db, rows);
+      for (final record in rows['attachment_manifest']!.entries.toList()) {
+        final data = record.value;
+        AttachmentsRepository.validateMetadata(data);
+        final table = data['owner_table'] as String,
+            id = data['owner_id'] as String;
+        final owner = rows[table]?[id];
+        if (owner == null && versions['$table/$id']?.deleted != true) {
+          throw const FormatException('Anexo sem lançamento de origem.');
+        }
+        if (owner == null || owner['trash_state'] == 'purged') {
+          rows['attachment_manifest']!.remove(record.key);
+          maxClock++;
+          final tombstone = SyncEntry('attachment_manifest', record.key,
+              maxClock, deviceId, true, null);
+          versions[tombstone.key] = tombstone;
+          derivedDeletes.add(tombstone);
+          changed = true;
+        }
+      }
+      if (changed) {
+        await replaceFinancial(db, rows);
+        final repo = AttachmentsRepository(db);
+        for (final data in rows['attachment_manifest']!.values) {
+          if (!await repo.hasCached(
+              data['sha256'] as String, data['size'] as int)) {
+            throw const FormatException(
+                'Um anexo recebido não possui conteúdo íntegro.');
+          }
+        }
+      }
+
       if (initial) {
         await db.customStatement('DELETE FROM sync_versions');
         await db.customStatement('DELETE FROM sync_outbox');
         await db.customStatement('DELETE FROM sync_applied');
+        await db.customStatement('DELETE FROM sync_uploads');
+        await db.customStatement('DELETE FROM sync_history');
         await db.customStatement(
-            'UPDATE sync_state SET base_id=?,email=?,device_id=?,capture_enabled=1 WHERE id=1',
-            [base, joinEmail, deviceId]);
+          'UPDATE sync_state SET base_id=?,email=?,device_id=?,capture_enabled=1 WHERE id=1',
+          [base, joinEmail, deviceId],
+        );
       }
       for (final entry in versions.values) {
         await _write('sync_versions', entry);
       }
       for (final pair in seen.entries) {
         await db.customStatement(
-            'INSERT OR REPLACE INTO sync_applied VALUES(?,?)',
-            [pair.key, pair.value]);
+          'INSERT OR REPLACE INTO sync_applied VALUES(?,?)',
+          [pair.key, pair.value],
+        );
       }
-      await db.customStatement(
-          'UPDATE sync_state SET clock=? WHERE id=1', [maxClock]);
+      await db.customStatement('UPDATE sync_state SET clock=? WHERE id=1', [
+        maxClock,
+      ]);
+      for (final entry in derivedDeletes) {
+        await _write('sync_outbox', entry);
+      }
+      await AttachmentsRepository(db).collectUnused();
       return changed;
     });
   }
 
   Future<void> markCompleted() => db.customStatement(
-      'UPDATE sync_state SET last_sync_at=? WHERE id=1',
-      [DateTime.now().millisecondsSinceEpoch]);
+        'UPDATE sync_state SET last_sync_at=? WHERE id=1',
+        [DateTime.now().millisecondsSinceEpoch],
+      );
   Future<List<SyncEntry>> history() async {
     await _prepare();
     return (await db
             .customSelect(
-                "SELECT * FROM sync_history WHERE reason='conflict' ORDER BY archived_at DESC LIMIT 100")
+              "SELECT * FROM sync_history WHERE reason='conflict' ORDER BY archived_at DESC LIMIT 100",
+            )
             .get())
         .map(_entry)
         .toList();
@@ -307,28 +585,40 @@ class SyncStore {
       final s = await state();
       if (s.base == null) {
         throw const FormatException(
-            'Vincule a base antes de recuperar uma versão.');
+          'Vincule a base antes de recuperar uma versão.',
+        );
       }
       final exists = await db.customSelect(
-          'SELECT * FROM sync_history WHERE table_name=? AND row_id=? AND clock=? AND device_id=?',
-          variables: [
-            Variable(entry.table),
-            Variable(entry.id),
-            Variable(entry.clock),
-            Variable(entry.device)
-          ]).get();
+        'SELECT * FROM sync_history WHERE table_name=? AND row_id=? AND clock=? AND device_id=?',
+        variables: [
+          Variable(entry.table),
+          Variable(entry.id),
+          Variable(entry.clock),
+          Variable(entry.device),
+        ],
+      ).get();
       if (exists.isEmpty || !_entry(exists.single).sameData(entry)) {
         throw const FormatException('Versão de histórico indisponível.');
       }
       final rows = await readFinancial(db);
+      if (entry.table == 'attachment_manifest') {
+        throw const FormatException(
+            'Anexos excluídos não podem ser recuperados pelo histórico de conflitos. Adicione uma nova cópia.');
+      }
+      if (rows[entry.table]?[entry.id]?['trash_state'] == 'purged') {
+        throw const FormatException(
+          'Um lançamento excluído definitivamente não pode ser recuperado pelo histórico.',
+        );
+      }
       if (entry.deleted) {
         rows[entry.table]!.remove(entry.id);
       } else {
         rows[entry.table]![entry.id] = entry.data!;
       }
       final old = await db.customSelect(
-          'SELECT * FROM sync_versions WHERE table_name=? AND row_id=?',
-          variables: [Variable(entry.table), Variable(entry.id)]).get();
+        'SELECT * FROM sync_versions WHERE table_name=? AND row_id=?',
+        variables: [Variable(entry.table), Variable(entry.id)],
+      ).get();
       if (old.isNotEmpty) await _history(_entry(old.single), 'conflict');
       await replaceFinancial(db, rows);
       final oldClock = (await db
@@ -338,11 +628,18 @@ class SyncStore {
       final now = DateTime.now().millisecondsSinceEpoch;
       final clock = oldClock >= now ? oldClock + 1 : now;
       final next = SyncEntry(
-          entry.table, entry.id, clock, s.device!, entry.deleted, entry.data);
+        entry.table,
+        entry.id,
+        clock,
+        s.device!,
+        entry.deleted,
+        entry.data,
+      );
       await _write('sync_versions', next);
       await _write('sync_outbox', next);
-      await db
-          .customStatement('UPDATE sync_state SET clock=? WHERE id=1', [clock]);
+      await db.customStatement('UPDATE sync_state SET clock=? WHERE id=1', [
+        clock,
+      ]);
     });
   }
 }

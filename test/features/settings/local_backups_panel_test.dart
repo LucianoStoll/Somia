@@ -100,7 +100,7 @@ void main() {
             data: MediaQuery.of(context)
                 .copyWith(textScaler: const TextScaler.linear(2)),
             child: child!),
-        home: const SettingsPage()));
+        home: const SettingsPage(section: 'local')));
     await tester.scrollUntilVisible(find.text('Criar cópia agora'), 300,
         scrollable: find
             .descendant(

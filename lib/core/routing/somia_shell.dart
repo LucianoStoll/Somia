@@ -18,18 +18,42 @@ class _MenuDestination {
   final Color color;
 }
 
+abstract final class MovementIdentity {
+  static const incomeIcon = Icons.arrow_circle_up_outlined;
+  static const expenseIcon = Icons.arrow_circle_down_outlined;
+  static const transferIcon = Icons.swap_horiz;
+  static const incomeColor = SomiaColors.green;
+  static const expenseColor = SomiaColors.red;
+  static const transferColor = SomiaColors.muted;
+}
+
 const _menu = <_MenuDestination>[
   _MenuDestination(
       'Resumo', AppRoutes.dashboardPath, Icons.home_outlined, SomiaColors.blue),
   _MenuDestination('Receitas', AppRoutes.incomePath,
-      Icons.arrow_circle_up_outlined, SomiaColors.green),
+      MovementIdentity.incomeIcon, MovementIdentity.incomeColor),
   _MenuDestination('Despesas', AppRoutes.expensesPath,
-      Icons.arrow_circle_down_outlined, SomiaColors.red),
-  _MenuDestination('Transferências', AppRoutes.transfersPath, Icons.swap_horiz),
+      MovementIdentity.expenseIcon, MovementIdentity.expenseColor),
+  _MenuDestination('Transferências', AppRoutes.transfersPath,
+      MovementIdentity.transferIcon, MovementIdentity.transferColor),
   _MenuDestination(
       'Contas', AppRoutes.accountsPath, Icons.account_balance_wallet_outlined),
   _MenuDestination('Cartões', AppRoutes.cardsPath, Icons.credit_card_outlined),
+  _MenuDestination('Débito', AppRoutes.debitCardsPath, Icons.payment_outlined),
+  _MenuDestination('Cashback', AppRoutes.cashbackPath, Icons.paid_outlined),
+  _MenuDestination('Pessoas e reembolsos', AppRoutes.reimbursementsPath,
+      Icons.people_outline),
+  _MenuDestination('Planejamento', AppRoutes.planningPath, Icons.flag_outlined),
+  _MenuDestination(
+      'Análises', AppRoutes.analysisPath, Icons.bar_chart_outlined),
+  _MenuDestination(
+      'Investimentos', AppRoutes.investmentsPath, Icons.savings_outlined),
+  _MenuDestination(
+      'Bens e patrimônio', AppRoutes.assetsPath, Icons.home_work_outlined),
+  _MenuDestination('Dívidas e empréstimos', AppRoutes.debtsPath,
+      Icons.account_balance_outlined),
   _MenuDestination('Categorias', AppRoutes.categoriesPath, Icons.sell_outlined),
+  _MenuDestination('Lixeira', AppRoutes.trashPath, Icons.delete_outline),
   _MenuDestination(
       'Configurações', AppRoutes.settingsPath, Icons.settings_outlined),
 ];
@@ -72,9 +96,21 @@ class SomiaSectionBackScope extends StatelessWidget {
             if (scaffold?.isDrawerOpen ?? false) {
               scaffold!.closeDrawer();
             } else if (location != AppRoutes.dashboardPath) {
-              context.go(location.startsWith('${AppRoutes.accountsPath}/')
-                  ? AppRoutes.accountsPath
-                  : AppRoutes.dashboardPath);
+              context.go(location == AppRoutes.settingsPath &&
+                      GoRouterState.of(context)
+                              .uri
+                              .queryParameters['section'] !=
+                          null
+                  ? AppRoutes.settingsPath
+                  : location == AppRoutes.cardsPath &&
+                          GoRouterState.of(context)
+                                  .uri
+                                  .queryParameters['card'] !=
+                              null
+                      ? AppRoutes.cardsPath
+                      : location.startsWith('${AppRoutes.accountsPath}/')
+                          ? AppRoutes.accountsPath
+                          : AppRoutes.dashboardPath);
             }
           },
           child: child,
@@ -152,7 +188,21 @@ class _SomiaMenu extends StatelessWidget {
                                 icon: const Icon(Icons.close),
                                 onPressed: () => Navigator.of(context).pop()),
                         ])),
-                for (final destination in _menu)
+                for (final destination in _menu) ...[
+                  if (const {'/', '/planning', '/investments', '/categories'}
+                      .contains(destination.path))
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 16, 8, 8),
+                      child: Text(
+                          switch (destination.path) {
+                            '/planning' => 'PLANEJAMENTO',
+                            '/investments' => 'PATRIMÔNIO',
+                            '/categories' => 'ORGANIZAÇÃO',
+                            _ => 'DIA A DIA',
+                          },
+                          style: const TextStyle(
+                              fontSize: 11, color: SomiaColors.muted)),
+                    ),
                   Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: ListTile(
@@ -178,6 +228,7 @@ class _SomiaMenu extends StatelessWidget {
                           }
                         },
                       )),
+                ],
               ],
             )));
   }
@@ -208,15 +259,20 @@ class SomiaQuickActions extends StatelessWidget {
           PopupMenuItem(
               value: 'income',
               child: ListTile(
-                  leading: Icon(Icons.south_west), title: Text('Receita'))),
+                  leading: Icon(MovementIdentity.incomeIcon,
+                      color: MovementIdentity.incomeColor),
+                  title: Text('Receita'))),
           PopupMenuItem(
               value: 'expense',
               child: ListTile(
-                  leading: Icon(Icons.north_east), title: Text('Despesa'))),
+                  leading: Icon(MovementIdentity.expenseIcon,
+                      color: MovementIdentity.expenseColor),
+                  title: Text('Despesa'))),
           PopupMenuItem(
               value: 'transfer',
               child: ListTile(
-                  leading: Icon(Icons.swap_horiz),
+                  leading: Icon(MovementIdentity.transferIcon,
+                      color: MovementIdentity.transferColor),
                   title: Text('Transferência'))),
         ],
       );

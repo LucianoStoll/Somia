@@ -89,5 +89,5 @@ void main() {
         [500, 500]);
     expect(
         await restored.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
-  });
+  }, timeout: Timeout(Duration(seconds: Platform.isWindows ? 120 : 30)));
 }

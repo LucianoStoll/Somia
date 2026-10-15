@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
+class MovementTag {
+  const MovementTag(this.label, this.color);
+  final String label;
+  final Color color;
+}
+
 /// Áreas de toque separadas para status, edição, valor e menu.
 class MovementListRow extends StatelessWidget {
   const MovementListRow(
@@ -18,10 +24,13 @@ class MovementListRow extends StatelessWidget {
       required this.onEffective,
       required this.menu,
       this.tags = const [],
+      this.categoryTags = const [],
       this.highlightLabel,
       this.pendingIcon = Icons.radio_button_unchecked,
       this.busy = false,
       this.onAmount,
+      this.onAttachments,
+      this.detailsBuilder,
       this.onPending,
       this.effectiveLabel = 'Efetivar hoje',
       this.pendingLabel = 'Marcar como pendente'});
@@ -31,14 +40,91 @@ class MovementListRow extends StatelessWidget {
   final bool effective, busy;
   final Color color;
   final List<String> tags;
+  final List<MovementTag> categoryTags;
   final String? highlightLabel;
   final IconData pendingIcon;
   final VoidCallback onEdit, onEffective;
-  final VoidCallback? onAmount, onPending;
+  final VoidCallback? onAmount, onPending, onAttachments;
   final Widget menu;
+  final WidgetBuilder? detailsBuilder;
 
   String _date(DateTime date) => '${date.day.toString().padLeft(2, '0')}/'
       '${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  Future<void> _details(BuildContext context) => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (sheet) => SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(description,
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+                Text(amount,
+                    style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        color: color)),
+                const SizedBox(height: 16),
+                Text(account),
+                const SizedBox(height: 8),
+                Text(effective
+                    ? 'Efetivado'
+                    : effectiveDate != null
+                        ? 'Agendado'
+                        : 'Previsto'),
+                Text('Vencimento: ${_date(dueDate)}'),
+                if (effectiveDate != null)
+                  Text('Efetivação: ${_date(effectiveDate!)}'),
+                for (final category in categoryTags)
+                  Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(category.label,
+                          style: TextStyle(color: category.color))),
+                for (final tag in tags)
+                  Padding(
+                      padding: const EdgeInsets.only(top: 8), child: Text(tag)),
+                if (detailsBuilder != null) detailsBuilder!(sheet),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                    onPressed: busy
+                        ? null
+                        : () {
+                            Navigator.pop(sheet);
+                            onEdit();
+                          },
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Editar lançamento')),
+                if (onAttachments != null)
+                  TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheet);
+                        onAttachments!();
+                      },
+                      icon: const Icon(Icons.attach_file),
+                      label: const Text('Anexos')),
+                TextButton(
+                    onPressed: () => Navigator.pop(sheet),
+                    child: const Text('Fechar')),
+              ]),
+        ),
+      );
+
+  double _textWidth(BuildContext context, String text, TextStyle style) {
+    final painter = TextPainter(
+        text: TextSpan(
+            text: text, style: DefaultTextStyle.of(context).style.merge(style)),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context))
+      ..layout();
+    final width = painter.width.ceilToDouble();
+    painter.dispose();
+    return width;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,15 +165,15 @@ class MovementListRow extends StatelessWidget {
     );
     final details =
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(description,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+      const SizedBox(height: 2),
       Text(account,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(color: SomiaColors.muted, fontSize: 12)),
-      const SizedBox(height: 2),
-      Text(description,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
       if (highlightLabel != null) ...[
         const SizedBox(height: 5),
         Container(
@@ -101,22 +187,35 @@ class MovementListRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis)),
       ],
+    ]);
+    Widget badge(MovementTag tag) => Tooltip(
+        message: tag.label,
+        child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+                color: tag.color.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(5)),
+            child: Text(tag.label,
+                style: TextStyle(fontSize: 11, color: tag.color),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis)));
+    final labels = <Widget>[
+      if (categoryTags.isNotEmpty) ...[
+        const SizedBox(height: 5),
+        Row(children: [
+          for (var index = 0; index < categoryTags.length; index++) ...[
+            if (index > 0) const SizedBox(width: 5),
+            Flexible(child: badge(categoryTags[index])),
+          ],
+        ]),
+      ],
       if (tags.isNotEmpty) ...[
         const SizedBox(height: 5),
         Wrap(spacing: 5, runSpacing: 4, children: [
-          for (final tag in tags)
-            Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                    color: SomiaColors.surfaceHigh,
-                    borderRadius: BorderRadius.circular(5)),
-                child: Text(tag,
-                    style: const TextStyle(fontSize: 11),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis))
+          for (final tag in tags) badge(MovementTag(tag, SomiaColors.muted)),
         ]),
       ],
-    ]);
+    ];
     final value = Semantics(
         button: true,
         label: 'Valor $amount',
@@ -124,10 +223,16 @@ class MovementListRow extends StatelessWidget {
             key: ValueKey('movement-amount-$id'),
             onTap: busy ? null : onAmount ?? onEdit,
             child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      Tooltip(
+                          message:
+                              'Vencimento ${_date(dueDate)}${effectiveDate == null ? '' : ' · $status ${_date(effectiveDate!)}'}',
+                          child: Text(_date(effectiveDate ?? dueDate),
+                              style: const TextStyle(
+                                  fontSize: 11, color: SomiaColors.muted))),
                       Text(amount,
                           softWrap: true,
                           textAlign: TextAlign.right,
@@ -135,45 +240,53 @@ class MovementListRow extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                               color: color,
                               fontSize: 15)),
-                      Text('Venc. ${_date(dueDate)}',
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                              fontSize: 11, color: SomiaColors.muted)),
-                      if (effectiveDate != null)
-                        Text('$status ${_date(effectiveDate!)}',
-                            textAlign: TextAlign.right,
-                            style: const TextStyle(
-                                fontSize: 11, color: SomiaColors.muted)),
                     ]))));
     return Material(
-        color: SomiaColors.surface.withValues(alpha: 0.45),
+        color: Colors.transparent,
         child: Column(children: [
           Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
               child:
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                 statusButton,
                 const SizedBox(width: 8),
                 Expanded(child: LayoutBuilder(builder: (context, constraints) {
+                  final amountWidth = _textWidth(
+                      context,
+                      amount,
+                      const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600));
+                  final dateWidth = _textWidth(
+                      context,
+                      _date(effectiveDate ?? dueDate),
+                      const TextStyle(fontSize: 11));
+                  final valueWidth =
+                      (amountWidth > dateWidth ? amountWidth : dateWidth) + 2;
                   final stacked = constraints.maxWidth < 210 ||
-                      MediaQuery.textScalerOf(context).scale(14) > 21;
+                      MediaQuery.textScalerOf(context).scale(14) > 21 ||
+                      valueWidth > constraints.maxWidth * 0.65;
                   final edit = InkWell(
                       key: ValueKey('movement-edit-$id'),
-                      onTap: busy ? null : onEdit,
+                      onTap: busy ? null : () => _details(context),
                       child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(vertical: 4),
                           child: details));
                   if (stacked) {
                     return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [edit, value]);
+                        children: [edit, value, ...labels]);
                   }
-                  return Row(
+                  return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(flex: 3, child: edit),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 2, child: value),
+                        Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: edit),
+                              const SizedBox(width: 8),
+                              SizedBox(width: valueWidth, child: value)
+                            ]),
+                        ...labels
                       ]);
                 })),
                 const SizedBox(width: 4),

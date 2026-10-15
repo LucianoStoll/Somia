@@ -55,7 +55,8 @@ void main() {
       await tester.ensureVisible(find.byKey(const ValueKey('series-count')));
       await tester.enterText(find.byKey(const ValueKey('series-count')), '3');
       expect(find.byKey(const ValueKey('series-unit')), findsNothing);
-      expect(find.byType(SwitchListTile), findsNothing);
+      expect(find.widgetWithText(SwitchListTile, 'Pago'), findsNothing);
+      expect(find.text('Dividir entre categorias'), findsOneWidget);
       await tester.tap(find.text('Salvar lançamento'));
       await tester.pumpAndSettle();
       final draft = result as TransactionDraft;

@@ -6,11 +6,16 @@ import 'sqlite_balances_repository.dart';
 
 /// Chamado dentro da transação do dashboard, com o mesmo snapshot e corte.
 Future<Map<String, BalanceDetails>> loadBalanceDetails(
-    AppDatabase db, DateTime month, BalancesSnapshot snapshot) async {
+    AppDatabase db, DateTime month, BalancesSnapshot snapshot,
+    {required DateTime asOf}) async {
   final start = DateTime.utc(month.year, month.month).millisecondsSinceEpoch;
   final end = DateTime.utc(month.year, month.month + 1).millisecondsSinceEpoch;
+  final effectiveEnd =
+      DateTime.utc(asOf.year, asOf.month, asOf.day + 1).millisecondsSinceEpoch;
+  final realizedEnd = effectiveEnd < end ? effectiveEnd : end;
+  final previousEnd = DateTime.utc(month.year, month.month, 0);
   final previous = await SqliteBalancesRepository(db).calculate(
-      asOf: DateTime.utc(month.year, month.month, 0),
+      asOf: previousEnd.isBefore(asOf) ? previousEnd : asOf,
       through: DateTime.utc(month.year, month.month, 0));
   final openings = {
     for (final c in previous.consolidated) c.currencyCode: c.currentMinor
@@ -30,17 +35,17 @@ Future<Map<String, BalanceDetails>> loadBalanceDetails(
 
   await collect(
       '''SELECT a.currency_code,t.type AS kind,SUM(t.actual_amount_minor) AS amount
-    FROM transactions t JOIN accounts a ON a.id=t.account_id
+    FROM transaction_events t JOIN accounts a ON a.id=t.account_id
     WHERE a.deleted_at IS NULL AND a.include_in_balance=1 AND t.deleted_at IS NULL
       AND t.ignore_balance=0 AND t.actual_amount_minor IS NOT NULL
       AND t.effective_at>=? AND t.effective_at<? GROUP BY a.currency_code,t.type''',
-      [start, end]);
+      [start, realizedEnd]);
   await collect(
       '''SELECT a.currency_code,'pending_'||t.type AS kind,SUM(t.planned_amount_minor) AS amount
-    FROM transactions t JOIN accounts a ON a.id=t.account_id
+    FROM transaction_events t JOIN accounts a ON a.id=t.account_id
     WHERE a.deleted_at IS NULL AND a.include_in_balance=1 AND t.deleted_at IS NULL AND t.ignore_balance=0
       AND (t.effective_at IS NULL OR t.effective_at>=?) AND COALESCE(t.effective_at,t.due_at)<?
-    GROUP BY a.currency_code,t.type''', [end, end]);
+    GROUP BY a.currency_code,t.type''', [realizedEnd, end]);
   // Uma linha por lado incluído. Transferências internas se compensam.
   await collect('''SELECT a.currency_code,
       CASE WHEN f.effective_at IS NULL OR f.effective_at>=? THEN 'pending_' ELSE '' END ||
@@ -50,13 +55,20 @@ Future<Map<String, BalanceDetails>> loadBalanceDetails(
     WHERE a.deleted_at IS NULL AND a.include_in_balance=1 AND f.deleted_at IS NULL
       AND ((f.effective_at>=? AND f.effective_at<?) OR
         ((f.effective_at IS NULL OR f.effective_at>=?) AND COALESCE(f.effective_at,f.due_at)<?))
-    GROUP BY a.currency_code,kind''', [end, start, end, end, end]);
+    GROUP BY a.currency_code,kind''',
+      [realizedEnd, start, realizedEnd, realizedEnd, end]);
   await collect(
       '''SELECT a.currency_code,'card_payments' AS kind,SUM(p.amount_minor) AS amount
     FROM card_payments p JOIN accounts a ON a.id=p.account_id
     WHERE a.deleted_at IS NULL AND a.include_in_balance=1 AND p.deleted_at IS NULL
       AND p.effective_at>=? AND p.effective_at<? GROUP BY a.currency_code''',
-      [start, end]);
+      [start, realizedEnd]);
+  await collect(
+      """SELECT a.currency_code,'pending_invoices' AS kind,SUM(p.amount_minor) AS amount
+    FROM card_payments p JOIN accounts a ON a.id=p.account_id
+    WHERE a.deleted_at IS NULL AND a.include_in_balance=1 AND p.deleted_at IS NULL
+      AND p.effective_at>=? AND p.effective_at<? GROUP BY a.currency_code""",
+      [realizedEnd, end]);
   await collect('''SELECT a.currency_code,'pending_invoices' AS kind,SUM(MAX(0,
       COALESCE((SELECT SUM(e.amount_minor) FROM card_entries e JOIN card_invoices i ON i.id=e.invoice_id
         WHERE e.card_id=c.id AND e.deleted_at IS NULL AND i.due_at<?),0)

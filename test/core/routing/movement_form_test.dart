@@ -72,6 +72,59 @@ TextField _input(WidgetTester tester, Finder field) => tester.widget<TextField>(
     find.descendant(of: field, matching: find.byType(TextField)));
 
 void main() {
+  for (final offset in [-7, 7]) {
+    testWidgets('despesa paga usa vencimento como efetivação $offset',
+        (tester) async {
+      Object? result;
+      final today = DateUtils.dateOnly(DateTime.now());
+      final due = today.add(Duration(days: offset));
+      await _open(
+          tester,
+          const TransactionForm(
+              accounts: _accounts,
+              categories: [],
+              fixedType: TransactionType.expense),
+          onResult: (value) => result = value);
+      await tester.enterText(find.byType(TextFormField).first, 'Despesa teste');
+      _input(tester, find.byType(TextFormField).at(1)).controller!.text =
+          '100,00';
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      expect(find.text('Data de efetivação'), findsNothing);
+      expect(find.text('Lançamento'), findsNothing);
+      await tester.ensureVisible(find.text('Vencimento'));
+      await tester.tap(find.text('Vencimento'));
+      await tester.pumpAndSettle();
+      tester
+          .widget<CalendarDatePicker>(find.byType(CalendarDatePicker))
+          .onDateChanged(due);
+      await tester.pump();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Pago'));
+      await tester.tap(find.text('Pago'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pago'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Mais opções'));
+      await tester.tap(find.text('Mais opções'));
+      await tester.pumpAndSettle();
+      expect(find.text('Data de efetivação'), findsOneWidget);
+      expect(find.text('Lançamento'), findsWidgets);
+      await tester.ensureVisible(find.text('Mais opções'));
+      await tester.tap(find.text('Mais opções'));
+      await tester.pumpAndSettle();
+      expect(find.text('Lançamento'), findsNothing);
+      await tester.tap(find.text('Salvar lançamento'));
+      await tester.pumpAndSettle();
+      final draft = result as TransactionDraft;
+      expect(DateUtils.isSameDay(draft.date, today), true);
+      expect(DateUtils.isSameDay(draft.dueDate, due), true);
+      expect(DateUtils.isSameDay(draft.effectiveDate, due), true);
+      expect(draft.isEffective, true);
+      expect(tester.takeException(), isNull);
+    });
+  }
   for (final type in ['receita', 'despesa', 'transferência']) {
     testWidgets('$type: descrição, próximo, valor e salvar no Android',
         (tester) async {
@@ -127,6 +180,32 @@ void main() {
     });
   }
 
+  for (final kind in ['expense', 'transfer']) {
+    testWidgets('formulário $kind prioriza essenciais e usa linhas simples',
+        (tester) async {
+      await _open(
+          tester,
+          kind == 'transfer'
+              ? const TransferForm(accounts: _accounts)
+              : const TransactionForm(
+                  accounts: _accounts,
+                  categories: [],
+                  fixedType: TransactionType.expense));
+      final inputContext = tester.element(find.byType(TextFormField).first);
+      expect(Theme.of(inputContext).inputDecorationTheme.filled, false);
+      expect(Theme.of(inputContext).inputDecorationTheme.border,
+          isA<UnderlineInputBorder>());
+      expect(tester.getTopLeft(find.text('Vencimento')).dy,
+          lessThan(tester.getTopLeft(find.text('Mais opções')).dy));
+      expect(
+          tester
+              .getTopLeft(
+                  find.text(kind == 'transfer' ? 'Conta de origem' : 'Conta'))
+              .dy,
+          lessThan(tester.getTopLeft(find.text('Vencimento')).dy));
+      expect(tester.takeException(), isNull);
+    });
+  }
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
     for (final kind in ['income', 'expense', 'transfer']) {
       testWidgets(
@@ -225,6 +304,10 @@ void main() {
       tester.view.viewInsets = const FakeViewPadding(bottom: 100);
       await tester.pumpAndSettle();
       expect(find.text('Salvar lançamento').hitTestable(), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Mais opções'), 250,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text('Mais opções'));
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Mais detalhes'), 250,
           scrollable: find
               .ancestor(

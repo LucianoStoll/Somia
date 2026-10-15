@@ -13,6 +13,19 @@ import 'package:finapp/features/transfers/domain/transfer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('vencimento considera dia do calendário e não horário/UTC', () {
+    DashboardDue due(DateTime date) => DashboardDue(
+        id: 'due',
+        description: 'Conta',
+        date: date,
+        amountMinor: 100,
+        kind: 'expense');
+    final today = DateTime(2026, 10, 13, 9);
+    expect(due(DateTime.utc(2026, 10, 13)).isOverdue(today), isFalse);
+    expect(due(DateTime.utc(2026, 10, 12, 23)).isOverdue(today), isTrue);
+    expect(due(DateTime.utc(2026, 10, 14)).isOverdue(today), isFalse);
+  });
+
   test(
       'gráfico agrupa subcategorias, inclui pendentes e ignora contas fora das análises',
       () async {
@@ -55,8 +68,19 @@ void main() {
     await expense(700, bank.id, effective: false, categoryId: market.id);
     await expense(900, hidden.id, categoryId: market.id);
     final result =
-        (await SqliteDashboardRepository(db).load(date)).currencies.single;
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(date))
+            .currencies
+            .single;
     expect(result.expenseMinor, 2700);
+    expect(result.dailyBalances.length, 30);
+    expect(result.dailyBalances.last.currentMinor, result.currentBalanceMinor);
+    expect(
+        result.dailyBalances.last.projectedMinor, result.projectedBalanceMinor);
+    expect(result.upcoming.single.amountMinor, 700);
+    expect(result.upcoming.single.kind, 'expense');
+    expect(result.upcoming.single.canSettle, isTrue);
+
     expect(result.expensesByCategory.length, 1);
     expect(result.expensesByCategory.single.name, 'Alimentação');
     expect(result.expensesByCategory.single.amountMinor, 2700);
@@ -79,7 +103,7 @@ void main() {
     final usd = await account('Exterior', 'USD');
     final transactions = SqliteTransactionsRepository(db);
     final transfers = SqliteTransfersRepository(db);
-    final dashboard = SqliteDashboardRepository(db);
+    final dashboard = SqliteDashboardRepository(db, asOf: DateTime.utc(2030));
     final september = DateTime.utc(2026, 9, 12);
     final october = DateTime.utc(2026, 10, 1);
 
@@ -227,7 +251,7 @@ void main() {
     await add(TransactionType.expense, 20000, december);
     await add(TransactionType.expense, 4000, december, effective: false);
 
-    final dashboard = SqliteDashboardRepository(db);
+    final dashboard = SqliteDashboardRepository(db, asOf: DateTime.utc(2030));
     final oct = (await dashboard.load(october)).currencies.single;
     expect(oct.currentBalanceMinor, 11000);
     expect(oct.projectedBalanceMinor, 11000);
@@ -281,7 +305,7 @@ void main() {
         DateTime.utc(2026, 2, 1), DateTime.utc(2026, 1, 1));
     await add(TransactionType.income, 7000, DateTime.utc(2026, 2, 1),
         DateTime.utc(2026, 1, 1), null);
-    final dashboard = SqliteDashboardRepository(db);
+    final dashboard = SqliteDashboardRepository(db, asOf: DateTime.utc(2030));
     final jan = (await dashboard.load(DateTime.utc(2026, 1))).currencies.single;
     expect(jan.expenseMinor, 20239);
     expect(jan.incomeMinor, 27000);
@@ -320,7 +344,7 @@ void main() {
         effectiveDate: DateTime.utc(year, 2, 1),
         isEffective: true,
         accountId: account.id));
-    final dashboard = SqliteDashboardRepository(db);
+    final dashboard = SqliteDashboardRepository(db, asOf: DateTime.utc(2030));
     final jan = (await dashboard.load(DateTime.utc(year, 1))).currencies.single;
     expect(jan.expenseMinor, 0);
     expect(jan.currentBalanceMinor, 10000);

@@ -1,3 +1,5 @@
+import '../../../core/allocations/category_allocation.dart';
+
 import 'dart:math' as math;
 
 int cardDay(DateTime date) =>
@@ -15,12 +17,14 @@ class CreditCard {
       required this.closingDay,
       required this.dueDay,
       this.institutionId,
+      this.colorArgb,
       this.limitMinor,
       this.isArchived = false,
       this.committedMinor = 0,
       this.creditMinor = 0});
   final String id, name, paymentAccountId;
   final String? institutionId;
+  final int? colorArgb;
   final int closingDay, dueDay;
   final int? limitMinor;
   final bool isArchived;
@@ -49,11 +53,13 @@ class CardDraft {
       required this.closingDay,
       required this.dueDay,
       this.limitMinor,
-      this.institutionId});
+      this.institutionId,
+      this.colorArgb});
   final String name, paymentAccountId;
   final int closingDay, dueDay;
   final int? limitMinor;
   final String? institutionId;
+  final int? colorArgb;
 }
 
 class CardEntry {
@@ -70,6 +76,10 @@ class CardEntry {
       required this.postedAt,
       required this.dueAt,
       required this.invoiceMonth,
+      this.allocations = const [],
+      this.tags = const [],
+      this.revision = '',
+      this.establishment = '',
       this.categoryId,
       this.categoryName,
       this.sourceId});
@@ -77,6 +87,10 @@ class CardEntry {
   final int index, count, amountMinor;
   final DateTime postedAt, dueAt, invoiceMonth;
   final String? categoryId, categoryName, sourceId;
+  final List<CategoryAllocation> allocations;
+  final List<String> tags;
+  final String revision;
+  final String establishment;
   String get label => count > 1
       ? 'Parcela ${index + 1}/$count'
       : switch (kind) {

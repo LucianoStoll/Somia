@@ -46,6 +46,15 @@ Widget form(String kind) => kind == 'transfer'
 
 Future<void> select(WidgetTester tester, String key, String value) async {
   final finder = find.byKey(ValueKey(key));
+  if (finder.evaluate().isEmpty &&
+      find
+          .byKey(const ValueKey('transaction-more-options'))
+          .evaluate()
+          .isNotEmpty) {
+    await tester.ensureVisible(find.text('Mais opções'));
+    await tester.tap(find.text('Mais opções'));
+    await tester.pumpAndSettle();
+  }
   await tester.ensureVisible(finder);
   await tester.tap(finder);
   await tester.pumpAndSettle();
@@ -85,12 +94,24 @@ void main() {
             find.byKey(const ValueKey('series-interval')), '2');
         expect(
             tester
-                .widget<SwitchListTile>(find.byType(SwitchListTile).first)
+                .widget<SwitchListTile>(find.widgetWithText(
+                    SwitchListTile,
+                    kind == 'income'
+                        ? 'Recebido'
+                        : kind == 'expense'
+                            ? 'Pago'
+                            : 'Efetivada'))
                 .value,
             isFalse);
         expect(
             tester
-                .widget<SwitchListTile>(find.byType(SwitchListTile).first)
+                .widget<SwitchListTile>(find.widgetWithText(
+                    SwitchListTile,
+                    kind == 'income'
+                        ? 'Recebido'
+                        : kind == 'expense'
+                            ? 'Pago'
+                            : 'Efetivada'))
                 .onChanged,
             isNull);
         await tester.tap(find.text('Salvar lançamento'));

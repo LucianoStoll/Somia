@@ -1,3 +1,15 @@
+import '../preferences/interface_preferences.dart';
+import '../../features/analysis/data/expense_analysis_repository.dart';
+import '../../features/attachments/data/attachments_repository.dart';
+import '../../features/transactions/data/movement_management_repository.dart';
+import '../../features/planning/data/planning_repository.dart';
+import '../../features/reimbursements/data/reimbursements_repository.dart';
+import '../../features/debts/domain/debt.dart';
+import '../../features/debts/data/sqlite_debts_repository.dart';
+import '../../features/assets/domain/asset.dart';
+import '../../features/assets/data/sqlite_assets_repository.dart';
+import '../../features/investments/domain/investment.dart';
+import '../../features/investments/data/sqlite_investments_repository.dart';
 import 'dart:io';
 import '../../features/csv_import/domain/csv_import.dart';
 import '../../features/csv_import/data/sqlite_csv_import_repository.dart';
@@ -12,6 +24,8 @@ import '../drive/drive_backup_manager.dart';
 import '../../features/accounts/data/account_statement_repository.dart';
 import '../../features/transactions/data/category_history_repository.dart';
 import '../../features/cards/data/cards_repository.dart';
+import '../../features/cards/data/debit_cards_repository.dart';
+import '../../features/cards/data/cashback_repository.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -40,6 +54,11 @@ Future<void> configureDependencies(AppEnvironment environment) async {
   }
 
   getIt.registerSingleton<AppEnvironment>(environment);
+  final support = await getApplicationSupportDirectory();
+  final preferences =
+      InterfacePreferences(File('${support.path}/somia-interface.json'));
+  await preferences.load();
+  getIt.registerSingleton<InterfacePreferences>(preferences);
   final database = AppDatabase.open();
   try {
     // Força a abertura e a criação/migration antes de exibir a interface.
@@ -111,11 +130,38 @@ Future<void> configureDependencies(AppEnvironment environment) async {
     () => SqliteDashboardRepository(getIt<AppDatabase>()),
   );
 
+  getIt.registerLazySingleton<ExpenseAnalysisRepository>(
+      () => ExpenseAnalysisRepository(getIt<AppDatabase>()));
+
+  getIt.registerLazySingleton<CashbackRepository>(
+      () => CashbackRepository(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<DebitCardsRepository>(
+      () => DebitCardsRepository(getIt<AppDatabase>()));
+
   getIt.registerLazySingleton<CardsRepository>(
       () => CardsRepository(getIt<AppDatabase>()));
 
   getIt.registerLazySingleton<CsvImportRepository>(() =>
       SqliteCsvImportRepository(database, maintenance: getIt<BackupManager>()));
+
+  getIt.registerLazySingleton<DebtsRepository>(
+      () => SqliteDebtsRepository(database));
+  getIt.registerLazySingleton<AssetsRepository>(
+      () => SqliteAssetsRepository(database));
+  getIt.registerLazySingleton<InvestmentsRepository>(
+      () => SqliteInvestmentsRepository(database));
+
+  getIt.registerLazySingleton<ReimbursementsRepository>(
+      () => ReimbursementsRepository(database));
+
+  getIt.registerLazySingleton<PlanningRepository>(
+      () => PlanningRepository(database));
+
+  getIt.registerLazySingleton<MovementManagementRepository>(
+      () => MovementManagementRepository(database));
+
+  getIt.registerLazySingleton<AttachmentsRepository>(
+      () => AttachmentsRepository(database));
 
   // As dependências de cada feature serão registradas aqui por módulo.
 }

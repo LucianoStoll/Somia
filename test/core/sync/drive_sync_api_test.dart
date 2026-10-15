@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'package:finapp/core/drive/drive_backup.dart';
 import 'package:finapp/core/sync/drive_sync_api.dart';
 import 'package:finapp/core/sync/sync_packet.dart';
@@ -22,6 +23,47 @@ void main() {
           'sha256': packet.digest
         },
       };
+  test('anexo usa objeto binário privado por base e verifica conteúdo recebido',
+      () async {
+    final bytes = Uint8List.fromList([0, 1, 2, 255]),
+        hash = sha256.convert([0, 1, 2, 255]).toString();
+    final meta = {
+      ...metadata(bytes),
+      'appProperties': {
+        'somiaAttachment': '1',
+        'base': packet.base,
+        'sha256': hash
+      }
+    };
+    final api = DriveSyncApi(DriveBackupApi(FakeAuth(),
+        FakeTransport((method, uri, headers, body) async {
+      if (method == 'POST') {
+        expect(headers['Content-Type'], startsWith('multipart/related'));
+        expect(body!, contains(255));
+        expect(utf8.decode(body, allowMalformed: true),
+            contains('application/octet-stream'));
+        expect(utf8.decode(body, allowMalformed: true),
+            contains('"somiaAttachment":"1"'));
+        return jsonResponse({'id': 'created'});
+      }
+      if (uri.queryParameters['alt'] == 'media') {
+        return DriveResponse(200, bytes);
+      }
+      if (uri.path == '/drive/v3/files') {
+        expect(uri.queryParameters['q'], contains(packet.base));
+        return jsonResponse({
+          'files': [meta]
+        });
+      }
+      return jsonResponse(meta);
+    })));
+    await api.uploadAttachment(session, packet.base, hash, bytes);
+    final file = (await api.listAttachments(session, packet.base)).single;
+    expect(await api.downloadAttachment(session, file), bytes);
+    await expectLater(
+        api.uploadAttachment(session, packet.base, 'wrong', bytes),
+        throwsA(isA<DriveFailure>()));
+  });
   test(
       'lista privada paginada separa sync de backup e propaga relógio do servidor',
       () async {

@@ -6,7 +6,7 @@ remove a escolha e usa o ícone adequado ao tipo da conta (carteira/dinheiro ou 
 Cancelar/Voltar no catálogo mantém a seleção anterior. Alterar somente a instituição
 participa da confirmação de descarte do formulário.
 
-Catálogo inicial: Bradesco, BTG Pactual, Inter, Itaú, Nubank, Santander, Sicoob e Sicredi.
+Catálogo inicial: Banco do Brasil, Mercado Pago, Bradesco, BTG Pactual, Inter, Itaú, Nubank, Santander, Sicoob e Sicredi.
 A busca ignora maiúsculas, acentos e espaços externos. Bancos ausentes podem ser
 usados com o nome personalizado e o ícone padrão.
 
@@ -33,6 +33,8 @@ são rasterizados em 192 × 192; nenhuma logo é gerada ou redesenhada.
 
 | Asset | Fonte oficial |
 | --- | --- |
+| `mercado-pago.png` | Símbolo extraído da imagem de marca referenciada no README oficial https://github.com/mercadopago/sdk-nodejs — https://github.com/lucmkz/sdk-nodejs/assets/31546923/84211022-6fc5-4db1-8772-117eca84f2d9 (adicionado em 07/10/2026) |
+| `banco-do-brasil.png` | https://www.bb.com.br/favicon.ico (adicionado em 07/10/2026) |
 | `bradesco.png` | https://banco.bradesco/favicon.ico |
 | `btg.png` | https://banking.btgpactual.com/favicon.png?v=1 |
 | `inter.png` | https://inter.co/favicon.svg |

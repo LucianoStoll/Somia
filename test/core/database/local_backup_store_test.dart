@@ -18,6 +18,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
+  // Full disk backup/migration is slower on Windows CI; retain the other limits.
+  final diskTimeout = Timeout(Duration(seconds: Platform.isWindows ? 120 : 30));
   late Directory directory;
   late AppDatabase db;
   late DateTime now;
@@ -112,7 +114,7 @@ void main() {
     expect(manager.error, isNull);
     expect(manager.busy, isFalse);
     manager.dispose();
-  });
+  }, timeout: diskTimeout);
 
   test(
       'restauração inválida preserva a preparada; cancelar mantém os dados atuais',

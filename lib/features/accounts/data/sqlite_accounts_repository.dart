@@ -53,9 +53,15 @@ class SqliteAccountsRepository implements AccountsRepository {
           (SELECT COUNT(*) FROM transfers WHERE
              (source_account_id = ? OR destination_account_id = ?)) +
           (SELECT COUNT(*) FROM credit_cards WHERE payment_account_id = ?) +
-          (SELECT COUNT(*) FROM card_payments WHERE account_id = ?)
+          (SELECT COUNT(*) FROM card_payments WHERE account_id = ?) +
+          (SELECT COUNT(*) FROM investments WHERE account_id = ?) +
+          (SELECT COUNT(*) FROM goal_accounts WHERE account_id = ?) +
+          (SELECT COUNT(*) FROM transaction_settlements WHERE account_id = ?)
           AS total
       ''', variables: [
+        Variable.withString(id),
+        Variable.withString(id),
+        Variable.withString(id),
         Variable.withString(id),
         Variable.withString(id),
         Variable.withString(id),

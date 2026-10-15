@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 /// Compara os campos com a abertura do formulário; foco não conta como edição.
 class UnsavedChangesGuard extends StatefulWidget {
   const UnsavedChangesGuard(
-      {super.key, required this.value, required this.builder});
+      {super.key,
+      required this.value,
+      required this.builder,
+      this.allowCancel = true});
+  final bool allowCancel;
   final Object Function() value;
   final Widget Function(BuildContext context, VoidCallback cancel) builder;
 
@@ -22,7 +26,7 @@ class _UnsavedChangesGuardState extends State<UnsavedChangesGuard> {
   }
 
   Future<void> _cancel() async {
-    if (_confirming) return;
+    if (_confirming || !widget.allowCancel) return;
     if (widget.value() != _original) {
       _confirming = true;
       final discard = await showDialog<bool>(

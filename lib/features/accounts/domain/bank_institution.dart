@@ -8,6 +8,8 @@ class BankInstitution {
   String get assetPath => 'assets/institutions/$id.png';
 
   static const catalog = [
+    BankInstitution('banco-do-brasil', 'Banco do Brasil', aliases: 'BB'),
+    BankInstitution('mercado-pago', 'Mercado Pago', aliases: 'MercadoPago'),
     BankInstitution('bradesco', 'Bradesco'),
     BankInstitution('btg', 'BTG Pactual', aliases: 'BTG Banking'),
     BankInstitution('inter', 'Inter', aliases: 'Banco Inter'),

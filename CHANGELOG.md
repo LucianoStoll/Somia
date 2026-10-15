@@ -1,5 +1,71 @@
 # Changelog
 
+## v0.3.0-alpha — 2026-10-15
+
+Publicação autorizada pelo usuário em 15/10/2026. [Notas da versão](docs/releases/v0.3.0-alpha.md). As pendências adicionais de relatórios, importação e conciliação permanecem para a próxima alpha.
+
+- Resumo: agendamentos futuros permanecem no previsto e não entram em “Pago/Recebido no mês” antes da data de efetivação. Corte alinhado à lista para despesas, receitas, baixas parciais, transferências, cartões e evolução do saldo, sem alterar dados.
+
+- Identidade grafite/pastel do Resumo aplicada aos sete módulos financeiros: indicadores, cards separados, ações compactas, informações expansíveis e campos discretos. Sem mudança de dados; roteiro em `docs/identidade-modulos-alpha.md`.
+
+### Experiência diária e preferências do Resumo — #59
+
+- Menu agrupado, listas por dia com totais por moeda e filtros ativos removíveis.
+- Descrição abre detalhes; edição, valor/calculadora, efetivação, baixas, rateios e anexos mantêm acesso próprio.
+- Blocos do Resumo recolhíveis e preferência de ocultar contas zeradas lembradas ao reabrir, por aparelho; contas negativas permanecem visíveis.
+- Reembolsos com situação explícita e cashback com orientação para recebimentos/devoluções.
+- Sem mudança de schema ou cálculos; regras e validação em `docs/experiencia-final-alpha.md`.
+
+### Exportação de análises — primeira etapa da #14
+
+- Android/Windows: exportar as quatro análises em Excel (.xlsx) e PDF pelo menu da barra superior, respeitando mês e moeda selecionados.
+- Totais e detalhes rastreáveis, datas/valores nativos no Excel, fonte incorporada e paginação no PDF; geração offline em segundo plano, cancelamento e erros tratados.
+- Sem alteração de dados/schema. Regras e roteiro em `docs/exportacao-relatorios.md`; importações adicionais e conciliação permanecem na #14.
+
+- #16: anexos sincronizados Android/Windows, conteúdo binário separado por base/hash no Drive, retomada e integridade, exclusões sem ressurreição, cache deduplicado e migração dos anexos locais para schema 26. Atualizar ambos os dispositivos antes de sincronizar; validação pelo uso pendente.
+
+- #77: Resumo responsivo Android/Windows, indicadores de pendências e caixa, vencimentos com efetivação, curva diária, categorias em barras, contas agrupadas com logos e últimos cadastrados. Sem migração adicional; validação manual pelo uso.
+
+- #76: cadastro e seleção de cartão de débito, cobertura de pagamentos de crédito, cashback previsto em Receitas e aba própria, confirmação individual/em lote, faixas, teto, estornos, complementos, histórico imutável e schema 25 com backup/sync. Validação manual pendente.
+
+- Análises (#75): categorias/subcategorias, comparação mensal, compromissos dos próximos seis meses e saldo por tipo de conta, moedas separadas e detalhamento dos lançamentos.
+
+- #71: substituição explícita da base do Drive pelo Android, backup de proteção, retomada de publicação e novo vínculo confirmado no Windows; gerações anteriores preservadas, bloqueio de clientes antigos e divergências concorrentes.
+
+- #70: anexos locais de até 20 MB nos movimentos, prévia de imagens, salvar cópia, integridade SHA-256 e backup completo; schema 23. Transporte individual pelo sync permanece na #16.
+
+- Baixas parciais (#11): conta e data por pagamento/recebimento, histórico e desfazer, restante pendente e integração com saldos, planejamento, rateios e reembolsos; schema 19 com backup/sync.
+
+- Planejamento (#13): orçamento mensal previsto/realizado, metas por contas, reserva por gastos essenciais, renda/poupança e alertas internos; schema 18 com backup/sync.
+
+- Pessoas e reembolsos em Mais opções da despesa: recebimentos parciais como receitas vinculadas, histórico e schema 17 com backup/sync.
+
+- Despesa paga usa vencimento como efetivação por padrão; datas adicionais e opções avançadas ficam em Mais opções expansível.
+
+- Experiência #59: categorias lado a lado e indicador centralizado; seletores compactos; Configurações por seções; categorias recolhíveis com atalho de subcategoria; cor persistente, logo e resumo de limite/fatura na lista de cartões (schema 16).
+
+- Experiência (#59): ícones compartilhados no balão “+”, atalho em Cartões, lista/detalhe/extrato diário de cartões, lançamentos compactos com cores de categorias, atalhos do resumo e formulários em linhas simples. Entrega conjunta para validação; regras em `docs/experiencia-uso.md`.
+
+- #65: dívidas e empréstimos em BRL, vínculo com bem, amortização manual vinculada a despesas existentes, saldo atual/projetado e histórico reversível. Integração ao patrimônio sem duplicação, schema 15 e backup/sync v11–v14. [Regras e roteiro](docs/dividas-emprestimos.md); aguarda validação manual.
+
+- #64: veículos, imóveis e outros bens, aquisição, avaliações e saldo de financiamento manuais com histórico. Resumo de contas BRL, bens e dívidas sem duplicar investimentos. Retirada reversível preserva financiamento em aberto. Schema 14, backups/sync históricos v11–v13 e fila pendente migrada. [Regras e roteiro](docs/bens-patrimonio.md); validada pelo usuário em 06/10/2026.
+
+- #63: ocultar em Despesas faturas com valor mensal zerado, preservando histórico em Cartões.
+
+- #63: valor principal da fatura na lista de despesas e próximas faturas considera apenas os itens do mês, sem acumular anteriores. Saldo anterior e total da dívida identificados separadamente; com saldo anterior, o atalho abre o detalhamento antes de pagar.
+
+- #62: CDB/conta remunerada CDI/poupança, contas existentes sem duplicação, aportes/resgates como transferências, rendimento manual e conferência do saldo bancário com ajuste e histórico. Migration v13 com backup/sync e fila pendente preservados. [Regras e roteiro](docs/investimentos.md); validada pelo usuário em 06/10/2026.
+
+- #61: corrigir/excluir compras em faturas com pagamentos reais/agendados, inclusive mudança de data/fatura, preservando caixa e liquidações. Confirmação, histórico de exclusão e proteção de estornos. Validada pelo usuário junto à #60 em 06/10/2026.
+
+- #60: rateio por categoria/subcategoria, por valor ou percentual, em receitas/despesas/compras; centavos exatos, séries/parcelas/estornos, gráficos e filtros sem duplicação. Migration v12 com validação de backup/sync e preservação de pacotes históricos. [Regras e validação](docs/rateio-categorias.md); validada pelo usuário em 06/10/2026.
+
+Ciclo criado em 06/10/2026 a partir da v0.2.0-alpha integrada pelo [PR #57](https://github.com/LucianoStoll/Somia/pull/57). Planejamento e acompanhamento na [#58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](docs/ciclos/v0.3.0-alpha.md).
+
+- Versão atualizada no pubspec e na identificação local do app.
+- README, fluxo de contribuição, guidelines e roadmap atualizados para a nova branch.
+- Escopo aprovado em 06/10/2026: conclusão das epics #11–#16 e frente de experiência/telas/campos #59. Sequência, dependências e critérios documentados; funcionalidades ainda em planejamento. A base preserva todas as entregas validadas da v0.2.0-alpha.
+
 ## v0.2.0-alpha — 2026-10-06 (pós-MVP)
 
 Escopo validado pelo usuário, incluindo #54 e #56 em 06/10/2026. [Notas consolidadas](docs/releases/v0.2.0-alpha.md) e [inventário de arquivos/commits](docs/releases/v0.2.0-alpha-files.md). Publicação por versão, com notas próprias, pacotes verificados e proteção contra sobrescrever releases publicadas ou tags de outro commit.
