@@ -19,7 +19,7 @@ import 'package:path/path.dart' as p;
 
 void main() {
   // Full disk backup/migration is slower on Windows CI; retain the other limits.
-  final diskTimeout = Timeout(Duration(seconds: Platform.isWindows ? 120 : 30));
+  final diskTimeout = Timeout(Duration(seconds: Platform.isWindows ? 300 : 30));
   late Directory directory;
   late AppDatabase db;
   late DateTime now;

@@ -147,8 +147,10 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
+      # Full SQLite snapshot/migration tests are disk-bound on hosted Windows.
+      # Keep a finite per-test limit without timing out valid backups at 30s.
       - name: Tests on Windows
-        run: flutter test --concurrency=2
+        run: flutter test --concurrency=2 --timeout=180s
       - name: Read app version
         shell: bash
         run: |
