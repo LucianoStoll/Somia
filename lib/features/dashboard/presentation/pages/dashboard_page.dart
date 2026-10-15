@@ -221,35 +221,7 @@ class _DashboardViewState extends State<_DashboardView>
 
   Widget _panel(BuildContext context, String title, Widget content,
           {Widget? action}) =>
-      Card(
-          child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    LayoutBuilder(builder: (context, box) {
-                      final heading = Text(title,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600));
-                      if (action == null) return heading;
-                      if (box.maxWidth < 400 ||
-                          MediaQuery.textScalerOf(context).scale(16) >= 24) {
-                        return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              heading,
-                              Align(
-                                  alignment: Alignment.centerRight,
-                                  child: action)
-                            ]);
-                      }
-                      return Row(children: [Expanded(child: heading), action]);
-                    }),
-                    const SizedBox(height: 16),
-                    content,
-                  ])));
+      SummaryPanel(title: title, action: action, child: content);
 
   Widget _historyPanel(
           BuildContext context, DashboardCurrencySummary currency) =>

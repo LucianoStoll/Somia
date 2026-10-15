@@ -55,9 +55,10 @@ class _SummaryPanelState extends State<SummaryPanel> {
       setState(() {});
       await save;
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Não foi possível lembrar esta escolha.')));
+      }
     }
   }
 
@@ -463,9 +464,10 @@ class _SummaryAccountsState extends State<SummaryAccounts> {
       await getIt<InterfacePreferences>()
           .write('summary.hideZeroAccounts', value);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Não foi possível lembrar esta escolha.')));
+      }
     }
   }
 

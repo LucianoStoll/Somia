@@ -166,27 +166,8 @@ class _Panel extends StatelessWidget {
   final Widget? action;
 
   @override
-  Widget build(BuildContext context) => Card(
-          child: Padding(
-        padding: const EdgeInsets.all(14),
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(children: [
-            Expanded(
-                child: Text(title,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600))),
-            if (action != null) ...[
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 112),
-                  child: action!),
-            ],
-          ]),
-          const SizedBox(height: 10),
-          child,
-        ]),
-      ));
+  Widget build(BuildContext context) =>
+      SummaryPanel(title: title, action: action, child: child);
 }
 
 class _HistoryPanel extends StatelessWidget {
