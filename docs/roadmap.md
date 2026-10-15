@@ -245,3 +245,8 @@ Rateio/reembolso (#11) integra agora o ciclo v0.3.0-alpha. [Fluxo e validação 
 Branch `v0.3.0-alpha` criada a partir do commit integrado de `main` (`8eca99824e0b506d0791c15239adb51cfd480201`), com pubspec, identificação do app, changelog e documentação atualizados. Acompanhamento na [#58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](ciclos/v0.3.0-alpha.md). CI segue gerando pacotes; publicação somente ao integrar o próximo ciclo validado em main.
 
 Escopo aprovado pelo usuário em 06/10/2026: concluir todas as pendências das epics #11–#16 e melhorar experiência, telas e campos no Android/Windows (#59). Sequência de entregas: transações avançadas → cartões → planejamento → patrimônio/dívidas/investimentos → relatórios/importação/conciliação → anexos sincronizados. A melhoria de experiência acompanha cada etapa e recebe revisão integrada ao fim. Dependências e critérios estão no [documento do ciclo](ciclos/v0.3.0-alpha.md).
+
+
+## Fechamento da v0.3.0-alpha — 15/10/2026
+
+Publicação autorizada pelo usuário. Entregas e limites nas [notas da versão](releases/v0.3.0-alpha.md). O escopo vigente de fechamento prevalece sobre o planejamento inicial: relatórios adicionais/importação/conciliação ficam para a próxima alpha, assim como internacionais/adicionais/importação de faturas. O próximo ciclo e sua numeração ainda não foram abertos.

@@ -1,6 +1,8 @@
 # Changelog
 
-## v0.3.0-alpha — em desenvolvimento
+## v0.3.0-alpha — 2026-10-15
+
+Publicação autorizada pelo usuário em 15/10/2026. [Notas da versão](docs/releases/v0.3.0-alpha.md). As pendências adicionais de relatórios, importação e conciliação permanecem para a próxima alpha.
 
 - Resumo: agendamentos futuros permanecem no previsto e não entram em “Pago/Recebido no mês” antes da data de efetivação. Corte alinhado à lista para despesas, receitas, baixas parciais, transferências, cartões e evolução do saldo, sem alterar dados.
 
