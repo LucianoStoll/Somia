@@ -71,16 +71,18 @@ class _ImportHistoryDialogState extends State<ImportHistoryDialog> {
       );
       if (confirmed != true || !mounted) return;
       await widget.history.undo(batch.id, chosen);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = null;
           _batches = widget.history.batches();
         });
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = e is FormatException
             ? e.message
             : 'Não foi possível desfazer. Nenhum item foi alterado.');
+      }
     }
   }
 
@@ -93,10 +95,12 @@ class _ImportHistoryDialogState extends State<ImportHistoryDialog> {
           child: FutureBuilder<List<ImportBatch>>(
             future: _batches,
             builder: (context, snapshot) {
-              if (snapshot.hasError)
+              if (snapshot.hasError) {
                 return const Text('Não foi possível carregar o histórico.');
-              if (!snapshot.hasData)
+              }
+              if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
+              }
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

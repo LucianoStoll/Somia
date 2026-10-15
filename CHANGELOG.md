@@ -2,7 +2,8 @@
 
 ## v0.4.0-alpha — em desenvolvimento
 
-- Importação e conciliação: CSV, perfis de banco, lotes, conciliação assistida, Excel e diagnóstico. Validação por etapa antes da publicação.
+- Importação e conciliação: perfis CSV, datas compartilhadas, filtros e totais de prévia, vínculos com movimentações existentes e comparação opcional do saldo atual.
+- XLSX, identidade de lotes, cópia de proteção antes de importar/desfazer, revisão de conflitos e desfazer seletivo; diagnóstico local sem dados financeiros. Esquema 27. Validação por etapa antes da publicação.
 
 ## v0.3.0-alpha — 2026-10-15
 

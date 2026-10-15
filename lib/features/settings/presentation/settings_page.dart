@@ -112,8 +112,9 @@ class _SettingsPageState extends State<SettingsPage> {
           bytes: bytes,
           mimeType: 'application/json',
         );
-        if (saved != null && mounted)
+        if (saved != null && mounted) {
           _message('Diagnóstico salvo sem dados financeiros.');
+        }
       }, '');
 
   Future<void> _configureDrive() => _localAction(() async {

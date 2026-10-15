@@ -214,6 +214,8 @@ void main() {
         type: TransactionType.expense,
         amountMinor: 12000,
         date: DateTime.utc(2026, 10, 5),
+        isEffective: true,
+        effectiveDate: DateTime.utc(2026, 10, 5),
         accountId: account.id));
     final rows = await preview(
         'Descrição;Valor;Data\nAluguel;-120;05/10/2026\nNovo;-10;05/10/2026\nEditar;-20;05/10/2026');

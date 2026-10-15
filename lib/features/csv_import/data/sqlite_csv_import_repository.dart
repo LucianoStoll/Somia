@@ -71,9 +71,10 @@ class SqliteCsvImportRepository
           final batch = await db.customSelect(
               'SELECT id FROM import_batches WHERE id=? AND undone_at IS NULL',
               variables: [Variable.withString(batchId)]).get();
-          if (batch.isEmpty)
+          if (batch.isEmpty) {
             throw const FormatException(
                 'Lote não disponível. Atualize a lista.');
+          }
           final entries = await inspectUndo(batchId);
           if (entryIds.length !=
                   entries.where((e) => entryIds.contains(e.id)).length ||
