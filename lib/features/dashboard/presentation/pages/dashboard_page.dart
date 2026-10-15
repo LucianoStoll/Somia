@@ -8,7 +8,7 @@ import '../../../../core/widgets/month_selector.dart';
 import '../../../../core/widgets/balance_help_button.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/routing/somia_shell.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../widgets/dashboard_palette.dart';
 import '../../../../core/widgets/somia_brand.dart';
 import '../../../accounts/domain/money_minor.dart';
 import '../../domain/dashboard_repository.dart';
@@ -16,17 +16,8 @@ import '../../domain/entities/dashboard_summary.dart';
 import '../dashboard_cubit.dart';
 import '../widgets/mobile_dashboard.dart';
 import '../widgets/desktop_history_chart.dart';
-import '../widgets/balance_details_panel.dart';
 import '../widgets/dashboard_category_chart.dart';
-
-const _chartColors = [
-  SomiaColors.blue,
-  SomiaColors.red,
-  SomiaColors.purple,
-  SomiaColors.green,
-  SomiaColors.yellow,
-  Color(0xFF8F9BB7)
-];
+import '../widgets/dashboard_overview.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -35,7 +26,20 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) => BlocProvider(
         create: (_) => DashboardCubit(getIt<DashboardRepository>(),
             selection: referenceMonth),
-        child: const _DashboardView(),
+        child: Builder(builder: (context) {
+          final theme = Theme.of(context);
+          return Theme(
+              data: theme.copyWith(
+                scaffoldBackgroundColor: SomiaColors.background,
+                colorScheme: theme.colorScheme.copyWith(
+                    primary: SomiaColors.blue, surface: SomiaColors.surface),
+                appBarTheme: theme.appBarTheme
+                    .copyWith(backgroundColor: SomiaColors.background),
+                cardTheme: theme.cardTheme.copyWith(color: SomiaColors.surface),
+                dividerColor: SomiaColors.outline,
+              ),
+              child: const _DashboardView());
+        }),
       );
 }
 
@@ -109,7 +113,7 @@ class _DashboardViewState extends State<_DashboardView>
                             Center(
                                 child: ConstrainedBox(
                                     constraints:
-                                        const BoxConstraints(maxWidth: 1260),
+                                        const BoxConstraints(maxWidth: 1760),
                                     child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.stretch,
@@ -178,165 +182,42 @@ class _DashboardViewState extends State<_DashboardView>
       DashboardCurrencySummary currency,
       DateTime month,
       bool multipleCurrencies) {
-    final now = DateTime.now();
-    final future = DateTime(month.year, month.month)
-        .isAfter(DateTime(now.year, now.month));
     final code = currency.currencyCode;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      if (multipleCurrencies || code != 'BRL')
-        Padding(
-            padding: const EdgeInsets.only(top: 18, bottom: 10),
-            child: Text(code, style: Theme.of(context).textTheme.titleMedium)),
-      LayoutBuilder(builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 940
-            ? 4
-            : constraints.maxWidth >= 480
-                ? 2
-                : 1;
-        const gap = 12.0;
-        final width = (constraints.maxWidth - gap * (columns - 1)) / columns;
-        final tiles = [
-          BalanceDetailCard(
-              currencyCode: code,
-              child: _metric(
-                  context,
-                  future ? 'Saldo previsto' : 'Saldo total',
-                  future
-                      ? currency.projectedBalanceMinor
-                      : currency.currentBalanceMinor,
-                  code,
-                  Icons.account_balance_wallet_outlined,
-                  SomiaColors.blue,
-                  future
-                      ? 'Saldo efetivado: ${MoneyMinor.display(currency.currentBalanceMinor, code)}'
-                      : 'Saldo projetado: ${MoneyMinor.display(currency.projectedBalanceMinor, code)}')),
-          _sectionLink(
-              context,
-              AppRoutes.incomePath,
-              'Receitas',
-              _metric(
-                  context,
-                  'Receitas',
-                  currency.incomeMinor,
-                  code,
-                  Icons.arrow_upward_rounded,
-                  SomiaColors.green,
-                  'Efetivados e previstos')),
-          _sectionLink(
-              context,
-              AppRoutes.expensesPath,
-              'Despesas',
-              _metric(
-                  context,
-                  'Despesas',
-                  currency.expenseMinor,
-                  code,
-                  Icons.arrow_downward_rounded,
-                  SomiaColors.red,
-                  'Efetivados e previstos')),
-          BalanceDetailCard(
-              key: ValueKey('desktop-projected-$code'),
-              currencyCode: code,
-              child: _metric(
-                  context,
-                  'Saldo projetado',
-                  currency.projectedBalanceMinor,
-                  code,
-                  Icons.bar_chart_rounded,
-                  SomiaColors.blue,
-                  MoneyMinor.display(currency.monthlyResultMinor, code))),
-        ];
-        return Wrap(spacing: gap, runSpacing: gap, children: [
-          for (final tile in tiles) SizedBox(width: width, child: tile)
-        ]);
-      }),
-      const SizedBox(height: 12),
-      LayoutBuilder(builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 790 &&
-            MediaQuery.textScalerOf(context).scale(16) < 24;
-        final chart = _historyPanel(context, currency);
-        final donut = _categoryPanel(context, currency);
-        return wide
+      if (multipleCurrencies || code != 'BRL') Text(code),
+      SummaryMetrics(currency: currency, month: month),
+      const SizedBox(height: 16),
+      LayoutBuilder(builder: (context, box) {
+        final evolution = BalanceEvolutionPanel(currency: currency);
+        final categories = _categoryPanel(context, currency);
+        return box.maxWidth >= 900 &&
+                MediaQuery.textScalerOf(context).scale(16) < 24
             ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(flex: 11, child: chart),
-                const SizedBox(width: 12),
-                Expanded(flex: 9, child: donut),
+                Expanded(flex: 6, child: evolution),
+                const SizedBox(width: 16),
+                Expanded(flex: 5, child: categories)
               ])
-            : Column(children: [chart, const SizedBox(height: 12), donut]);
+            : Column(
+                children: [evolution, const SizedBox(height: 16), categories]);
       }),
+      const SizedBox(height: 16),
+      LayoutBuilder(builder: (context, box) {
+        final history = _historyPanel(context, currency);
+        final types = AccountTypesPanel(currency: currency);
+        return box.maxWidth >= 900 &&
+                MediaQuery.textScalerOf(context).scale(16) < 24
+            ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(flex: 6, child: history),
+                const SizedBox(width: 16),
+                Expanded(flex: 5, child: types)
+              ])
+            : Column(children: [history, const SizedBox(height: 16), types]);
+      }),
+      const SizedBox(height: 16),
+      UpcomingPanel(currency: currency),
       const SizedBox(height: 6),
     ]);
   }
-
-  Widget _sectionLink(
-          BuildContext context, String path, String label, Widget child) =>
-      Semantics(
-          button: true,
-          label: 'Abrir $label',
-          child: InkWell(
-              key: ValueKey('dashboard-link-$path'),
-              onTap: () => context.go(path),
-              borderRadius: BorderRadius.circular(15),
-              child: child));
-
-  Widget _metric(BuildContext context, String label, int amount, String code,
-          IconData icon, Color tint, String detail) =>
-      Container(
-          constraints: const BoxConstraints(minHeight: 146),
-          padding: const EdgeInsets.all(17),
-          decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [tint.withValues(alpha: 0.12), SomiaColors.surface]),
-              border: Border.all(color: SomiaColors.outline),
-              borderRadius: BorderRadius.circular(15)),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: tint.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Icon(icon, size: 19, color: tint)),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: Text(label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: tint))),
-            ]),
-            const SizedBox(height: 15),
-            FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(MoneyMinor.display(amount, code),
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w700))),
-            const SizedBox(height: 8),
-            if (label == 'Saldo projetado') ...[
-              Text('Resultado do mês',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: SomiaColors.muted)),
-              Text(detail,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: SomiaColors.muted)),
-            ] else
-              Text(detail,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: SomiaColors.muted)),
-          ]));
 
   Widget _panel(BuildContext context, String title, Widget content,
           {Widget? action}) =>
@@ -409,7 +290,7 @@ class _DashboardViewState extends State<_DashboardView>
             MediaQuery.textScalerOf(context).scale(16) < 24;
         final transactions = _panel(
             context,
-            'Últimos lançamentos',
+            'Últimos cadastrados',
             recent.isEmpty
                 ? const Text('Nenhuma movimentação ainda.')
                 : Column(children: [
@@ -418,19 +299,7 @@ class _DashboardViewState extends State<_DashboardView>
             action: TextButton(
                 onPressed: () => context.goNamed(AppRoutes.transactions),
                 child: const Text('Ver todos')));
-        final accounts = _panel(
-            context,
-            'Saldo por conta',
-            currencies.every((c) => c.accounts.isEmpty)
-                ? const Text('Nenhuma conta cadastrada.')
-                : Column(children: [
-                    for (final currency in currencies)
-                      for (final account in currency.accounts.take(5))
-                        _accountTile(context, account)
-                  ]),
-            action: TextButton(
-                onPressed: () => context.goNamed(AppRoutes.accounts),
-                child: const Text('Ver todas')));
+        final accounts = SummaryAccounts(currencies: currencies);
         return wide
             ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: transactions),
@@ -476,25 +345,6 @@ class _DashboardViewState extends State<_DashboardView>
             : item.type == DashboardActivityType.income
                 ? AppRoutes.income
                 : AppRoutes.expenses));
-  }
-
-  Widget _accountTile(BuildContext context, DashboardAccountBalance account) {
-    final color = _chartColors[
-        account.name.codeUnits.fold<int>(0, (value, code) => value + code) %
-            _chartColors.length];
-    return ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: CircleAvatar(
-            backgroundColor: color.withValues(alpha: 0.22),
-            child: Text(
-                account.name.isEmpty ? '?' : account.name[0].toUpperCase(),
-                style: TextStyle(color: color, fontWeight: FontWeight.w700))),
-        title: Text(account.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(account.typeLabel),
-        trailing: Text(
-            MoneyMinor.display(account.currentMinor, account.currencyCode),
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        onTap: () => context.goNamed(AppRoutes.accounts));
   }
 }
 

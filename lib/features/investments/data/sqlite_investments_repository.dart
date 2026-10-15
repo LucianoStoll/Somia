@@ -37,7 +37,8 @@ class SqliteInvestmentsRepository implements InvestmentsRepository {
                     ? null
                     : DateTime.fromMillisecondsSinceEpoch(
                         r.read<int>('maturity_at'),
-                        isUtc: true),
+                        isUtc: true,
+                      ),
                 account: byId[r.read<String>('account_id')] ??
                     (throw StateError('Conta da aplicação indisponível.')),
               ),
@@ -67,21 +68,24 @@ class SqliteInvestmentsRepository implements InvestmentsRepository {
         }
         final maturityMillis = maturity == null
             ? null
-            : DateTime.utc(maturity.year, maturity.month, maturity.day)
-                .millisecondsSinceEpoch;
+            : DateTime.utc(
+                maturity.year,
+                maturity.month,
+                maturity.day,
+              ).millisecondsSinceEpoch;
         final now = EntityMetadata.nowUtcMillis();
         if (id != null) {
           final original = await _find(id);
-          if (draft.accountId != null &&
-              draft.accountId != original.account.id) {
-            throw const FormatException(
-              'O vínculo da conta não pode ser alterado.',
-            );
+          final accountId = draft.accountId ?? original.account.id;
+          if (accountId != original.account.id) {
+            await _activeAccount(accountId);
+            await _availableAccount(accountId, exceptId: id);
           }
           await db.customStatement(
-            '''UPDATE investments SET name=?,kind=?,institution=?,
+            '''UPDATE investments SET account_id=?,name=?,kind=?,institution=?,
         notes=?,maturity_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?''',
             [
+              accountId,
               draft.name.trim(),
               draft.kind.name,
               draft.institution.trim(),
@@ -101,15 +105,7 @@ class SqliteInvestmentsRepository implements InvestmentsRepository {
             );
           }
           await _activeAccount(accountId);
-          final used = await db.customSelect(
-            'SELECT id FROM investments WHERE account_id=?',
-            variables: [Variable(accountId)],
-          ).get();
-          if (used.isNotEmpty) {
-            throw const FormatException(
-              'Esta conta já está vinculada a uma aplicação.',
-            );
-          }
+          await _availableAccount(accountId);
         } else {
           accountId = (await SqliteAccountsRepository(db).create(
             AccountDraft(
@@ -140,6 +136,28 @@ class SqliteInvestmentsRepository implements InvestmentsRepository {
             now,
             now,
           ],
+        );
+      });
+
+  Future<void> _availableAccount(String accountId, {String? exceptId}) async {
+    final rows = await db.customSelect(
+      'SELECT id FROM investments WHERE account_id=? AND deleted_at IS NULL',
+      variables: [Variable(accountId)],
+    ).get();
+    if (rows.any((row) => row.read<String>('id') != exceptId)) {
+      throw const FormatException(
+        'Esta conta já está vinculada a uma aplicação.',
+      );
+    }
+  }
+
+  @override
+  Future<void> delete(String id) => db.transaction(() async {
+        await _find(id);
+        final now = EntityMetadata.nowUtcMillis();
+        await db.customStatement(
+          'UPDATE investments SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=? AND deleted_at IS NULL',
+          [now, now, id],
         );
       });
 

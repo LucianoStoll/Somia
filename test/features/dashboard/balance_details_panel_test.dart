@@ -111,10 +111,14 @@ void main() {
     testWidgets('abre, reconcilia, rola e fecha $config', (tester) async {
       await open(tester,
           platform: config.$1, size: config.$2, scale: config.$3);
-      await tester.ensureVisible(
-          find.byKey(const ValueKey('balance-detail-BRL')).first);
+      final balanceTitle = find
+          .descendant(
+              of: find.byKey(const ValueKey('balance-detail-BRL')).first,
+              matching: find.byType(Text))
+          .first;
+      await tester.ensureVisible(balanceTitle);
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('balance-detail-BRL')).first);
+      await tester.tap(balanceTitle);
       await tester.pumpAndSettle();
       expect(
           find.byKey(const ValueKey('balance-details-panel')), findsOneWidget);
@@ -245,6 +249,7 @@ void main() {
         platform: TargetPlatform.windows, size: const Size(1280, 900));
     final card = find.byKey(const ValueKey('desktop-projected-USD'));
     await tester.ensureVisible(card);
+    await tester.pumpAndSettle();
     await tester.tap(card);
     await tester.pumpAndSettle();
     expect(find.text('Outubro 2026 · USD'), findsOneWidget);

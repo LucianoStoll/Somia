@@ -13,7 +13,7 @@ class SqliteTransfersRepository implements TransfersRepository {
   final AppDatabase _db;
 
   static const _select = '''
-    SELECT f.id, f.description, f.source_account_id, f.destination_account_id,
+    SELECT f.updated_at, f.sync_version, f.id, f.description, f.source_account_id, f.destination_account_id,
       f.series_id, f.series_index, f.series_kind, f.series_count, f.series_unit, f.series_interval,
       f.amount_minor, f.posted_at, f.due_at, f.effective_at,
       source.name AS source_name, destination.name AS destination_name,
@@ -321,6 +321,8 @@ class SqliteTransfersRepository implements TransfersRepository {
 
   Transfer _map(QueryRow row) => Transfer(
         id: row.read<String>('id'),
+        revision:
+            "${row.read<int>('updated_at')}:${row.read<int>('sync_version')}",
         series: SeriesStore.info(row),
         description: row.read<String>('description'),
         sourceAccountId: row.read<String>('source_account_id'),

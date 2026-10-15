@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
+import 'dashboard_palette.dart';
 import '../../domain/entities/dashboard_summary.dart';
 import 'history_tooltip_chart.dart';
 

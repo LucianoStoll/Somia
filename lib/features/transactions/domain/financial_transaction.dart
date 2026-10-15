@@ -17,8 +17,13 @@ enum TransactionDateField { posted, due, effective }
 class FinancialTransaction {
   const FinancialTransaction({
     required this.id,
+    this.revision = '',
     this.series,
+    this.settlementCount = 0,
+    this.settledMinor = 0,
+    this.scheduledSettlementMinor = 0,
     this.cardId,
+    this.debitCardId,
     this.cardInvoiceMonth,
     this.cardInvoiceId,
     this.cardBalanceMinor = 0,
@@ -28,6 +33,8 @@ class FinancialTransaction {
     this.cardLastPaymentId,
     this.cardPaymentSignature = '',
     this.allocations = const [],
+    this.tags = const [],
+    this.establishment = '',
     required this.description,
     required this.type,
     required this.amountMinor,
@@ -43,8 +50,13 @@ class FinancialTransaction {
   });
 
   final String id;
+  final String revision;
+  final int settlementCount, settledMinor, scheduledSettlementMinor;
+  int get remainingMinor =>
+      amountMinor - settledMinor - scheduledSettlementMinor;
   final SeriesInfo? series;
   final String? cardId;
+  final String? debitCardId;
   final DateTime? cardInvoiceMonth;
   final String? cardInvoiceId, cardLastPaymentId;
   final int cardBalanceMinor,
@@ -53,6 +65,8 @@ class FinancialTransaction {
       cardEntryCount;
   final String cardPaymentSignature;
   final List<CategoryAllocation> allocations;
+  final List<String> tags;
+  final String establishment;
   final String description;
   final TransactionType type;
   final int amountMinor;
@@ -73,6 +87,8 @@ class TransactionDraft {
   const TransactionDraft({
     this.reimbursements,
     this.allocations = const [],
+    this.tags = const [],
+    this.establishment = '',
     required this.description,
     required this.type,
     required this.amountMinor,
@@ -82,6 +98,7 @@ class TransactionDraft {
     required this.isEffective,
     this.seriesPlan,
     this.cardId,
+    this.debitCardId,
     this.cardInvoiceMonth,
     this.cardFirstInstallment = 1,
     this.scope = SeriesScope.onlyThis,
@@ -90,6 +107,8 @@ class TransactionDraft {
   });
 
   final List<CategoryAllocation> allocations;
+  final List<String> tags;
+  final String establishment;
   final List<ReimbursementDraft>? reimbursements;
 
   final String description;
@@ -101,6 +120,7 @@ class TransactionDraft {
   final bool isEffective;
   final SeriesPlan? seriesPlan;
   final String? cardId;
+  final String? debitCardId;
   final DateTime? cardInvoiceMonth;
   final int cardFirstInstallment;
   final SeriesScope scope;
@@ -111,6 +131,8 @@ class TransactionDraft {
 class TransactionFilter {
   const TransactionFilter(
       {this.type,
+      this.tag,
+      this.establishment,
       this.accountId,
       this.categoryId,
       this.status = TransactionStatus.all,
@@ -119,6 +141,8 @@ class TransactionFilter {
       this.dateField = TransactionDateField.due});
 
   final TransactionType? type;
+  final String? tag;
+  final String? establishment;
   final String? accountId;
   final String? categoryId;
   final TransactionStatus status;

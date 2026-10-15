@@ -1,3 +1,5 @@
+import '../../transactions/domain/establishment.dart';
+import '../../transactions/domain/transaction_tags.dart';
 import '../../reimbursements/data/reimbursements_repository.dart';
 import '../../../core/database/reimbursement_integrity.dart';
 import '../../../core/allocations/category_allocation.dart';
@@ -11,12 +13,22 @@ import '../../../core/database/entity_metadata.dart';
 import '../../../core/series/movement_series.dart';
 import '../../transactions/domain/financial_transaction.dart';
 import '../domain/credit_card.dart';
+import 'card_payment_coverage_repository.dart';
+import 'cashback_repository.dart';
+import '../../../core/database/card_rewards_integrity.dart';
 
 /// Ledger separado das contas. Cada encargo/crédito aparece uma vez;
 /// carry-over é derivado, sem copiar dívida entre faturas.
 class CardsRepository {
   const CardsRepository(this.db);
   final AppDatabase db;
+  Future<T> _checked<T>(Future<T> Function() action) =>
+      db.transaction(() async {
+        final result = await action();
+        await CashbackRepository(db).reconcile();
+        await validateCardRewards(db);
+        return result;
+      });
   static const maxMoney = 9000000000000000;
   Future<List<QueryRow>> _rows(String sql, [List<Object> args = const []]) => db
       .customSelect(sql,
@@ -91,8 +103,7 @@ class CardsRepository {
   Future<CreditCard> find(String id) async =>
       (await list()).firstWhere((c) => c.id == id,
           orElse: () => throw StateError('Cartão não encontrado.'));
-  Future<String> save(CardDraft draft, {String? id}) =>
-      db.transaction(() async {
+  Future<String> save(CardDraft draft, {String? id}) => _checked(() async {
         if (draft.name.trim().isEmpty ||
             draft.closingDay < 1 ||
             draft.closingDay > 31 ||
@@ -220,6 +231,8 @@ class CardsRepository {
       required DateTime date,
       String? categoryId,
       List<CategoryAllocation> allocations = const [],
+      List<String> tags = const [],
+      String establishment = '',
       String kind = 'purchase',
       int index = 0,
       int count = 1,
@@ -234,8 +247,8 @@ class CardsRepository {
     }
     final now = EntityMetadata.nowUtcMillis();
     await db.customStatement(
-        '''INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,installment_index,installment_count,description,category_id,kind,amount_minor,posted_at,source_id,created_at,updated_at,allocations_json)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+        '''INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,installment_index,installment_count,description,category_id,kind,amount_minor,posted_at,source_id,created_at,updated_at,allocations_json,tags_json,establishment)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         [
           id ?? EntityMetadata.newId(),
           cardId,
@@ -252,11 +265,12 @@ class CardsRepository {
           now,
           now,
           CategoryAllocation.encode(allocations),
+          TransactionTags.encode(tags),
+          Establishment.normalize(establishment),
         ]);
   }
 
-  Future<String> createPurchase(TransactionDraft draft) =>
-      db.transaction(() async {
+  Future<String> createPurchase(TransactionDraft draft) => _checked(() async {
         final cardId = draft.cardId!;
         final card = await find(cardId);
         if (card.isArchived) throw StateError('Cartão arquivado.');
@@ -301,6 +315,8 @@ class CardsRepository {
               invoiceId: target,
               purchaseId: purchaseId,
               description: draft.description,
+              tags: draft.tags,
+              establishment: draft.establishment,
               amount: amounts[index],
               date: draft.date,
               categoryId: draft.categoryId,
@@ -340,6 +356,10 @@ class CardsRepository {
             dueAt: cardDate(r.read<int>('due_at')),
             invoiceMonth: cardDate(r.read<int>('month_at')),
             categoryId: r.readNullable<String>('category_id'),
+            tags: TransactionTags.decode(r.read<String>('tags_json')),
+            revision:
+                "${r.read<int>('updated_at')}:${r.read<int>('sync_version')}",
+            establishment: r.read<String>('establishment'),
             allocations: CategoryAllocation.decode(
               r.read<String>('allocations_json'),
             ),
@@ -352,7 +372,7 @@ class CardsRepository {
       (await entries()).firstWhere((e) => e.id == id,
           orElse: () => throw StateError('Compra não encontrada.'));
   Future<List<CardInvoice>> invoices(String cardId, {DateTime? selected}) =>
-      db.transaction(() async {
+      _checked(() async {
         if (selected != null) {
           await ensureInvoice(cardId, selected);
           // Mantém a próxima disponível para mostrar a passagem do saldo parcial.
@@ -411,7 +431,7 @@ class CardsRepository {
   }
 
   Future<void> adjustDates(String id, DateTime closing, DateTime due) =>
-      db.transaction(() async {
+      _checked(() async {
         _date(closing);
         _date(due);
         if (cardDay(closing) > cardDay(due)) {
@@ -442,8 +462,8 @@ class CardsRepository {
       });
   Future<void> pay(
           String invoiceId, String accountId, int amount, DateTime date,
-          {int fee = 0, int discount = 0}) =>
-      db.transaction(() async {
+          {int fee = 0, int discount = 0, Map<String, int>? coverage}) =>
+      _checked(() async {
         _money(amount);
         _money(fee, zero: true);
         _money(discount, zero: true);
@@ -454,6 +474,7 @@ class CardsRepository {
         await db.customStatement(
             'INSERT INTO card_payments(id,invoice_id,account_id,amount_minor,effective_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
             [id, invoiceId, accountId, amount, cardDay(date), now, now]);
+        await CardPaymentCoverageRepository(db).allocate(id, coverage);
         if (fee > 0) {
           await _insertEntry(
               cardId: inv.cardId,
@@ -477,7 +498,7 @@ class CardsRepository {
               sourceId: id);
         }
       });
-  Future<void> undoPayment(String id) => db.transaction(() async {
+  Future<void> undoPayment(String id) => _checked(() async {
         await _one('card_payments', id);
         final now = EntityMetadata.nowUtcMillis();
         await db.customStatement(
@@ -546,7 +567,7 @@ class CardsRepository {
   }
 
   Future<void> editPurchase(String id, TransactionDraft draft) =>
-      db.transaction(() async {
+      _checked(() async {
         final original = await entry(id);
         CategoryAllocation.validate(draft.allocations, draft.amountMinor);
         if (draft.allocations.isNotEmpty && draft.categoryId != null) {
@@ -584,8 +605,10 @@ class CardsRepository {
           }
           await _history(e, 'edit', target, draft.amountMinor);
           await db.customStatement(
-              'UPDATE card_entries SET allocations_json=?,description=?,amount_minor=?,posted_at=?,category_id=?,invoice_id=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+              'UPDATE card_entries SET establishment=?,tags_json=?,allocations_json=?,description=?,amount_minor=?,posted_at=?,category_id=?,invoice_id=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
               [
+                Establishment.normalize(draft.establishment),
+                TransactionTags.encode(draft.tags),
                 CategoryAllocation.encode(draft.allocations),
                 draft.description.trim(),
                 draft.amountMinor,
@@ -604,7 +627,7 @@ class CardsRepository {
       });
   Future<void> updateAmount(
           String id, int expected, int amount, SeriesScope scope) =>
-      db.transaction(() async {
+      _checked(() async {
         _money(amount);
         if ((await entry(id)).amountMinor != expected) {
           throw StateError('O valor mudou. Atualize a lista.');
@@ -628,7 +651,7 @@ class CardsRepository {
         await validateReimbursements(db);
       });
   Future<void> deletePurchase(String id, SeriesScope scope) =>
-      db.transaction(() async {
+      _checked(() async {
         final now = EntityMetadata.nowUtcMillis();
         final targets = await _targets(id, scope);
         for (final e in targets) {
@@ -644,13 +667,13 @@ class CardsRepository {
           }
           await _history(e, 'delete', e.invoiceId, 0);
           await db.customStatement(
-              'UPDATE card_entries SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+              "UPDATE card_entries SET trash_state='trashed',deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?",
               [now, now, e.id]);
         }
         await validateReimbursements(db);
       });
   Future<void> refund(String id, int amount, String invoiceId, DateTime date) =>
-      db.transaction(() async {
+      _checked(() async {
         _money(amount);
         _date(date);
         final original = await entry(id);
@@ -683,7 +706,7 @@ class CardsRepository {
             sourceId: original.purchaseId);
       });
   Future<void> anticipate(List<String> ids, String invoiceId, int discount) =>
-      db.transaction(() async {
+      _checked(() async {
         if (ids.isEmpty || ids.toSet().length != ids.length) {
           throw const FormatException('Selecione parcelas distintas.');
         }
@@ -728,7 +751,7 @@ class CardsRepository {
         }
       });
   Future<void> opening(String cardId, DateTime month, int amount) =>
-      db.transaction(() async {
+      _checked(() async {
         _money(amount, signed: true);
         final invoiceId = await ensureInvoice(cardId, month);
         await _insertEntry(
@@ -765,13 +788,15 @@ class CardsRepository {
       final action = switch (r.read<String>('action')) {
         'anticipate' => 'Antecipação',
         'delete' => 'Exclusão',
+        'restore' => 'Restauração',
+        'purge' => 'Exclusão definitiva',
         _ => 'Edição',
       };
       return '${date.day}/${date.month}/${date.year}: $action para ${month.month}/${month.year}';
     }).toList();
   }
 
-  Future<void> removeAdjustment(String id) => db.transaction(() async {
+  Future<void> removeAdjustment(String id) => _checked(() async {
         final e = await entry(id);
         if (e.kind == 'purchase' ||
             e.kind == 'fee' ||
@@ -784,16 +809,19 @@ class CardsRepository {
         }
         final now = EntityMetadata.nowUtcMillis();
         await db.customStatement(
-            'UPDATE card_entries SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+            "UPDATE card_entries SET trash_state='trashed',deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?",
             [now, now, id]);
       });
 
   FinancialTransaction movement(CardEntry e, CreditCard c) =>
       FinancialTransaction(
           id: 'card:${e.id}',
+          revision: e.revision,
           cardId: c.id,
           cardInvoiceMonth: e.invoiceMonth,
           description: e.description,
+          tags: e.tags,
+          establishment: e.establishment,
           type: TransactionType.expense,
           amountMinor: e.amountMinor,
           date: e.postedAt,
@@ -829,7 +857,7 @@ class CardsRepository {
           required String expectedSignature,
           required String expectedAccountId,
           required DateTime date}) =>
-      db.transaction(() async {
+      _checked(() async {
         _date(date);
         final bill = await invoice(id);
         final card = await find(bill.cardId);
@@ -872,6 +900,9 @@ class CardsRepository {
                 now
               ]);
         }
+        if (newId != null) {
+          await CardPaymentCoverageRepository(db).allocate(newId, null);
+        }
         return CardSettlement(
             invoiceId: id,
             date: date,
@@ -896,8 +927,7 @@ class CardsRepository {
     }
   }
 
-  Future<void> undoSettlement(CardSettlement action) =>
-      db.transaction(() async {
+  Future<void> undoSettlement(CardSettlement action) => _checked(() async {
         await _checkSettlement(action);
         if (action.newPaymentId != null) {
           await undoPayment(action.newPaymentId!);
@@ -910,7 +940,7 @@ class CardsRepository {
         }
       });
   Future<void> changeSettlementDate(CardSettlement action, DateTime date) =>
-      db.transaction(() async {
+      _checked(() async {
         _date(date);
         await _checkSettlement(action);
         final now = EntityMetadata.nowUtcMillis();
@@ -925,7 +955,7 @@ class CardsRepository {
       });
   Future<void> undoInvoicePayment(
           String invoiceId, String paymentId, String signature) =>
-      db.transaction(() async {
+      _checked(() async {
         final bill = await invoice(invoiceId);
         if (paymentSignature(bill) != signature ||
             !bill.payments.any((p) =>
@@ -938,7 +968,7 @@ class CardsRepository {
       });
 
   Future<List<FinancialTransaction>> movements(TransactionFilter filter) =>
-      db.transaction(() async {
+      _checked(() async {
         if (filter.type == TransactionType.income) return [];
         final result = <FinancialTransaction>[];
         final accountRows = await _rows(
@@ -1001,6 +1031,17 @@ class CardsRepository {
                       e.allocations
                           .any((p) => categories.contains(p.categoryId)),
                 )) {
+              continue;
+            }
+            if ((filter.tag != null || filter.establishment != null) &&
+                !bill.entries.any((e) =>
+                    (filter.tag == null ||
+                        e.tags.any((tag) =>
+                            TransactionTags.key(tag) ==
+                            TransactionTags.key(filter.tag!))) &&
+                    (filter.establishment == null ||
+                        Establishment.key(e.establishment) ==
+                            Establishment.key(filter.establishment!)))) {
               continue;
             }
             final effective = bill.balanceMinor <= 0;

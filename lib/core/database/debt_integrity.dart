@@ -15,6 +15,7 @@ Future<void> validateDebtFinancial(AppDatabase db) async {
     JOIN accounts a ON a.id=t.account_id
     WHERE p.deleted_at IS NULL AND (d.deleted_at IS NOT NULL OR
       (t.deleted_at IS NULL AND (t.type<>'expense' OR a.currency_code<>'BRL'
+       OR EXISTS(SELECT 1 FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL)
        OR p.principal_minor>t.planned_amount_minor
        OR (t.actual_amount_minor IS NOT NULL AND p.principal_minor>t.actual_amount_minor)
        OR COALESCE(t.effective_at,t.due_at,t.posted_at)<d.reference_at)))

@@ -42,7 +42,7 @@ Future<List<QueryRow>> balanceRows(AppDatabase db,
       a.initial_balance_minor +
       COALESCE((SELECT SUM(CASE WHEN t.type = 'income'
                       THEN t.actual_amount_minor ELSE -t.actual_amount_minor END)
-                FROM transactions t
+                FROM transaction_events t
                 WHERE t.account_id = a.id AND t.effective_at IS NOT NULL
                   $txEffectiveUntil
                   AND t.actual_amount_minor IS NOT NULL
@@ -58,7 +58,7 @@ Future<List<QueryRow>> balanceRows(AppDatabase db,
       AS current_balance_minor,
       COALESCE((SELECT SUM(CASE WHEN t.type = 'income'
                       THEN t.planned_amount_minor ELSE -t.planned_amount_minor END)
-                FROM transactions t
+                FROM transaction_events t
                 WHERE t.account_id = a.id AND $txPending
                   AND t.ignore_balance = 0 AND t.deleted_at IS NULL
                   $txUntil), 0) +

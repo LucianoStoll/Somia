@@ -49,9 +49,13 @@ void main() {
           DateTime? month,
           String? selectedCard,
           int first = 1,
+          List<String> tags = const [],
+          String establishment = '',
           SeriesScope scope = SeriesScope.onlyThis}) =>
       TransactionDraft(
           description: 'Mercado',
+          tags: tags,
+          establishment: establishment,
           type: TransactionType.expense,
           amountMinor: amount,
           date: date ?? DateTime(2026, 1, 10),
@@ -83,6 +87,73 @@ void main() {
         projectedBalanceMinor: b.projectedMinor);
   }
 
+  test(
+      'resumo reconcilia vencimentos e curva com fatura parcial e crédito posterior',
+      () async {
+    final first = await cards
+        .createPurchase(draft(amount: 10000, date: DateTime(2026, 1, 10)));
+    final entry = (await cards.entries()).firstWhere((e) => e.id == first);
+    await cards
+        .createPurchase(draft(amount: 5000, date: DateTime(2026, 2, 10)));
+    await cards.pay(entry.invoiceId, account.id, 2000, DateTime(2026, 1, 20));
+    final invoiceId =
+        await cards.invoiceForPurchase(cardId, DateTime(2026, 2, 10));
+    await cards.refund(first, 4000, invoiceId, DateTime(2026, 2, 15));
+    final summary =
+        (await SqliteDashboardRepository(db).load(DateTime(2026, 3)))
+            .currencies
+            .single;
+    expect(
+        summary.upcoming
+            .where((d) => d.kind == 'invoice')
+            .fold<int>(0, (v, d) => v + d.amountMinor),
+        summary.balanceDetails!.pendingInvoicesMinor);
+    expect(summary.balanceDetails!.pendingInvoicesMinor, 9000);
+    expect(summary.dailyBalances.last.projectedMinor,
+        summary.projectedBalanceMinor);
+  });
+
+  test('estabelecimento acompanha parcelas, edição e filtro sem alterar tags',
+      () async {
+    final id = await cards.createPurchase(
+        draft(count: 2, tags: ['Viagem'], establishment: ' Mercado  Central '));
+    expect(
+        (await cards.entries())
+            .every((e) => e.establishment == 'Mercado Central'),
+        isTrue);
+    expect(
+        await cards.movements(
+            const TransactionFilter(establishment: 'mercado central')),
+        hasLength(2));
+    expect(
+        await cards.movements(const TransactionFilter(establishment: 'Outro')),
+        isEmpty);
+    await cards
+        .createPurchase(draft(tags: ['Outra'], establishment: 'Farmácia'));
+    expect(
+        await cards.movements(
+            const TransactionFilter(establishment: 'Farmácia', tag: 'Viagem')),
+        isEmpty);
+    await cards.editPurchase(
+        id, draft(amount: 5000, tags: ['Viagem'], establishment: 'Farmácia'));
+    final movement = await cards.findMovement(id);
+    expect(movement.establishment, 'Farmácia');
+    expect(movement.tags, ['Viagem']);
+  });
+  test('tags acompanham parcelas, edição e filtro da fatura', () async {
+    final id = await cards.createPurchase(draft(count: 2, tags: ['Viagem']));
+    expect((await cards.entries()).every((e) => e.tags.contains('Viagem')),
+        isTrue);
+    expect((await cards.findMovement(id)).tags, ['Viagem']);
+    expect(
+        await cards.movements(const TransactionFilter(tag: 'outra')), isEmpty);
+    expect(await cards.movements(const TransactionFilter(tag: 'VIAGEM')),
+        hasLength(2));
+    await cards.editPurchase(id, draft(amount: 5000, tags: ['Trabalho']));
+    expect((await cards.findMovement(id)).tags, ['Trabalho']);
+    expect(await cards.movements(const TransactionFilter(tag: 'viagem')),
+        hasLength(1));
+  });
   test('cor do cartão persiste na criação e edição sem mudar limites',
       () async {
     final old = await cards.find(cardId);

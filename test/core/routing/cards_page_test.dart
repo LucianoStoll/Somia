@@ -116,7 +116,7 @@ class _Cards extends CardsRepository {
   @override
   Future<void> pay(
       String invoiceId, String accountId, int amount, DateTime date,
-      {int fee = 0, int discount = 0}) async {
+      {int fee = 0, int discount = 0, Map<String, int>? coverage}) async {
     payment = (invoiceId, accountId, amount, date, fee, discount);
   }
 }

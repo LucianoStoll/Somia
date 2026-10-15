@@ -1,6 +1,13 @@
+import 'package:drift/drift.dart';
+import '../../features/attachments/data/attachments_repository.dart';
+import '../../features/transactions/domain/establishment.dart';
+import '../../features/transactions/domain/transaction_tags.dart';
 import 'app_database.dart';
 import 'debt_integrity.dart';
 import 'reimbursement_integrity.dart';
+import 'planning_integrity.dart';
+import 'settlement_integrity.dart';
+import 'card_rewards_integrity.dart';
 import '../allocations/category_allocation.dart';
 
 const financialTables = [
@@ -22,6 +29,17 @@ const financialTables = [
   'people',
   'reimbursements',
   'reimbursement_receipts',
+  'budget_limits',
+  'planning_goals',
+  'goal_accounts',
+  'transaction_settlements',
+  'debit_cards',
+  'debit_card_links',
+  'card_payment_allocations',
+  'cashback_rules',
+  'cashback_claims',
+  'cashback_receipts',
+  'attachment_manifest',
 ];
 typedef FinancialRows = Map<String, Map<String, Map<String, Object?>>>;
 
@@ -78,8 +96,22 @@ Future<void> replaceFinancial(AppDatabase db, FinancialRows rows) async {
 }
 
 Future<void> validateFinancial(AppDatabase db) async {
+  for (final row
+      in await db.customSelect('SELECT * FROM attachment_manifest').get()) {
+    AttachmentsRepository.validateMetadata(row.data);
+    final table = row.read<String>('owner_table');
+    final owners = await db.customSelect('SELECT id FROM "$table" WHERE id=?',
+        variables: [Variable.withString(row.read<String>('owner_id'))]).get();
+    if (owners.isEmpty) {
+      throw const FormatException('Anexo sem lançamento de origem.');
+    }
+  }
+
   await validateDebtFinancial(db);
   await validateReimbursements(db);
+  await validatePlanning(db);
+  await validateSettlements(db);
+  await validateCardRewards(db);
   final now = DateTime.now();
   final today =
       DateTime.utc(now.year, now.month, now.day).millisecondsSinceEpoch;
@@ -118,6 +150,12 @@ Future<void> validateFinancial(AppDatabase db) async {
       r.read<String>('id'): r.read<String>('type'),
   };
   for (final table in ['transactions', 'card_entries']) {
+    for (final row in await db
+        .customSelect('SELECT tags_json, establishment FROM $table')
+        .get()) {
+      TransactionTags.decode(row.read<String>('tags_json'));
+      Establishment.normalize(row.read<String>('establishment'));
+    }
     for (final row in await db.customSelect('SELECT * FROM $table').get()) {
       final parts = CategoryAllocation.decode(
         row.read<String>('allocations_json'),

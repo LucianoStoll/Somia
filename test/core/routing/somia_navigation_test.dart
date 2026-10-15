@@ -262,6 +262,7 @@ void main() {
         final key = size.width < 800
             ? (path == '/income' ? 'mobile-income-BRL' : 'mobile-expense-BRL')
             : 'dashboard-link-$path';
+        await tester.ensureVisible(find.byKey(ValueKey(key)));
         await tester.tap(find.byKey(ValueKey(key)));
         await tester.pumpAndSettle();
         expect(appRouter.routeInformationProvider.value.uri.path, path);
@@ -652,11 +653,21 @@ void main() {
       'Despesas',
       'Transferências',
       'Contas',
-      'Categorias',
-      'Configurações'
+      'Análises',
+      'Débito',
+      'Cashback'
     ]) {
       expect(find.text(label), findsWidgets);
     }
+    final drawerScroll = find
+        .descendant(of: find.byType(Drawer), matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(find.text('Configurações'), 200,
+        scrollable: drawerScroll);
+    expect(find.text('Configurações'), findsWidgets);
+    expect(find.text('Categorias'), findsWidgets);
+    await tester.drag(find.byType(Drawer), const Offset(0, 1000));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('menu-/income')));
     await tester.pumpAndSettle();
     expect(find.text('Salário'), findsOneWidget);

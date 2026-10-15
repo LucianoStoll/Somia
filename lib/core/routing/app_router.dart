@@ -1,9 +1,14 @@
+import '../../features/analysis/presentation/expense_analysis_page.dart';
+import '../../features/transactions/presentation/trash_page.dart';
+import '../../features/planning/presentation/planning_page.dart';
 import '../../features/reimbursements/presentation/reimbursements_page.dart';
 import '../../features/debts/presentation/debts_page.dart';
 import '../../features/assets/presentation/assets_page.dart';
 import '../../features/investments/presentation/investments_page.dart';
 import '../../features/accounts/presentation/account_statement_page.dart';
 import '../../features/cards/presentation/cards_page.dart';
+import '../../features/cards/presentation/debit_cards_page.dart';
+import '../../features/cards/presentation/cashback_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,6 +23,8 @@ import 'somia_shell.dart';
 import 'sync_navigation_guard.dart';
 
 abstract final class AppRoutes {
+  static const analysisPath = '/analysis';
+  static const trashPath = '/trash';
   static const dashboard = 'dashboard';
   static const dashboardPath = '/';
   static const investments = 'investments';
@@ -26,6 +33,8 @@ abstract final class AppRoutes {
   static const assetsPath = '/investments/assets';
   static const cards = 'cards';
   static const cardsPath = '/cards';
+  static const debitCardsPath = '/debit-cards';
+  static const cashbackPath = '/cashback';
   static const accounts = 'accounts';
   static const accountsPath = '/accounts';
   static const categories = 'categories';
@@ -38,6 +47,7 @@ abstract final class AppRoutes {
   static const expensesPath = '/expenses';
   static const transfers = 'transfers';
   static const transfersPath = '/transfers';
+  static const planningPath = '/planning';
   static const reimbursementsPath = '/people';
   static const settings = 'settings';
   static const settingsPath = '/settings';
@@ -58,6 +68,15 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) {
               child: SomiaShell(location: state.uri.path, child: child)),
           routes: [
             GoRoute(
+                path: AppRoutes.analysisPath,
+                builder: (context, state) => const ExpenseAnalysisPage()),
+            GoRoute(
+                path: AppRoutes.trashPath,
+                builder: (context, state) => const TrashPage()),
+            GoRoute(
+                path: AppRoutes.planningPath,
+                builder: (context, state) => const PlanningPage()),
+            GoRoute(
                 path: AppRoutes.reimbursementsPath,
                 builder: (context, state) => const ReimbursementsPage()),
             GoRoute(
@@ -73,6 +92,19 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) {
                 name: AppRoutes.investments,
                 builder: (context, state) => SomiaSectionBackScope(
                     location: state.uri.path, child: const InvestmentsPage())),
+            GoRoute(
+                path: AppRoutes.cashbackPath,
+                builder: (context, state) => SomiaSectionBackScope(
+                    location: state.uri.path,
+                    child: CashbackPage(
+                        key: ValueKey(state.uri.toString()),
+                        kind: state.uri.queryParameters['kind'],
+                        cardId: state.uri.queryParameters['card'],
+                        receiptId: state.uri.queryParameters['receipt']))),
+            GoRoute(
+                path: AppRoutes.debitCardsPath,
+                builder: (context, state) => SomiaSectionBackScope(
+                    location: state.uri.path, child: const DebitCardsPage())),
             GoRoute(
                 path: AppRoutes.cardsPath,
                 name: AppRoutes.cards,

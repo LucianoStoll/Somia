@@ -27,7 +27,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         final totals = <String, (int, int)>{};
         final period = await _db.customSelect('''
       SELECT a.currency_code, t.type, SUM(COALESCE(t.actual_amount_minor, t.planned_amount_minor)) AS amount_minor
-      FROM transactions t JOIN accounts a ON a.id = t.account_id
+      FROM transaction_events t JOIN accounts a ON a.id = t.account_id
       WHERE t.deleted_at IS NULL AND t.ignore_analytics = 0
         AND a.deleted_at IS NULL AND a.include_in_analytics = 1
         AND COALESCE(t.effective_at, t.due_at) >= ? AND COALESCE(t.effective_at, t.due_at) < ?
@@ -48,8 +48,8 @@ class SqliteDashboardRepository implements DashboardRepository {
               : (previous.$1, previous.$2 + amount);
         }
         final categoryRows = await _db.customSelect('''
-      WITH allocated AS (SELECT t.*, json_extract(part.value,'\$.categoryId') AS allocation_category, json_extract(part.value,'\$.amountMinor') AS allocation_amount FROM transactions t JOIN json_each(t.allocations_json) part
-        UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor) FROM transactions t WHERE json_array_length(t.allocations_json)=0)
+      WITH allocated AS (SELECT t.*, json_extract(part.value,'\$.categoryId') AS allocation_category, json_extract(part.value,'\$.amountMinor') AS allocation_amount FROM transaction_events t JOIN json_each(t.allocations_json) part
+        UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor) FROM transaction_events t WHERE json_array_length(t.allocations_json)=0)
       SELECT a.currency_code, COALESCE(parent.name, c.name, 'Sem categoria')
         AS category_name, SUM(t.allocation_amount) AS amount_minor
       FROM allocated t JOIN accounts a ON a.id = t.account_id
@@ -95,7 +95,7 @@ class SqliteDashboardRepository implements DashboardRepository {
       SELECT a.currency_code,
         strftime('%Y-%m', COALESCE(t.effective_at, t.due_at) / 1000, 'unixepoch') AS month_key,
         t.type, SUM(COALESCE(t.actual_amount_minor, t.planned_amount_minor)) AS amount_minor
-      FROM transactions t JOIN accounts a ON a.id = t.account_id
+      FROM transaction_events t JOIN accounts a ON a.id = t.account_id
       WHERE t.deleted_at IS NULL AND t.ignore_analytics = 0
         AND a.deleted_at IS NULL AND a.include_in_analytics = 1
         AND COALESCE(t.effective_at, t.due_at) >= ? AND COALESCE(t.effective_at, t.due_at) < ?
@@ -126,7 +126,7 @@ class SqliteDashboardRepository implements DashboardRepository {
               : (prior.$1, prior.$2 + amount);
         }
         final accountRows = await _db.customSelect('''
-      SELECT id, name, type, currency_code FROM accounts
+      SELECT id, name, type, currency_code, institution_id, include_in_balance FROM accounts
       WHERE deleted_at IS NULL AND is_archived = 0 ORDER BY name
     ''').get();
         final accountBalances = {
@@ -143,7 +143,11 @@ class SqliteDashboardRepository implements DashboardRepository {
               orElse: () => AccountType.other);
           accountsByCurrency.putIfAbsent(code, () => []).add(
               DashboardAccountBalance(row.read<String>('name'), type.label,
-                  code, balance.currentMinor));
+                  code, balance.currentMinor,
+                  id: id,
+                  institutionId: row.readNullable<String>('institution_id'),
+                  includeInBalance: row.read<int>('include_in_balance') == 1,
+                  isInvestment: type == AccountType.investment));
         }
         // Mesmo que não existam contas ativas na moeda, os totais do período
         // permanecem disponíveis enquanto a conta histórica não foi removida.
@@ -155,10 +159,85 @@ class SqliteDashboardRepository implements DashboardRepository {
         final byCurrency = {
           for (final value in balances.consolidated) value.currencyCode: value,
         };
+        final daily = <String, List<DashboardDailyBalance>>{};
+        for (var day = 1; day <= monthEnd.day; day++) {
+          final date = DateTime.utc(month.year, month.month, day);
+          final snapshot = await SqliteBalancesRepository(_db)
+              .calculate(asOf: date, through: date);
+          for (final value in snapshot.consolidated) {
+            daily.putIfAbsent(value.currencyCode, () => []).add(
+                DashboardDailyBalance(
+                    date, value.currentMinor, value.projectedMinor));
+          }
+        }
+        final dueRows = await _db.customSelect("""
+          SELECT t.id,t.description,t.type AS kind,t.due_at,t.planned_amount_minor AS amount,
+            a.currency_code, CASE WHEN t.effective_at IS NULL AND t.id NOT LIKE 'settlement:%'
+            AND NOT EXISTS(SELECT 1 FROM transaction_settlements s WHERE s.transaction_id=t.id AND s.deleted_at IS NULL)
+            THEN 1 ELSE 0 END AS can_settle
+          FROM transaction_events t JOIN accounts a ON a.id=t.account_id
+          WHERE t.deleted_at IS NULL AND a.deleted_at IS NULL AND a.include_in_balance=1 AND t.ignore_balance=0
+            AND t.effective_at IS NULL AND t.due_at < ?
+          ORDER BY t.due_at,t.id
+        """, variables: [Variable.withInt(end)]).get();
+        final invoiceRows = await _db.customSelect("""
+          SELECT i.id, c.id AS card_id, 'Fatura ' || c.name AS description, i.due_at, a.currency_code,
+            MAX(0, COALESCE((SELECT SUM(e.amount_minor) FROM card_entries e WHERE e.card_id=c.id AND e.deleted_at IS NULL AND e.invoice_id IN (SELECT id FROM card_invoices WHERE card_id=c.id AND due_at<=i.due_at)),0)
+            - COALESCE((SELECT SUM(p.amount_minor) FROM card_payments p JOIN card_invoices pi ON pi.id=p.invoice_id WHERE pi.card_id=c.id AND p.deleted_at IS NULL AND p.effective_at<?),0)) AS amount
+          FROM card_invoices i JOIN credit_cards c ON c.id=i.card_id JOIN accounts a ON a.id=c.payment_account_id
+          WHERE c.deleted_at IS NULL AND a.deleted_at IS NULL AND a.include_in_balance=1 AND i.due_at<?
+          ORDER BY c.id,i.due_at
+        """, variables: [Variable.withInt(end), Variable.withInt(end)]).get();
+        final upcoming = <String, List<DashboardDue>>{};
+        for (final r in dueRows) {
+          upcoming.putIfAbsent(r.read<String>('currency_code'), () => []).add(
+              DashboardDue(
+                  id: r.read<String>('id'),
+                  description: r.read<String>('description'),
+                  kind: r.read<String>('kind'),
+                  date: DateTime.fromMillisecondsSinceEpoch(
+                      r.read<int>('due_at'),
+                      isUtc: true),
+                  amountMinor: r.read<int>('amount'),
+                  canSettle: r.read<int>('can_settle') == 1));
+        }
+        final previousInvoiceAmount = <String, int>{};
+        final increments = <String, int>{};
+        for (final r in invoiceRows) {
+          final card = r.read<String>('card_id'),
+              amount = r.read<int>('amount');
+          increments[r.read<String>('id')] =
+              amount - (previousInvoiceAmount[card] ?? 0);
+          previousInvoiceAmount[card] = amount;
+        }
+        // Apply later credits to outstanding maturities, never display more than the final card debt.
+        for (final r in invoiceRows.reversed) {
+          final card = r.read<String>('card_id');
+          final raw = increments[r.read<String>('id')] ?? 0;
+          final remaining = previousInvoiceAmount[card] ?? 0;
+          final amount = raw.clamp(0, remaining);
+          previousInvoiceAmount[card] = remaining - amount;
+          if (amount == 0) continue;
+          upcoming.putIfAbsent(r.read<String>('currency_code'), () => []).add(
+              DashboardDue(
+                  id: r.read<String>('id'),
+                  description: r.read<String>('description'),
+                  kind: 'invoice',
+                  cardId: card,
+                  date: DateTime.fromMillisecondsSinceEpoch(
+                      r.read<int>('due_at'),
+                      isUtc: true),
+                  amountMinor: amount));
+        }
+        for (final list in upcoming.values) {
+          list.sort((a, b) => a.date.compareTo(b.date));
+        }
         final summaries = [
           for (final currency in currencies)
             DashboardCurrencySummary(
                 currencyCode: currency,
+                dailyBalances: daily[currency] ?? const [],
+                upcoming: upcoming[currency] ?? const [],
                 balanceDetails: details[currency],
                 currentBalanceMinor: byCurrency[currency]?.currentMinor ?? 0,
                 projectedBalanceMinor:
@@ -190,7 +269,7 @@ class SqliteDashboardRepository implements DashboardRepository {
           a.currency_code,
           COALESCE(t.actual_amount_minor, t.planned_amount_minor) AS amount_minor,
           t.due_at AS event_at, t.effective_at, t.created_at
-        FROM transactions t JOIN accounts a ON a.id = t.account_id
+        FROM transaction_events t JOIN accounts a ON a.id = t.account_id
         WHERE t.deleted_at IS NULL AND a.deleted_at IS NULL
         UNION ALL
         SELECT e.id, 'expense', e.description, 'Cartão ' || c.name,

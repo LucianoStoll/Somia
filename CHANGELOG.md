@@ -2,6 +2,28 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+### Exportação de análises — primeira etapa da #14
+
+- Android/Windows: exportar as quatro análises em Excel (.xlsx) e PDF pelo menu da barra superior, respeitando mês e moeda selecionados.
+- Totais e detalhes rastreáveis, datas/valores nativos no Excel, fonte incorporada e paginação no PDF; geração offline em segundo plano, cancelamento e erros tratados.
+- Sem alteração de dados/schema. Regras e roteiro em `docs/exportacao-relatorios.md`; importações adicionais e conciliação permanecem na #14.
+
+- #16: anexos sincronizados Android/Windows, conteúdo binário separado por base/hash no Drive, retomada e integridade, exclusões sem ressurreição, cache deduplicado e migração dos anexos locais para schema 26. Atualizar ambos os dispositivos antes de sincronizar; validação pelo uso pendente.
+
+- #77: Resumo responsivo Android/Windows, indicadores de pendências e caixa, vencimentos com efetivação, curva diária, categorias em barras, contas agrupadas com logos e últimos cadastrados. Sem migração adicional; validação manual pelo uso.
+
+- #76: cadastro e seleção de cartão de débito, cobertura de pagamentos de crédito, cashback previsto em Receitas e aba própria, confirmação individual/em lote, faixas, teto, estornos, complementos, histórico imutável e schema 25 com backup/sync. Validação manual pendente.
+
+- Análises (#75): categorias/subcategorias, comparação mensal, compromissos dos próximos seis meses e saldo por tipo de conta, moedas separadas e detalhamento dos lançamentos.
+
+- #71: substituição explícita da base do Drive pelo Android, backup de proteção, retomada de publicação e novo vínculo confirmado no Windows; gerações anteriores preservadas, bloqueio de clientes antigos e divergências concorrentes.
+
+- #70: anexos locais de até 20 MB nos movimentos, prévia de imagens, salvar cópia, integridade SHA-256 e backup completo; schema 23. Transporte individual pelo sync permanece na #16.
+
+- Baixas parciais (#11): conta e data por pagamento/recebimento, histórico e desfazer, restante pendente e integração com saldos, planejamento, rateios e reembolsos; schema 19 com backup/sync.
+
+- Planejamento (#13): orçamento mensal previsto/realizado, metas por contas, reserva por gastos essenciais, renda/poupança e alertas internos; schema 18 com backup/sync.
+
 - Pessoas e reembolsos em Mais opções da despesa: recebimentos parciais como receitas vinculadas, histórico e schema 17 com backup/sync.
 
 - Despesa paga usa vencimento como efetivação por padrão; datas adicionais e opções avançadas ficam em Mais opções expansível.

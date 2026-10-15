@@ -21,7 +21,13 @@ class PanelSync extends SyncManager {
       : super(
             local, drive, SyncStore(local.database, local.store), MemoryCloud(),
             primaryAllowed: true);
-  int published = 0, received = 0, synced = 0;
+  int published = 0, received = 0, synced = 0, replaced = 0;
+  @override
+  Future<void> replaceBase(
+      {String? expectedRevision, String? expectedEmail}) async {
+    replaced++;
+  }
+
   @override
   Future<void> createBase() async {
     published++;
@@ -106,6 +112,41 @@ void main() {
     expect(manager.received, 1);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('substituição exige confirmação explícita e cancelar não publica',
+      (tester) async {
+    manager.listedEmail = 'same@example.com';
+    manager.bases = [
+      SyncRemoteFile(
+          DriveCopy(
+              id: 'file',
+              name: 'base',
+              createdAt: DateTime(2026),
+              size: 1,
+              md5Hash: '',
+              sha256Hash: ''),
+          'packet-identity-0001',
+          'base-identity-00001',
+          'android-device-0001',
+          'genesis')
+    ];
+    await show(tester);
+    final action = find.text('Substituir base do Drive pela deste Android');
+    await tester.ensureVisible(action);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(manager.replaced, 0);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(manager.replaced, 0);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Substituir base do Drive'));
+    await tester.tap(find.text('Substituir base do Drive'));
+    await tester.pumpAndSettle();
+    expect(manager.replaced, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('base vinculada mostra pendências e dispara sync manual',
       (tester) async {
     manager.state =

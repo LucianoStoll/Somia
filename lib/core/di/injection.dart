@@ -1,3 +1,7 @@
+import '../../features/analysis/data/expense_analysis_repository.dart';
+import '../../features/attachments/data/attachments_repository.dart';
+import '../../features/transactions/data/movement_management_repository.dart';
+import '../../features/planning/data/planning_repository.dart';
 import '../../features/reimbursements/data/reimbursements_repository.dart';
 import '../../features/debts/domain/debt.dart';
 import '../../features/debts/data/sqlite_debts_repository.dart';
@@ -19,6 +23,8 @@ import '../drive/drive_backup_manager.dart';
 import '../../features/accounts/data/account_statement_repository.dart';
 import '../../features/transactions/data/category_history_repository.dart';
 import '../../features/cards/data/cards_repository.dart';
+import '../../features/cards/data/debit_cards_repository.dart';
+import '../../features/cards/data/cashback_repository.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -118,6 +124,14 @@ Future<void> configureDependencies(AppEnvironment environment) async {
     () => SqliteDashboardRepository(getIt<AppDatabase>()),
   );
 
+  getIt.registerLazySingleton<ExpenseAnalysisRepository>(
+      () => ExpenseAnalysisRepository(getIt<AppDatabase>()));
+
+  getIt.registerLazySingleton<CashbackRepository>(
+      () => CashbackRepository(getIt<AppDatabase>()));
+  getIt.registerLazySingleton<DebitCardsRepository>(
+      () => DebitCardsRepository(getIt<AppDatabase>()));
+
   getIt.registerLazySingleton<CardsRepository>(
       () => CardsRepository(getIt<AppDatabase>()));
 
@@ -133,6 +147,15 @@ Future<void> configureDependencies(AppEnvironment environment) async {
 
   getIt.registerLazySingleton<ReimbursementsRepository>(
       () => ReimbursementsRepository(database));
+
+  getIt.registerLazySingleton<PlanningRepository>(
+      () => PlanningRepository(database));
+
+  getIt.registerLazySingleton<MovementManagementRepository>(
+      () => MovementManagementRepository(database));
+
+  getIt.registerLazySingleton<AttachmentsRepository>(
+      () => AttachmentsRepository(database));
 
   // As dependências de cada feature serão registradas aqui por módulo.
 }

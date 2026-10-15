@@ -76,5 +76,6 @@ abstract interface class InvestmentsRepository {
     required int expectedBalanceMinor,
     required DateTime date,
   });
+  Future<void> delete(String id);
   Future<void> setArchived(String id, bool archived);
 }

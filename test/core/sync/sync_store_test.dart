@@ -126,6 +126,40 @@ void main() {
         'Edição Android');
   });
   test(
+      'purga vence restauração offline mais recente e bloqueia recuperação pelo histórico',
+      () async {
+    await a.customStatement(
+        "INSERT INTO transactions(id,description,type,planned_amount_minor,competence_at,posted_at,due_at,account_id,created_at,updated_at) VALUES('t','Compra','expense',100,1,1,1,'a',1,1)");
+    await apply(sa, sb);
+    await a.customStatement(
+        "UPDATE transactions SET trash_state='trashed',deleted_at=1 WHERE id='t'");
+    await apply(sa, sb);
+    await a.customStatement(
+        "UPDATE transactions SET trash_state='purged' WHERE id='t'");
+    final purge = await outgoing(sa);
+    await b.customStatement('UPDATE sync_state SET clock=? WHERE id=1',
+        [purge.entries.single.clock + 100]);
+    await b.customStatement(
+        "UPDATE transactions SET trash_state='active',deleted_at=NULL WHERE id='t'");
+    final restore = await outgoing(sb);
+    await sa.apply([restore]);
+    await sb.apply([purge]);
+    expect(await readFinancial(a), await readFinancial(b));
+    expect(
+        (await a
+                .customSelect(
+                    "SELECT trash_state FROM transactions WHERE id='t'")
+                .getSingle())
+            .read<String>('trash_state'),
+        'purged');
+    final previous = (await sa.history()).firstWhere((entry) =>
+        entry.table == 'transactions' &&
+        entry.data?['trash_state'] == 'active');
+    await expectLater(sa.recover(previous), throwsFormatException);
+    await sa.ack(purge);
+    await sb.ack(restore);
+  });
+  test(
       'remoção física vence reenvio antigo e empate tem desempate determinístico',
       () async {
     await account(a, 'extra', 'Temporária');

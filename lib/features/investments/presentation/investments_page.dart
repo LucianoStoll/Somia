@@ -94,6 +94,39 @@ class _InvestmentsView extends StatelessWidget {
     }
   }
 
+  Future<void> _delete(BuildContext context, Investment item) async {
+    final cubit = context.read<InvestmentsCubit>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Excluir aplicação?'),
+        content: Text(
+          'Excluir “${item.name}” libera o vínculo com a conta ${item.account.name}. A conta, o saldo e todas as movimentações serão preservados. Se estiver arquivada, reative a conta em Contas para voltar a utilizá-la.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Excluir aplicação'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || cubit.isClosed) return;
+    try {
+      await cubit.repository.delete(item.id);
+      await cubit.load();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(investmentError(e))));
+      }
+    }
+  }
+
   @override
   Widget build(
     BuildContext context,
@@ -234,7 +267,8 @@ class _InvestmentsView extends StatelessWidget {
                                           Text('Conta: ${item.account.name}'),
                                           if (item.maturityDate != null)
                                             Text(
-                                                'Vencimento: ${item.maturityDate!.day}/${item.maturityDate!.month}/${item.maturityDate!.year}'),
+                                              'Vencimento: ${item.maturityDate!.day}/${item.maturityDate!.month}/${item.maturityDate!.year}',
+                                            ),
                                           if (item.notes.isNotEmpty)
                                             Padding(
                                               padding:
@@ -264,6 +298,12 @@ class _InvestmentsView extends StatelessWidget {
                                                 ),
                                                 child:
                                                     const Text('Ver extrato'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () =>
+                                                    _delete(context, item),
+                                                child: const Text(
+                                                    'Excluir aplicação'),
                                               ),
                                               TextButton(
                                                 onPressed: () =>
