@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/backup_manager.dart';
-import '../../../core/database/local_backup_store.dart';
 import '../../accounts/data/sqlite_accounts_repository.dart';
 import '../../categories/data/sqlite_categories_repository.dart';
 import '../../transactions/data/category_history_repository.dart';
@@ -108,7 +107,7 @@ class SqliteCsvImportRepository
           return entryIds.length;
         });
     if (maintenance == null) return action();
-    await maintenance!.store.create(db, BackupKind.beforeImport);
+    await maintenance!.protectImport();
     return maintenance!.maintain(action);
   }
 
@@ -391,7 +390,7 @@ class SqliteCsvImportRepository
         });
     if (maintenance == null) return action();
     // A validated recoverable copy must exist before any financial write.
-    await maintenance!.store.create(db, BackupKind.beforeImport);
+    await maintenance!.protectImport();
     CsvImportResult? committed;
     try {
       return await maintenance!.maintain(() async {
