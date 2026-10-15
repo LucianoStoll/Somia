@@ -68,7 +68,8 @@ class _CsvImportPageState extends State<CsvImportPage> {
     } catch (_) {
       if (mounted)
         setState(
-          () => _error = 'Não foi possível ler os perfis locais. Seus dados foram preservados.',
+          () => _error =
+              'Não foi possível ler os perfis locais. Seus dados foram preservados.',
         );
     }
   }
@@ -237,9 +238,8 @@ class _CsvImportPageState extends State<CsvImportPage> {
     final account = state.references!.accounts.firstWhere(
       (a) => a.id == _accountId,
     );
-    final duplicates = state.rows
-        .where((r) => r.selected && r.duplicate)
-        .length;
+    final duplicates =
+        state.rows.where((r) => r.selected && r.duplicate).length;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -465,9 +465,8 @@ class _CsvImportPageState extends State<CsvImportPage> {
                     ),
                   )
                   .toList(),
-              onChanged: state.busy
-                  ? null
-                  : (v) => setState(() => _accountId = v),
+              onChanged:
+                  state.busy ? null : (v) => setState(() => _accountId = v),
             ),
           const SizedBox(height: 16),
           _column(
@@ -617,48 +616,49 @@ class _CsvImportPageState extends State<CsvImportPage> {
   }
 
   Widget _previewHeader(CsvImportState state) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const Text(
-        '3. Conferir lançamentos',
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        'Conta: ${state.references!.accounts.firstWhere((a) => a.id == _accountId).name}',
-      ),
-      const SizedBox(height: 8),
-      Text(
-        '${state.selected} selecionados • ${state.rows.where((r) => r.duplicate).length} possíveis duplicados • ${state.rows.where((r) => r.error != null).length} linhas inválidas',
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Duplicados ficam desmarcados. Marque apenas se quiser adicionar outro lançamento igual. Linhas inválidas não serão importadas.',
-      ),
-      Wrap(
-        spacing: 8,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextButton(
-            onPressed: state.busy ? null : () => _cubit.selectNew(true),
-            child: const Text('Selecionar novos'),
+          const Text(
+            '3. Conferir lançamentos',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           ),
-          TextButton(
-            onPressed: state.busy ? null : () => _cubit.selectNew(false),
-            child: const Text('Desmarcar todos'),
+          const SizedBox(height: 8),
+          Text(
+            'Conta: ${state.references!.accounts.firstWhere((a) => a.id == _accountId).name}',
           ),
-          TextButton(
-            onPressed: state.busy ? null : _cubit.reset,
-            child: const Text('Ajustar colunas'),
+          const SizedBox(height: 8),
+          Text(
+            '${state.selected} selecionados • ${state.rows.where((r) => r.duplicate).length} possíveis duplicados • ${state.rows.where((r) => r.error != null).length} linhas inválidas',
           ),
+          const SizedBox(height: 8),
+          const Text(
+            'Duplicados ficam desmarcados. Marque apenas se quiser adicionar outro lançamento igual. Linhas inválidas não serão importadas.',
+          ),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton(
+                onPressed: state.busy ? null : () => _cubit.selectNew(true),
+                child: const Text('Selecionar novos'),
+              ),
+              TextButton(
+                onPressed: state.busy ? null : () => _cubit.selectNew(false),
+                child: const Text('Desmarcar todos'),
+              ),
+              TextButton(
+                onPressed: state.busy ? null : _cubit.reset,
+                child: const Text('Ajustar colunas'),
+              ),
+            ],
+          ),
+          FilledButton(
+            onPressed:
+                state.busy || state.selected == 0 ? null : _confirmImport,
+            child: Text('Importar ${state.selected} lançamentos'),
+          ),
+          const SizedBox(height: 12),
         ],
-      ),
-      FilledButton(
-        onPressed: state.busy || state.selected == 0 ? null : _confirmImport,
-        child: Text('Importar ${state.selected} lançamentos'),
-      ),
-      const SizedBox(height: 12),
-    ],
-  );
+      );
   Widget _row(CsvPreviewRow row, int index, CsvImportState state) {
     final candidate = row.candidate;
     final categories = state.references!.categories.where(

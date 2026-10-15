@@ -118,16 +118,18 @@ class CsvMapping {
         'credito' ||
         'credit' ||
         'entrada' ||
-        'c' => TransactionType.income,
+        'c' =>
+          TransactionType.income,
         'despesa' ||
         'expense' ||
         'debito' ||
         'debit' ||
         'saida' ||
-        'd' => TransactionType.expense,
+        'd' =>
+          TransactionType.expense,
         _ => throw const FormatException(
-          'Tipo desconhecido; informe receita ou despesa.',
-        ),
+            'Tipo desconhecido; informe receita ou despesa.',
+          ),
       };
     } else {
       movement = switch (direction) {
@@ -146,10 +148,10 @@ class CsvMapping {
         : parseDate(value(due), dateFormat);
     final effectiveDate =
         effective != null && (effective == date || effective == due)
-        ? parseDate(value(effective), dateFormat)
-        : value(effective).isEmpty
-        ? null
-        : parseDate(value(effective), dateFormat);
+            ? parseDate(value(effective), dateFormat)
+            : value(effective).isEmpty
+                ? null
+                : parseDate(value(effective), dateFormat);
     return CsvCandidate(
       line: row.line,
       description: history,
@@ -192,8 +194,7 @@ class CsvMapping {
     if (whole == null || whole > 90000000000000) {
       throw const FormatException('Valor acima do limite.');
     }
-    final minor =
-        whole * 100 +
+    final minor = whole * 100 +
         (parts.length == 1 ? 0 : int.parse(parts[1].padRight(2, '0')));
     if (minor > 9000000000000000) {
       throw const FormatException('Valor acima do limite.');
@@ -202,11 +203,10 @@ class CsvMapping {
   }
 
   static DateTime parseDate(String text, CsvDateFormat format) {
-    final match =
-        (format == CsvDateFormat.iso
-                ? RegExp(r'^(\d{4})-(\d{2})-(\d{2})$')
-                : RegExp(r'^(\d{1,2})/(\d{1,2})/(\d{4})$'))
-            .firstMatch(text);
+    final match = (format == CsvDateFormat.iso
+            ? RegExp(r'^(\d{4})-(\d{2})-(\d{2})$')
+            : RegExp(r'^(\d{1,2})/(\d{1,2})/(\d{4})$'))
+        .firstMatch(text);
     if (match == null) {
       throw const FormatException(
         'Data inválida. Confira o formato escolhido.',
@@ -251,13 +251,13 @@ class CsvCandidate {
   final DateTime? effectiveDate;
   // Ignore category and effectuation when spotting an already-entered movement.
   String fingerprint(String accountId) => jsonEncode([
-    accountId,
-    csvNormalize(description),
-    type.name,
-    amountMinor,
-    date.millisecondsSinceEpoch,
-    dueDate.millisecondsSinceEpoch,
-  ]);
+        accountId,
+        csvNormalize(description),
+        type.name,
+        amountMinor,
+        date.millisecondsSinceEpoch,
+        dueDate.millisecondsSinceEpoch,
+      ]);
   TransactionDraft draft(String accountId, String? categoryId) =>
       TransactionDraft(
         description: description,
@@ -287,23 +287,23 @@ class CsvPreviewRow {
   final String? error, warning, categoryId;
   final bool duplicate, selected;
   CsvPreviewRow select(bool value) => CsvPreviewRow(
-    line: line,
-    candidate: candidate,
-    error: error,
-    warning: warning,
-    duplicate: duplicate,
-    selected: value && candidate != null,
-    categoryId: categoryId,
-  );
+        line: line,
+        candidate: candidate,
+        error: error,
+        warning: warning,
+        duplicate: duplicate,
+        selected: value && candidate != null,
+        categoryId: categoryId,
+      );
   CsvPreviewRow category(String? value) => CsvPreviewRow(
-    line: line,
-    candidate: candidate,
-    error: error,
-    warning: warning,
-    duplicate: duplicate,
-    selected: selected,
-    categoryId: value,
-  );
+        line: line,
+        candidate: candidate,
+        error: error,
+        warning: warning,
+        duplicate: duplicate,
+        selected: selected,
+        categoryId: value,
+      );
 }
 
 class CsvReferences {

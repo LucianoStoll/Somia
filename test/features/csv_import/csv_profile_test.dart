@@ -14,11 +14,15 @@ void main() {
       effective: 2,
       direction: CsvDirection.expense,
     );
-    final profile = CsvProfile.capture('Banco', ';', [
-      'Descrição',
-      'Valor',
-      'Data',
-    ], mapping);
+    final profile = CsvProfile.capture(
+        'Banco',
+        ';',
+        [
+          'Descrição',
+          'Valor',
+          'Data',
+        ],
+        mapping);
     final restored = CsvProfile.fromJson(profile.toJson());
     final applied = restored.apply(['Data', 'Descrição', 'Valor']);
     expect(

@@ -110,13 +110,13 @@ class CsvProfile {
   }
 
   Map<String, Object?> toJson() => {
-    'name': name,
-    'delimiter': delimiter,
-    'columns': columns,
-    'dateFormat': dateFormat.name,
-    'amountFormat': amountFormat.name,
-    'direction': direction.name,
-  };
+        'name': name,
+        'delimiter': delimiter,
+        'columns': columns,
+        'dateFormat': dateFormat.name,
+        'amountFormat': amountFormat.name,
+        'direction': direction.name,
+      };
 
   factory CsvProfile.fromJson(Map<String, dynamic> json) {
     final name = json['name'] as String;

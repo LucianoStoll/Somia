@@ -25,8 +25,7 @@ void main() {
     },
   );
   test('Windows-1252 e tabulação mantêm acentos e caracteres especiais', () {
-    final bytes =
-        latin1.encode('Descrição\tValor\tData\nPão ') +
+    final bytes = latin1.encode('Descrição\tValor\tData\nPão ') +
         [0x96] +
         latin1.encode(' Pix\t12,03\t05/10/2026');
     final doc = CsvDocument.read(bytes);
@@ -135,7 +134,9 @@ void main() {
       expect(() => map.validate(3), throwsFormatException);
     },
   );
-  test('mapeamento duplicado, tipos desconhecidos, valores zero e linhas incompletas são rejeitados', () {
+  test(
+      'mapeamento duplicado, tipos desconhecidos, valores zero e linhas incompletas são rejeitados',
+      () {
     final map = CsvMapping(description: 0, amount: 1, date: 2, type: 3);
     expect(
       () => map.parse(
