@@ -122,7 +122,7 @@ class ModuleValueRow extends StatelessWidget {
           final amount = Text(value,
               style:
                   const TextStyle(fontSize: 14, fontWeight: FontWeight.w600));
-          if (box.maxWidth < 340 ||
+          if (box.maxWidth < 280 ||
               MediaQuery.textScalerOf(context).scale(14) > 21) {
             return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,7 +131,8 @@ class ModuleValueRow extends StatelessWidget {
           return Row(children: [
             Expanded(child: title),
             const SizedBox(width: 16),
-            Flexible(child: amount)
+            Flexible(
+                child: Align(alignment: Alignment.centerRight, child: amount))
           ]);
         }),
       );
