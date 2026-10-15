@@ -115,6 +115,11 @@ void main() {
           .controller
           .text = '40,00';
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Data prevista de recebimento'));
+      await tester.tap(find.text('Data prevista de recebimento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Mais opções'));
       await tester.tap(find.text('Mais opções'));
       await tester.pumpAndSettle();
@@ -122,6 +127,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(result!.reimbursements!.single.personId, person);
       expect(result!.reimbursements!.single.amountMinor, 4000);
+      expect(result!.reimbursements!.single.dueDate, isNotNull);
+      expect(result!.reimbursements!.single.accountId, accounts.single.id);
       expect(result!.amountMinor, 10000);
       expect(tester.takeException(), isNull);
     });

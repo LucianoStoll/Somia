@@ -90,13 +90,22 @@ class ReimbursementsRepository {
     final source = await sourceForMovement(movement);
     final card = source.startsWith('purchase:');
     return (await _rows(
-            'SELECT * FROM reimbursements WHERE ${card ? 'purchase_id' : 'transaction_id'}=? AND deleted_at IS NULL',
+            '''SELECT r.*,t.due_at AS receipt_due,t.account_id AS receipt_account FROM reimbursements r
+            LEFT JOIN reimbursement_receipts l ON l.reimbursement_id=r.id AND l.transaction_id='reimbursement:'||r.id AND l.deleted_at IS NULL
+            LEFT JOIN transactions t ON t.id=l.transaction_id AND t.deleted_at IS NULL
+            WHERE r.${card ? 'purchase_id' : 'transaction_id'}=? AND r.deleted_at IS NULL''',
             [
           card ? source.substring(9) : source
         ]))
         .map((r) => ReimbursementDraft(
             r.read<String>('person_id'), r.read<int>('amount_minor'),
-            id: r.read<String>('id')))
+            id: r.read<String>('id'),
+            dueDate: r.readNullable<int>('receipt_due') == null
+                ? null
+                : DateTime.fromMillisecondsSinceEpoch(
+                    r.read<int>('receipt_due'),
+                    isUtc: true),
+            accountId: r.readNullable<String>('receipt_account')))
         .toList();
   }
 
@@ -114,6 +123,7 @@ class ReimbursementsRepository {
               'Reembolso repetido. Atualize o lançamento.');
         }
         final persons = await people(), now = EntityMetadata.nowUtcMillis();
+        final scheduledDrafts = <(String, ReimbursementDraft)>[];
         for (final d in drafts) {
           if (d.amountMinor <= 0 ||
               d.amountMinor > 9000000000000000 ||
@@ -126,6 +136,7 @@ class ReimbursementsRepository {
             throw const FormatException(
                 'Selecione pessoa ativa e valor maior que zero.');
           }
+          final claimId = d.id ?? EntityMetadata.newId();
           if (d.id != null) {
             if (!old.any((r) => r.read<String>('id') == d.id)) {
               throw StateError('O reembolso mudou. Atualize o lançamento.');
@@ -146,7 +157,7 @@ class ReimbursementsRepository {
             await db.customStatement(
                 'INSERT INTO reimbursements(id,person_id,transaction_id,purchase_id,amount_minor,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
                 [
-                  EntityMetadata.newId(),
+                  claimId,
                   d.personId,
                   card ? null : key,
                   card ? key : null,
@@ -155,16 +166,133 @@ class ReimbursementsRepository {
                   now
                 ]);
           }
+          scheduledDrafts.add((claimId, d));
         }
         for (final r in old) {
           if (!drafts.any((d) => d.id == r.read<String>('id'))) {
+            await _removePlanned(r.read<String>('id'));
             await db.customStatement(
                 'UPDATE reimbursements SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
                 [now, now, r.read<String>('id')]);
           }
         }
+        for (final entry in scheduledDrafts) {
+          if (entry.$2.dueDate != null) await _schedule(entry.$1, entry.$2);
+        }
         await validateReimbursements(db);
       });
+  // A stable ID keeps expense edits from creating duplicate income forecasts.
+  static String plannedIncomeId(String claimId) => 'reimbursement:$claimId';
+
+  Future<bool> isLinkedIncome(String id) async => (await _rows(
+          'SELECT id FROM reimbursement_receipts WHERE transaction_id=? AND deleted_at IS NULL',
+          [id]))
+      .isNotEmpty;
+
+  Future<void> _removePlanned(String claimId) async {
+    final id = plannedIncomeId(claimId);
+    if (!await isLinkedIncome(id)) return;
+    final rows = await _rows(
+        'SELECT effective_at FROM transactions WHERE id=? AND deleted_at IS NULL',
+        [id]);
+    if (rows.isEmpty || rows.single.readNullable<int>('effective_at') != null) {
+      return;
+    }
+    final now = EntityMetadata.nowUtcMillis();
+    await db.customStatement(
+        'UPDATE reimbursement_receipts SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE transaction_id=? AND deleted_at IS NULL',
+        [now, now, id]);
+    await db.customStatement(
+        'UPDATE transactions SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+        [now, now, id]);
+  }
+
+  Future<void> _schedule(String claimId, ReimbursementDraft draft) async {
+    final date = draft.dueDate!;
+    if (date.year < 2000 || date.year > 2100 || draft.accountId == null) {
+      throw const FormatException(
+          'Defina a data e a conta para receber o reembolso.');
+    }
+    final claim = (await load()).singleWhere((r) => r.id == claimId);
+    final id = plannedIncomeId(claimId);
+    final existing = await _rows(
+        'SELECT effective_at FROM transactions WHERE id=? AND deleted_at IS NULL',
+        [id]);
+    if (existing.isNotEmpty && !await isLinkedIncome(id)) {
+      throw const FormatException(
+          'A previsão foi desvinculada. Vincule a receita novamente antes de editar o reembolso.');
+    }
+    if (existing.isNotEmpty &&
+        existing.single.readNullable<int>('effective_at') != null) {
+      return;
+    }
+    final others = claim.receipts
+        .where((r) => r.transactionId != id && !r.deleted)
+        .fold(0, (int sum, r) => sum + r.amountMinor);
+    final amount = draft.amountMinor - others;
+    if (amount <= 0) {
+      await _removePlanned(claimId);
+      return;
+    }
+    if ((await _rows(
+            'SELECT id FROM accounts WHERE id=? AND currency_code=? AND is_archived=0 AND deleted_at IS NULL',
+            [draft.accountId!, claim.currency]))
+        .isEmpty) {
+      throw const FormatException(
+          'Selecione uma conta ativa na moeda do reembolso.');
+    }
+    final now = EntityMetadata.nowUtcMillis(), at = day(date);
+    if (existing.isEmpty) {
+      final historical =
+          await _rows('SELECT id FROM transactions WHERE id=?', [id]);
+      if (historical.isNotEmpty) {
+        // A deleted or unlinked forecast is restored only by explicitly editing the expense.
+        await db.customStatement(
+            'UPDATE transactions SET description=?,planned_amount_minor=?,actual_amount_minor=NULL,competence_at=?,due_at=?,effective_at=NULL,account_id=?,deleted_at=NULL,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+            [
+              'Reembolso · ${claim.personName} · ${claim.description}',
+              amount,
+              at,
+              at,
+              draft.accountId,
+              now,
+              id
+            ]);
+      } else {
+        await db.customStatement(
+            "INSERT INTO transactions(id,description,type,planned_amount_minor,competence_at,posted_at,due_at,account_id,created_at,updated_at) VALUES(?,?,'income',?,?,?,?,?,?,?)",
+            [
+              id,
+              'Reembolso · ${claim.personName} · ${claim.description}',
+              amount,
+              at,
+              day(DateTime.now()),
+              at,
+              draft.accountId,
+              now,
+              now
+            ]);
+      }
+    } else {
+      await db.customStatement(
+          'UPDATE transactions SET description=?,planned_amount_minor=?,competence_at=?,due_at=?,account_id=?,updated_at=?,sync_version=sync_version+1 WHERE id=?',
+          [
+            'Reembolso · ${claim.personName} · ${claim.description}',
+            amount,
+            at,
+            at,
+            draft.accountId,
+            now,
+            id
+          ]);
+    }
+    if (!await isLinkedIncome(id)) {
+      await db.customStatement(
+          'INSERT INTO reimbursement_receipts(id,reimbursement_id,transaction_id,created_at,updated_at) VALUES(?,?,?,?,?)',
+          [EntityMetadata.newId(), claimId, id, now, now]);
+    }
+  }
+
   Future<List<Reimbursement>> load({String? personId}) async {
     final rows = await _rows(
         '''SELECT r.*,p.name AS person_name,COALESCE(t.description,

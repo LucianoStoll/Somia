@@ -242,7 +242,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
     }
   }
 
-  Future<void> _edit([FinancialTransaction? item]) async {
+  Future<void> _edit(
+      [FinancialTransaction? item, bool effectuate = false]) async {
     if (item?.id.startsWith('cashback-receipt-') ?? false) {
       context.go('/cashback?receipt=${item!.id}');
       return;
@@ -256,11 +257,16 @@ class _TransactionsViewState extends State<_TransactionsView> {
     final cards = getIt.isRegistered<CardsRepository>()
         ? await getIt<CardsRepository>().list()
         : <CreditCard>[];
+    final linkedIncome = item?.type == TransactionType.income &&
+        getIt.isRegistered<ReimbursementsRepository>() &&
+        await getIt<ReimbursementsRepository>().isLinkedIncome(item!.id);
     if (!mounted) return;
     final draft = await showMovementForm<TransactionDraft>(
       context,
       (_) => TransactionForm(
         item: item,
+        effectuate: effectuate,
+        requireIncomeCategory: linkedIncome,
         scope: scope,
         fixedType: widget.sectionType,
         initialType: (widget.sectionType == TransactionType.income ||
@@ -365,6 +371,13 @@ class _TransactionsViewState extends State<_TransactionsView> {
     if (!mounted || item.isEffective || _changingStatus.contains(item.id)) {
       return;
     }
+    if (item.type == TransactionType.income &&
+        getIt.isRegistered<ReimbursementsRepository>() &&
+        await getIt<ReimbursementsRepository>().isLinkedIncome(item.id)) {
+      if (mounted) await _edit(item, true);
+      return;
+    }
+    if (!mounted || _changingStatus.contains(item.id)) return;
     setState(() => _changingStatus.add(item.id));
     final today = DateUtils.dateOnly(DateTime.now());
     try {
@@ -1099,12 +1112,15 @@ class TransactionForm extends StatefulWidget {
     required this.categories,
     this.cards = const [],
     this.initialCardId,
+    this.effectuate = false,
+    this.requireIncomeCategory = false,
     this.item,
     this.scope = SeriesScope.onlyThis,
     this.fixedType,
     this.initialType = TransactionType.expense,
   });
   final FinancialTransaction? item;
+  final bool effectuate, requireIncomeCategory;
   final SeriesScope scope;
   final TransactionType? fixedType;
   final TransactionType initialType;
@@ -1377,7 +1393,8 @@ class TransactionFormState extends State<TransactionForm> {
     _date = item?.date ?? DateTime.now();
     _dueDate = item?.dueDate ?? _date;
     _effectiveDate = item?.effectiveDate;
-    _isEffective = item == null || item.effectiveDate != null;
+    _isEffective =
+        widget.effectuate || item == null || item.effectiveDate != null;
     _cardId = item?.cardId ?? widget.initialCardId;
     _debitCardId = item?.debitCardId;
     if (getIt.isRegistered<DebitCardsRepository>()) _loadDebitCards();
@@ -1475,6 +1492,16 @@ class TransactionFormState extends State<TransactionForm> {
   Future<void> _submit() async {
     await _historyLoading;
     if (!mounted || !_formKey.currentState!.validate()) return;
+    if (widget.requireIncomeCategory &&
+        _isEffective &&
+        !_forcePending &&
+        !_rateioEnabled &&
+        _categoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Escolha a categoria de receita para efetivar o reembolso.')));
+      return;
+    }
     if (_series.active) {
       try {
         _series.plan!.amounts(MoneyMinor.parse(_amount.text));
@@ -1928,6 +1955,8 @@ class TransactionFormState extends State<TransactionForm> {
                     ReimbursementEditor(
                       repo: getIt<ReimbursementsRepository>(),
                       movementId: widget.item?.id,
+                      accounts: widget.accounts,
+                      defaultAccountId: _accountId,
                       currency: _cardId != null
                           ? 'BRL'
                           : _availableAccounts

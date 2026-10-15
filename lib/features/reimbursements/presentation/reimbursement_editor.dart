@@ -5,6 +5,7 @@ import '../../../core/widgets/movement_form_frame.dart';
 import '../../../core/widgets/unsaved_changes_guard.dart';
 import '../data/reimbursements_repository.dart';
 import '../domain/reimbursement.dart';
+import '../../accounts/domain/account.dart';
 
 Future<String?> editPerson(BuildContext context, ReimbursementsRepository repo,
     {Person? person}) async {
@@ -71,20 +72,26 @@ class ReimbursementEditor extends StatefulWidget {
       required this.repo,
       required this.onChanged,
       this.movementId,
+      this.accounts = const [],
+      this.defaultAccountId,
       this.currency = 'BRL'});
   final ReimbursementsRepository repo;
   final String? movementId;
   final String currency;
+  final List<Account> accounts;
+  final String? defaultAccountId;
   final ValueChanged<List<ReimbursementDraft>> onChanged;
   @override
   State<ReimbursementEditor> createState() => _ReimbursementEditorState();
 }
 
 class _ClaimInput {
-  _ClaimInput({this.id, this.personId, int amount = 0})
+  _ClaimInput(
+      {this.id, this.personId, this.dueDate, this.accountId, int amount = 0})
       : amount = TextEditingController(text: MoneyMinor.plain(amount));
   final String? id;
-  String? personId;
+  String? personId, accountId;
+  DateTime? dueDate;
   final TextEditingController amount;
 }
 
@@ -112,7 +119,12 @@ class _ReimbursementEditorState extends State<ReimbursementEditor> {
         people = persons;
         enabled = drafts.isNotEmpty;
         for (final d in drafts) {
-          rows.add(_input(id: d.id, person: d.personId, amount: d.amountMinor));
+          rows.add(_input(
+              id: d.id,
+              person: d.personId,
+              amount: d.amountMinor,
+              dueDate: d.dueDate,
+              accountId: d.accountId));
         }
         loading = false;
       });
@@ -126,8 +138,18 @@ class _ReimbursementEditorState extends State<ReimbursementEditor> {
     }
   }
 
-  _ClaimInput _input({String? id, String? person, int amount = 0}) {
-    final row = _ClaimInput(id: id, personId: person, amount: amount);
+  _ClaimInput _input(
+      {String? id,
+      String? person,
+      int amount = 0,
+      DateTime? dueDate,
+      String? accountId}) {
+    final row = _ClaimInput(
+        id: id,
+        personId: person,
+        amount: amount,
+        dueDate: dueDate,
+        accountId: accountId ?? widget.defaultAccountId);
     row.amount.addListener(changed);
     return row;
   }
@@ -145,7 +167,9 @@ class _ReimbursementEditorState extends State<ReimbursementEditor> {
         ? rows
             .map((r) => ReimbursementDraft(
                 r.personId ?? '', _amount(r.amount.text),
-                id: r.id))
+                id: r.id,
+                dueDate: r.dueDate,
+                accountId: r.accountId ?? widget.defaultAccountId))
             .toList()
         : []);
   }
@@ -214,7 +238,7 @@ class _ReimbursementEditorState extends State<ReimbursementEditor> {
                 ])),
         if (enabled && !loading) ...[
           const Text(
-              'A despesa fica integral. Recebimentos são receitas vinculadas.'),
+              'A despesa fica integral. O reembolso aparece em Receitas como previsto; escolha a categoria ao receber.'),
           for (final r in rows)
             Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -258,6 +282,60 @@ class _ReimbursementEditorState extends State<ReimbursementEditor> {
                       controller: r.amount,
                       currencyCode: widget.currency,
                       labelText: 'Valor a receber'),
+                  FormField<DateTime>(
+                    validator: (_) => r.dueDate == null
+                        ? 'Defina a data prevista para receber.'
+                        : null,
+                    builder: (field) => Column(children: [
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Data prevista de recebimento'),
+                        subtitle: Text(r.dueDate == null
+                            ? 'Selecionar data'
+                            : '${r.dueDate!.day}/${r.dueDate!.month}/${r.dueDate!.year}'),
+                        trailing: const Icon(Icons.calendar_today_outlined),
+                        onTap: () async {
+                          final date = await showDatePicker(
+                              context: context,
+                              initialDate: r.dueDate ?? DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100, 12, 31));
+                          if (date == null || !mounted) return;
+                          setState(() => r.dueDate = date);
+                          field.didChange(date);
+                          changed();
+                        },
+                      ),
+                      if (field.hasError)
+                        Text(field.errorText!,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error)),
+                    ]),
+                  ),
+                  DropdownButtonFormField<String>(
+                    key: ValueKey('${r.id}-${r.accountId}-${widget.currency}'),
+                    initialValue: widget.accounts.any((a) =>
+                            a.id == (r.accountId ?? widget.defaultAccountId) &&
+                            a.currencyCode == widget.currency)
+                        ? r.accountId ?? widget.defaultAccountId
+                        : null,
+                    isExpanded: true,
+                    decoration:
+                        const InputDecoration(labelText: 'Conta para receber'),
+                    items: widget.accounts
+                        .where((a) =>
+                            a.currencyCode == widget.currency &&
+                            (!a.isArchived || a.id == r.accountId))
+                        .map((a) =>
+                            DropdownMenuItem(value: a.id, child: Text(a.name)))
+                        .toList(),
+                    validator: (v) =>
+                        v == null ? 'Selecione a conta para receber.' : null,
+                    onChanged: (v) {
+                      setState(() => r.accountId = v);
+                      changed();
+                    },
+                  ),
                 ])),
           Wrap(spacing: 8, children: [
             TextButton.icon(
