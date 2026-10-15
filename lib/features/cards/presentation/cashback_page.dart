@@ -269,8 +269,11 @@ class _CashbackPageState extends State<CashbackPage> {
                       style: TextButton.styleFrom(
                           foregroundColor: color,
                           padding: EdgeInsets.zero,
-                          textStyle: const TextStyle(
-                              fontSize: 23, fontWeight: FontWeight.w700)),
+                          textStyle: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(
+                                  fontSize: 23, fontWeight: FontWeight.w700)),
                       child: Text(cardMoney(r.amountMinor))),
                   Text(
                       '${received ? (r.kind == 'return' ? 'Devolvido' : 'Recebido') : (r.kind == 'return' ? 'Devolução prevista' : 'Previsto')} · ${cardDateLabel(r.date)}',

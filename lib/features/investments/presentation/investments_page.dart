@@ -152,11 +152,12 @@ class _InvestmentsView extends StatelessWidget {
             ),
             floatingActionButton: overview == null
                 ? null
-                : FloatingActionButton.extended(
+                : FloatingActionButton(
+                    shape: const CircleBorder(),
                     onPressed:
                         state.loading ? null : () => _edit(context, overview),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Nova aplicação'),
+                    child: const Icon(Icons.add),
+                    tooltip: 'Nova aplicação',
                   ),
             body: overview == null && state.loading
                 ? const Center(child: CircularProgressIndicator())

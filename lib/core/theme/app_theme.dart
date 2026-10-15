@@ -26,7 +26,7 @@ abstract final class AppTheme {
       onSurface: const Color(0xFFF3F6FA),
       outline: SomiaColors.outline,
     );
-    return ThemeData(
+    final theme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: scheme,
@@ -36,11 +36,7 @@ abstract final class AppTheme {
       appBarTheme: const AppBarTheme(
           backgroundColor: SomiaColors.background,
           centerTitle: false,
-          elevation: 0,
-          titleTextStyle: TextStyle(
-              color: Color(0xFFF3F6FA),
-              fontSize: 20,
-              fontWeight: FontWeight.w600)),
+          elevation: 0),
       cardTheme: CardThemeData(
           color: SomiaColors.surface,
           elevation: 0,
@@ -88,5 +84,10 @@ abstract final class AppTheme {
           iconColor: SomiaColors.muted,
           contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 2)),
     );
+    return theme.copyWith(
+        appBarTheme: theme.appBarTheme.copyWith(
+      titleTextStyle: theme.textTheme.titleLarge?.copyWith(
+          color: scheme.onSurface, fontSize: 20, fontWeight: FontWeight.w600),
+    ));
   }
 }

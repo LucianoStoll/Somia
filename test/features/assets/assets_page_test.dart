@@ -63,7 +63,7 @@ void main() {
         'cadastro de bem exige credor e preserva campos; avaliação salva histórico $platform',
         (tester) async {
       await open(tester, platform);
-      await tester.tap(find.text('Novo bem'));
+      await tester.tap(find.byTooltip('Novo bem'));
       await tester.pumpAndSettle();
       await tester.enterText(
           find.widgetWithText(TextFormField, 'Nome do bem'), 'Palio');

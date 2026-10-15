@@ -55,7 +55,7 @@ void main() {
           theme: AppTheme.dark.copyWith(platform: platform),
           home: const DebtsPage()));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Nova dívida'));
+      await tester.tap(find.byTooltip('Nova dívida'));
       await tester.pumpAndSettle();
       await tester.enterText(
           find.widgetWithText(TextFormField, 'Nome da dívida'),

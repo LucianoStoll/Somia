@@ -193,14 +193,15 @@ class _ReimbursementsPageState extends State<ReimbursementsPage> {
             appBar: AppBar(
                 leading: somiaMenuLeading(context),
                 title: const Text('Pessoas e reembolsos')),
-            floatingActionButton: FloatingActionButton.extended(
+            floatingActionButton: FloatingActionButton(
+                shape: const CircleBorder(),
                 onPressed: busy
                     ? null
                     : () => act(() async {
                           await editPerson(context, repo);
                         }),
-                icon: const Icon(Icons.person_add_outlined),
-                label: const Text('Nova pessoa')),
+                child: const Icon(Icons.person_add_outlined),
+                tooltip: 'Nova pessoa'),
             body: loading
                 ? const Center(child: CircularProgressIndicator())
                 : error != null
