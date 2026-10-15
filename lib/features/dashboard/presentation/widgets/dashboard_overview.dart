@@ -1,3 +1,4 @@
+import '../../../../core/preferences/interface_preferences.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -23,7 +24,7 @@ String _money(int minor, String code) => MoneyMinor.display(
     ).replaceAllMapped(
         RegExp(r'\d{1,3}(?=(\d{3})+,)'), (match) => '${match[0]}.');
 
-class SummaryPanel extends StatelessWidget {
+class SummaryPanel extends StatefulWidget {
   const SummaryPanel({
     super.key,
     required this.title,
@@ -33,6 +34,33 @@ class SummaryPanel extends StatelessWidget {
   final String title;
   final Widget child;
   final Widget? action;
+  @override
+  State<SummaryPanel> createState() => _SummaryPanelState();
+}
+
+class _SummaryPanelState extends State<SummaryPanel> {
+  InterfacePreferences? get preferences =>
+      getIt.isRegistered<InterfacePreferences>()
+          ? getIt<InterfacePreferences>()
+          : null;
+  bool localCollapsed = false;
+  bool get collapsed =>
+      preferences?.read('summary.collapsed.${widget.title}') ?? localCollapsed;
+  Future<void> toggle() async {
+    final value = !collapsed;
+    setState(() => localCollapsed = value);
+    try {
+      final save =
+          preferences?.write('summary.collapsed.${widget.title}', value);
+      setState(() {});
+      await save;
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Não foi possível lembrar esta escolha.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Card(
         child: Padding(
@@ -46,17 +74,24 @@ class SummaryPanel extends StatelessWidget {
                 spacing: 12,
                 children: [
                   Text(
-                    title,
+                    widget.title,
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
-                  if (action != null) action!,
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (widget.action != null) widget.action!,
+                    IconButton(
+                        tooltip:
+                            collapsed ? 'Expandir bloco' : 'Recolher bloco',
+                        onPressed: toggle,
+                        icon: Icon(
+                            collapsed ? Icons.expand_more : Icons.expand_less)),
+                  ]),
                 ],
               ),
-              const SizedBox(height: 16),
-              child,
+              if (!collapsed) ...[const SizedBox(height: 16), widget.child],
             ],
           ),
         ),
@@ -413,7 +448,27 @@ class SummaryAccounts extends StatefulWidget {
 }
 
 class _SummaryAccountsState extends State<SummaryAccounts> {
-  bool hideZero = false;
+  late bool hideZero;
+  @override
+  void initState() {
+    super.initState();
+    hideZero = getIt.isRegistered<InterfacePreferences>() &&
+        getIt<InterfacePreferences>().read('summary.hideZeroAccounts');
+  }
+
+  Future<void> changeHideZero(bool value) async {
+    setState(() => hideZero = value);
+    if (!getIt.isRegistered<InterfacePreferences>()) return;
+    try {
+      await getIt<InterfacePreferences>()
+          .write('summary.hideZeroAccounts', value);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Não foi possível lembrar esta escolha.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => SummaryPanel(
         title: 'Saldo por conta',
@@ -428,7 +483,7 @@ class _SummaryAccountsState extends State<SummaryAccounts> {
               contentPadding: EdgeInsets.zero,
               title: const Text('Ocultar contas zeradas'),
               value: hideZero,
-              onChanged: (v) => setState(() => hideZero = v),
+              onChanged: changeHideZero,
             ),
             for (final currency in widget.currencies) ...[
               for (final investment in [false, true]) ...[

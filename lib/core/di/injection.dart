@@ -1,3 +1,4 @@
+import '../preferences/interface_preferences.dart';
 import '../../features/analysis/data/expense_analysis_repository.dart';
 import '../../features/attachments/data/attachments_repository.dart';
 import '../../features/transactions/data/movement_management_repository.dart';
@@ -53,6 +54,11 @@ Future<void> configureDependencies(AppEnvironment environment) async {
   }
 
   getIt.registerSingleton<AppEnvironment>(environment);
+  final support = await getApplicationSupportDirectory();
+  final preferences =
+      InterfacePreferences(File('${support.path}/somia-interface.json'));
+  await preferences.load();
+  getIt.registerSingleton<InterfacePreferences>(preferences);
   final database = AppDatabase.open();
   try {
     // Força a abertura e a criação/migration antes de exibir a interface.

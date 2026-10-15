@@ -101,6 +101,11 @@ void main() {
     expect(edits, 0);
     expect(values, 0);
     await tester.tap(find.byKey(const ValueKey('movement-edit-a')));
+    await tester.pumpAndSettle();
+    expect(edits, 0);
+    expect(find.text('Editar lançamento'), findsOneWidget);
+    await tester.tap(find.text('Editar lançamento'));
+    await tester.pumpAndSettle();
     expect(edits, 1);
     await tester.tap(find.byKey(const ValueKey('movement-amount-a')));
     expect(values, 1);
