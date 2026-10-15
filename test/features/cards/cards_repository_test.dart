@@ -100,7 +100,8 @@ void main() {
         await cards.invoiceForPurchase(cardId, DateTime(2026, 2, 10));
     await cards.refund(first, 4000, invoiceId, DateTime(2026, 2, 15));
     final summary =
-        (await SqliteDashboardRepository(db).load(DateTime(2026, 3)))
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 3)))
             .currencies
             .single;
     expect(
@@ -218,7 +219,8 @@ void main() {
     expect(b.currentBalanceMinor, 96666);
     expect(b.projectedBalanceMinor, 89999);
     expect((await cards.find(cardId)).committedMinor, 6667);
-    final dash = await SqliteDashboardRepository(db).load(DateTime(2026, 2));
+    final dash = await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+        .load(DateTime(2026, 2));
     expect(dash.currencies.single.expenseMinor, 3334);
     expect((await tx.list()).length, 3);
     expect(movement.cardId, cardId);
@@ -253,7 +255,8 @@ void main() {
             .currentBalanceMinor,
         96000);
     expect(
-        (await SqliteDashboardRepository(db).load(DateTime(2026, 2)))
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 2)))
             .currencies
             .single
             .expenseMinor,
@@ -391,7 +394,8 @@ void main() {
     expect((await balance(asOf: DateTime(2026, 4))).currentBalanceMinor, 89000);
     expect((await cards.find(cardId)).committedMinor, 1500);
     final dashboard =
-        (await SqliteDashboardRepository(db).load(DateTime(2026, 3)))
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 3)))
             .currencies
             .single;
     expect(dashboard.expenseMinor, 2500);
@@ -414,7 +418,8 @@ void main() {
     expect((await cards.find(cardId)).creditMinor, 10000);
     expect((await cards.invoice(e.invoiceId)).balanceMinor, -10000);
     expect(
-        (await SqliteDashboardRepository(db).load(DateTime(2026, 2)))
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 2)))
             .currencies
             .single
             .expenseMinor,
@@ -475,7 +480,8 @@ void main() {
     final e = await cards.createPurchase(draft(date: DateTime(2026, 1, 26)));
     expect((await cards.entry(e)).invoiceId, feb);
     await cards.opening(cardId, DateTime(2026, 2), 5000);
-    final dash = await SqliteDashboardRepository(db).load(DateTime(2026, 2));
+    final dash = await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+        .load(DateTime(2026, 2));
     expect(dash.currencies.single.expenseMinor, 10000);
     expect((await cards.invoice(feb)).balanceMinor, 15000);
     await cards.save(
@@ -631,7 +637,8 @@ void main() {
     expect(paid.isEffective, true);
     expect(paid.amountMinor, 15000);
     expect(
-        (await SqliteDashboardRepository(db).load(DateTime(2026, 2)))
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(DateTime(2026, 2)))
             .currencies
             .single
             .expenseMinor,

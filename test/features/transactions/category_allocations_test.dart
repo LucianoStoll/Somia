@@ -122,7 +122,10 @@ void main() {
         (await SqliteAccountsRepository(db).list()).single.currentBalanceMinor,
         39999);
     final summary =
-        (await SqliteDashboardRepository(db).load(date)).currencies.single;
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(date))
+            .currencies
+            .single;
     expect(summary.expenseMinor, 10001);
     expect({for (final c in summary.expensesByCategory) c.name: c.amountMinor},
         {'Mercado': 6001, 'Casa': 4000});
@@ -207,7 +210,8 @@ void main() {
     expect(refunded.allocations.fold(0, (s, p) => s + p.amountMinor), 1);
     await validateFinancial(db);
     final summary =
-        (await SqliteDashboardRepository(db).load(entry.invoiceMonth))
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(entry.invoiceMonth))
             .currencies
             .single;
     expect(summary.expenseMinor, entry.amountMinor - 1);
@@ -216,7 +220,8 @@ void main() {
     final invoice = await cards.invoice(entry.invoiceId);
     await cards.pay(invoice.id, account, entry.amountMinor - 1, invoice.dueAt);
     final paidSummary =
-        (await SqliteDashboardRepository(db).load(entry.invoiceMonth))
+        (await SqliteDashboardRepository(db, asOf: DateTime.utc(2030))
+                .load(entry.invoiceMonth))
             .currencies
             .single;
     expect(paidSummary.expenseMinor, summary.expenseMinor);

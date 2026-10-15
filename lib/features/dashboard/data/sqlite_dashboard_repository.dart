@@ -8,7 +8,10 @@ import '../domain/dashboard_repository.dart';
 import '../domain/entities/dashboard_summary.dart';
 
 class SqliteDashboardRepository implements DashboardRepository {
-  const SqliteDashboardRepository(this._db);
+  const SqliteDashboardRepository(this._db, {this.asOf});
+
+  /// Permite reproduzir o corte de hoje em testes e consultas históricas.
+  final DateTime? asOf;
 
   final AppDatabase _db;
 
@@ -19,9 +22,12 @@ class SqliteDashboardRepository implements DashboardRepository {
         final end =
             DateTime.utc(month.year, month.month + 1).millisecondsSinceEpoch;
         final monthEnd = DateTime.utc(month.year, month.month + 1, 0);
+        final today = asOf ?? DateTime.now();
+        final cutoff = monthEnd.isBefore(today) ? monthEnd : today;
         final balances = await SqliteBalancesRepository(_db)
-            .calculate(asOf: monthEnd, through: monthEnd);
-        final details = await loadBalanceDetails(_db, month, balances);
+            .calculate(asOf: cutoff, through: monthEnd);
+        final details =
+            await loadBalanceDetails(_db, month, balances, asOf: cutoff);
         // Efetivados pertencem ao mês da efetivação; pendentes, ao vencimento.
         // A data de lançamento não define os totais nem os gráficos.
         final totals = <String, (int, int)>{};
@@ -162,8 +168,8 @@ class SqliteDashboardRepository implements DashboardRepository {
         final daily = <String, List<DashboardDailyBalance>>{};
         for (var day = 1; day <= monthEnd.day; day++) {
           final date = DateTime.utc(month.year, month.month, day);
-          final snapshot = await SqliteBalancesRepository(_db)
-              .calculate(asOf: date, through: date);
+          final snapshot = await SqliteBalancesRepository(_db).calculate(
+              asOf: date.isBefore(today) ? date : today, through: date);
           for (final value in snapshot.consolidated) {
             daily.putIfAbsent(value.currencyCode, () => []).add(
                 DashboardDailyBalance(
