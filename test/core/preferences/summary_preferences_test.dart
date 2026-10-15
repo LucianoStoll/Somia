@@ -15,6 +15,7 @@ void main() {
     await getIt.reset();
     getIt.registerSingleton<InterfacePreferences>(preferences);
     addTearDown(() async {
+      await preferences.flush();
       await getIt.reset();
       await directory.delete(recursive: true);
     });
@@ -29,7 +30,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SwitchListTile), findsNothing);
     await tester.pumpWidget(const SizedBox());
-    await preferences.load();
+    await tester.runAsync(() => preferences.flush());
+    await tester.runAsync(() => preferences.load());
     await tester.pumpWidget(page());
     expect(find.byType(SwitchListTile), findsNothing);
     await tester.tap(find.byTooltip('Expandir bloco'));

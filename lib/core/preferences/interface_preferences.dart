@@ -25,6 +25,8 @@ class InterfacePreferences {
     }
   }
 
+  Future<void> flush() => _pending;
+
   bool read(String key, {bool fallback = false}) => _values[key] ?? fallback;
 
   Future<void> write(String key, bool value) {

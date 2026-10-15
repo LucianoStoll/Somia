@@ -195,10 +195,10 @@ class _SomiaMenu extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(12, 16, 8, 8),
                       child: Text(
                           switch (destination.path) {
-                            '/planning' => 'Planejamento',
-                            '/investments' => 'Patrimônio',
-                            '/categories' => 'Organização',
-                            _ => 'Dia a dia',
+                            '/planning' => 'PLANEJAMENTO',
+                            '/investments' => 'PATRIMÔNIO',
+                            '/categories' => 'ORGANIZAÇÃO',
+                            _ => 'DIA A DIA',
                           },
                           style: const TextStyle(
                               fontSize: 11, color: SomiaColors.muted)),
