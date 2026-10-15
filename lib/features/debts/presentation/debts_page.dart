@@ -1,3 +1,4 @@
+import '../../../core/widgets/module_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/di/injection.dart';
@@ -112,147 +113,150 @@ class _DebtsPageState extends State<DebtsPage> {
     }
   }
 
-  Widget _metric(String name, int value) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        Expanded(child: Text(name)),
-        const SizedBox(width: 12),
-        Text(MoneyMinor.display(value, 'BRL'))
-      ]));
+  Widget _metric(String name, int value) =>
+      ModuleValueRow(label: name, value: MoneyMinor.display(value, 'BRL'));
   @override
   Widget build(BuildContext context) {
     final debts = _debts;
-    return Scaffold(
-        appBar: AppBar(
-            title: const Text('Dívidas e empréstimos'),
-            leading: somiaMenuLeading(context),
-            actions: [
-              IconButton(
-                  tooltip: 'Atualizar dívidas',
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _busy ? null : _load)
-            ]),
-        floatingActionButton: FloatingActionButton.extended(
-            onPressed: _busy ? null : () => _edit(),
-            icon: const Icon(Icons.add),
-            label: const Text('Nova dívida')),
-        body: debts == null
-            ? Center(
-                child: _busy
-                    ? const CircularProgressIndicator()
-                    : TextButton(
-                        onPressed: _load,
-                        child: Text(_error ?? 'Tentar novamente')))
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      if (_busy) const LinearProgressIndicator(),
-                      if (_error != null)
-                        Text(_error!,
-                            style: TextStyle(
-                                color: Theme.of(context).colorScheme.error)),
-                      Card(
-                          child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                        'Saldo devedor cadastrado (BRL)'),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                        MoneyMinor.display(
-                                            debts.fold(0,
-                                                (s, d) => s + d.balanceMinor),
-                                            'BRL'),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .headlineMedium),
-                                    _metric(
-                                        'Após todas as parcelas vinculadas',
-                                        debts.fold(
-                                            0, (s, d) => s + d.projectedMinor)),
-                                    const Text(
-                                        'Somente pagamentos efetivados até hoje amortizam o saldo atual. A projeção considera todas as parcelas vinculadas, sem estimar juros futuros.'),
-                                    TextButton(
-                                        onPressed: () =>
-                                            context.go(AppRoutes.assetsPath),
-                                        child: const Text('Ver patrimônio'))
-                                  ]))),
-                      if (debts.isEmpty)
-                        const Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text(
-                                'Cadastre uma dívida e vincule as despesas já existentes. O cadastro não gera receitas nem despesas.')),
-                      for (final d in debts)
-                        Card(
-                            child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+    return ModuleSurface(
+        child: Scaffold(
+            appBar: AppBar(
+                title: const Text('Dívidas e empréstimos'),
+                leading: somiaMenuLeading(context),
+                actions: [
+                  IconButton(
+                      tooltip: 'Atualizar dívidas',
+                      icon: const Icon(Icons.refresh),
+                      onPressed: _busy ? null : _load)
+                ]),
+            floatingActionButton: FloatingActionButton(
+                shape: const CircleBorder(),
+                onPressed: _busy ? null : () => _edit(),
+                tooltip: 'Nova dívida',
+                child: const Icon(Icons.add)),
+            body: debts == null
+                ? Center(
+                    child: _busy
+                        ? const CircularProgressIndicator()
+                        : TextButton(
+                            onPressed: _load,
+                            child: Text(_error ?? 'Tentar novamente')))
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          if (_busy) const LinearProgressIndicator(),
+                          if (_error != null)
+                            Text(_error!,
+                                style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.error)),
+                          ModuleHero(
+                              label: 'Saldo devedor cadastrado (BRL)',
+                              value: MoneyMinor.display(
+                                  debts.fold(0, (s, d) => s + d.balanceMinor),
+                                  'BRL'),
+                              icon: Icons.account_balance_outlined,
+                              color: const Color(0xFFD6A3A3),
+                              children: [
+                                _metric(
+                                    'Após todas as parcelas vinculadas',
+                                    debts.fold(
+                                        0, (s, d) => s + d.projectedMinor)),
+                                const ModuleDetails(
+                                    title: 'Entender a projeção',
                                     children: [
-                                      Row(children: [
-                                        Expanded(
-                                            child: Text(d.name,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleLarge)),
-                                        IconButton(
-                                            tooltip: 'Editar dívida',
-                                            onPressed:
-                                                _busy ? null : () => _edit(d),
-                                            icon:
-                                                const Icon(Icons.edit_outlined))
-                                      ]),
                                       Text(
-                                          '${d.kind.label} · ${d.creditor}${d.balanceMinor == 0 ? ' · Quitada' : ''}'),
-                                      if (d.assetId != null)
-                                        Text(
-                                            'Bem: ${_assets.where((a) => a.id == d.assetId).firstOrNull?.name ?? 'Bem vinculado'}'),
-                                      _metric('Saldo atual', d.balanceMinor),
-                                      _metric(
-                                          'Amortizado', d.paidPrincipalMinor),
-                                      _metric(
-                                          'Saldo projetado', d.projectedMinor),
-                                      Text(
-                                          'Saldo inicial em ${assetDate(d.referenceAt)}: ${MoneyMinor.display(d.initialMinor, 'BRL')}'),
-                                      if (d.notes.isNotEmpty) Text(d.notes),
-                                      const SizedBox(height: 12),
-                                      OutlinedButton.icon(
-                                          onPressed:
-                                              _busy ? null : () => _link(d),
-                                          icon: const Icon(Icons.link),
-                                          label: const Text(
-                                              'Vincular parcela / despesa')),
-                                      ExpansionTile(
-                                          tilePadding: EdgeInsets.zero,
-                                          title: const Text(
-                                              'Histórico de parcelas'),
-                                          children: [
-                                            for (final p in d.payments)
-                                              ListTile(
-                                                  contentPadding:
-                                                      EdgeInsets.zero,
-                                                  title: Text(p.description),
-                                                  subtitle: Text(
-                                                      '${assetDate(p.date)} · ${p.unlinked ? 'Desvinculada' : p.deleted ? 'Despesa excluída' : p.effective ? 'Paga' : 'Prevista'}\nParcela: ${MoneyMinor.display(p.amountMinor, 'BRL')} · Amortização: ${MoneyMinor.display(p.principalMinor, 'BRL')}\nJuros e encargos: ${MoneyMinor.display(p.chargesMinor, 'BRL')}'),
-                                                  trailing: p.unlinked
-                                                      ? null
-                                                      : IconButton(
-                                                          tooltip:
-                                                              'Desvincular parcela',
-                                                          onPressed: _busy
-                                                              ? null
-                                                              : () =>
-                                                                  _unlink(p),
-                                                          icon: const Icon(
-                                                              Icons.link_off)))
-                                          ])
-                                    ])))
-                    ])));
+                                          'Somente pagamentos efetivados até hoje amortizam o saldo atual. A projeção considera todas as parcelas vinculadas, sem estimar juros futuros.')
+                                    ]),
+                                TextButton(
+                                    onPressed: () =>
+                                        context.go(AppRoutes.assetsPath),
+                                    child: const Text('Ver patrimônio')),
+                              ]),
+                          if (debts.isEmpty)
+                            const Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Text(
+                                    'Cadastre uma dívida e vincule as despesas já existentes. O cadastro não gera receitas nem despesas.')),
+                          for (final d in debts)
+                            Card(
+                                child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(children: [
+                                            Expanded(
+                                                child: Text(d.name,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleLarge)),
+                                            IconButton(
+                                                tooltip: 'Editar dívida',
+                                                onPressed: _busy
+                                                    ? null
+                                                    : () => _edit(d),
+                                                icon: const Icon(
+                                                    Icons.edit_outlined))
+                                          ]),
+                                          Text(
+                                              '${d.kind.label} · ${d.creditor}${d.balanceMinor == 0 ? ' · Quitada' : ''}'),
+                                          if (d.assetId != null)
+                                            Text(
+                                                'Bem: ${_assets.where((a) => a.id == d.assetId).firstOrNull?.name ?? 'Bem vinculado'}'),
+                                          _metric(
+                                              'Saldo atual', d.balanceMinor),
+                                          _metric('Amortizado',
+                                              d.paidPrincipalMinor),
+                                          _metric('Saldo projetado',
+                                              d.projectedMinor),
+                                          ModuleDetails(
+                                              title: 'Dados da dívida',
+                                              children: [
+                                                Text(
+                                                    'Saldo inicial em ${assetDate(d.referenceAt)}: ${MoneyMinor.display(d.initialMinor, 'BRL')}'),
+                                                if (d.notes.isNotEmpty)
+                                                  Text(d.notes),
+                                              ]),
+                                          const SizedBox(height: 12),
+                                          OutlinedButton.icon(
+                                              onPressed:
+                                                  _busy ? null : () => _link(d),
+                                              icon: const Icon(Icons.link),
+                                              label: const Text(
+                                                  'Vincular parcela / despesa')),
+                                          ExpansionTile(
+                                              tilePadding: EdgeInsets.zero,
+                                              title: const Text(
+                                                  'Histórico de parcelas'),
+                                              children: [
+                                                for (final p in d.payments)
+                                                  ListTile(
+                                                      contentPadding:
+                                                          EdgeInsets.zero,
+                                                      title:
+                                                          Text(p.description),
+                                                      subtitle: Text(
+                                                          '${assetDate(p.date)} · ${p.unlinked ? 'Desvinculada' : p.deleted ? 'Despesa excluída' : p.effective ? 'Paga' : 'Prevista'}\nParcela: ${MoneyMinor.display(p.amountMinor, 'BRL')} · Amortização: ${MoneyMinor.display(p.principalMinor, 'BRL')}\nJuros e encargos: ${MoneyMinor.display(p.chargesMinor, 'BRL')}'),
+                                                      trailing: p.unlinked
+                                                          ? null
+                                                          : IconButton(
+                                                              tooltip:
+                                                                  'Desvincular parcela',
+                                                              onPressed: _busy
+                                                                  ? null
+                                                                  : () =>
+                                                                      _unlink(
+                                                                          p),
+                                                              icon: const Icon(
+                                                                  Icons
+                                                                      .link_off)))
+                                              ])
+                                        ])))
+                        ]))));
   }
 }

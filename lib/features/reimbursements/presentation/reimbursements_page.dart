@@ -1,3 +1,4 @@
+import '../../../core/widgets/module_surface.dart';
 import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
 import '../../accounts/domain/money_minor.dart';
@@ -187,155 +188,217 @@ class _ReimbursementsPageState extends State<ReimbursementsPage> {
     final filtered = claims
         .where((r) => personId == null || r.personId == personId)
         .toList();
-    return Scaffold(
-        appBar: AppBar(
-            leading: somiaMenuLeading(context),
-            title: const Text('Pessoas e reembolsos')),
-        floatingActionButton: FloatingActionButton.extended(
-            onPressed: busy
-                ? null
-                : () => act(() async {
-                      await editPerson(context, repo);
-                    }),
-            icon: const Icon(Icons.person_add_outlined),
-            label: const Text('Nova pessoa')),
-        body: loading
-            ? const Center(child: CircularProgressIndicator())
-            : error != null
-                ? Center(
-                    child: TextButton(
-                        onPressed: load,
-                        child: const Text('Tentar carregar novamente')))
-                : RefreshIndicator(
-                    onRefresh: load,
-                    child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                        children: [
-                          TextField(
-                              decoration: const InputDecoration(
-                                  labelText: 'Buscar pessoa'),
-                              onChanged: (s) =>
-                                  setState(() => search = s.toLowerCase())),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                              key: ValueKey(personId),
-                              initialValue: personId ?? '',
-                              isExpanded: true,
-                              menuMaxHeight: 280,
-                              itemHeight: 48,
-                              decoration: const InputDecoration(
-                                  labelText: 'Histórico de'),
-                              items: [
-                                const DropdownMenuItem(
-                                    value: '', child: Text('Todas as pessoas')),
-                                for (final p in people)
-                                  DropdownMenuItem(
-                                      value: p.id,
-                                      child: Text(
-                                          '${p.name}${p.archived ? ' (arquivada)' : ''}',
-                                          overflow: TextOverflow.ellipsis))
-                              ],
-                              onChanged: (v) => setState(() => personId =
-                                  v == null || v.isEmpty ? null : v)),
-                          for (final p in people.where((p) =>
-                              '${p.name} ${p.aliases}'
-                                  .toLowerCase()
-                                  .contains(search) &&
-                              (personId == null || p.id == personId)))
-                            ListTile(
-                                leading: const Icon(Icons.person_outline),
-                                title: Text(p.name),
-                                subtitle: p.archived
-                                    ? const Text(
-                                        'Arquivada · histórico preservado')
-                                    : null,
-                                onTap: () => setState(() => personId = p.id),
-                                trailing: PopupMenuButton<String>(
-                                    enabled: !busy,
-                                    onSelected: (s) => s == 'merge'
-                                        ? merge(p)
-                                        : act(() async {
-                                            if (s == 'edit') {
-                                              await editPerson(context, repo,
-                                                  person: p);
-                                            } else {
-                                              await repo.archivePerson(p);
-                                            }
-                                          }),
-                                    itemBuilder: (_) => [
-                                          const PopupMenuItem(
-                                              value: 'edit',
-                                              child: Text('Editar')),
-                                          PopupMenuItem(
-                                              value: 'archive',
-                                              child: Text(p.archived
-                                                  ? 'Reativar'
-                                                  : 'Arquivar')),
-                                          const PopupMenuItem(
-                                              value: 'merge',
-                                              child: Text('Mesclar'))
-                                        ])),
-                          const Divider(),
-                          if (filtered.isEmpty)
-                            const Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Text(
-                                    'Adicione um reembolso em Mais opções da despesa.')),
-                          for (final r in filtered)
-                            Card(
-                                child: ExpansionTile(
-                                    title: Text(
-                                        '${r.personName} · ${r.description}'),
-                                    subtitle: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+    return ModuleSurface(
+        child: Scaffold(
+            appBar: AppBar(
+                leading: somiaMenuLeading(context),
+                title: const Text('Pessoas e reembolsos')),
+            floatingActionButton: FloatingActionButton(
+                shape: const CircleBorder(),
+                onPressed: busy
+                    ? null
+                    : () => act(() async {
+                          await editPerson(context, repo);
+                        }),
+                tooltip: 'Nova pessoa',
+                child: const Icon(Icons.person_add_outlined)),
+            body: loading
+                ? const Center(child: CircularProgressIndicator())
+                : error != null
+                    ? Center(
+                        child: TextButton(
+                            onPressed: load,
+                            child: const Text('Tentar carregar novamente')))
+                    : RefreshIndicator(
+                        onRefresh: load,
+                        child: ListView(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                            children: [
+                              TextField(
+                                  decoration: const InputDecoration(
+                                      labelText: 'Buscar pessoa'),
+                                  onChanged: (s) =>
+                                      setState(() => search = s.toLowerCase())),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                  key: ValueKey(personId),
+                                  initialValue: personId ?? '',
+                                  isExpanded: true,
+                                  menuMaxHeight: 280,
+                                  itemHeight: 48,
+                                  decoration: const InputDecoration(
+                                      labelText: 'Histórico de'),
+                                  items: [
+                                    const DropdownMenuItem(
+                                        value: '',
+                                        child: Text('Todas as pessoas')),
+                                    for (final p in people)
+                                      DropdownMenuItem(
+                                          value: p.id,
+                                          child: Text(
+                                              '${p.name}${p.archived ? ' (arquivada)' : ''}',
+                                              overflow: TextOverflow.ellipsis))
+                                  ],
+                                  onChanged: (v) => setState(() => personId =
+                                      v == null || v.isEmpty ? null : v)),
+                              ModuleDetails(
+                                  title:
+                                      'Pessoas cadastradas (${people.length})',
+                                  children: [
+                                    for (final p in people.where((p) =>
+                                        '${p.name} ${p.aliases}'
+                                            .toLowerCase()
+                                            .contains(search) &&
+                                        (personId == null || p.id == personId)))
+                                      ListTile(
+                                          leading:
+                                              const Icon(Icons.person_outline),
+                                          title: Text(p.name),
+                                          subtitle: p.archived
+                                              ? const Text(
+                                                  'Arquivada · histórico preservado')
+                                              : null,
+                                          onTap: () =>
+                                              setState(() => personId = p.id),
+                                          trailing: PopupMenuButton<String>(
+                                              enabled: !busy,
+                                              onSelected: (s) => s == 'merge'
+                                                  ? merge(p)
+                                                  : act(() async {
+                                                      if (s == 'edit') {
+                                                        await editPerson(
+                                                            context, repo,
+                                                            person: p);
+                                                      } else {
+                                                        await repo
+                                                            .archivePerson(p);
+                                                      }
+                                                    }),
+                                              itemBuilder: (_) => [
+                                                    const PopupMenuItem(
+                                                        value: 'edit',
+                                                        child: Text('Editar')),
+                                                    PopupMenuItem(
+                                                        value: 'archive',
+                                                        child: Text(p.archived
+                                                            ? 'Reativar'
+                                                            : 'Arquivar')),
+                                                    const PopupMenuItem(
+                                                        value: 'merge',
+                                                        child: Text('Mesclar'))
+                                                  ])),
+                                  ]),
+                              for (final code
+                                  in filtered.map((r) => r.currency).toSet())
+                                Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 8),
+                                    child: ModuleStat(
+                                      label: 'A receber · $code',
+                                      value: money(
+                                          filtered
+                                              .where((r) => r.currency == code)
+                                              .fold<int>(0,
+                                                  (sum, r) => sum + r.pending),
+                                          code),
+                                    )),
+                              const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: Text('Reembolsos',
+                                      style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700))),
+                              const Divider(),
+                              if (filtered.isEmpty)
+                                const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Text(
+                                        'Adicione um reembolso em Mais opções da despesa.')),
+                              for (final r in filtered)
+                                Card(
+                                    child: ExpansionTile(
+                                        leading: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                    .withValues(alpha: 0.12),
+                                                borderRadius:
+                                                    BorderRadius.circular(10)),
+                                            child: Icon(
+                                                r.pending <= 0
+                                                    ? Icons.check_circle_outline
+                                                    : r.received > 0
+                                                        ? Icons.timelapse
+                                                        : Icons.schedule,
+                                                size: 20,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary)),
+                                        tilePadding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 8),
+                                        title: Text(
+                                            '${r.personName} · ${r.description}',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600)),
+                                        subtitle: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(r.pending <= 0
+                                                  ? 'Recebido'
+                                                  : r.received > 0
+                                                      ? 'Parcial'
+                                                      : 'Previsto'),
+                                              Text(
+                                                  'A receber: ${money(r.pending, r.currency)}')
+                                            ]),
+                                        childrenPadding:
+                                            const EdgeInsets.all(12),
                                         children: [
-                                          Text(r.pending <= 0
-                                              ? 'Recebido'
-                                              : r.received > 0
-                                                  ? 'Parcial'
-                                                  : 'Previsto'),
-                                          Text(
-                                              'A receber: ${money(r.pending, r.currency)}')
+                                      Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                              'Combinado: ${money(r.amountMinor, r.currency)}\nRecebido: ${money(r.received, r.currency)}\nPendente/agendado: ${money(r.scheduled, r.currency)}')),
+                                      if (r.available > 0)
+                                        Wrap(spacing: 8, children: [
+                                          TextButton.icon(
+                                              onPressed: busy
+                                                  ? null
+                                                  : () => receive(r),
+                                              icon: const Icon(
+                                                  Icons.add_circle_outline),
+                                              label: const Text(
+                                                  'Registrar recebimento')),
+                                          TextButton(
+                                              onPressed:
+                                                  busy ? null : () => link(r),
+                                              child: const Text(
+                                                  'Vincular receita existente'))
                                         ]),
-                                    childrenPadding: const EdgeInsets.all(12),
-                                    children: [
-                                  Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                          'Combinado: ${money(r.amountMinor, r.currency)}\nRecebido: ${money(r.received, r.currency)}\nPendente/agendado: ${money(r.scheduled, r.currency)}')),
-                                  if (r.available > 0)
-                                    Wrap(spacing: 8, children: [
-                                      TextButton.icon(
-                                          onPressed:
-                                              busy ? null : () => receive(r),
-                                          icon: const Icon(
-                                              Icons.add_circle_outline),
-                                          label: const Text(
-                                              'Registrar recebimento')),
-                                      TextButton(
-                                          onPressed:
-                                              busy ? null : () => link(r),
-                                          child: const Text(
-                                              'Vincular receita existente'))
-                                    ]),
-                                  for (final receipt in r.receipts)
-                                    ListTile(
-                                        contentPadding: EdgeInsets.zero,
-                                        title: Text(money(
-                                            receipt.amountMinor, r.currency)),
-                                        subtitle: Text(
-                                            '${receipt.date.day}/${receipt.date.month}/${receipt.date.year} · ${receipt.deleted ? 'Excluída' : receipt.effective ? 'Recebida' : 'Pendente/agendada'}'),
-                                        trailing: IconButton(
-                                            tooltip:
-                                                'Desvincular, mantendo a receita',
-                                            icon: const Icon(Icons.link_off),
-                                            onPressed: busy
-                                                ? null
-                                                : () => act(() =>
-                                                    repo.unlink(receipt.id)))),
-                                ])),
-                        ])));
+                                      for (final receipt in r.receipts)
+                                        ListTile(
+                                            contentPadding: EdgeInsets.zero,
+                                            title: Text(money(
+                                                receipt.amountMinor,
+                                                r.currency)),
+                                            subtitle: Text(
+                                                '${receipt.date.day}/${receipt.date.month}/${receipt.date.year} · ${receipt.deleted ? 'Excluída' : receipt.effective ? 'Recebida' : 'Pendente/agendada'}'),
+                                            trailing: IconButton(
+                                                tooltip:
+                                                    'Desvincular, mantendo a receita',
+                                                icon:
+                                                    const Icon(Icons.link_off),
+                                                onPressed: busy
+                                                    ? null
+                                                    : () => act(() => repo
+                                                        .unlink(receipt.id)))),
+                                    ])),
+                            ]))));
   }
 }
 
