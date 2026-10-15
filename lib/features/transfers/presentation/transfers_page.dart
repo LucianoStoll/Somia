@@ -484,6 +484,40 @@ class _TransfersViewState extends State<_TransfersView> {
                     icon: const Icon(Icons.tune),
                     label: const Text('Filtros'),
                   ),
+                  if (_accountId != null)
+                    InputChip(
+                        label: Text(context
+                                .read<TransfersCubit>()
+                                .state
+                                .accounts
+                                .where((a) => a.id == _accountId)
+                                .firstOrNull
+                                ?.name ??
+                            'Conta'),
+                        onDeleted: () {
+                          setState(() => _accountId = null);
+                          _apply();
+                        }),
+                  if (_effective != null)
+                    InputChip(
+                        label: Text(_effective! ? 'Efetivadas' : 'Pendentes'),
+                        onDeleted: () {
+                          setState(() => _effective = null);
+                          _apply();
+                        }),
+                  if (_accountId != null || _effective != null || _customPeriod)
+                    TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _accountId = null;
+                            _effective = null;
+                            _dateField = TransferDateField.due;
+                            _range = _monthRange;
+                            _customPeriod = false;
+                          });
+                          _apply();
+                        },
+                        child: const Text('Limpar filtros')),
                   if (_customPeriod)
                     Text(
                       _range == null
@@ -523,11 +557,23 @@ class _TransfersViewState extends State<_TransfersView> {
                       child: Text('Nenhuma transferência para estes filtros.'),
                     );
                   }
+                  DateTime dayOf(Transfer item) {
+                    final date = switch (_dateField) {
+                      TransferDateField.posted => item.date,
+                      TransferDateField.due => item.dueDate ?? item.date,
+                      TransferDateField.effective =>
+                        item.effectiveDate ?? item.dueDate ?? item.date,
+                    };
+                    return DateTime(date.year, date.month, date.day);
+                  }
+
+                  final ordered = [...state.items]
+                    ..sort((a, b) => dayOf(b).compareTo(dayOf(a)));
                   final list = ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
                     itemCount: state.items.length,
                     itemBuilder: (context, index) {
-                      final item = state.items[index];
+                      final item = ordered[index];
                       final row = MovementListRow(
                         id: item.id,
                         description: item.description,
@@ -543,6 +589,8 @@ class _TransfersViewState extends State<_TransfersView> {
                         effective: item.isEffective,
                         busy: _changingStatus.contains(item.id),
                         color: SomiaColors.blue,
+                        onAttachments: () => showAttachments(
+                            context, MovementReference.transfer(item)),
                         onEdit: () => _edit(context, item),
                         onEffective: () => _quickEffective(item),
                         onPending: () => _markPending(item),
@@ -603,7 +651,7 @@ class _TransfersViewState extends State<_TransfersView> {
                           ],
                         ),
                       );
-                      return _bulkMode &&
+                      final selectedRow = _bulkMode &&
                               getIt.isRegistered<MovementManagementRepository>()
                           ? SelectableMovementRow(
                               ref: MovementReference.transfer(item),
@@ -613,6 +661,31 @@ class _TransfersViewState extends State<_TransfersView> {
                               child: row,
                             )
                           : row;
+                      final day = dayOf(item);
+                      return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (index == 0 || dayOf(ordered[index - 1]) != day)
+                              Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  child: Wrap(
+                                      spacing: 12,
+                                      runSpacing: 4,
+                                      alignment: WrapAlignment.spaceBetween,
+                                      children: [
+                                        Text(_dateLabel(day),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w700)),
+                                        for (final code in ordered
+                                            .where((e) => dayOf(e) == day)
+                                            .map((e) => e.currencyCode)
+                                            .toSet())
+                                          Text(
+                                              'Transferido: ${MoneyMinor.display(ordered.where((e) => dayOf(e) == day && e.currencyCode == code).fold<int>(0, (sum, e) => sum + e.amountMinor), code)}'),
+                                      ])),
+                            selectedRow,
+                          ]);
                     },
                   );
                   if (!_bulkMode ||

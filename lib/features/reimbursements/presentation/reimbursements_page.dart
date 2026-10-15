@@ -286,8 +286,18 @@ class _ReimbursementsPageState extends State<ReimbursementsPage> {
                                 child: ExpansionTile(
                                     title: Text(
                                         '${r.personName} · ${r.description}'),
-                                    subtitle: Text(
-                                        'A receber: ${money(r.pending, r.currency)}'),
+                                    subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(r.pending <= 0
+                                              ? 'Recebido'
+                                              : r.received > 0
+                                                  ? 'Parcial'
+                                                  : 'Previsto'),
+                                          Text(
+                                              'A receber: ${money(r.pending, r.currency)}')
+                                        ]),
                                     childrenPadding: const EdgeInsets.all(12),
                                     children: [
                                   Align(

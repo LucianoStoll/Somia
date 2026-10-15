@@ -2,6 +2,14 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+### Experiência diária e preferências do Resumo — #59
+
+- Menu agrupado, listas por dia com totais por moeda e filtros ativos removíveis.
+- Descrição abre detalhes; edição, valor/calculadora, efetivação, baixas, rateios e anexos mantêm acesso próprio.
+- Blocos do Resumo recolhíveis e preferência de ocultar contas zeradas lembradas ao reabrir, por aparelho; contas negativas permanecem visíveis.
+- Reembolsos com situação explícita e cashback com orientação para recebimentos/devoluções.
+- Sem mudança de schema ou cálculos; regras e validação em `docs/experiencia-final-alpha.md`.
+
 ### Exportação de análises — primeira etapa da #14
 
 - Android/Windows: exportar as quatro análises em Excel (.xlsx) e PDF pelo menu da barra superior, respeitando mês e moeda selecionados.

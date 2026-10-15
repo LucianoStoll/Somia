@@ -223,6 +223,12 @@ class _CashbackPageState extends State<CashbackPage> {
             ]),
             const SizedBox(height: 8),
             Text(r.cardName),
+            if (r.confirmed == 0)
+              Text(
+                  r.kind == 'return'
+                      ? 'Próxima ação: confirmar se houver cobrança da devolução.'
+                      : 'Próxima ação: confirmar quando o valor entrar na conta.',
+                  style: const TextStyle(fontSize: 12)),
             Text(
                 '${r.confirmed == 0 ? (r.kind == 'return' ? 'Devolução prevista' : 'Previsto') : (r.kind == 'return' ? 'Devolvido' : 'Recebido')} · ${cardDateLabel(r.date)}'),
             Text(const {

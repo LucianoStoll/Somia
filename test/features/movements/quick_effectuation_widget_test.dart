@@ -380,7 +380,12 @@ void main() {
         expect(transactions.writes, 0);
         expect(transfers.writes, 0);
         expect(find.text('Calculadora'), findsNothing);
-        expect(find.textContaining('124,45'), findsOneWidget);
+        expect(
+            find.descendant(
+                of: find.byKey(const ValueKey('movement-amount-a')),
+                matching: find.textContaining('124,45')),
+            findsOneWidget);
+        expect(find.textContaining('124,45'), findsNWidgets(2));
         expect(tester.takeException(), isNull);
       });
     }

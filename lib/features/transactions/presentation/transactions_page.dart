@@ -522,6 +522,60 @@ class _TransactionsViewState extends State<_TransactionsView> {
                         icon: const Icon(Icons.tune),
                         label: const Text('Filtros'),
                       ),
+                      if (_accountId != null)
+                        InputChip(
+                            label: Text(state.accounts
+                                    .where((a) => a.id == _accountId)
+                                    .firstOrNull
+                                    ?.name ??
+                                'Conta'),
+                            onDeleted: () {
+                              setState(() => _accountId = null);
+                              _apply();
+                            }),
+                      if (_status != TransactionStatus.all)
+                        InputChip(
+                            label: Text(_status == TransactionStatus.effective
+                                ? 'Efetivados'
+                                : 'Pendentes'),
+                            onDeleted: () {
+                              setState(() => _status = TransactionStatus.all);
+                              _apply();
+                            }),
+                      if (_categoryId != null || _subcategoryId != null)
+                        InputChip(
+                            label: const Text('Categoria selecionada'),
+                            onDeleted: () {
+                              setState(() {
+                                _categoryId = null;
+                                _subcategoryId = null;
+                              });
+                              _apply();
+                            }),
+                      if (_tag != null)
+                        InputChip(
+                            label: Text('#$_tag'),
+                            onDeleted: () {
+                              setState(() => _tag = null);
+                              _apply();
+                            }),
+                      if (_establishmentFilter != null)
+                        InputChip(
+                            label: Text(_establishmentFilter!),
+                            onDeleted: () {
+                              setState(() => _establishmentFilter = null);
+                              _apply();
+                            }),
+                      if (_accountId != null ||
+                          _categoryId != null ||
+                          _subcategoryId != null ||
+                          _status != TransactionStatus.all ||
+                          _tag != null ||
+                          _establishmentFilter != null ||
+                          _customPeriod)
+                        TextButton(
+                            onPressed: _clearFilters,
+                            child: const Text('Limpar filtros')),
                       if (_customPeriod)
                         Text(
                           _range == null
@@ -542,23 +596,9 @@ class _TransactionsViewState extends State<_TransactionsView> {
                                     : 'Nenhum lançamento para estes filtros.',
                           ),
                         )
-                      : ListView.builder(
+                      : ListView(
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-                          itemCount: state.items.length,
-                          itemBuilder: (context, index) => _bulkMode &&
-                                  getIt.isRegistered<
-                                      MovementManagementRepository>() &&
-                                  !state.items[index].id.startsWith('invoice:')
-                              ? SelectableMovementRow(
-                                  ref: MovementReference.transaction(
-                                    state.items[index],
-                                  ),
-                                  selection: _bulkSelection,
-                                  onSelection: (selection) => setState(
-                                      () => _bulkSelection = selection),
-                                  child: _itemTile(state.items[index]),
-                                )
-                              : _itemTile(state.items[index]),
+                          children: _dailyRows(state),
                         ),
                 ),
               ],
@@ -566,6 +606,69 @@ class _TransactionsViewState extends State<_TransactionsView> {
           },
         ),
       );
+
+  void _clearFilters() {
+    setState(() {
+      _type = widget.sectionType;
+      _accountId =
+          _categoryId = _subcategoryId = _tag = _establishmentFilter = null;
+      _status = TransactionStatus.all;
+      _dateField = TransactionDateField.due;
+      _range = _monthRange;
+      _customPeriod = false;
+    });
+    _apply();
+  }
+
+  DateTime _listDay(FinancialTransaction item) {
+    final date = switch (_dateField) {
+      TransactionDateField.posted => item.date,
+      TransactionDateField.due => item.dueDate ?? item.date,
+      TransactionDateField.effective =>
+        item.effectiveDate ?? item.dueDate ?? item.date,
+    };
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  List<Widget> _dailyRows(TransactionsState state) {
+    final groups = <DateTime, List<FinancialTransaction>>{};
+    for (final item in state.items) {
+      (groups[_listDay(item)] ??= []).add(item);
+    }
+    final days = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+    return [
+      for (final day in days) ...[
+        Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  Text(_dateLabel(day),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  for (final code
+                      in groups[day]!.map((e) => e.currencyCode).toSet())
+                    Text(
+                        'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + (e.type == TransactionType.income ? e.amountMinor : -e.amountMinor)), code)}',
+                        style: const TextStyle(
+                            color: SomiaColors.muted, fontSize: 12)),
+                ])),
+        for (final item in groups[day]!)
+          if (_bulkMode &&
+              getIt.isRegistered<MovementManagementRepository>() &&
+              !item.id.startsWith('invoice:'))
+            SelectableMovementRow(
+                ref: MovementReference.transaction(item),
+                selection: _bulkSelection,
+                onSelection: (selection) =>
+                    setState(() => _bulkSelection = selection),
+                child: _itemTile(item))
+          else
+            _itemTile(item),
+      ]
+    ];
+  }
 
   Widget _filters(TransactionsState state) => ConstrainedBox(
         constraints: BoxConstraints(
@@ -1062,6 +1165,55 @@ class _TransactionsViewState extends State<_TransactionsView> {
       onPending: () =>
           item.settlementCount > 0 ? _settlements(item) : _markPending(item),
       onAmount: () => _editAmount(item),
+      detailsBuilder: (sheet) =>
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (item.allocations.isNotEmpty) ...[
+          const Divider(),
+          const Text('Rateio', style: TextStyle(fontWeight: FontWeight.w700)),
+          for (final part in item.allocations)
+            ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(categories
+                        .where((c) => c.id == part.categoryId)
+                        .firstOrNull
+                        ?.name ??
+                    'Categoria indisponível'),
+                trailing: Text(
+                    MoneyMinor.display(part.amountMinor, item.currencyCode))),
+        ],
+        if (!item.id.startsWith('cashback-receipt-') && item.cardId == null)
+          TextButton.icon(
+              onPressed: () {
+                Navigator.pop(sheet);
+                _settlements(item);
+              },
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Pagamentos e recebimentos')),
+        if (item.type == TransactionType.expense &&
+            getIt.isRegistered<ReimbursementsRepository>())
+          FutureBuilder<List<ReimbursementDraft>>(
+            future: getIt<ReimbursementsRepository>().drafts(item.id),
+            builder: (context, snapshot) => snapshot.hasError
+                ? const Text('Não foi possível consultar os reembolsos.')
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                        for (final claim
+                            in snapshot.data ?? <ReimbursementDraft>[])
+                          Text(
+                              'Reembolso: ${MoneyMinor.display(claim.amountMinor, item.currencyCode)}${claim.dueDate == null ? '' : ' · ${_dateLabel(claim.dueDate!)}'}'),
+                        if (snapshot.data?.isNotEmpty ?? false)
+                          TextButton(
+                              onPressed: () {
+                                Navigator.pop(sheet);
+                                this.context.go('/people');
+                              },
+                              child: const Text('Acompanhar reembolsos')),
+                      ]),
+          ),
+      ]),
+      onAttachments: () =>
+          showAttachments(context, MovementReference.transaction(item)),
       onEdit: () => _edit(item),
       menu: PopupMenuButton<String>(
         key: ValueKey('movement-menu-${item.id}'),

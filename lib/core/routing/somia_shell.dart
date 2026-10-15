@@ -38,22 +38,22 @@ const _menu = <_MenuDestination>[
       MovementIdentity.transferIcon, MovementIdentity.transferColor),
   _MenuDestination(
       'Contas', AppRoutes.accountsPath, Icons.account_balance_wallet_outlined),
+  _MenuDestination('Cartões', AppRoutes.cardsPath, Icons.credit_card_outlined),
+  _MenuDestination('Débito', AppRoutes.debitCardsPath, Icons.payment_outlined),
+  _MenuDestination('Cashback', AppRoutes.cashbackPath, Icons.paid_outlined),
+  _MenuDestination('Pessoas e reembolsos', AppRoutes.reimbursementsPath,
+      Icons.people_outline),
+  _MenuDestination('Planejamento', AppRoutes.planningPath, Icons.flag_outlined),
+  _MenuDestination(
+      'Análises', AppRoutes.analysisPath, Icons.bar_chart_outlined),
   _MenuDestination(
       'Investimentos', AppRoutes.investmentsPath, Icons.savings_outlined),
   _MenuDestination(
       'Bens e patrimônio', AppRoutes.assetsPath, Icons.home_work_outlined),
   _MenuDestination('Dívidas e empréstimos', AppRoutes.debtsPath,
       Icons.account_balance_outlined),
-  _MenuDestination('Cartões', AppRoutes.cardsPath, Icons.credit_card_outlined),
-  _MenuDestination('Débito', AppRoutes.debitCardsPath, Icons.payment_outlined),
-  _MenuDestination('Cashback', AppRoutes.cashbackPath, Icons.paid_outlined),
-  _MenuDestination(
-      'Análises', AppRoutes.analysisPath, Icons.bar_chart_outlined),
-  _MenuDestination('Planejamento', AppRoutes.planningPath, Icons.flag_outlined),
-  _MenuDestination('Pessoas e reembolsos', AppRoutes.reimbursementsPath,
-      Icons.people_outline),
-  _MenuDestination('Lixeira', AppRoutes.trashPath, Icons.delete_outline),
   _MenuDestination('Categorias', AppRoutes.categoriesPath, Icons.sell_outlined),
+  _MenuDestination('Lixeira', AppRoutes.trashPath, Icons.delete_outline),
   _MenuDestination(
       'Configurações', AppRoutes.settingsPath, Icons.settings_outlined),
 ];
@@ -188,7 +188,21 @@ class _SomiaMenu extends StatelessWidget {
                                 icon: const Icon(Icons.close),
                                 onPressed: () => Navigator.of(context).pop()),
                         ])),
-                for (final destination in _menu)
+                for (final destination in _menu) ...[
+                  if (const {'/', '/planning', '/investments', '/categories'}
+                      .contains(destination.path))
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 16, 8, 8),
+                      child: Text(
+                          switch (destination.path) {
+                            '/planning' => 'PLANEJAMENTO',
+                            '/investments' => 'PATRIMÔNIO',
+                            '/categories' => 'ORGANIZAÇÃO',
+                            _ => 'DIA A DIA',
+                          },
+                          style: const TextStyle(
+                              fontSize: 11, color: SomiaColors.muted)),
+                    ),
                   Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: ListTile(
@@ -214,6 +228,7 @@ class _SomiaMenu extends StatelessWidget {
                           }
                         },
                       )),
+                ],
               ],
             )));
   }
