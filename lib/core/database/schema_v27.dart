@@ -15,6 +15,7 @@ const schemaV27 = <String>[
     source_line INTEGER NOT NULL,
     initial_updated_at INTEGER NOT NULL,
     initial_sync_version INTEGER NOT NULL,
-    UNIQUE(target_table,target_id))''',
+    undone_at INTEGER)''',
   'CREATE INDEX import_batch_entries_batch ON import_batch_entries(batch_id)',
+  'CREATE INDEX import_batch_entries_target ON import_batch_entries(target_table,target_id,undone_at)',
 ];

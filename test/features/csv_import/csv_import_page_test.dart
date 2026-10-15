@@ -111,7 +111,7 @@ Future<void> openPreview(WidgetTester tester, PreviewRepository repo,
                   child: const Text('Abrir'))))));
   await tester.tap(find.text('Abrir'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Selecionar CSV'));
+  await tester.tap(find.text('Selecionar CSV ou XLSX'));
   await tester.pumpAndSettle();
   await tester.ensureVisible(find.text('Gerar prévia'));
   await tester.pumpAndSettle();

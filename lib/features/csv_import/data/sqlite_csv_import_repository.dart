@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/backup_manager.dart';
+import '../../../core/database/local_backup_store.dart';
 import '../../accounts/data/sqlite_accounts_repository.dart';
 import '../../categories/data/sqlite_categories_repository.dart';
 import '../../transactions/data/category_history_repository.dart';
@@ -9,11 +10,107 @@ import '../../transactions/data/sqlite_transactions_repository.dart';
 import '../../transactions/domain/financial_transaction.dart';
 import '../domain/csv_document.dart';
 import '../domain/csv_import.dart';
+import '../domain/import_history.dart';
 
-class SqliteCsvImportRepository implements CsvImportRepository {
+class SqliteCsvImportRepository
+    implements CsvImportRepository, CsvImportHistory {
   const SqliteCsvImportRepository(this.db, {this.maintenance});
   final AppDatabase db;
   final BackupManager? maintenance;
+
+  @override
+  Future<List<ImportBatch>> batches() async => [
+        for (final row in await db
+            .customSelect('''SELECT id,account_id,source_name,created_at
+          FROM import_batches WHERE undone_at IS NULL ORDER BY created_at DESC''').get())
+          ImportBatch(
+            row.read<String>('id'),
+            row.read<String>('source_name'),
+            DateTime.fromMillisecondsSinceEpoch(row.read<int>('created_at')),
+            row.read<String>('account_id'),
+          )
+      ];
+
+  @override
+  Future<List<ImportUndoEntry>> inspectUndo(String batchId) async {
+    final rows = await db.customSelect(
+        '''SELECT e.*,t.description,t.updated_at,t.sync_version,t.deleted_at
+      FROM import_batch_entries e LEFT JOIN transactions t
+        ON e.action='created' AND t.id=e.target_id
+      WHERE e.batch_id=? AND e.undone_at IS NULL ORDER BY e.source_line''',
+        variables: [Variable.withString(batchId)]).get();
+    return [
+      for (final row in rows)
+        ImportUndoEntry(
+          row.read<String>('id'),
+          row.read<int>('source_line'),
+          row.read<String>('action'),
+          row.readNullable<String>('description') ?? 'Vínculo existente',
+          row.read<String>('action') == 'linked' ||
+              (row.readNullable<int>('deleted_at') == null &&
+                  row.readNullable<int>('updated_at') ==
+                      row.read<int>('initial_updated_at') &&
+                  row.readNullable<int>('sync_version') ==
+                      row.read<int>('initial_sync_version')),
+          row.read<String>('action') == 'linked' ||
+                  (row.readNullable<int>('deleted_at') == null &&
+                      row.readNullable<int>('updated_at') ==
+                          row.read<int>('initial_updated_at') &&
+                      row.readNullable<int>('sync_version') ==
+                          row.read<int>('initial_sync_version'))
+              ? null
+              : 'Lançamento alterado, excluído ou sincronizado; revise manualmente.',
+        )
+    ];
+  }
+
+  @override
+  Future<int> undo(String batchId, Set<String> entryIds) async {
+    if (entryIds.isEmpty) return 0;
+    Future<int> action() => db.transaction(() async {
+          final batch = await db.customSelect(
+              'SELECT id FROM import_batches WHERE id=? AND undone_at IS NULL',
+              variables: [Variable.withString(batchId)]).get();
+          if (batch.isEmpty)
+            throw const FormatException(
+                'Lote não disponível. Atualize a lista.');
+          final entries = await inspectUndo(batchId);
+          if (entryIds.length !=
+                  entries.where((e) => entryIds.contains(e.id)).length ||
+              entries.any((e) => entryIds.contains(e.id) && !e.canUndo)) {
+            throw const FormatException(
+                'O lote mudou. Revise os conflitos antes de desfazer.');
+          }
+          final raw = await db.customSelect(
+              'SELECT id,target_id,action FROM import_batch_entries WHERE batch_id=? AND undone_at IS NULL',
+              variables: [Variable.withString(batchId)]).get();
+          for (final entry
+              in raw.where((r) => entryIds.contains(r.read<String>('id')))) {
+            if (entry.read<String>('action') == 'created') {
+              await SqliteTransactionsRepository(db)
+                  .delete(entry.read<String>('target_id'));
+            }
+            await db.customStatement(
+                'UPDATE import_batch_entries SET undone_at=? WHERE id=?', [
+              DateTime.now().millisecondsSinceEpoch,
+              entry.read<String>('id')
+            ]);
+          }
+          final remaining = await db.customSelect(
+              'SELECT id FROM import_batch_entries WHERE batch_id=? AND undone_at IS NULL',
+              variables: [Variable.withString(batchId)]).get();
+          if (remaining.isEmpty) {
+            await db.customStatement(
+                'UPDATE import_batches SET undone_at=? WHERE id=?',
+                [DateTime.now().millisecondsSinceEpoch, batchId]);
+          }
+          return entryIds.length;
+        });
+    if (maintenance == null) return action();
+    await maintenance!.store.create(db, BackupKind.beforeImport);
+    return maintenance!.maintain(action);
+  }
+
   @override
   Future<CsvReferences> references() async {
     final accounts = (await SqliteAccountsRepository(db).list())
@@ -123,7 +220,7 @@ class SqliteCsvImportRepository implements CsvImportRepository {
     final linked = {
       for (final row in await db
           .customSelect(
-              'SELECT target_table,target_id FROM import_batch_entries')
+              'SELECT target_table,target_id FROM import_batch_entries WHERE undone_at IS NULL')
           .get())
         '${row.read<String>('target_table')}:${row.read<String>('target_id')}'
     };
@@ -214,7 +311,7 @@ class SqliteCsvImportRepository implements CsvImportRepository {
           final linkedTargets = {
             for (final row in await db
                 .customSelect(
-                    'SELECT target_table,target_id FROM import_batch_entries')
+                    'SELECT target_table,target_id FROM import_batch_entries WHERE undone_at IS NULL')
                 .get())
               '${row.read<String>('target_table')}:${row.read<String>('target_id')}'
           };
@@ -292,6 +389,8 @@ class SqliteCsvImportRepository implements CsvImportRepository {
               batchId: imported + linked > 0 ? batchId : null, linked: linked);
         });
     if (maintenance == null) return action();
+    // A validated recoverable copy must exist before any financial write.
+    await maintenance!.store.create(db, BackupKind.beforeImport);
     CsvImportResult? committed;
     try {
       return await maintenance!.maintain(() async {

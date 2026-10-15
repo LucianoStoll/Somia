@@ -1,10 +1,12 @@
-# Importação CSV — #56 / epic #14
+# Importação CSV/XLSX — alpha v0.4.0
 
-Primeira etapa da importação no fechamento #54 da v0.2.0-alpha. A entrada fica em **Ajustes → Importar extrato CSV** e funciona offline no Android e Windows.
+A entrada fica em **Ajustes → Importar extrato CSV/XLSX** e funciona offline no Android e Windows.
 
 ## Arquivo e mapeamento
 
 CSV com cabeçalho, até 2 MB, 5.000 linhas de dados, 50 colunas e 4.096 caracteres por campo. Aceita UTF-8/BOM e Windows-1252, separadores `;`, `,` ou tabulação, diretiva `sep=`, aspas escapadas e campos multilinha. O separador é detectado e pode ser corrigido antes da prévia.
+
+XLSX também é aceito, com o mesmo limite de tamanho e linhas. Lê a primeira aba não vazia, datas e números, sem executar fórmulas; substitua fórmulas por valores antes de importar. Não aceita arquivos `.xls` antigos, PDF ou OFX.
 
 Escolha uma conta ativa. Descrição, valor e data de lançamento são obrigatórios; vencimento, efetivação, tipo, categoria e subcategoria são opcionais. Os três campos de data podem compartilhar uma coluna por escolha explícita; os demais campos usam colunas distintas. Cabeçalhos comuns são sugeridos, mas a seleção pode ser alterada. É possível salvar um perfil local com nome de banco, separador, cabeçalhos e formatos, e reaplicá-lo mesmo quando a ordem das colunas mudar. Um cabeçalho ausente ou ambíguo bloqueia a aplicação do perfil para evitar leitura incorreta. O valor usa a moeda da conta; não há conversão de moedas.
 
@@ -28,9 +30,13 @@ Na conciliação assistida, linhas de mesmo valor e tipo com até três dias de 
 
 A confirmação informa a quantidade criada/vinculada e os duplicados selecionados. O lote é gravado numa única transação, com UUIDs e os mesmos repositórios/regras das entradas manuais. A identidade do lote, nome do arquivo, ação e vínculo de cada linha ao registro são preservados no banco, backup e sincronização. Qualquer falha reverte todo o lote, incluindo alterações capturadas para sincronização. Conta/categoria são revalidadas; duplicados surgidos após a prévia são ignorados, exceto os selecionados explicitamente como duplicados.
 
-A gravação é serializada com manutenção local. A tela de importação protege a prévia contra aplicação automática de dados remotos. Depois de concluir e fechar a prévia, as seções atualizam com o app aberto; a sincronização existente captura o lote confirmado. Cancelar ou voltar antes da confirmação mantém o banco intacto.
+A gravação é serializada com manutenção local e exige uma cópia local validada **antes** de gravar. A tela de importação protege a prévia contra aplicação automática de dados remotos. Depois de concluir e fechar a prévia, as seções atualizam com o app aberto; a sincronização existente captura o lote confirmado. Cancelar ou voltar antes da confirmação mantém o banco intacto.
 
-Esta etapa cria receitas/despesas em uma conta por importação ou vincula linhas a registros existentes. Não cria transferências, compras/faturas de cartão, séries, categorias ou contas; não altera saldo inicial. Excel, PDF e OFX são entradas futuras da epic #14.
+Em **Histórico e desfazer importação**, cada lote pode ser revisado item a item. Lançamentos importados ainda intactos podem ser removidos; vínculos apenas são desfeitos, sem apagar o registro preexistente. Itens alterados, excluídos ou sincronizados ficam bloqueados e precisam de revisão manual. É criada outra cópia validada antes de desfazer. O histórico acompanha o banco e os backups, e os vínculos desfeitos podem ser reutilizados em uma importação posterior.
+
+Em Ajustes, **Exportar diagnóstico da importação** salva JSON com versão, esquema e contagens de lotes e ações, sem nomes, valores, contas ou dados pessoais.
+
+Esta etapa cria receitas/despesas em uma conta por importação ou vincula linhas a registros existentes. Não cria transferências, compras/faturas de cartão, séries, categorias ou contas; não altera saldo inicial. PDF e OFX continuam fora do escopo.
 
 ## Validação manual
 

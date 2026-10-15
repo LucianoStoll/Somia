@@ -11,6 +11,9 @@ import '../../categories/domain/category.dart';
 import '../domain/csv_document.dart';
 import '../domain/csv_import.dart';
 import '../domain/csv_profile.dart';
+import '../domain/excel_document.dart';
+import '../domain/import_history.dart';
+import 'import_history_dialog.dart';
 import 'csv_import_cubit.dart';
 
 class CsvPickedFile {
@@ -159,10 +162,9 @@ class _CsvImportPageState extends State<CsvImportPage> {
     }
     try {
       final profile = _profiles.firstWhere((p) => p.name == name);
-      final document = CsvDocument.read(
-        _file!.bytes,
-        delimiter: profile.delimiter,
-      );
+      final document = _file!.name.toLowerCase().endsWith('.xlsx')
+          ? ExcelDocument.read(_file!.bytes)
+          : CsvDocument.read(_file!.bytes, delimiter: profile.delimiter);
       final mapping = profile.apply(document.headers);
       _cubit.reset();
       setState(() {
@@ -187,16 +189,16 @@ class _CsvImportPageState extends State<CsvImportPage> {
   Future<CsvPickedFile?> _nativePick() async {
     final file = await FilePicker.pickFile(
       type: FileType.custom,
-      allowedExtensions: ['csv'],
+      allowedExtensions: ['csv', 'xlsx'],
     );
     if (file == null) return null;
     if ((await file.length() ?? 0) > CsvDocument.maxBytes) {
-      throw const FormatException('Selecione um CSV de até 2 MB.');
+      throw const FormatException('Selecione um CSV ou XLSX de até 2 MB.');
     }
     final bytes = BytesBuilder(copy: false);
     await for (final chunk in file.readAsByteStream()) {
       if (bytes.length + chunk.length > CsvDocument.maxBytes) {
-        throw const FormatException('Selecione um CSV de até 2 MB.');
+        throw const FormatException('Selecione um CSV ou XLSX de até 2 MB.');
       }
       bytes.add(chunk);
     }
@@ -221,7 +223,7 @@ class _CsvImportPageState extends State<CsvImportPage> {
         setState(
           () => _error = e is FormatException
               ? e.message
-              : 'Não foi possível ler o CSV. Selecione novamente.',
+              : 'Não foi possível ler o arquivo. Selecione novamente.',
         );
       }
     } finally {
@@ -234,7 +236,9 @@ class _CsvImportPageState extends State<CsvImportPage> {
     setState(() {
       _profileName = null;
       try {
-        _document = CsvDocument.read(_file!.bytes, delimiter: _delimiter);
+        _document = _file!.name.toLowerCase().endsWith('.xlsx')
+            ? ExcelDocument.read(_file!.bytes)
+            : CsvDocument.read(_file!.bytes, delimiter: _delimiter);
         _mapping = CsvMapping.suggest(_document!.headers);
         _error = null;
       } on FormatException catch (e) {
@@ -404,7 +408,7 @@ class _CsvImportPageState extends State<CsvImportPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          '1. Arquivo CSV',
+          '1. Arquivo CSV ou XLSX',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
@@ -415,8 +419,21 @@ class _CsvImportPageState extends State<CsvImportPage> {
         OutlinedButton.icon(
           onPressed: state.busy || _picking ? null : _pick,
           icon: const Icon(Icons.upload_file),
-          label: Text(_file == null ? 'Selecionar CSV' : 'Trocar arquivo'),
+          label:
+              Text(_file == null ? 'Selecionar CSV ou XLSX' : 'Trocar arquivo'),
         ),
+        if (widget.repository is CsvImportHistory)
+          TextButton.icon(
+            onPressed: state.busy
+                ? null
+                : () => showDialog<void>(
+                      context: context,
+                      builder: (_) => ImportHistoryDialog(
+                          history: widget.repository as CsvImportHistory),
+                    ),
+            icon: const Icon(Icons.history),
+            label: const Text('Histórico e desfazer importação'),
+          ),
         if (_file != null) ...[
           Text(_file!.name),
           if (_profiles.isNotEmpty) ...[
@@ -440,46 +457,48 @@ class _CsvImportPageState extends State<CsvImportPage> {
               onChanged: state.busy ? null : (v) => _applyProfile(v),
             ),
           ],
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            key: ValueKey('separator:${_file.hashCode}:$_delimiter'),
-            initialValue: _delimiter ?? 'auto',
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Separador'),
-            items: const [
-              DropdownMenuItem(value: 'auto', child: Text('Automático')),
-              DropdownMenuItem(
-                value: ';',
-                child: Text(
-                  'Ponto e vírgula (;)',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          if (!_file!.name.toLowerCase().endsWith('.xlsx')) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              key: ValueKey('separator:${_file.hashCode}:$_delimiter'),
+              initialValue: _delimiter ?? 'auto',
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Separador'),
+              items: const [
+                DropdownMenuItem(value: 'auto', child: Text('Automático')),
+                DropdownMenuItem(
+                  value: ';',
+                  child: Text(
+                    'Ponto e vírgula (;)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              DropdownMenuItem(
-                value: ',',
-                child: Text(
-                  'Vírgula (,)',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                DropdownMenuItem(
+                  value: ',',
+                  child: Text(
+                    'Vírgula (,)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              DropdownMenuItem(
-                value: '\t',
-                child: Text(
-                  'Tabulação',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                DropdownMenuItem(
+                  value: '\t',
+                  child: Text(
+                    'Tabulação',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
-            onChanged: state.busy
-                ? null
-                : (v) {
-                    _delimiter = v == 'auto' ? null : v;
-                    _parse();
-                  },
-          ),
+              ],
+              onChanged: state.busy
+                  ? null
+                  : (v) {
+                      _delimiter = v == 'auto' ? null : v;
+                      _parse();
+                    },
+            ),
+          ],
         ],
         if (_error != null)
           Padding(
@@ -861,7 +880,7 @@ class _CsvImportPageState extends State<CsvImportPage> {
           return PopScope(
             canPop: !state.busy && !_picking,
             child: Scaffold(
-              appBar: AppBar(title: const Text('Importar CSV')),
+              appBar: AppBar(title: const Text('Importar extrato')),
               body: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 760),

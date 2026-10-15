@@ -13,6 +13,7 @@ import 'package:finapp/features/transactions/domain/financial_transaction.dart';
 import 'package:finapp/features/csv_import/domain/csv_document.dart';
 import 'package:finapp/features/csv_import/domain/csv_import.dart';
 import 'package:finapp/features/csv_import/data/sqlite_csv_import_repository.dart';
+import 'package:finapp/features/csv_import/domain/import_diagnostics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FailingBackupStore extends LocalBackupStore {
@@ -194,16 +195,60 @@ void main() {
     await expectLater(repo.commit(rows, account.id), throwsFormatException);
     expect(await movements.list(), isEmpty);
   });
-  test(
-      'falha de metadados de backup após commit não transforma importação concluída em erro',
+  test('falha no backup de proteção impede importação e preserva dados',
       () async {
     final manager = BackupManager(db, FailingBackupStore());
     addTearDown(manager.dispose);
     final rows = await preview('Descrição;Valor;Data\nCompra;-10;05/10/2026');
-    final result = await SqliteCsvImportRepository(db, maintenance: manager)
-        .commit(rows, account.id);
-    expect(result.imported, 1);
-    expect((await movements.list()).length, 1);
-    expect(manager.error, isNotNull);
+    await expectLater(
+        SqliteCsvImportRepository(db, maintenance: manager)
+            .commit(rows, account.id),
+        throwsA(isA<FileSystemException>()));
+    expect((await movements.list()), isEmpty);
+  });
+
+  test('desfaz apenas itens intactos e preserva alterações e vínculos',
+      () async {
+    final original = await movements.create(TransactionDraft(
+        description: 'Aluguel',
+        type: TransactionType.expense,
+        amountMinor: 12000,
+        date: DateTime.utc(2026, 10, 5),
+        accountId: account.id));
+    final rows = await preview(
+        'Descrição;Valor;Data\nAluguel;-120;05/10/2026\nNovo;-10;05/10/2026\nEditar;-20;05/10/2026');
+    final match = rows.first.matches.firstWhere((m) => m.id == original.id);
+    final result = await repo
+        .commit([rows.first.link(match), ...rows.skip(1)], account.id);
+    final history = await repo.batches();
+    expect(history.single.id, result.batchId);
+    final created =
+        (await movements.list()).firstWhere((t) => t.description == 'Editar');
+    await db.customStatement(
+        'UPDATE transactions SET updated_at=updated_at+1 WHERE id=?',
+        [created.id]);
+    final entries = await repo.inspectUndo(result.batchId!);
+    expect(entries.where((e) => !e.canUndo), hasLength(1));
+    expect(
+        await repo.undo(result.batchId!, {
+          for (final entry in entries)
+            if (entry.canUndo) entry.id,
+        }),
+        2);
+    expect((await movements.list()).map((t) => t.description),
+        containsAll(['Aluguel', 'Editar']));
+    expect((await repo.batches()), hasLength(1));
+    await expectLater(
+        repo.undo(result.batchId!, {entries.last.id}), throwsFormatException);
+    expect((await repo.inspectUndo(result.batchId!)), hasLength(1));
+  });
+  test('diagnóstico exporta apenas metadados, sem conta ou valores', () async {
+    final rows = await preview('Descrição;Valor;Data\nSegredo;-10;05/10/2026');
+    await repo.commit(rows, account.id);
+    final diagnostic = utf8.decode(await ImportDiagnostics.export(db));
+    expect(diagnostic, contains('"batchCount": 1'));
+    expect(diagnostic, isNot(contains('Segredo')));
+    expect(diagnostic, isNot(contains(account.id)));
+    expect(diagnostic, isNot(contains('amountMinor')));
   });
 }
