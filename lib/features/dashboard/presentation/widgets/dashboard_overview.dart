@@ -81,15 +81,19 @@ class _SummaryPanelState extends State<SummaryPanel> {
                         .titleMedium
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (widget.action != null) widget.action!,
-                    IconButton(
-                        tooltip:
-                            collapsed ? 'Expandir bloco' : 'Recolher bloco',
-                        onPressed: toggle,
-                        icon: Icon(
-                            collapsed ? Icons.expand_more : Icons.expand_less)),
-                  ]),
+                  Wrap(
+                      spacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (widget.action != null) widget.action!,
+                        IconButton(
+                            tooltip:
+                                collapsed ? 'Expandir bloco' : 'Recolher bloco',
+                            onPressed: toggle,
+                            icon: Icon(collapsed
+                                ? Icons.expand_more
+                                : Icons.expand_less)),
+                      ]),
                 ],
               ),
               if (!collapsed) ...[const SizedBox(height: 16), widget.child],
