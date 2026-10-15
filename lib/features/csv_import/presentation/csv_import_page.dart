@@ -53,8 +53,9 @@ class _CsvImportPageState extends State<CsvImportPage> {
 
   Future<CsvProfileStore> _store() async {
     if (_profileStore != null) return _profileStore!;
-    if (widget.profileStore != null)
+    if (widget.profileStore != null) {
       return _profileStore = widget.profileStore!;
+    }
     final directory = await getApplicationSupportDirectory();
     return _profileStore ??= CsvProfileStore(
       File('${directory.path}/somia-import-profiles.json'),
@@ -66,11 +67,12 @@ class _CsvImportPageState extends State<CsvImportPage> {
       final profiles = await (await _store()).load();
       if (mounted) setState(() => _profiles = profiles);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error =
               'Não foi possível ler os perfis locais. Seus dados foram preservados.',
         );
+      }
     }
   }
 
@@ -116,19 +118,21 @@ class _CsvImportPageState extends State<CsvImportPage> {
       );
       await (await _store()).save(profile);
       final profiles = await (await _store()).load();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _profiles = profiles;
           _profileName = profile.name;
           _error = null;
         });
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error = e is FormatException
               ? e.message
               : 'Não foi possível salvar o perfil.',
         );
+      }
     }
   }
 
