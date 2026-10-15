@@ -209,8 +209,8 @@ void main() {
       (tester) async {
     final repo = PreviewRepository();
     await openPreview(tester, repo, size: const Size(800, 900), scale: 1);
-    await tester.scrollUntilVisible(find.text('Conciliar (1 sugestões)'), 200,
-        scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.text('Conciliar (1 sugestões)'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Conciliar (1 sugestões)'));
     await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Possível duplicado •'));
