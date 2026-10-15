@@ -1,3 +1,4 @@
+import '../../../core/widgets/module_surface.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -179,17 +180,24 @@ class _PlanningPageState extends State<PlanningPage> {
                         PopupMenuItem(value: 'delete', child: Text('Excluir'))
                       ])
             ]),
-            Text('Limite: ${money(b.amount, b.currency)}'),
+            Text('Limite: ${money(b.amount, b.currency)}',
+                style: const TextStyle(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFA5BCD0))),
             progress(b.realized, b.amount),
-            Text('Realizado: ${money(b.realized, b.currency)}'),
-            Text('Previsto total: ${money(b.projected, b.currency)}'),
+            Wrap(spacing: 16, runSpacing: 6, children: [
+              Text('Realizado: ${money(b.realized, b.currency)}'),
+              Text('Previsto total: ${money(b.projected, b.currency)}')
+            ]),
             Text(
                 'Disponível no previsto: ${money(b.amount - b.projected, b.currency)}'),
             if (b.projected > b.amount)
               Text('O previsto ultrapassa o limite.',
                   style: TextStyle(color: Theme.of(context).colorScheme.error))
             else if (b.projected * 100 >= b.amount * 80)
-              const Text('Atenção: previsto a partir de 80% do limite.'),
+              const Text('Atenção: previsto a partir de 80% do limite.',
+                  style: TextStyle(color: Color(0xFFD8C49E), fontSize: 12)),
           ])));
   Widget goalCard(PlanningGoal g) {
     final left = math.max(0, g.target - g.saved), today = DateTime.now();
@@ -314,103 +322,108 @@ class _PlanningPageState extends State<PlanningPage> {
   @override
   Widget build(BuildContext context) => DefaultTabController(
       length: 3,
-      child: Scaffold(
-          appBar: AppBar(
-              leading: somiaMenuLeading(context),
-              title: const Text('Planejamento'),
-              bottom: const TabBar(tabs: [
-                Tab(text: 'Orçamentos'),
-                Tab(text: 'Metas'),
-                Tab(text: 'Indicadores')
-              ])),
-          body: loading
-              ? const Center(child: CircularProgressIndicator())
-              : error != null
-                  ? Center(
-                      child: TextButton(
-                          onPressed: load,
-                          child: const Text('Tentar carregar novamente')))
-                  : Column(children: [
-                      Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: MonthSelector(
-                              month: referenceMonth.value,
-                              onChanged: referenceMonth.select)),
-                      Expanded(
-                          child: TabBarView(children: [
-                        RefreshIndicator(
-                            onRefresh: load,
-                            child: ListView(
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                                children: [
-                                  Wrap(spacing: 8, children: [
-                                    FilledButton.icon(
-                                        onPressed:
-                                            busy ? null : () => budgetForm(),
-                                        icon: const Icon(Icons.add),
-                                        label: const Text('Novo limite')),
-                                    TextButton(
-                                        onPressed: busy
-                                            ? null
-                                            : () => act(() => repo.copyPrevious(
-                                                referenceMonth.value)),
-                                        child:
-                                            const Text('Copiar mês anterior'))
-                                  ]),
-                                  const Padding(
-                                      padding:
-                                          EdgeInsets.symmetric(vertical: 12),
-                                      child: Text(
-                                          'Limites independentes por mês. Previsto total inclui o realizado e os lançamentos pendentes. Categoria principal já inclui suas subcategorias.')),
-                                  if (budgets.isEmpty)
-                                    const Padding(
-                                        padding: EdgeInsets.all(20),
-                                        child: Text(
-                                            'Nenhum limite neste mês. Adicione uma categoria para começar.')),
-                                  ...budgets.map(budgetCard),
-                                ])),
-                        RefreshIndicator(
-                            onRefresh: load,
-                            child: ListView(
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                                children: [
-                                  Wrap(spacing: 8, children: [
-                                    FilledButton.icon(
-                                        onPressed: busy
-                                            ? null
-                                            : () => goalForm('goal'),
-                                        icon: const Icon(Icons.add),
-                                        label: const Text('Nova meta')),
-                                    TextButton.icon(
-                                        onPressed: busy
-                                            ? null
-                                            : () => goalForm('reserve'),
-                                        icon:
-                                            const Icon(Icons.savings_outlined),
-                                        label:
-                                            const Text('Reserva de emergência'))
-                                  ]),
-                                  const Padding(
-                                      padding:
-                                          EdgeInsets.symmetric(vertical: 12),
-                                      child: Text(
-                                          'Progresso pelo saldo atual das contas vinculadas, independente do mês selecionado. Vincular não transfere ou bloqueia dinheiro. Use contas separadas para cada meta.')),
-                                  if (goals.isEmpty)
-                                    const Padding(
-                                        padding: EdgeInsets.all(20),
-                                        child: Text(
-                                            'Crie sua primeira meta ou reserva.')),
-                                  ...goals.map(goalCard),
-                                ])),
-                        RefreshIndicator(
-                            onRefresh: load,
-                            child: ListView(
-                                padding: const EdgeInsets.all(16),
-                                children: [indicators()])),
-                      ])),
-                    ])));
+      child: ModuleSurface(
+          child: Scaffold(
+              appBar: AppBar(
+                  leading: somiaMenuLeading(context),
+                  title: const Text('Planejamento'),
+                  bottom: const TabBar(tabs: [
+                    Tab(text: 'Orçamentos'),
+                    Tab(text: 'Metas'),
+                    Tab(text: 'Indicadores')
+                  ])),
+              body: loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : error != null
+                      ? Center(
+                          child: TextButton(
+                              onPressed: load,
+                              child: const Text('Tentar carregar novamente')))
+                      : Column(children: [
+                          Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: MonthSelector(
+                                  month: referenceMonth.value,
+                                  onChanged: referenceMonth.select)),
+                          Expanded(
+                              child: TabBarView(children: [
+                            RefreshIndicator(
+                                onRefresh: load,
+                                child: ListView(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        16, 4, 16, 24),
+                                    children: [
+                                      Wrap(spacing: 8, children: [
+                                        FilledButton.icon(
+                                            onPressed: busy
+                                                ? null
+                                                : () => budgetForm(),
+                                            icon: const Icon(Icons.add),
+                                            label: const Text('Novo limite')),
+                                        TextButton(
+                                            onPressed: busy
+                                                ? null
+                                                : () => act(() =>
+                                                    repo.copyPrevious(
+                                                        referenceMonth.value)),
+                                            child: const Text(
+                                                'Copiar mês anterior'))
+                                      ]),
+                                      ModuleDetails(
+                                          title: 'Como funcionam os limites',
+                                          children: [
+                                            const Text(
+                                                'Limites independentes por mês. Previsto total inclui o realizado e os lançamentos pendentes. Categoria principal já inclui suas subcategorias.')
+                                          ]),
+                                      if (budgets.isEmpty)
+                                        const Padding(
+                                            padding: EdgeInsets.all(20),
+                                            child: Text(
+                                                'Nenhum limite neste mês. Adicione uma categoria para começar.')),
+                                      ...budgets.map(budgetCard),
+                                    ])),
+                            RefreshIndicator(
+                                onRefresh: load,
+                                child: ListView(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        16, 4, 16, 24),
+                                    children: [
+                                      Wrap(spacing: 8, children: [
+                                        FilledButton.icon(
+                                            onPressed: busy
+                                                ? null
+                                                : () => goalForm('goal'),
+                                            icon: const Icon(Icons.add),
+                                            label: const Text('Nova meta')),
+                                        TextButton.icon(
+                                            onPressed: busy
+                                                ? null
+                                                : () => goalForm('reserve'),
+                                            icon: const Icon(
+                                                Icons.savings_outlined),
+                                            label: const Text(
+                                                'Reserva de emergência'))
+                                      ]),
+                                      ModuleDetails(
+                                          title: 'Como funcionam as metas',
+                                          children: [
+                                            const Text(
+                                                'Progresso pelo saldo atual das contas vinculadas, independente do mês selecionado. Vincular não transfere ou bloqueia dinheiro. Use contas separadas para cada meta.')
+                                          ]),
+                                      if (goals.isEmpty)
+                                        const Padding(
+                                            padding: EdgeInsets.all(20),
+                                            child: Text(
+                                                'Crie sua primeira meta ou reserva.')),
+                                      ...goals.map(goalCard),
+                                    ])),
+                            RefreshIndicator(
+                                onRefresh: load,
+                                child: ListView(
+                                    padding: const EdgeInsets.all(16),
+                                    children: [indicators()])),
+                          ])),
+                        ]))));
 }
 
 class BudgetForm extends StatefulWidget {

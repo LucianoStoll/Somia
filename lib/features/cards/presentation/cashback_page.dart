@@ -1,3 +1,4 @@
+import '../../../core/widgets/module_surface.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
@@ -192,16 +193,21 @@ class _CashbackPageState extends State<CashbackPage> {
     }
   }
 
-  Widget _receiptCard(CashbackReceipt r) => Card(
-      color: r.id == widget.receiptId
-          ? Theme.of(context).colorScheme.primaryContainer
-          : null,
+  Widget _receiptCard(CashbackReceipt r) {
+    final received = r.confirmed != 0;
+    final color = r.kind == 'return'
+        ? const Color(0xFFD6A3A3)
+        : received
+            ? const Color(0xFFA8C5B0)
+            : const Color(0xFFA5BCD0);
+    return Card(
+      color: r.id == widget.receiptId ? color.withValues(alpha: 0.12) : null,
       child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (batch && r.confirmed == 0)
+              if (batch && !received)
                 Checkbox(
                     value: selected.contains(r.id),
                     onChanged: (v) => setState(() {
@@ -212,65 +218,90 @@ class _CashbackPageState extends State<CashbackPage> {
                           }
                         }))
               else
-                Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Icon(r.kind == 'return'
-                        ? Icons.undo
-                        : r.confirmed == 0
-                            ? Icons.schedule
-                            : Icons.check_circle_outline)),
-              Expanded(child: Text(r.description)),
+                Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Icon(
+                        r.kind == 'return'
+                            ? Icons.undo
+                            : received
+                                ? Icons.check_circle_outline
+                                : Icons.schedule,
+                        color: color,
+                        size: 20)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(r.description,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15)),
+                    const SizedBox(height: 4),
+                    Text(r.cardName,
+                        style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 12))
+                  ])),
+              PopupMenuButton<String>(
+                  enabled: !acting,
+                  onSelected: (value) {
+                    if (value == 'edit') edit(r);
+                    if (value == 'delete') remove(r);
+                  },
+                  itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'edit', child: Text('Editar')),
+                        PopupMenuItem(value: 'delete', child: Text('Excluir'))
+                      ]),
             ]),
-            const SizedBox(height: 8),
-            Text(r.cardName),
-            if (r.confirmed == 0)
-              Text(
-                  r.kind == 'return'
-                      ? 'Próxima ação: confirmar se houver cobrança da devolução.'
-                      : 'Próxima ação: confirmar quando o valor entrar na conta.',
-                  style: const TextStyle(fontSize: 12)),
-            Text(
-                '${r.confirmed == 0 ? (r.kind == 'return' ? 'Devolução prevista' : 'Previsto') : (r.kind == 'return' ? 'Devolvido' : 'Recebido')} · ${cardDateLabel(r.date)}'),
-            Text(const {
-                  'forecast': 'Compra',
-                  'manual': 'Ajuste manual',
-                  'tier': 'Faixa maior',
-                  'cap': 'Redistribuição / teto',
-                  'refund': 'Estorno',
-                }[r.reason] ??
-                'Ajuste'),
+            const SizedBox(height: 12),
+            Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  TextButton(
+                      onPressed: acting ? null : () => edit(r),
+                      style: TextButton.styleFrom(
+                          foregroundColor: color,
+                          padding: EdgeInsets.zero,
+                          textStyle: const TextStyle(
+                              fontSize: 23, fontWeight: FontWeight.w700)),
+                      child: Text(cardMoney(r.amountMinor))),
+                  Text(
+                      '${received ? (r.kind == 'return' ? 'Devolvido' : 'Recebido') : (r.kind == 'return' ? 'Devolução prevista' : 'Previsto')} · ${cardDateLabel(r.date)}',
+                      style: TextStyle(color: color, fontSize: 12)),
+                ]),
             Align(
                 alignment: Alignment.centerRight,
-                child: Wrap(
-                    alignment: WrapAlignment.end,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 12,
-                    children: [
-                      TextButton(
-                          onPressed: acting ? null : () => edit(r),
-                          child: Text(cardMoney(r.amountMinor))),
-                      PopupMenuButton<String>(
-                          enabled: !acting,
-                          onSelected: (value) {
-                            if (value == 'edit') edit(r);
-                            if (value == 'delete') remove(r);
-                          },
-                          itemBuilder: (_) => const [
-                                PopupMenuItem(
-                                    value: 'edit', child: Text('Editar')),
-                                PopupMenuItem(
-                                    value: 'delete', child: Text('Excluir')),
-                              ]),
-                      TextButton(
-                          onPressed: acting
-                              ? null
-                              : r.confirmed == 0
-                                  ? () => confirm([r])
-                                  : () => undo(r),
-                          child: Text(
-                              r.confirmed == 0 ? 'Confirmar' : 'Desfazer')),
-                    ])),
-          ])));
+                child: received
+                    ? TextButton(
+                        onPressed: acting ? null : () => undo(r),
+                        child: const Text('Desfazer'))
+                    : FilledButton.tonal(
+                        onPressed: acting ? null : () => confirm([r]),
+                        child: const Text('Confirmar'))),
+            ModuleDetails(title: 'Origem e confirmação', children: [
+              Text(const {
+                    'forecast': 'Compra',
+                    'manual': 'Ajuste manual',
+                    'tier': 'Faixa maior',
+                    'cap': 'Redistribuição / teto',
+                    'refund': 'Estorno'
+                  }[r.reason] ??
+                  'Ajuste'),
+              if (!received)
+                Text(r.kind == 'return'
+                    ? 'Confirme se houver cobrança da devolução.'
+                    : 'Confirme quando o valor entrar na conta.'),
+            ]),
+          ])),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -279,87 +310,118 @@ class _CashbackPageState extends State<CashbackPage> {
         .fold(0, (v, r) => v + r.amountMinor);
     final received = receipts.where((r) => r.confirmed != 0).fold(
         0, (v, r) => v + (r.kind == 'return' ? -r.amountMinor : r.amountMinor));
-    return Scaffold(
-        appBar: AppBar(
-            title: const Text('Cashback'),
-            leading: somiaMenuLeading(context),
-            actions: [
-              IconButton(
-                  tooltip: 'Adicionar cashback',
-                  onPressed: loading || acting ? null : () => edit(),
-                  icon: const Icon(Icons.add)),
-              IconButton(
-                  tooltip: 'Configurar cashback do cartão',
-                  onPressed: target == null || loading ? null : settings,
-                  icon: const Icon(Icons.tune)),
-              IconButton(
-                  tooltip: batch ? 'Cancelar seleção' : 'Confirmar em lote',
-                  onPressed: () => setState(() {
-                        batch = !batch;
-                        selected.clear();
-                      }),
-                  icon: Icon(batch ? Icons.close : Icons.checklist)),
-            ]),
-        body: loading
-            ? const Center(child: CircularProgressIndicator())
-            : error != null
-                ? Center(
-                    child: TextButton(
-                        onPressed: load,
-                        child: Text('$error Tentar novamente')))
-                : RefreshIndicator(
-                    onRefresh: load,
-                    child:
-                        ListView(padding: const EdgeInsets.all(16), children: [
-                      DropdownButtonFormField<String>(
-                          key: ValueKey(target),
-                          initialValue: target,
-                          isExpanded: true,
-                          decoration:
-                              const InputDecoration(labelText: 'Cartão'),
-                          items: [
-                            const DropdownMenuItem<String>(
-                                value: null, child: Text('Todos os cartões')),
-                            for (final card in cards)
-                              DropdownMenuItem(
-                                  value: card.key,
-                                  child: Text(
-                                      '${card.name} · ${card.kind == 'credit' ? 'Crédito' : 'Débito'}')),
-                          ],
-                          onChanged: (v) {
-                            setState(() => target = v);
-                            load();
+    return ModuleSurface(
+        child: Scaffold(
+            appBar: AppBar(
+                title: const Text('Cashback'),
+                leading: somiaMenuLeading(context),
+                actions: [
+                  IconButton(
+                      tooltip: 'Adicionar cashback',
+                      onPressed: loading || acting ? null : () => edit(),
+                      icon: const Icon(Icons.add)),
+                  IconButton(
+                      tooltip: 'Configurar cashback do cartão',
+                      onPressed: target == null || loading ? null : settings,
+                      icon: const Icon(Icons.tune)),
+                  IconButton(
+                      tooltip: batch ? 'Cancelar seleção' : 'Confirmar em lote',
+                      onPressed: () => setState(() {
+                            batch = !batch;
+                            selected.clear();
                           }),
-                      if (target != null)
-                        TextButton.icon(
-                            onPressed: settings,
-                            icon: const Icon(Icons.settings_outlined),
-                            label: const Text(
-                                'Configurar regra, conta e categorias')),
-                      Wrap(spacing: 16, runSpacing: 8, children: [
-                        Text('Previsto: ${cardMoney(pending)}'),
-                        Text('Recebido líquido: ${cardMoney(received)}'),
-                      ]),
-                      const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                              'Previsões não movimentam o saldo atual. Confirme o depósito ou a devolução pelo valor realmente ocorrido.')),
-                      if (batch)
-                        FilledButton(
-                            onPressed: selected.isEmpty || acting
-                                ? null
-                                : () => confirm(receipts
-                                    .where((r) => selected.contains(r.id))
-                                    .toList()),
-                            child: Text(
-                                'Confirmar ${selected.length} selecionado(s)')),
-                      if (receipts.isEmpty)
-                        const Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text(
-                                'Nenhum cashback. Selecione um cartão e configure sua regra. Compras geram previsão quando o primeiro pagamento for efetivado.')),
-                      for (final r in receipts) _receiptCard(r),
-                    ])));
+                      icon: Icon(batch ? Icons.close : Icons.checklist)),
+                ]),
+            body: loading
+                ? const Center(child: CircularProgressIndicator())
+                : error != null
+                    ? Center(
+                        child: TextButton(
+                            onPressed: load,
+                            child: Text('$error Tentar novamente')))
+                    : RefreshIndicator(
+                        onRefresh: load,
+                        child: ListView(
+                            padding: const EdgeInsets.all(16),
+                            children: [
+                              DropdownButtonFormField<String>(
+                                  key: ValueKey(target),
+                                  initialValue: target,
+                                  isExpanded: true,
+                                  decoration: const InputDecoration(
+                                      labelText: 'Cartão'),
+                                  items: [
+                                    const DropdownMenuItem<String>(
+                                        value: null,
+                                        child: Text('Todos os cartões')),
+                                    for (final card in cards)
+                                      DropdownMenuItem(
+                                          value: card.key,
+                                          child: Text(
+                                              '${card.name} · ${card.kind == 'credit' ? 'Crédito' : 'Débito'}')),
+                                  ],
+                                  onChanged: (v) {
+                                    setState(() => target = v);
+                                    load();
+                                  }),
+                              if (target != null)
+                                TextButton.icon(
+                                    onPressed: settings,
+                                    icon: const Icon(Icons.settings_outlined),
+                                    label: const Text(
+                                        'Configurar regra, conta e categorias')),
+                              const SizedBox(height: 16),
+                              LayoutBuilder(builder: (context, box) {
+                                final stats = [
+                                  ModuleStat(
+                                      label: 'Previsto',
+                                      value: cardMoney(pending)),
+                                  ModuleStat(
+                                      label: 'Recebido líquido',
+                                      value: cardMoney(received),
+                                      color: const Color(0xFFA8C5B0))
+                                ];
+                                return box.maxWidth < 340 ||
+                                        MediaQuery.textScalerOf(context)
+                                                .scale(14) >
+                                            21
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                            stats[0],
+                                            const SizedBox(height: 8),
+                                            stats[1]
+                                          ])
+                                    : Row(children: [
+                                        Expanded(child: stats[0]),
+                                        const SizedBox(width: 10),
+                                        Expanded(child: stats[1])
+                                      ]);
+                              }),
+                              const ModuleDetails(
+                                  title: 'Como confirmar o cashback',
+                                  children: [
+                                    Text(
+                                        'Previsões não movimentam o saldo atual. Confirme o depósito ou a devolução pelo valor realmente ocorrido.')
+                                  ]),
+                              if (batch)
+                                FilledButton(
+                                    onPressed: selected.isEmpty || acting
+                                        ? null
+                                        : () => confirm(receipts
+                                            .where(
+                                                (r) => selected.contains(r.id))
+                                            .toList()),
+                                    child: Text(
+                                        'Confirmar ${selected.length} selecionado(s)')),
+                              if (receipts.isEmpty)
+                                const Padding(
+                                    padding: EdgeInsets.all(24),
+                                    child: Text(
+                                        'Nenhum cashback. Selecione um cartão e configure sua regra. Compras geram previsão quando o primeiro pagamento for efetivado.')),
+                              for (final r in receipts) _receiptCard(r),
+                            ]))));
   }
 }
 

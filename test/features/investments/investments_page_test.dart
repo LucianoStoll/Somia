@@ -168,6 +168,10 @@ void main() {
     addTearDown(getIt.reset);
     await _open(tester, const InvestmentsPage(), size: const Size(1280, 900));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Gerenciar aplicação'));
+    await tester.tap(find.text('Gerenciar aplicação'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Excluir aplicação'));
     await tester.tap(find.text('Excluir aplicação'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancelar'));
@@ -255,8 +259,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('R\$ 2000,00'), findsNWidgets(2));
       expect(find.text('Total em contas (BRL): R\$ 3000,00'), findsOneWidget);
+      expect(find.text('Movimentar'), findsOneWidget);
+      await tester.tap(find.byTooltip('Movimentar aplicação'));
+      await tester.pumpAndSettle();
       expect(find.text('Aporte'), findsOneWidget);
       expect(find.text('Saldo do banco'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
       if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
         await expectLater(
           find.byType(MaterialApp),

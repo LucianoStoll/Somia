@@ -2,6 +2,8 @@
 
 ## v0.3.0-alpha — em desenvolvimento
 
+- Identidade grafite/pastel do Resumo aplicada aos sete módulos financeiros: indicadores, cards separados, ações compactas, informações expansíveis e campos discretos. Sem mudança de dados; roteiro em `docs/identidade-modulos-alpha.md`.
+
 ### Experiência diária e preferências do Resumo — #59
 
 - Menu agrupado, listas por dia com totais por moeda e filtros ativos removíveis.

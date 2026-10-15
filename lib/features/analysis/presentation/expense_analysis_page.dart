@@ -1,3 +1,4 @@
+import '../../../core/widgets/module_surface.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
@@ -105,120 +106,132 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(
-          title: const Text('Análises'),
-          leading: somiaMenuLeading(context),
-          actions: [
-            if (exporting)
-              const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2)))
-            else
-              PopupMenuButton<ReportFormat>(
-                  tooltip: 'Exportar análise',
-                  enabled: !loading && data != null && currency != null,
-                  icon: const Icon(Icons.file_download_outlined),
-                  onSelected: export,
-                  itemBuilder: (_) => const [
-                        PopupMenuItem(
-                            value: ReportFormat.excel,
-                            child: Text('Exportar Excel (.xlsx)')),
-                        PopupMenuItem(
-                            value: ReportFormat.pdf,
-                            child: Text('Exportar PDF'))
-                      ]),
-            IconButton(
-                tooltip: 'Atualizar análises',
-                onPressed: loading ? null : load,
-                icon: const Icon(Icons.refresh))
-          ]),
-      body: RefreshIndicator(
-          onRefresh: load,
-          child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
-              children: [
-                Center(
-                    child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1100),
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              MonthSelector(
-                                  month: referenceMonth.value,
-                                  onChanged: referenceMonth.select),
-                              const SizedBox(height: 16),
-                              DropdownButtonFormField<int>(
-                                  initialValue: view,
-                                  decoration: const InputDecoration(
-                                      labelText: 'O que analisar'),
-                                  isExpanded: true,
-                                  items: const [
-                                    DropdownMenuItem(
-                                        value: 0,
-                                        child: Text('Despesas por categoria')),
-                                    DropdownMenuItem(
-                                        value: 1,
-                                        child: Text('Comparação mensal')),
-                                    DropdownMenuItem(
-                                        value: 2,
-                                        child: Text('Compromissos futuros')),
-                                    DropdownMenuItem(
-                                        value: 3,
-                                        child: Text('Saldo por tipo de conta'))
+  Widget build(BuildContext context) => ModuleSurface(
+      child: Scaffold(
+          appBar: AppBar(
+              title: const Text('Análises'),
+              leading: somiaMenuLeading(context),
+              actions: [
+                if (exporting)
+                  const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2)))
+                else
+                  PopupMenuButton<ReportFormat>(
+                      tooltip: 'Exportar análise',
+                      enabled: !loading && data != null && currency != null,
+                      icon: const Icon(Icons.file_download_outlined),
+                      onSelected: export,
+                      itemBuilder: (_) => const [
+                            PopupMenuItem(
+                                value: ReportFormat.excel,
+                                child: Text('Exportar Excel (.xlsx)')),
+                            PopupMenuItem(
+                                value: ReportFormat.pdf,
+                                child: Text('Exportar PDF'))
+                          ]),
+                IconButton(
+                    tooltip: 'Atualizar análises',
+                    onPressed: loading ? null : load,
+                    icon: const Icon(Icons.refresh))
+              ]),
+          body: RefreshIndicator(
+              onRefresh: load,
+              child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
+                  children: [
+                    Center(
+                        child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1100),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  MonthSelector(
+                                      month: referenceMonth.value,
+                                      onChanged: referenceMonth.select),
+                                  const SizedBox(height: 16),
+                                  DropdownButtonFormField<int>(
+                                      initialValue: view,
+                                      decoration: const InputDecoration(
+                                          labelText: 'O que analisar'),
+                                      isExpanded: true,
+                                      items: const [
+                                        DropdownMenuItem(
+                                            value: 0,
+                                            child:
+                                                Text('Despesas por categoria')),
+                                        DropdownMenuItem(
+                                            value: 1,
+                                            child: Text('Comparação mensal')),
+                                        DropdownMenuItem(
+                                            value: 2,
+                                            child:
+                                                Text('Compromissos futuros')),
+                                        DropdownMenuItem(
+                                            value: 3,
+                                            child:
+                                                Text('Saldo por tipo de conta'))
+                                      ],
+                                      onChanged: (value) {
+                                        if (value != null) {
+                                          setState(() => view = value);
+                                        }
+                                      }),
+                                  const SizedBox(height: 12),
+                                  if (loading)
+                                    const Center(
+                                        child: Padding(
+                                            padding: EdgeInsets.all(40),
+                                            child: CircularProgressIndicator()))
+                                  else if (error != null)
+                                    Column(children: [
+                                      Text(error!),
+                                      TextButton(
+                                          onPressed: load,
+                                          child: const Text('Tentar novamente'))
+                                    ])
+                                  else if (data!.currencies.isEmpty)
+                                    const Text(
+                                        'Cadastre contas e lançamentos para começar.')
+                                  else ...[
+                                    if (data!.currencies.length > 1)
+                                      Wrap(spacing: 8, children: [
+                                        for (final c in data!.currencies)
+                                          ChoiceChip(
+                                              label: Text(c),
+                                              selected: currency == c,
+                                              onSelected: (_) =>
+                                                  setState(() => currency = c))
+                                      ]),
+                                    const SizedBox(height: 12),
+                                    switch (view) {
+                                      0 => categories(),
+                                      1 => comparison(),
+                                      2 => future(),
+                                      _ => balances()
+                                    },
                                   ],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() => view = value);
-                                    }
-                                  }),
-                              const SizedBox(height: 12),
-                              if (loading)
-                                const Center(
-                                    child: Padding(
-                                        padding: EdgeInsets.all(40),
-                                        child: CircularProgressIndicator()))
-                              else if (error != null)
-                                Column(children: [
-                                  Text(error!),
-                                  TextButton(
-                                      onPressed: load,
-                                      child: const Text('Tentar novamente'))
-                                ])
-                              else if (data!.currencies.isEmpty)
-                                const Text(
-                                    'Cadastre contas e lançamentos para começar.')
-                              else ...[
-                                if (data!.currencies.length > 1)
-                                  Wrap(spacing: 8, children: [
-                                    for (final c in data!.currencies)
-                                      ChoiceChip(
-                                          label: Text(c),
-                                          selected: currency == c,
-                                          onSelected: (_) =>
-                                              setState(() => currency = c))
-                                  ]),
-                                const SizedBox(height: 12),
-                                switch (view) {
-                                  0 => categories(),
-                                  1 => comparison(),
-                                  2 => future(),
-                                  _ => balances()
-                                },
-                              ],
-                            ])))
-              ])));
+                                ])))
+                  ]))));
   Widget panel(String title, String explanation, List<Widget> children) => Card(
       child: Padding(
           padding: const EdgeInsets.all(18),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            Text(title,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            Text(explanation, style: const TextStyle(color: SomiaColors.muted)),
+            ModuleDetails(title: 'Como interpretar', children: [
+              Text(explanation,
+                  style:
+                      const TextStyle(color: SomiaColors.muted, fontSize: 13))
+            ]),
             const SizedBox(height: 18),
             ...children
           ])));
@@ -232,11 +245,20 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
         'Efetivação ou vencimento; cartões pelo vencimento da fatura. Inclui previstos, rateios e estornos. Toque para ver subcategorias e lançamentos.',
         [
           Text('Total: ${money(total)}',
-              style: Theme.of(context).textTheme.titleMedium),
+              style: const TextStyle(
+                  color: SomiaColors.blue,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
           if (rows.isEmpty) const Text('Nenhuma despesa neste mês.'),
           for (final r in rows)
             AnalysisBar(
+                color: const [
+                  SomiaColors.blue,
+                  SomiaColors.purple,
+                  SomiaColors.green,
+                  SomiaColors.yellow
+                ][rows.indexOf(r) % 4],
                 label: r.category,
                 value: r.current,
                 maximum: max,
@@ -354,7 +376,7 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
                           LayoutBuilder(
                               builder: (context, box) => Row(children: [
                                     Container(
-                                        height: 12,
+                                        height: 8,
                                         width:
                                             box.maxWidth * r.expenseTotal / max,
                                         color: SomiaColors.red),

@@ -1,3 +1,4 @@
+import '../../../core/widgets/module_surface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -134,7 +135,8 @@ class _InvestmentsView extends StatelessWidget {
       BlocBuilder<InvestmentsCubit, InvestmentsState>(
         builder: (context, state) {
           final overview = state.overview;
-          return Scaffold(
+          return ModuleSurface(
+              child: Scaffold(
             appBar: AppBar(
               title: const Text('Investimentos'),
               leading: somiaMenuLeading(context),
@@ -180,36 +182,22 @@ class _InvestmentsView extends StatelessWidget {
                               padding:
                                   const EdgeInsets.fromLTRB(16, 12, 16, 100),
                               children: [
-                                Card(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                            'Saldo atual das aplicações'),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          MoneyMinor.display(
-                                              overview.investedMinor, 'BRL'),
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .headlineMedium,
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Text(
+                                ModuleHero(
+                                    label: 'Saldo atual das aplicações',
+                                    value: MoneyMinor.display(
+                                        overview.investedMinor, 'BRL'),
+                                    icon: Icons.savings_outlined,
+                                    children: [
+                                      Text(
                                           'Total em contas (BRL): ${MoneyMinor.display(overview.financialAssetsMinor, 'BRL')}',
-                                        ),
-                                        const SizedBox(height: 8),
-                                        const Text(
-                                          'Soma os saldos das contas em reais, incluindo as aplicações '
-                                          'e as contas fora do saldo do mês.',
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                                          style: const TextStyle(fontSize: 13)),
+                                      const ModuleDetails(
+                                          title: 'Como o saldo é calculado',
+                                          children: [
+                                            Text(
+                                                'Soma os saldos das contas em reais, incluindo as aplicações e as contas fora do saldo do mês.')
+                                          ]),
+                                    ]),
                                 if (overview.investments.isEmpty)
                                   const Padding(
                                     padding: EdgeInsets.all(24),
@@ -262,7 +250,13 @@ class _InvestmentsView extends StatelessWidget {
                                             ),
                                             style: Theme.of(context)
                                                 .textTheme
-                                                .titleLarge,
+                                                .titleLarge
+                                                ?.copyWith(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
+                                                    fontWeight:
+                                                        FontWeight.w700),
                                           ),
                                           Text('Conta: ${item.account.name}'),
                                           if (item.maturityDate != null)
@@ -273,7 +267,9 @@ class _InvestmentsView extends StatelessWidget {
                                             Padding(
                                               padding:
                                                   const EdgeInsets.only(top: 8),
-                                              child: Text(item.notes),
+                                              child: ModuleDetails(
+                                                  title: 'Observações',
+                                                  children: [Text(item.notes)]),
                                             ),
                                           const SizedBox(height: 12),
                                           Wrap(
@@ -281,17 +277,32 @@ class _InvestmentsView extends StatelessWidget {
                                             runSpacing: 8,
                                             children: [
                                               if (!item.account.isArchived)
-                                                for (final action
-                                                    in InvestmentAction.values)
-                                                  OutlinedButton(
-                                                    onPressed: () => _operation(
-                                                      context,
-                                                      overview,
-                                                      item,
-                                                      action,
-                                                    ),
-                                                    child: Text(action.label),
-                                                  ),
+                                                PopupMenuButton<
+                                                    InvestmentAction>(
+                                                  tooltip:
+                                                      'Movimentar aplicação',
+                                                  onSelected: (action) =>
+                                                      _operation(
+                                                          context,
+                                                          overview,
+                                                          item,
+                                                          action),
+                                                  itemBuilder: (_) => [
+                                                    for (final action
+                                                        in InvestmentAction
+                                                            .values)
+                                                      PopupMenuItem(
+                                                          value: action,
+                                                          child: Text(
+                                                              action.label))
+                                                  ],
+                                                  child: const Chip(
+                                                      avatar: Icon(
+                                                          Icons.swap_vert,
+                                                          size: 18),
+                                                      label:
+                                                          Text('Movimentar')),
+                                                ),
                                               TextButton(
                                                 onPressed: () => context.go(
                                                   '${AppRoutes.accountsPath}/${item.account.id}',
@@ -299,21 +310,25 @@ class _InvestmentsView extends StatelessWidget {
                                                 child:
                                                     const Text('Ver extrato'),
                                               ),
-                                              TextButton(
-                                                onPressed: () =>
-                                                    _delete(context, item),
-                                                child: const Text(
-                                                    'Excluir aplicação'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () =>
-                                                    _archive(context, item),
-                                                child: Text(
-                                                  item.account.isArchived
-                                                      ? 'Reativar'
-                                                      : 'Arquivar',
-                                                ),
-                                              ),
+                                              ModuleDetails(
+                                                  title: 'Gerenciar aplicação',
+                                                  children: [
+                                                    TextButton(
+                                                      onPressed: () => _delete(
+                                                          context, item),
+                                                      child: const Text(
+                                                          'Excluir aplicação'),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () => _archive(
+                                                          context, item),
+                                                      child: Text(
+                                                        item.account.isArchived
+                                                            ? 'Reativar'
+                                                            : 'Arquivar',
+                                                      ),
+                                                    ),
+                                                  ]),
                                             ],
                                           ),
                                         ],
@@ -323,7 +338,7 @@ class _InvestmentsView extends StatelessWidget {
                               ],
                             ),
                           ),
-          );
+          ));
         },
       );
 }

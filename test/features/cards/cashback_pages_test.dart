@@ -1,3 +1,4 @@
+import 'package:finapp/core/widgets/module_surface.dart';
 import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -113,7 +114,11 @@ void main() {
       addTearDown(t.view.resetPhysicalSize);
       addTearDown(t.view.resetDevicePixelRatio);
       await open(t, platform, CashbackPage(kind: 'debit', cardId: cardId));
-      expect(find.text('Previsto: R\$ 10,00'), findsOneWidget);
+      expect(
+          find.descendant(
+              of: find.widgetWithText(ModuleStat, 'Previsto'),
+              matching: find.text('R\$ 10,00')),
+          findsOneWidget);
       await t.ensureVisible(find.text('Confirmar'));
       await t.tap(find.text('Confirmar'));
       await t.pumpAndSettle();
@@ -126,15 +131,27 @@ void main() {
           .text = '8,00';
       await t.tap(find.descendant(of: form, matching: find.text('Confirmar')));
       await t.pumpAndSettle();
-      expect(find.text('Recebido líquido: R\$ 8,00'), findsOneWidget);
-      expect(find.text('Previsto: R\$ 0,00'), findsOneWidget);
+      expect(
+          find.descendant(
+              of: find.widgetWithText(ModuleStat, 'Recebido líquido'),
+              matching: find.text('R\$ 8,00')),
+          findsOneWidget);
+      expect(
+          find.descendant(
+              of: find.widgetWithText(ModuleStat, 'Previsto'),
+              matching: find.text('R\$ 0,00')),
+          findsOneWidget);
       await t.ensureVisible(find.text('Desfazer'));
       await t.tap(find.text('Desfazer'));
       await t.pumpAndSettle();
       await t.tap(find.descendant(
           of: find.byType(AlertDialog), matching: find.text('Desfazer')));
       await t.pumpAndSettle();
-      expect(find.text('Previsto: R\$ 10,00'), findsOneWidget);
+      expect(
+          find.descendant(
+              of: find.widgetWithText(ModuleStat, 'Previsto'),
+              matching: find.text('R\$ 10,00')),
+          findsOneWidget);
       expect(t.takeException(), isNull);
     });
     testWidgets(
