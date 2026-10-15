@@ -5,20 +5,24 @@ import 'package:finapp/core/di/injection.dart';
 import 'package:finapp/core/preferences/interface_preferences.dart';
 import 'package:finapp/features/dashboard/presentation/widgets/dashboard_overview.dart';
 
+class _MemoryPreferences extends InterfacePreferences {
+  _MemoryPreferences() : super(File('unused-interface-test.json'));
+  final values = <String, bool>{};
+  @override
+  bool read(String key, {bool fallback = false}) => values[key] ?? fallback;
+  @override
+  Future<void> write(String key, bool value) async {
+    values[key] = value;
+  }
+}
+
 void main() {
   testWidgets('resumo restaura contas com saldo e recolhimento ao remontar',
       (tester) async {
-    final directory =
-        await Directory.systemTemp.createTemp('summary-preferences-');
-    final preferences = InterfacePreferences(File('${directory.path}/ui.json'));
-    await preferences.load();
+    final preferences = _MemoryPreferences();
     await getIt.reset();
     getIt.registerSingleton<InterfacePreferences>(preferences);
-    addTearDown(() async {
-      await preferences.flush();
-      await getIt.reset();
-      await directory.delete(recursive: true);
-    });
+    addTearDown(() => getIt.reset());
     Widget page() => const MaterialApp(
         home: Scaffold(body: SummaryAccounts(currencies: [])));
     await tester.pumpWidget(page());
@@ -30,8 +34,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SwitchListTile), findsNothing);
     await tester.pumpWidget(const SizedBox());
-    await tester.runAsync(() => preferences.flush());
-    await tester.runAsync(() => preferences.load());
     await tester.pumpWidget(page());
     expect(find.byType(SwitchListTile), findsNothing);
     await tester.tap(find.byTooltip('Expandir bloco'));
