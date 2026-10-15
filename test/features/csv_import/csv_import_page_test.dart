@@ -70,8 +70,8 @@ class PreviewRepository implements CsvImportRepository {
   }
 
   @override
-  Future<CsvImportResult> commit(
-      List<CsvPreviewRow> rows, String accountId) async {
+  Future<CsvImportResult> commit(List<CsvPreviewRow> rows, String accountId,
+      {String sourceName = 'Extrato'}) async {
     commits++;
     committed = rows;
     return CsvImportResult(rows.where((r) => r.selected).length, 0);
@@ -178,6 +178,27 @@ void main() {
     await tester.tap(find.text('Importar'));
     await tester.pumpAndSettle();
     expect(repo.committed!.first.categoryId, isNull);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('filtros da prévia preservam os índices reais das linhas',
+      (tester) async {
+    final repo = PreviewRepository();
+    await openPreview(tester, repo, size: const Size(800, 900), scale: 1);
+    expect(find.textContaining('despesas R\$ 123,45'), findsOneWidget);
+    await tester.tap(find.text('Duplicadas'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(CheckboxListTile, 'Mercado da semana'),
+        findsNothing);
+    final duplicate =
+        find.widgetWithText(CheckboxListTile, 'Possível duplicado');
+    await tester.ensureVisible(duplicate);
+    await tester.tap(duplicate);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Selecionadas'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(CheckboxListTile, 'Possível duplicado'),
+        findsOneWidget);
+    expect(find.textContaining('despesas R\$ 133,45'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {

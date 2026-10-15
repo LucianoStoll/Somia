@@ -313,8 +313,9 @@ class CsvReferences {
 }
 
 class CsvImportResult {
-  const CsvImportResult(this.imported, this.skipped);
+  const CsvImportResult(this.imported, this.skipped, {this.batchId});
   final int imported, skipped;
+  final String? batchId;
 }
 
 abstract interface class CsvImportRepository {
@@ -324,5 +325,6 @@ abstract interface class CsvImportRepository {
     CsvMapping mapping,
     String accountId,
   );
-  Future<CsvImportResult> commit(List<CsvPreviewRow> rows, String accountId);
+  Future<CsvImportResult> commit(List<CsvPreviewRow> rows, String accountId,
+      {String sourceName = 'Extrato'});
 }

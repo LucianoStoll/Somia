@@ -16,7 +16,7 @@ O tipo pode vir de uma coluna (receita/despesa ou crédito/débito), do sinal (+
 
 ## Prévia e categorias
 
-A prévia não grava dados. Mostra linha, descrição, tipo, valor, lançamento, vencimento, efetivação/pendência, erros, categoria e possíveis duplicados. Linhas válidas novas vêm selecionadas; erros e duplicados ficam desmarcados. É possível desmarcar linhas e escolher/remover uma categoria antes de confirmar.
+A prévia não grava dados. Mostra linha, descrição, tipo, valor, lançamento, vencimento, efetivação/pendência, erros, categoria e possíveis duplicados. Linhas válidas novas vêm selecionadas; erros e duplicados ficam desmarcados. É possível filtrar linhas selecionadas, duplicadas e inválidas, ver os totais separados de receitas e despesas, desmarcar linhas e escolher/remover uma categoria antes de confirmar.
 
 Categorias/subcategorias já cadastradas são associadas por nome e tipo, ignorando caixa e acentuação. Nomes inexistentes ou ambíguos geram aviso e não criam categorias automaticamente. Sem classificação no arquivo, uma categoria ativa do histórico de mesmo texto/tipo é sugerida. A sugestão pode ser alterada na prévia.
 
@@ -24,7 +24,7 @@ Duplicidade considera conta, descrição normalizada, receita/despesa, valor, la
 
 ## Confirmação e segurança dos dados
 
-A confirmação informa a quantidade e os duplicados selecionados. O lote é gravado numa única transação, com UUIDs e os mesmos repositórios/regras das entradas manuais. Qualquer falha reverte todo o lote, incluindo alterações capturadas para sincronização. Conta/categoria são revalidadas; duplicados surgidos após a prévia são ignorados, exceto os selecionados explicitamente como duplicados.
+A confirmação informa a quantidade e os duplicados selecionados. O lote é gravado numa única transação, com UUIDs e os mesmos repositórios/regras das entradas manuais. A identidade do lote, nome do arquivo e vínculo de cada linha ao lançamento são preservados no banco, backup e sincronização. Qualquer falha reverte todo o lote, incluindo alterações capturadas para sincronização. Conta/categoria são revalidadas; duplicados surgidos após a prévia são ignorados, exceto os selecionados explicitamente como duplicados.
 
 A gravação é serializada com manutenção local. A tela de importação protege a prévia contra aplicação automática de dados remotos. Depois de concluir e fechar a prévia, as seções atualizam com o app aberto; a sincronização existente captura o lote confirmado. Cancelar ou voltar antes da confirmação mantém o banco intacto.
 

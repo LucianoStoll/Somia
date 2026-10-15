@@ -19,6 +19,8 @@ class CsvPickedFile {
   final Uint8List bytes;
 }
 
+enum CsvPreviewFilter { all, selected, duplicate, invalid }
+
 class CsvImportPage extends StatefulWidget {
   const CsvImportPage({
     super.key,
@@ -44,6 +46,18 @@ class _CsvImportPageState extends State<CsvImportPage> {
   List<CsvProfile> _profiles = [];
   String? _profileName;
   bool _picking = false;
+  CsvPreviewFilter _filter = CsvPreviewFilter.all;
+
+  List<(int, CsvPreviewRow)> _visibleRows(CsvImportState state) => [
+        for (var i = 0; i < state.rows.length; i++)
+          if (switch (_filter) {
+            CsvPreviewFilter.all => true,
+            CsvPreviewFilter.selected => state.rows[i].selected,
+            CsvPreviewFilter.duplicate => state.rows[i].duplicate,
+            CsvPreviewFilter.invalid => state.rows[i].error != null,
+          })
+            (i, state.rows[i]),
+      ];
   @override
   void initState() {
     super.initState();
@@ -231,6 +245,7 @@ class _CsvImportPageState extends State<CsvImportPage> {
 
   Future<void> _generatePreview() async {
     await _cubit.preview(_document!, _mapping, _accountId!);
+    if (mounted) setState(() => _filter = CsvPreviewFilter.all);
     if (mounted && _cubit.state.previewed && _scroll.hasClients) {
       _scroll.jumpTo(0);
     }
@@ -266,7 +281,9 @@ class _CsvImportPageState extends State<CsvImportPage> {
         ],
       ),
     );
-    if (confirmed == true && mounted) await _cubit.commit(_accountId!);
+    if (confirmed == true && mounted) {
+      await _cubit.commit(_accountId!, sourceName: _file?.name ?? 'Extrato');
+    }
   }
 
   Future<void> _chooseCategory(int index) async {
@@ -619,50 +636,79 @@ class _CsvImportPageState extends State<CsvImportPage> {
     );
   }
 
-  Widget _previewHeader(CsvImportState state) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            '3. Conferir lançamentos',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Conta: ${state.references!.accounts.firstWhere((a) => a.id == _accountId).name}',
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${state.selected} selecionados • ${state.rows.where((r) => r.duplicate).length} possíveis duplicados • ${state.rows.where((r) => r.error != null).length} linhas inválidas',
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Duplicados ficam desmarcados. Marque apenas se quiser adicionar outro lançamento igual. Linhas inválidas não serão importadas.',
-          ),
-          Wrap(
-            spacing: 8,
-            children: [
-              TextButton(
-                onPressed: state.busy ? null : () => _cubit.selectNew(true),
-                child: const Text('Selecionar novos'),
-              ),
-              TextButton(
-                onPressed: state.busy ? null : () => _cubit.selectNew(false),
-                child: const Text('Desmarcar todos'),
-              ),
-              TextButton(
-                onPressed: state.busy ? null : _cubit.reset,
-                child: const Text('Ajustar colunas'),
-              ),
-            ],
-          ),
-          FilledButton(
-            onPressed:
-                state.busy || state.selected == 0 ? null : _confirmImport,
-            child: Text('Importar ${state.selected} lançamentos'),
-          ),
-          const SizedBox(height: 12),
-        ],
-      );
+  Widget _previewHeader(CsvImportState state) {
+    final account =
+        state.references!.accounts.firstWhere((a) => a.id == _accountId);
+    var income = 0, expense = 0;
+    for (final row in state.rows.where((r) => r.selected)) {
+      final candidate = row.candidate!;
+      if (candidate.type.name == 'income') {
+        income += candidate.amountMinor;
+      } else {
+        expense += candidate.amountMinor;
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          '3. Conferir lançamentos',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Conta: ${account.name} • Arquivo: ${_file?.name ?? 'Extrato'}',
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${state.selected} selecionados • ${state.rows.where((r) => r.duplicate).length} possíveis duplicados • ${state.rows.where((r) => r.error != null).length} linhas inválidas',
+        ),
+        Text(
+            'Selecionados: receitas ${MoneyMinor.display(income, account.currencyCode)} '
+            '• despesas ${MoneyMinor.display(expense, account.currencyCode)}'),
+        const SizedBox(height: 8),
+        Wrap(spacing: 6, children: [
+          for (final (filter, label) in [
+            (CsvPreviewFilter.all, 'Todas'),
+            (CsvPreviewFilter.selected, 'Selecionadas'),
+            (CsvPreviewFilter.duplicate, 'Duplicadas'),
+            (CsvPreviewFilter.invalid, 'Inválidas')
+          ])
+            ChoiceChip(
+                label: Text(label),
+                selected: _filter == filter,
+                onSelected: (_) => setState(() => _filter = filter)),
+        ]),
+        const SizedBox(height: 8),
+        const Text(
+          'Duplicados ficam desmarcados. Marque apenas se quiser adicionar outro lançamento igual. Linhas inválidas não serão importadas.',
+        ),
+        Wrap(
+          spacing: 8,
+          children: [
+            TextButton(
+              onPressed: state.busy ? null : () => _cubit.selectNew(true),
+              child: const Text('Selecionar novos'),
+            ),
+            TextButton(
+              onPressed: state.busy ? null : () => _cubit.selectNew(false),
+              child: const Text('Desmarcar todos'),
+            ),
+            TextButton(
+              onPressed: state.busy ? null : _cubit.reset,
+              child: const Text('Ajustar colunas'),
+            ),
+          ],
+        ),
+        FilledButton(
+          onPressed: state.busy || state.selected == 0 ? null : _confirmImport,
+          child: Text('Importar ${state.selected} lançamentos'),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
   Widget _row(CsvPreviewRow row, int index, CsvImportState state) {
     final candidate = row.candidate;
     final categories = state.references!.categories.where(
@@ -721,58 +767,63 @@ class _CsvImportPageState extends State<CsvImportPage> {
         listener: (context, state) {
           if (state.result != null) Navigator.pop(context, state.result);
         },
-        builder: (context, state) => PopScope(
-          canPop: !state.busy && !_picking,
-          child: Scaffold(
-            appBar: AppBar(title: const Text('Importar CSV')),
-            body: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: CustomScrollView(
-                  controller: _scroll,
-                  slivers: [
-                    SliverPadding(
-                      padding: const EdgeInsets.all(20),
-                      sliver: SliverToBoxAdapter(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (state.previewed)
-                              _previewHeader(state)
-                            else
-                              _options(state),
-                            if (state.error != null)
-                              Text(
-                                state.error!,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                              ),
-                            if (state.busy || _picking)
-                              const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (state.previewed)
+        builder: (context, state) {
+          final visible = state.previewed
+              ? _visibleRows(state)
+              : const <(int, CsvPreviewRow)>[];
+          return PopScope(
+            canPop: !state.busy && !_picking,
+            child: Scaffold(
+              appBar: AppBar(title: const Text('Importar CSV')),
+              body: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: CustomScrollView(
+                    controller: _scroll,
+                    slivers: [
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                        sliver: SliverList.builder(
-                          itemCount: state.rows.length,
-                          itemBuilder: (context, i) =>
-                              _row(state.rows[i], i, state),
+                        padding: const EdgeInsets.all(20),
+                        sliver: SliverToBoxAdapter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (state.previewed)
+                                _previewHeader(state)
+                              else
+                                _options(state),
+                              if (state.error != null)
+                                Text(
+                                  state.error!,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                ),
+                              if (state.busy || _picking)
+                                const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
-                  ],
+                      if (state.previewed)
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                          sliver: SliverList.builder(
+                            itemCount: visible.length,
+                            itemBuilder: (context, i) =>
+                                _row(visible[i].$2, visible[i].$1, state),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       );
 }

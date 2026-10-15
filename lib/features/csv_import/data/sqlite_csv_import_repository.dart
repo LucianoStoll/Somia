@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/backup_manager.dart';
 import '../../accounts/data/sqlite_accounts_repository.dart';
@@ -117,8 +118,8 @@ class SqliteCsvImportRepository implements CsvImportRepository {
   }
 
   @override
-  Future<CsvImportResult> commit(
-      List<CsvPreviewRow> rows, String accountId) async {
+  Future<CsvImportResult> commit(List<CsvPreviewRow> rows, String accountId,
+      {String sourceName = 'Extrato'}) async {
     final selected =
         rows.where((r) => r.selected && r.candidate != null).toList();
     if (selected.isEmpty) {
@@ -129,6 +130,10 @@ class SqliteCsvImportRepository implements CsvImportRepository {
       throw const FormatException(
           'Seleção de linhas inválida. Gere a prévia novamente.');
     }
+    final label = sourceName.trim();
+    if (label.isEmpty || label.length > 150) {
+      throw const FormatException('Nome do arquivo de origem inválido.');
+    }
     Future<CsvImportResult> action() => db.transaction(() async {
           final refs = await references();
           if (!refs.accounts.any((a) => a.id == accountId)) {
@@ -137,6 +142,7 @@ class SqliteCsvImportRepository implements CsvImportRepository {
           }
           final existing = await _existing(accountId);
           var imported = 0, skipped = 0;
+          final batchId = const Uuid().v4();
           final repository = SqliteTransactionsRepository(db);
           for (final row in selected) {
             final candidate = row.candidate!;
@@ -147,11 +153,35 @@ class SqliteCsvImportRepository implements CsvImportRepository {
               skipped++;
               continue;
             }
-            await repository.create(candidate.draft(accountId, row.categoryId));
+            final created = await repository
+                .create(candidate.draft(accountId, row.categoryId));
+            final stored = await db.customSelect(
+                'SELECT updated_at,sync_version FROM transactions WHERE id=?',
+                variables: [Variable.withString(created.id)]).getSingle();
+            await db.customStatement('''INSERT INTO import_batch_entries
+                  (id,batch_id,transaction_id,source_line,initial_updated_at,initial_sync_version)
+                  VALUES(?,?,?,?,?,?)''', [
+              const Uuid().v4(),
+              batchId,
+              created.id,
+              row.line,
+              stored.read<int>('updated_at'),
+              stored.read<int>('sync_version')
+            ]);
             existing.add(key);
             imported++;
           }
-          return CsvImportResult(imported, skipped);
+          if (imported > 0) {
+            await db.customStatement('''INSERT INTO import_batches
+                  (id,account_id,source_name,created_at) VALUES(?,?,?,?)''', [
+              batchId,
+              accountId,
+              label,
+              DateTime.now().millisecondsSinceEpoch
+            ]);
+          }
+          return CsvImportResult(imported, skipped,
+              batchId: imported > 0 ? batchId : null);
         });
     if (maintenance == null) return action();
     CsvImportResult? committed;

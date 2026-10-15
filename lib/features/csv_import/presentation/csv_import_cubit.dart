@@ -86,13 +86,14 @@ class CsvImportCubit extends Cubit<CsvImportState> {
             .toList()));
   }
 
-  Future<void> commit(String accountId) async {
+  Future<void> commit(String accountId, {String sourceName = 'Extrato'}) async {
     if (state.busy || state.selected == 0) return;
     final rows = state.rows;
     emit(CsvImportState(
         references: state.references, rows: rows, previewed: true, busy: true));
     try {
-      final result = await repository.commit(rows, accountId);
+      final result =
+          await repository.commit(rows, accountId, sourceName: sourceName);
       if (!isClosed) {
         emit(CsvImportState(
             references: state.references,

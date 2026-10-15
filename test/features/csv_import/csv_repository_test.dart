@@ -69,7 +69,13 @@ void main() {
         (await SqliteAccountsRepository(db).list()).single.currentBalanceMinor,
         8000);
     expect(
-        (await db.customSelect('SELECT * FROM sync_outbox').get()).length, 2);
+        (await db.customSelect('SELECT * FROM sync_outbox').get()).length, 5);
+    expect((await db.customSelect('SELECT * FROM import_batches').get()).length,
+        1);
+    expect(
+        (await db.customSelect('SELECT * FROM import_batch_entries').get())
+            .length,
+        2);
   });
   test(
       'duplicados no arquivo e no banco ficam desmarcados; repetição não duplica dados',
