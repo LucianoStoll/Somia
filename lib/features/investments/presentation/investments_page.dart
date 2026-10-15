@@ -156,8 +156,8 @@ class _InvestmentsView extends StatelessWidget {
                     shape: const CircleBorder(),
                     onPressed:
                         state.loading ? null : () => _edit(context, overview),
-                    child: const Icon(Icons.add),
                     tooltip: 'Nova aplicação',
+                    child: const Icon(Icons.add),
                   ),
             body: overview == null && state.loading
                 ? const Center(child: CircularProgressIndicator())

@@ -200,8 +200,8 @@ class _ReimbursementsPageState extends State<ReimbursementsPage> {
                     : () => act(() async {
                           await editPerson(context, repo);
                         }),
-                child: const Icon(Icons.person_add_outlined),
-                tooltip: 'Nova pessoa'),
+                tooltip: 'Nova pessoa',
+                child: const Icon(Icons.person_add_outlined)),
             body: loading
                 ? const Center(child: CircularProgressIndicator())
                 : error != null

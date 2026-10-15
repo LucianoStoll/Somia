@@ -132,8 +132,8 @@ class _DebtsPageState extends State<DebtsPage> {
             floatingActionButton: FloatingActionButton(
                 shape: const CircleBorder(),
                 onPressed: _busy ? null : () => _edit(),
-                child: const Icon(Icons.add),
-                tooltip: 'Nova dívida'),
+                tooltip: 'Nova dívida',
+                child: const Icon(Icons.add)),
             body: debts == null
                 ? Center(
                     child: _busy

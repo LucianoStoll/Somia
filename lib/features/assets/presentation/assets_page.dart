@@ -105,8 +105,8 @@ class _AssetsPageState extends State<AssetsPage> {
             floatingActionButton: FloatingActionButton(
                 shape: const CircleBorder(),
                 onPressed: _busy ? null : () => _edit(),
-                child: const Icon(Icons.add),
-                tooltip: 'Novo bem'),
+                tooltip: 'Novo bem',
+                child: const Icon(Icons.add)),
             body: data == null
                 ? _busy
                     ? const Center(child: CircularProgressIndicator())
