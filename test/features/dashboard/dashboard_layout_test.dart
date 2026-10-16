@@ -168,12 +168,15 @@ void main() {
     testWidgets(
       'mobile $width mantém a ordem e receitas/despesas lado a lado',
       (tester) async {
-        await _mount(tester, Size(width, 900));
+        final repository = await _mount(tester, Size(width, 900));
         if (width == 360) {
           // Diagnóstico temporário para identificar o estado renderizado na CI.
           // ignore: avoid_print
           print(
               'Dashboard texts: ${find.byType(Text).evaluate().map((e) => (e.widget as Text).data).whereType<String>().take(25).toList()}');
+          // ignore: avoid_print
+          print(
+              'Dashboard requests: ${repository.requestedMonths.length}; loading: ${find.byType(CircularProgressIndicator).evaluate().length}');
         }
         expect(find.byTooltip('Entender os saldos'), findsOneWidget);
         expect(find.text('A receber'), findsOneWidget);
