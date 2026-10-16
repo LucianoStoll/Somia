@@ -654,6 +654,8 @@ void main() {
     expect(find.byKey(const ValueKey('bottom-Movimentos')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
     await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(Drawer)).width, 390);
+    expect(find.byTooltip('Fechar menu'), findsOneWidget);
     for (final label in [
       'Resumo',
       'Movimentos',

@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
@@ -158,7 +157,7 @@ class SomiaShell extends StatelessWidget {
         return Scaffold(
             key: _mobileScaffoldKey,
             drawer: Drawer(
-                width: math.min(300, constraints.maxWidth * 0.82),
+                width: constraints.maxWidth,
                 child: _SomiaMenu(location: location, isDrawer: true)),
             body:
                 mobileNavigation ? _MobileNavigationScope(child: child) : child,
