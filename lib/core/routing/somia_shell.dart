@@ -148,9 +148,11 @@ class SomiaShell extends StatelessWidget {
                 width: math.min(300, constraints.maxWidth * 0.82),
                 child: _SomiaMenu(location: location, isDrawer: true)),
             body: child,
-            bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
-                ? null
-                : _SomiaMobileNavigation(location: location));
+            bottomNavigationBar:
+                Theme.of(context).platform != TargetPlatform.android ||
+                        MediaQuery.viewInsetsOf(context).bottom > 0
+                    ? null
+                    : _SomiaMobileNavigation(location: location));
       });
 }
 

@@ -55,22 +55,24 @@ class MobileDashboardAppBar extends StatelessWidget
           toolbarHeight: 64,
           titleSpacing: 16,
           automaticallyImplyLeading: false,
-          title: Row(children: [
-            SomiaBrand(symbolOnly: symbolOnly, height: 30),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: MonthSelector(
-                  key: const ValueKey('dashboard-month-selector'),
-                  month: state.month,
-                  header: true,
-                  arrows: true,
-                  onChanged: referenceMonth.select,
+          title: SizedBox(
+              height: 48,
+              child: Row(children: [
+                SomiaBrand(symbolOnly: symbolOnly, height: 30),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: MonthSelector(
+                      key: const ValueKey('dashboard-month-selector'),
+                      month: state.month,
+                      header: true,
+                      arrows: true,
+                      onChanged: referenceMonth.select,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ]),
+              ])),
         );
       });
 }
@@ -87,6 +89,7 @@ class MobileDashboardBody extends StatelessWidget {
         onRefresh: onRefresh,
         child: ListView(
           key: const ValueKey('dashboard-mobile-scroll'),
+          cacheExtent: 2400,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           children: [

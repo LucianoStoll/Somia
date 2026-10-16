@@ -175,9 +175,9 @@ void main() {
         final selector = tester.getRect(
           find.byKey(const ValueKey('dashboard-month-selector')),
         );
-        final menu = tester.getRect(find.byTooltip('Abrir menu'));
-        expect(selector.center.dy, closeTo(menu.center.dy, 2));
-        expect(selector.left, greaterThan(menu.right));
+        final brand = tester.getRect(find.byType(AppBar).first);
+        expect(selector.center.dy, closeTo(brand.center.dy, 2));
+        expect(selector.left, greaterThan(brand.left));
         expect(selector.right, lessThanOrEqualTo(width));
         final balance = tester.getRect(
           find.byKey(const ValueKey('mobile-balance-BRL')),
@@ -284,7 +284,7 @@ void main() {
     await tester.tap(find.text('Dezembro'));
     await tester.pumpAndSettle();
     expect(repository.requestedMonths.last, DateTime(initial.year, 12));
-    await tester.tap(find.byTooltip('Abrir menu'));
+    await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
     await tester.pumpAndSettle();
     expect(find.byType(Drawer), findsOneWidget);
     expect(tester.takeException(), isNull);
