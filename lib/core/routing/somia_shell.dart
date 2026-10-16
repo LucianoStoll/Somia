@@ -219,7 +219,9 @@ class _SomiaMobileNavigation extends StatelessWidget {
                       () => context.go(AppRoutes.dashboardPath)),
                   destination('Movimentos', Icons.receipt_long_outlined,
                       movements, () => context.go(AppRoutes.transactionsPath)),
-                  const Expanded(child: Center(child: SomiaQuickActions())),
+                  const Expanded(
+                      child:
+                          Center(heightFactor: 1, child: SomiaQuickActions())),
                   destination('Planejamento', Icons.bar_chart_outlined,
                       planning, () => context.go(AppRoutes.planningPath)),
                   destination('Mais', Icons.more_horiz, more,
