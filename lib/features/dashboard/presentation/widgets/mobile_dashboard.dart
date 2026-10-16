@@ -54,9 +54,8 @@ class MobileDashboardAppBar extends StatelessWidget
         final symbolOnly = width < 390 || scale > 1.3;
         return AppBar(
           toolbarHeight: 64,
-          leadingWidth: 48,
-          titleSpacing: 4,
-          leading: const SomiaMenuButton(),
+          titleSpacing: 16,
+          automaticallyImplyLeading: false,
           title: Row(children: [
             SomiaBrand(symbolOnly: symbolOnly, height: 30),
             const SizedBox(width: 8),

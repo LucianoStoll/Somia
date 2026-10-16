@@ -645,7 +645,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsNothing);
-    await tester.tap(find.byTooltip('Abrir menu'));
+    expect(find.byTooltip('Abrir menu'), findsNothing);
+    expect(find.byKey(const ValueKey('bottom-Movimentos')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
     await tester.pumpAndSettle();
     for (final label in [
       'Resumo',
@@ -697,6 +699,13 @@ void main() {
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.text('Receitas'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('bottom-Movimentos')));
+    await tester.pumpAndSettle();
+    expect(find.text('Movimentos'), findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('bottom-Resumo')));
+    await tester.pumpAndSettle();
+    expect(find.text('Resumo do mês'), findsOneWidget);
   });
 
   testWidgets('sidebar larga mantém as mesmas seções', (tester) async {

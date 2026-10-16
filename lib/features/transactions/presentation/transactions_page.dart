@@ -450,11 +450,13 @@ class _TransactionsViewState extends State<_TransactionsView> {
                 ? 'Receitas'
                 : widget.sectionType == TransactionType.expense
                     ? 'Despesas'
-                    : 'Lançamentos',
+                    : 'Movimentos',
           ),
           leading: somiaMenuLeading(context),
         ),
-        floatingActionButton: const SomiaQuickActions(),
+        floatingActionButton: MediaQuery.sizeOf(context).width < 800
+            ? null
+            : const SomiaQuickActions(),
         body: BlocConsumer<TransactionsCubit, TransactionsState>(
           listener: (context, state) {
             if (!_openedInitial &&

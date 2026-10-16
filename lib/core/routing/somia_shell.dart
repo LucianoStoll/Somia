@@ -147,8 +147,81 @@ class SomiaShell extends StatelessWidget {
             drawer: Drawer(
                 width: math.min(300, constraints.maxWidth * 0.82),
                 child: _SomiaMenu(location: location, isDrawer: true)),
-            body: child);
+            body: child,
+            bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
+                ? null
+                : _SomiaMobileNavigation(location: location));
       });
+}
+
+class _SomiaMobileNavigation extends StatelessWidget {
+  const _SomiaMobileNavigation({required this.location});
+  final String location;
+
+  @override
+  Widget build(BuildContext context) {
+    final movements = {
+      AppRoutes.transactionsPath,
+      AppRoutes.incomePath,
+      AppRoutes.expensesPath,
+      AppRoutes.transfersPath,
+    }.contains(location);
+    final planning = location == AppRoutes.planningPath;
+    final more = location != AppRoutes.dashboardPath && !movements && !planning;
+
+    Widget destination(
+        String label, IconData icon, bool selected, VoidCallback onTap) {
+      final color = selected ? SomiaColors.blue : SomiaColors.muted;
+      return Expanded(
+          child: InkWell(
+              key: ValueKey('bottom-$label'),
+              onTap: onTap,
+              child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(icon, color: color, size: 25),
+                    const SizedBox(height: 4),
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: color,
+                            fontSize: 11,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w400)),
+                    const SizedBox(height: 3),
+                    Container(
+                        width: 28,
+                        height: 3,
+                        decoration: BoxDecoration(
+                            color: selected
+                                ? SomiaColors.blue
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(3))),
+                  ]))));
+    }
+
+    return Material(
+        color: SomiaColors.sidebar,
+        child: SafeArea(
+            top: false,
+            child: Container(
+                decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: SomiaColors.outline))),
+                child: Row(children: [
+                  destination('Resumo', Icons.home_outlined,
+                      location == AppRoutes.dashboardPath,
+                      () => context.go(AppRoutes.dashboardPath)),
+                  destination('Movimentos', Icons.receipt_long_outlined,
+                      movements, () => context.go(AppRoutes.transactionsPath)),
+                  const Expanded(child: Center(child: SomiaQuickActions())),
+                  destination('Planejamento', Icons.bar_chart_outlined, planning,
+                      () => context.go(AppRoutes.planningPath)),
+                  destination('Mais', Icons.more_horiz, more,
+                      () => _mobileScaffoldKey.currentState?.openDrawer()),
+                ]))));
+  }
 }
 
 class _SomiaMenu extends StatelessWidget {
