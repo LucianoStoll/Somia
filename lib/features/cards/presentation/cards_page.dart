@@ -921,7 +921,8 @@ class _CardsPageState extends State<CardsPage> {
           ),
         ],
       ),
-      floatingActionButton: const SomiaQuickActions(),
+      floatingActionButton:
+          somiaUsesMobileNavigation(context) ? null : const SomiaQuickActions(),
       body: _loading && _cards.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : _error != null

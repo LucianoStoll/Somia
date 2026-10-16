@@ -76,6 +76,14 @@ class CsvImportCubit extends Cubit<CsvImportState> {
         references: state.references, rows: rows, previewed: true));
   }
 
+  void link(int index, CsvMatch? match) {
+    if (state.busy) return;
+    final rows = [...state.rows];
+    rows[index] = rows[index].link(match);
+    emit(CsvImportState(
+        references: state.references, rows: rows, previewed: true));
+  }
+
   void selectNew(bool selected) {
     if (state.busy) return;
     emit(CsvImportState(
@@ -86,13 +94,14 @@ class CsvImportCubit extends Cubit<CsvImportState> {
             .toList()));
   }
 
-  Future<void> commit(String accountId) async {
+  Future<void> commit(String accountId, {String sourceName = 'Extrato'}) async {
     if (state.busy || state.selected == 0) return;
     final rows = state.rows;
     emit(CsvImportState(
         references: state.references, rows: rows, previewed: true, busy: true));
     try {
-      final result = await repository.commit(rows, accountId);
+      final result =
+          await repository.commit(rows, accountId, sourceName: sourceName);
       if (!isClosed) {
         emit(CsvImportState(
             references: state.references,

@@ -250,3 +250,7 @@ Escopo aprovado pelo usuário em 06/10/2026: concluir todas as pendências das e
 ## Fechamento da v0.3.0-alpha — 15/10/2026
 
 Publicação autorizada pelo usuário. Entregas e limites nas [notas da versão](releases/v0.3.0-alpha.md). O escopo vigente de fechamento prevalece sobre o planejamento inicial: relatórios adicionais/importação/conciliação ficam para a próxima alpha, assim como internacionais/adicionais/importação de faturas. O próximo ciclo e sua numeração ainda não foram abertos.
+
+## Ciclo de prévia — v0.4.0-alpha
+
+Branch `v0.4.0-alpha` a partir da v0.3.0-alpha integrada em `main`; [PR #89](https://github.com/LucianoStoll/Somia/pull/89) em rascunho. Cinco etapas sequenciais: (1) perfis CSV e datas compartilhadas; (2) prévia, filtros, totais e identidade dos lotes; (3) conciliação assistida e saldo atual; (4) XLSX, cópias de proteção, desfazer seletivo e diagnóstico; (5) CI Android/Windows, documentação e APK assinado de teste. Não publicar tag nem mesclar antes da validação final. [Regras da importação](importacao-csv.md) e [notas de prévia](releases/v0.4.0-alpha.md).

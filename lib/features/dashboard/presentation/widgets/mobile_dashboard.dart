@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'dashboard_category_chart.dart';
 import 'dashboard_overview.dart';
@@ -12,7 +13,6 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../core/filters/reference_month.dart';
 import '../../../../core/widgets/month_selector.dart';
 import '../../../../core/widgets/balance_help_button.dart';
-import '../../../../core/routing/somia_shell.dart';
 import 'dashboard_palette.dart';
 import '../../../../core/widgets/somia_brand.dart';
 import '../../../accounts/domain/money_minor.dart';
@@ -54,25 +54,26 @@ class MobileDashboardAppBar extends StatelessWidget
         final symbolOnly = width < 390 || scale > 1.3;
         return AppBar(
           toolbarHeight: 64,
-          leadingWidth: 48,
-          titleSpacing: 4,
-          leading: const SomiaMenuButton(),
-          title: Row(children: [
-            SomiaBrand(symbolOnly: symbolOnly, height: 30),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: MonthSelector(
-                  key: const ValueKey('dashboard-month-selector'),
-                  month: state.month,
-                  header: true,
-                  arrows: true,
-                  onChanged: referenceMonth.select,
+          titleSpacing: 16,
+          automaticallyImplyLeading: false,
+          title: SizedBox(
+              height: 48,
+              child: Row(children: [
+                SomiaBrand(symbolOnly: symbolOnly, height: 30),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: MonthSelector(
+                      key: const ValueKey('dashboard-month-selector'),
+                      month: state.month,
+                      header: true,
+                      arrows: true,
+                      onChanged: referenceMonth.select,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ]),
+              ])),
         );
       });
 }
@@ -89,6 +90,7 @@ class MobileDashboardBody extends StatelessWidget {
         onRefresh: onRefresh,
         child: ListView(
           key: const ValueKey('dashboard-mobile-scroll'),
+          scrollCacheExtent: const ScrollCacheExtent.pixels(2400),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           children: [

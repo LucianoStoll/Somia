@@ -280,7 +280,9 @@ void main() {
   testWidgets('balão usa mesmos ícones e cores do menu lateral',
       (tester) async {
     await openBackTest(tester);
-    await tester.tap(find.byTooltip('Abrir menu'));
+    await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Movimentos').last);
     await tester.pumpAndSettle();
     final icons = <Icon>[];
     for (final path in ['/income', '/expenses', '/transfers']) {
@@ -292,6 +294,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
     await tester.pumpAndSettle();
+    expect(find.text('Adicionar movimento'), findsOneWidget);
     final labels = ['Receita', 'Despesa', 'Transferência'];
     for (var i = 0; i < labels.length; i++) {
       final icon = tester
@@ -425,7 +428,9 @@ void main() {
     for (final path in ['/', '/expenses']) {
       appRouter.go(path);
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Abrir menu'));
+      await tester.tap(path == '/'
+          ? find.byKey(const ValueKey('bottom-Mais'))
+          : find.byTooltip('Abrir menu'));
       await tester.pumpAndSettle();
       expect(await appRouter.routerDelegate.popRoute(), true);
       await tester.pumpAndSettle();
@@ -645,29 +650,47 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsNothing);
-    await tester.tap(find.byTooltip('Abrir menu'));
+    expect(find.byTooltip('Abrir menu'), findsNothing);
+    expect(find.byKey(const ValueKey('bottom-Movimentos')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
     await tester.pumpAndSettle();
+    expect(tester.getSize(find.byType(Drawer)).width, 390);
+    expect(find.byTooltip('Fechar menu'), findsOneWidget);
     for (final label in [
       'Resumo',
-      'Receitas',
-      'Despesas',
-      'Transferências',
-      'Contas',
-      'Análises',
-      'Débito',
-      'Cashback'
+      'Movimentos',
+      'Contas e cartões',
+      'Planejamento',
+      'Patrimônio',
+      'Organização'
     ]) {
+      expect(find.text(label), findsWidgets);
+    }
+    expect(find.byKey(const ValueKey('menu-/income')), findsNothing);
+    await tester.tap(find.text('Movimentos').last);
+    await tester.pumpAndSettle();
+    for (final label in ['Receitas', 'Despesas', 'Transferências']) {
+      expect(find.text(label), findsWidgets);
+    }
+    await tester.tap(find.text('Contas e cartões'));
+    await tester.pumpAndSettle();
+    for (final label in ['Contas', 'Cartões', 'Débito', 'Cashback']) {
       expect(find.text(label), findsWidgets);
     }
     final drawerScroll = find
         .descendant(of: find.byType(Drawer), matching: find.byType(Scrollable))
         .first;
+    await tester.scrollUntilVisible(find.text('Organização'), 200,
+        scrollable: drawerScroll);
+    await tester.tap(find.text('Organização'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Configurações'), 200,
         scrollable: drawerScroll);
     expect(find.text('Configurações'), findsWidgets);
     expect(find.text('Categorias'), findsWidgets);
     await tester.drag(find.byType(Drawer), const Offset(0, 1000));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('menu-/income')));
     await tester.tap(find.byKey(const ValueKey('menu-/income')));
     await tester.pumpAndSettle();
     expect(find.text('Salário'), findsOneWidget);
@@ -697,6 +720,13 @@ void main() {
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.text('Receitas'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('bottom-Movimentos')));
+    await tester.pumpAndSettle();
+    expect(find.text('Movimentos'), findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('bottom-Resumo')));
+    await tester.pumpAndSettle();
+    expect(find.text('Resumo do mês'), findsOneWidget);
   });
 
   testWidgets('sidebar larga mantém as mesmas seções', (tester) async {

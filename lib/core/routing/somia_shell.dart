@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
@@ -8,6 +7,17 @@ import '../widgets/somia_brand.dart';
 import 'app_router.dart';
 
 final _mobileScaffoldKey = GlobalKey<ScaffoldState>();
+
+bool somiaUsesMobileNavigation(BuildContext context) =>
+    context.dependOnInheritedWidgetOfExactType<_MobileNavigationScope>() !=
+    null;
+
+class _MobileNavigationScope extends InheritedWidget {
+  const _MobileNavigationScope({required super.child});
+
+  @override
+  bool updateShouldNotify(_MobileNavigationScope oldWidget) => false;
+}
 
 class _MenuDestination {
   const _MenuDestination(this.label, this.path, this.icon,
@@ -142,13 +152,94 @@ class SomiaShell extends StatelessWidget {
             Expanded(child: child),
           ]));
         }
+        final mobileNavigation =
+            Theme.of(context).platform == TargetPlatform.android;
         return Scaffold(
             key: _mobileScaffoldKey,
             drawer: Drawer(
-                width: math.min(300, constraints.maxWidth * 0.82),
+                width: constraints.maxWidth,
                 child: _SomiaMenu(location: location, isDrawer: true)),
-            body: child);
+            body:
+                mobileNavigation ? _MobileNavigationScope(child: child) : child,
+            bottomNavigationBar:
+                !mobileNavigation || MediaQuery.viewInsetsOf(context).bottom > 0
+                    ? null
+                    : _SomiaMobileNavigation(location: location));
       });
+}
+
+class _SomiaMobileNavigation extends StatelessWidget {
+  const _SomiaMobileNavigation({required this.location});
+  final String location;
+
+  @override
+  Widget build(BuildContext context) {
+    final movements = {
+      AppRoutes.transactionsPath,
+      AppRoutes.incomePath,
+      AppRoutes.expensesPath,
+      AppRoutes.transfersPath,
+    }.contains(location);
+    final planning = location == AppRoutes.planningPath;
+    final more = location != AppRoutes.dashboardPath && !movements && !planning;
+
+    Widget destination(
+        String label, IconData icon, bool selected, VoidCallback onTap) {
+      final color = selected ? SomiaColors.blue : SomiaColors.muted;
+      return Expanded(
+          child: InkWell(
+              key: ValueKey('bottom-$label'),
+              onTap: onTap,
+              child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(icon, color: color, size: 25),
+                    const SizedBox(height: 4),
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: color,
+                            fontSize: 11,
+                            fontWeight:
+                                selected ? FontWeight.w700 : FontWeight.w400)),
+                    const SizedBox(height: 3),
+                    Container(
+                        width: 28,
+                        height: 3,
+                        decoration: BoxDecoration(
+                            color: selected
+                                ? SomiaColors.blue
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(3))),
+                  ]))));
+    }
+
+    return Material(
+        color: SomiaColors.sidebar,
+        child: SafeArea(
+            top: false,
+            child: Container(
+                decoration: const BoxDecoration(
+                    border:
+                        Border(top: BorderSide(color: SomiaColors.outline))),
+                child: Row(children: [
+                  destination(
+                      'Resumo',
+                      Icons.home_outlined,
+                      location == AppRoutes.dashboardPath,
+                      () => context.go(AppRoutes.dashboardPath)),
+                  destination('Movimentos', Icons.receipt_long_outlined,
+                      movements, () => context.go(AppRoutes.transactionsPath)),
+                  const Expanded(
+                      child:
+                          Center(heightFactor: 1, child: SomiaQuickActions())),
+                  destination('Planejamento', Icons.bar_chart_outlined,
+                      planning, () => context.go(AppRoutes.planningPath)),
+                  destination('Mais', Icons.more_horiz, more,
+                      () => _mobileScaffoldKey.currentState?.openDrawer()),
+                ]))));
+  }
 }
 
 class _SomiaMenu extends StatelessWidget {
@@ -160,6 +251,7 @@ class _SomiaMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isDrawer) return _buildDrawer(context);
     return Material(
         color: SomiaColors.sidebar,
         child: SafeArea(
@@ -232,48 +324,198 @@ class _SomiaMenu extends StatelessWidget {
               ],
             )));
   }
+
+  Widget _buildDrawer(BuildContext context) {
+    final groups = <(String, List<_MenuDestination>)>[
+      ('Movimentos', _menu.sublist(1, 4)),
+      ('Contas e cartões', _menu.sublist(4, 8)),
+      ('Planejamento', _menu.sublist(8, 11)),
+      ('Patrimônio', _menu.sublist(11, 14)),
+      ('Organização', _menu.sublist(14)),
+    ];
+    return Material(
+        color: SomiaColors.sidebar,
+        child: SafeArea(
+            right: false,
+            child: Column(children: [
+              Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 22, 16, 12),
+                  child: Row(children: [
+                    const Expanded(
+                        child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: SomiaBrand(height: 36))),
+                    IconButton(
+                        tooltip: 'Fechar menu',
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop()),
+                  ])),
+              Expanded(
+                  child: ListView(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                      children: [
+                    const Padding(
+                        padding: EdgeInsets.fromLTRB(16, 8, 8, 8),
+                        child: Text('NAVEGAÇÃO',
+                            style: TextStyle(
+                                fontSize: 11, color: SomiaColors.muted))),
+                    _drawerDestination(context, _menu.first),
+                    const SizedBox(height: 12),
+                    for (final (title, destinations) in groups)
+                      ExpansionTile(
+                          key: ValueKey('drawer-group-$title'),
+                          title: Text(title,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600)),
+                          tilePadding:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                          childrenPadding: const EdgeInsets.only(bottom: 6),
+                          initiallyExpanded: destinations
+                              .any((destination) => _isSelected(destination)),
+                          shape: const Border(),
+                          collapsedShape: const Border(),
+                          children: [
+                            for (final destination in destinations)
+                              _drawerDestination(context, destination),
+                          ]),
+                  ])),
+            ])));
+  }
+
+  bool _isSelected(_MenuDestination destination) =>
+      location == destination.path ||
+      (destination.path == AppRoutes.accountsPath &&
+          location.startsWith('${AppRoutes.accountsPath}/'));
+
+  Widget _drawerDestination(
+      BuildContext context, _MenuDestination destination) {
+    return Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: ListTile(
+            key: ValueKey('menu-${destination.path}'),
+            dense: true,
+            minLeadingWidth: 0,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            leading: Icon(destination.icon, color: destination.color),
+            title: Text(destination.label),
+            selected: _isSelected(destination),
+            selectedTileColor: SomiaColors.surfaceHigh,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onTap: () {
+              final router = GoRouter.of(context);
+              Navigator.of(context).pop();
+              if (location != destination.path) router.go(destination.path);
+            }));
+  }
 }
 
 class SomiaQuickActions extends StatelessWidget {
   const SomiaQuickActions({super.key});
 
+  String _pathFor(String action) => '${switch (action) {
+        'income' => AppRoutes.incomePath,
+        'expense' => AppRoutes.expensesPath,
+        _ => AppRoutes.transfersPath,
+      }}?create=1';
+
+  Future<void> _openMobileActions(BuildContext context) async {
+    final action = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+            top: false,
+            child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text('Adicionar movimento',
+                              style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.w700)))),
+                  for (final (action, label, description, icon, color) in [
+                    (
+                      'income',
+                      'Receita',
+                      'Dinheiro que entrou',
+                      MovementIdentity.incomeIcon,
+                      MovementIdentity.incomeColor
+                    ),
+                    (
+                      'expense',
+                      'Despesa',
+                      'Pagamento ou compra',
+                      MovementIdentity.expenseIcon,
+                      MovementIdentity.expenseColor
+                    ),
+                    (
+                      'transfer',
+                      'Transferência',
+                      'Entre suas contas',
+                      MovementIdentity.transferIcon,
+                      MovementIdentity.transferColor
+                    ),
+                  ])
+                    Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                            key: ValueKey('quick-$action'),
+                            leading: Icon(icon, color: color, size: 30),
+                            title: Text(label),
+                            subtitle: Text(description),
+                            trailing: const Icon(Icons.chevron_right),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                            tileColor: SomiaColors.surfaceHigh,
+                            onTap: () =>
+                                Navigator.of(sheetContext).pop(action))),
+                ]))));
+    if (action != null && context.mounted) context.go(_pathFor(action));
+  }
+
   @override
-  Widget build(BuildContext context) => PopupMenuButton<String>(
-        tooltip: 'Adicionar lançamento ou transferência',
-        icon: const Icon(Icons.add),
-        iconColor: Theme.of(context).colorScheme.onPrimary,
-        style: IconButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            minimumSize: const Size(56, 56)),
-        onSelected: (action) {
-          if (action == 'transfer') {
-            context.go('${AppRoutes.transfersPath}?create=1');
-          } else {
-            final path = action == 'income'
-                ? AppRoutes.incomePath
-                : AppRoutes.expensesPath;
-            context.go('$path?create=1');
-          }
-        },
-        itemBuilder: (_) => const [
-          PopupMenuItem(
-              value: 'income',
-              child: ListTile(
-                  leading: Icon(MovementIdentity.incomeIcon,
-                      color: MovementIdentity.incomeColor),
-                  title: Text('Receita'))),
-          PopupMenuItem(
-              value: 'expense',
-              child: ListTile(
-                  leading: Icon(MovementIdentity.expenseIcon,
-                      color: MovementIdentity.expenseColor),
-                  title: Text('Despesa'))),
-          PopupMenuItem(
-              value: 'transfer',
-              child: ListTile(
-                  leading: Icon(MovementIdentity.transferIcon,
-                      color: MovementIdentity.transferColor),
-                  title: Text('Transferência'))),
-        ],
-      );
+  Widget build(BuildContext context) {
+    if (Theme.of(context).platform == TargetPlatform.android &&
+        MediaQuery.sizeOf(context).width < 800) {
+      return IconButton(
+          tooltip: 'Adicionar lançamento ou transferência',
+          icon: const Icon(Icons.add, size: 30),
+          color: Theme.of(context).colorScheme.onPrimary,
+          style: IconButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              minimumSize: const Size(56, 56)),
+          onPressed: () => _openMobileActions(context));
+    }
+    return PopupMenuButton<String>(
+      tooltip: 'Adicionar lançamento ou transferência',
+      icon: const Icon(Icons.add),
+      iconColor: Theme.of(context).colorScheme.onPrimary,
+      style: IconButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          minimumSize: const Size(56, 56)),
+      onSelected: (action) => context.go(_pathFor(action)),
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+            value: 'income',
+            child: ListTile(
+                leading: Icon(MovementIdentity.incomeIcon,
+                    color: MovementIdentity.incomeColor),
+                title: Text('Receita'))),
+        PopupMenuItem(
+            value: 'expense',
+            child: ListTile(
+                leading: Icon(MovementIdentity.expenseIcon,
+                    color: MovementIdentity.expenseColor),
+                title: Text('Despesa'))),
+        PopupMenuItem(
+            value: 'transfer',
+            child: ListTile(
+                leading: Icon(MovementIdentity.transferIcon,
+                    color: MovementIdentity.transferColor),
+                title: Text('Transferência'))),
+      ],
+    );
+  }
 }

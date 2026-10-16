@@ -83,7 +83,9 @@ class _DashboardViewState extends State<_DashboardView>
                         icon: const Icon(Icons.refresh),
                         onPressed: context.read<DashboardCubit>().load)
                   ]),
-        floatingActionButton: const SomiaQuickActions(),
+        floatingActionButton: somiaUsesMobileNavigation(context)
+            ? null
+            : const SomiaQuickActions(),
         body: BlocBuilder<DashboardCubit, DashboardState>(
             builder: (context, state) {
           if (state.loading && state.summary == null) {
