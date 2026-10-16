@@ -169,6 +169,12 @@ void main() {
       'mobile $width mantém a ordem e receitas/despesas lado a lado',
       (tester) async {
         await _mount(tester, Size(width, 900));
+        if (width == 360) {
+          // Diagnóstico temporário para identificar o estado renderizado na CI.
+          // ignore: avoid_print
+          print(
+              'Dashboard texts: ${find.byType(Text).evaluate().map((e) => (e.widget as Text).data).whereType<String>().take(25).toList()}');
+        }
         expect(find.byTooltip('Entender os saldos'), findsOneWidget);
         expect(find.text('A receber'), findsOneWidget);
         expect(find.text('A pagar'), findsOneWidget);
