@@ -9,6 +9,17 @@ import 'app_router.dart';
 
 final _mobileScaffoldKey = GlobalKey<ScaffoldState>();
 
+bool somiaUsesMobileNavigation(BuildContext context) =>
+    context.dependOnInheritedWidgetOfExactType<_MobileNavigationScope>() !=
+    null;
+
+class _MobileNavigationScope extends InheritedWidget {
+  const _MobileNavigationScope({required super.child});
+
+  @override
+  bool updateShouldNotify(_MobileNavigationScope oldWidget) => false;
+}
+
 class _MenuDestination {
   const _MenuDestination(this.label, this.path, this.icon,
       [this.color = SomiaColors.muted]);
@@ -142,15 +153,17 @@ class SomiaShell extends StatelessWidget {
             Expanded(child: child),
           ]));
         }
+        final mobileNavigation =
+            Theme.of(context).platform == TargetPlatform.android;
         return Scaffold(
             key: _mobileScaffoldKey,
             drawer: Drawer(
                 width: math.min(300, constraints.maxWidth * 0.82),
                 child: _SomiaMenu(location: location, isDrawer: true)),
-            body: child,
+            body:
+                mobileNavigation ? _MobileNavigationScope(child: child) : child,
             bottomNavigationBar:
-                Theme.of(context).platform != TargetPlatform.android ||
-                        MediaQuery.viewInsetsOf(context).bottom > 0
+                !mobileNavigation || MediaQuery.viewInsetsOf(context).bottom > 0
                     ? null
                     : _SomiaMobileNavigation(location: location));
       });

@@ -280,7 +280,7 @@ void main() {
   testWidgets('balão usa mesmos ícones e cores do menu lateral',
       (tester) async {
     await openBackTest(tester);
-    await tester.tap(find.byTooltip('Abrir menu'));
+    await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
     await tester.pumpAndSettle();
     final icons = <Icon>[];
     for (final path in ['/income', '/expenses', '/transfers']) {
@@ -425,7 +425,9 @@ void main() {
     for (final path in ['/', '/expenses']) {
       appRouter.go(path);
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Abrir menu'));
+      await tester.tap(path == '/'
+          ? find.byKey(const ValueKey('bottom-Mais'))
+          : find.byTooltip('Abrir menu'));
       await tester.pumpAndSettle();
       expect(await appRouter.routerDelegate.popRoute(), true);
       await tester.pumpAndSettle();

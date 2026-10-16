@@ -454,7 +454,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
           ),
           leading: somiaMenuLeading(context),
         ),
-        floatingActionButton: MediaQuery.sizeOf(context).width < 800
+        floatingActionButton: somiaUsesMobileNavigation(context)
             ? null
             : const SomiaQuickActions(),
         body: BlocConsumer<TransactionsCubit, TransactionsState>(

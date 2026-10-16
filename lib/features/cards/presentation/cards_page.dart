@@ -921,9 +921,8 @@ class _CardsPageState extends State<CardsPage> {
           ),
         ],
       ),
-      floatingActionButton: MediaQuery.sizeOf(context).width < 800
-          ? null
-          : const SomiaQuickActions(),
+      floatingActionButton:
+          somiaUsesMobileNavigation(context) ? null : const SomiaQuickActions(),
       body: _loading && _cards.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : _error != null
