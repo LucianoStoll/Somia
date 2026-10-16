@@ -213,14 +213,7 @@ void main() {
         final recent = tester.getRect(
           find.byKey(const ValueKey('mobile-recent')),
         );
-        expect(
-          recent.top,
-          greaterThan(
-            tester
-                .getRect(find.byKey(const ValueKey('mobile-categories-BRL')))
-                .bottom,
-          ),
-        );
+        expect(recent.top, greaterThan(categories.bottom));
         expect(find.text('Saldo por conta'), findsOneWidget);
         expect(find.byType(NavigationBar), findsNothing);
         expect(tester.takeException(), isNull);
