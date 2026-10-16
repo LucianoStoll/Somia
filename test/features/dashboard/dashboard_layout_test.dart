@@ -202,18 +202,21 @@ void main() {
         expect(history.top, greaterThan(income.bottom));
         expect(history.top, greaterThan(categories.bottom));
         expect(find.text('Gastos por categoria'), findsOneWidget);
+        final scrollable = find.descendant(
+          of: find.byKey(const ValueKey('dashboard-mobile-scroll')),
+          matching: find.byType(Scrollable),
+        );
         await tester.scrollUntilVisible(
           find.byKey(const ValueKey('mobile-recent')),
           250,
-          scrollable: find.descendant(
-            of: find.byKey(const ValueKey('dashboard-mobile-scroll')),
-            matching: find.byType(Scrollable),
-          ),
+          scrollable: scrollable,
         );
         final recent = tester.getRect(
           find.byKey(const ValueKey('mobile-recent')),
         );
-        expect(recent.top, greaterThan(categories.bottom));
+        final scrollOffset =
+            tester.state<ScrollableState>(scrollable).position.pixels;
+        expect(recent.top + scrollOffset, greaterThan(categories.bottom));
         expect(find.text('Saldo por conta'), findsOneWidget);
         expect(find.byType(NavigationBar), findsNothing);
         expect(tester.takeException(), isNull);
