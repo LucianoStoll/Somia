@@ -12,7 +12,6 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../core/filters/reference_month.dart';
 import '../../../../core/widgets/month_selector.dart';
 import '../../../../core/widgets/balance_help_button.dart';
-import '../../../../core/routing/somia_shell.dart';
 import 'dashboard_palette.dart';
 import '../../../../core/widgets/somia_brand.dart';
 import '../../../accounts/domain/money_minor.dart';
