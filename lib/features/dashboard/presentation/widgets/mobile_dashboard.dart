@@ -89,7 +89,7 @@ class MobileDashboardBody extends StatelessWidget {
         onRefresh: onRefresh,
         child: ListView(
           key: const ValueKey('dashboard-mobile-scroll'),
-          scrollCacheExtent: 2400,
+          scrollCacheExtent: const ScrollCacheExtent.pixels(2400),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           children: [
