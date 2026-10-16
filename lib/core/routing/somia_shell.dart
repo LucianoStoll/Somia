@@ -187,9 +187,8 @@ class _SomiaMobileNavigation extends StatelessWidget {
                         style: TextStyle(
                             color: color,
                             fontSize: 11,
-                            fontWeight: selected
-                                ? FontWeight.w700
-                                : FontWeight.w400)),
+                            fontWeight:
+                                selected ? FontWeight.w700 : FontWeight.w400)),
                     const SizedBox(height: 3),
                     Container(
                         width: 28,
@@ -208,16 +207,19 @@ class _SomiaMobileNavigation extends StatelessWidget {
             top: false,
             child: Container(
                 decoration: const BoxDecoration(
-                    border: Border(top: BorderSide(color: SomiaColors.outline))),
+                    border:
+                        Border(top: BorderSide(color: SomiaColors.outline))),
                 child: Row(children: [
-                  destination('Resumo', Icons.home_outlined,
+                  destination(
+                      'Resumo',
+                      Icons.home_outlined,
                       location == AppRoutes.dashboardPath,
                       () => context.go(AppRoutes.dashboardPath)),
                   destination('Movimentos', Icons.receipt_long_outlined,
                       movements, () => context.go(AppRoutes.transactionsPath)),
                   const Expanded(child: Center(child: SomiaQuickActions())),
-                  destination('Planejamento', Icons.bar_chart_outlined, planning,
-                      () => context.go(AppRoutes.planningPath)),
+                  destination('Planejamento', Icons.bar_chart_outlined,
+                      planning, () => context.go(AppRoutes.planningPath)),
                   destination('Mais', Icons.more_horiz, more,
                       () => _mobileScaffoldKey.currentState?.openDrawer()),
                 ]))));
