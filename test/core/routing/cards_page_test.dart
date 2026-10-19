@@ -136,7 +136,7 @@ void main() {
     await repo.db.close();
   });
   Future<void> open(WidgetTester tester, TargetPlatform platform,
-      {double scale = 1, bool detail = true}) async {
+      {double scale = 1, bool detail = true, bool shell = false}) async {
     tester.view.physicalSize = platform == TargetPlatform.android
         ? const Size(390, 844)
         : const Size(1280, 900);
@@ -168,7 +168,8 @@ void main() {
       builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(scale)),
-          child: child!),
+          child:
+              shell ? SomiaShell(location: '/cards', child: child!) : child!),
     ));
     await tester.pumpAndSettle();
   }
@@ -310,6 +311,32 @@ void main() {
     await open(tester, TargetPlatform.android, scale: 1.5);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('detalhes mobile seguem referência e mantêm ações',
+      (tester) async {
+    await open(tester, TargetPlatform.android, shell: true);
+    expect(find.text('Cartão Nubank'), findsOneWidget);
+    expect(find.text('Fatura de outubro'), findsOneWidget);
+    expect(find.text('R\$ 5.000,00'), findsOneWidget);
+    expect(find.text('-R\$ 400,00'), findsOneWidget);
+    expect(find.text('Competência / fatura'), findsNothing);
+    expect(find.text('Saldo da fatura anterior'), findsNothing);
+    expect(find.text('Fatura'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Pagamentos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pago no mês'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Fatura'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Pagar fatura'), 100);
+    await tester.tap(find.text('Pagar fatura'));
+    await tester.pumpAndSettle();
+    expect(find.text('Registrar pagamento'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('referência mobile tolera fonte ampliada', (tester) async {
+    await open(tester, TargetPlatform.android, shell: true, scale: 1.5);
+    expect(find.text('Cartão Nubank'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
     testWidgets('prévia fatura cartões Android', (tester) async {
       for (final pair in [
@@ -322,13 +349,20 @@ void main() {
               .readAsBytesSync())));
         await loader.load();
       }
-      await open(tester, TargetPlatform.android);
-      await expectLater(find.byType(Scaffold).last,
+      await open(tester, TargetPlatform.android, shell: true);
+      await tester.runAsync(() async {
+        await precacheImage(
+          const AssetImage('assets/branding/somia_horizontal.png'),
+          tester.element(find.byType(CardsPage)),
+        );
+      });
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(SomiaShell),
           matchesGoldenFile('cards-mobile-preview.png'));
       await tester.ensureVisible(find.text('Extrato'));
       await tester.tap(find.text('Extrato'));
       await tester.pumpAndSettle();
-      await expectLater(find.byType(Scaffold).last,
+      await expectLater(find.byType(SomiaShell),
           matchesGoldenFile('card-statement-mobile-preview.png'));
       await open(tester, TargetPlatform.android, detail: false);
       await expectLater(find.byType(Scaffold).last,
