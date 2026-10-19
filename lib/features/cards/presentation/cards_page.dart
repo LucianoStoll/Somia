@@ -937,9 +937,11 @@ class _CardsPageState extends State<CardsPage> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
                     children: [
-                      MonthSelector(
-                        month: _month,
-                        onChanged: referenceMonth.select,
+                      Center(
+                        child: MonthSelector(
+                          month: _month,
+                          onChanged: referenceMonth.select,
+                        ),
                       ),
                       if (_loading || _acting) const LinearProgressIndicator(),
                       if (_cards.isEmpty) ...[
