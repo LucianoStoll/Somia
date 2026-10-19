@@ -48,8 +48,7 @@ import '../domain/transactions_repository.dart';
 import 'transactions_cubit.dart';
 import 'transaction_settlements_page.dart';
 
-String _dateLabel(DateTime date) =>
-    '${date.day.toString().padLeft(2, '0')}/'
+String _dateLabel(DateTime date) => '${date.day.toString().padLeft(2, '0')}/'
     '${date.month.toString().padLeft(2, '0')}/${date.year}';
 
 class TransactionsPage extends StatelessWidget {
@@ -59,18 +58,18 @@ class TransactionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-    create: (_) => TransactionsCubit(
-      getIt<TransactionsRepository>(),
-      getIt<AccountsRepository>(),
-      getIt<CategoriesRepository>(),
-      sectionType: sectionType,
-      month: referenceMonth.value,
-    ),
-    child: _TransactionsView(
-      initialCreateType: initialCreateType,
-      sectionType: sectionType,
-    ),
-  );
+        create: (_) => TransactionsCubit(
+          getIt<TransactionsRepository>(),
+          getIt<AccountsRepository>(),
+          getIt<CategoriesRepository>(),
+          sectionType: sectionType,
+          month: referenceMonth.value,
+        ),
+        child: _TransactionsView(
+          initialCreateType: initialCreateType,
+          sectionType: sectionType,
+        ),
+      );
 }
 
 class _TransactionsView extends StatefulWidget {
@@ -87,14 +86,14 @@ class _TransactionsViewState extends State<_TransactionsView> {
   bool _bulkMode = false;
 
   void _cancelBulk() => setState(() {
-    _bulkMode = false;
-    _bulkSelection = {};
-  });
+        _bulkMode = false;
+        _bulkSelection = {};
+      });
 
   void _startBulk(MovementReference ref) => setState(() {
-    _bulkMode = true;
-    _bulkSelection = {ref.key: ref};
-  });
+        _bulkMode = true;
+        _bulkSelection = {ref.key: ref};
+      });
   bool _openedInitial = false;
   final Set<String> _changingStatus = {};
   TransactionType? _type;
@@ -109,9 +108,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
   bool _customPeriod = false;
   VoidCallback? _refreshFilters;
   DateTimeRange get _monthRange => DateTimeRange(
-    start: referenceMonth.value,
-    end: DateTime(referenceMonth.value.year, referenceMonth.value.month + 1, 0),
-  );
+        start: referenceMonth.value,
+        end: DateTime(
+            referenceMonth.value.year, referenceMonth.value.month + 1, 0),
+      );
 
   void _monthChanged() {
     setState(() {
@@ -212,25 +212,25 @@ class _TransactionsViewState extends State<_TransactionsView> {
   String get _sectionPath => widget.sectionType == TransactionType.income
       ? '/income'
       : widget.sectionType == TransactionType.expense
-      ? '/expenses'
-      : '/transactions';
+          ? '/expenses'
+          : '/transactions';
 
   void _apply() {
     _cancelBulk();
     _refreshFilters?.call();
     context.read<TransactionsCubit>().load(
-      TransactionFilter(
-        type: _type,
-        tag: _tag,
-        establishment: _establishmentFilter,
-        accountId: _accountId,
-        categoryId: _subcategoryId ?? _categoryId,
-        status: _status,
-        from: _range?.start,
-        to: _range?.end,
-        dateField: _dateField,
-      ),
-    );
+          TransactionFilter(
+            type: _type,
+            tag: _tag,
+            establishment: _establishmentFilter,
+            accountId: _accountId,
+            categoryId: _subcategoryId ?? _categoryId,
+            status: _status,
+            from: _range?.start,
+            to: _range?.end,
+            dateField: _dateField,
+          ),
+        );
   }
 
   Future<void> _pickRange() async {
@@ -239,8 +239,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100, 12, 31),
-      initialDateRange:
-          _range ??
+      initialDateRange: _range ??
           DateTimeRange(start: DateTime(now.year, now.month, 1), end: now),
     );
     if (picked != null && mounted) {
@@ -269,8 +268,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
     final cards = getIt.isRegistered<CardsRepository>()
         ? await getIt<CardsRepository>().list()
         : <CreditCard>[];
-    final linkedIncome =
-        item?.type == TransactionType.income &&
+    final linkedIncome = item?.type == TransactionType.income &&
         getIt.isRegistered<ReimbursementsRepository>() &&
         await getIt<ReimbursementsRepository>().isLinkedIncome(item!.id);
     if (!mounted) return;
@@ -282,8 +280,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
         requireIncomeCategory: linkedIncome,
         scope: scope,
         fixedType: widget.sectionType,
-        initialType:
-            (widget.sectionType == TransactionType.income ||
+        initialType: (widget.sectionType == TransactionType.income ||
                 widget.initialCreateType == 'income')
             ? TransactionType.income
             : TransactionType.expense,
@@ -369,11 +366,11 @@ class _TransactionsViewState extends State<_TransactionsView> {
           : await chooseSeriesScope(context, deleting: false);
       if (scope == null || !mounted) return;
       await context.read<TransactionsCubit>().updateAmount(
-        item.id,
-        expectedAmountMinor: item.amountMinor,
-        amountMinor: amount,
-        scope: scope,
-      );
+            item.id,
+            expectedAmountMinor: item.amountMinor,
+            amountMinor: amount,
+            scope: scope,
+          );
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
@@ -396,10 +393,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
     final today = DateUtils.dateOnly(DateTime.now());
     try {
       await context.read<TransactionsCubit>().setEffective(
-        item.id,
-        effective: true,
-        effectiveDate: today,
-      );
+            item.id,
+            effective: true,
+            effectiveDate: today,
+          );
       if (!mounted) return;
       showEffectuationFeedback(
         context,
@@ -435,10 +432,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
           : restore;
       if (!mounted || (pick && chosen == null)) return;
       await context.read<TransactionsCubit>().changeEffectiveDate(
-        id,
-        expectedDate: expected,
-        effectiveDate: chosen,
-      );
+            id,
+            expectedDate: expected,
+            effectiveDate: chosen,
+          );
     } catch (error) {
       if (mounted) _showError(error);
     } finally {
@@ -450,16 +447,15 @@ class _TransactionsViewState extends State<_TransactionsView> {
     final message = error is FormatException
         ? error.message
         : error is StateError
-        ? error.message
-        : 'Não foi possível salvar o lançamento.';
+            ? error.message
+            : 'Não foi possível salvar o lançamento.';
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final mobile =
-        somiaUsesMobileNavigation(context) &&
+    final mobile = somiaUsesMobileNavigation(context) &&
         MediaQuery.sizeOf(context).width < 600;
     return Scaffold(
       appBar: mobile
@@ -492,14 +488,13 @@ class _TransactionsViewState extends State<_TransactionsView> {
                 widget.sectionType == TransactionType.income
                     ? 'Receitas'
                     : widget.sectionType == TransactionType.expense
-                    ? 'Despesas'
-                    : 'Movimentos',
+                        ? 'Despesas'
+                        : 'Movimentos',
               ),
               leading: somiaMenuLeading(context),
             ),
-      floatingActionButton: somiaUsesMobileNavigation(context)
-          ? null
-          : const SomiaQuickActions(),
+      floatingActionButton:
+          somiaUsesMobileNavigation(context) ? null : const SomiaQuickActions(),
       body: BlocConsumer<TransactionsCubit, TransactionsState>(
         listener: (context, state) {
           if (!_openedInitial &&
@@ -558,9 +553,9 @@ class _TransactionsViewState extends State<_TransactionsView> {
                               widget.sectionType == TransactionType.income
                                   ? 'Receitas'
                                   : widget.sectionType ==
-                                        TransactionType.expense
-                                  ? 'Despesas'
-                                  : 'Movimentos',
+                                          TransactionType.expense
+                                      ? 'Despesas'
+                                      : 'Movimentos',
                               style: const TextStyle(
                                 fontSize: 25,
                                 fontWeight: FontWeight.w700,
@@ -666,8 +661,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
                           widget.sectionType == TransactionType.income
                               ? 'Nenhuma receita para estes filtros.'
                               : widget.sectionType == TransactionType.expense
-                              ? 'Nenhuma despesa para estes filtros.'
-                              : 'Nenhum lançamento para estes filtros.',
+                                  ? 'Nenhuma despesa para estes filtros.'
+                                  : 'Nenhum lançamento para estes filtros.',
                         ),
                       )
                     : ListView(
@@ -685,8 +680,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
   void _clearFilters() {
     setState(() {
       _type = widget.sectionType;
-      _accountId = _categoryId = _subcategoryId = _tag = _establishmentFilter =
-          null;
+      _accountId =
+          _categoryId = _subcategoryId = _tag = _establishmentFilter = null;
       _status = TransactionStatus.all;
       _dateField = TransactionDateField.due;
       _range = _monthRange;
@@ -772,8 +767,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   List<Widget> _dailyRows(TransactionsState state) {
-    final mobile =
-        somiaUsesMobileNavigation(context) &&
+    final mobile = somiaUsesMobileNavigation(context) &&
         MediaQuery.sizeOf(context).width < 600;
     final groups = <DateTime, List<FinancialTransaction>>{};
     for (final item in state.items) {
@@ -827,275 +821,274 @@ class _TransactionsViewState extends State<_TransactionsView> {
     final now = DateTime.now();
     final prefix =
         day.year == now.year && day.month == now.month && day.day == now.day
-        ? 'Hoje, '
-        : '';
+            ? 'Hoje, '
+            : '';
     return '$prefix${day.day} de ${monthNames[day.month - 1].toLowerCase()}'
         '${day.year == now.year ? '' : ' de ${day.year}'}';
   }
 
   Widget _filters(TransactionsState state) => ConstrainedBox(
-    constraints: BoxConstraints(
-      maxHeight: MediaQuery.sizeOf(context).height * 0.60,
-    ),
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 220,
-            child: TextFormField(
-              key: ValueKey('tag-filter-$_tag'),
-              initialValue: _tag,
-              decoration: InputDecoration(
-                labelText: 'Filtrar por tag',
-                suffixIcon: _tag == null
-                    ? const Icon(Icons.sell_outlined)
-                    : IconButton(
-                        tooltip: 'Limpar tag',
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          setState(() => _tag = null);
-                          _apply();
-                        },
-                      ),
-              ),
-              onFieldSubmitted: (value) {
-                setState(
-                  () => _tag = value.trim().isEmpty ? null : value.trim(),
-                );
-                _apply();
-              },
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: TextFormField(
-              key: ValueKey('establishment-filter-$_establishmentFilter'),
-              initialValue: _establishmentFilter,
-              decoration: InputDecoration(
-                labelText: 'Filtrar por estabelecimento',
-                suffixIcon: _establishmentFilter == null
-                    ? const Icon(Icons.store_outlined)
-                    : IconButton(
-                        tooltip: 'Limpar estabelecimento',
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          setState(() => _establishmentFilter = null);
-                          _apply();
-                        },
-                      ),
-              ),
-              onFieldSubmitted: (value) {
-                setState(
-                  () => _establishmentFilter = value.trim().isEmpty
-                      ? null
-                      : value.trim(),
-                );
-                _apply();
-              },
-            ),
-          ),
-          if (widget.sectionType == null) ...[
-            ChoiceChip(
-              label: const Text('Todos'),
-              selected: _type == null,
-              onSelected: (_) {
-                setState(() {
-                  _type = null;
-                  _categoryId = null;
-                  _subcategoryId = null;
-                });
-                _apply();
-              },
-            ),
-            for (final type in TransactionType.values)
-              ChoiceChip(
-                label: Text(type.label),
-                selected: _type == type,
-                onSelected: (_) {
-                  setState(() {
-                    _type = type;
-                    _categoryId = null;
-                    _subcategoryId = null;
-                  });
-                  _apply();
-                },
-              ),
-          ],
-          SizedBox(
-            width: 220,
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: _accountId ?? '',
-              hint: const Text('Conta'),
-              items: [
-                const DropdownMenuItem(
-                  value: '',
-                  child: Text('Todas as contas'),
-                ),
-                for (final account in state.accounts)
-                  DropdownMenuItem(
-                    value: account.id,
-                    child: AccountOption(account: account),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.60,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(12),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 220,
+                child: TextFormField(
+                  key: ValueKey('tag-filter-$_tag'),
+                  initialValue: _tag,
+                  decoration: InputDecoration(
+                    labelText: 'Filtrar por tag',
+                    suffixIcon: _tag == null
+                        ? const Icon(Icons.sell_outlined)
+                        : IconButton(
+                            tooltip: 'Limpar tag',
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              setState(() => _tag = null);
+                              _apply();
+                            },
+                          ),
                   ),
-              ],
-              onChanged: (id) {
-                setState(() => _accountId = id == '' ? null : id);
-                _apply();
-              },
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: _categoryId ?? '',
-              hint: const Text('Categoria'),
-              items: [
-                const DropdownMenuItem(
-                  value: '',
-                  child: Text('Todas as categorias'),
+                  onFieldSubmitted: (value) {
+                    setState(
+                      () => _tag = value.trim().isEmpty ? null : value.trim(),
+                    );
+                    _apply();
+                  },
                 ),
-                for (final category in state.categories.where(
-                  (c) =>
-                      c.parentId == null &&
-                      (_type == null || c.type.name == _type!.name),
-                ))
-                  DropdownMenuItem(
-                    value: category.id,
-                    child: Text(
-                      category.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              ),
+              SizedBox(
+                width: 220,
+                child: TextFormField(
+                  key: ValueKey('establishment-filter-$_establishmentFilter'),
+                  initialValue: _establishmentFilter,
+                  decoration: InputDecoration(
+                    labelText: 'Filtrar por estabelecimento',
+                    suffixIcon: _establishmentFilter == null
+                        ? const Icon(Icons.store_outlined)
+                        : IconButton(
+                            tooltip: 'Limpar estabelecimento',
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              setState(() => _establishmentFilter = null);
+                              _apply();
+                            },
+                          ),
                   ),
-              ],
-              onChanged: (id) {
-                setState(() {
-                  _categoryId = id == '' ? null : id;
-                  _subcategoryId = null;
-                });
-                _apply();
-              },
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: _subcategoryId ?? '',
-              hint: const Text('Subcategoria'),
-              items: [
-                const DropdownMenuItem(
-                  value: '',
-                  child: Text('Todas as subcategorias'),
+                  onFieldSubmitted: (value) {
+                    setState(
+                      () => _establishmentFilter =
+                          value.trim().isEmpty ? null : value.trim(),
+                    );
+                    _apply();
+                  },
                 ),
-                for (final category in state.categories.where(
-                  (c) => c.parentId == _categoryId && _categoryId != null,
-                ))
-                  DropdownMenuItem(
-                    value: category.id,
-                    child: Text(
-                      category.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-              onChanged: _categoryId == null
-                  ? null
-                  : (id) {
-                      setState(() => _subcategoryId = id == '' ? null : id);
+              ),
+              if (widget.sectionType == null) ...[
+                ChoiceChip(
+                  label: const Text('Todos'),
+                  selected: _type == null,
+                  onSelected: (_) {
+                    setState(() {
+                      _type = null;
+                      _categoryId = null;
+                      _subcategoryId = null;
+                    });
+                    _apply();
+                  },
+                ),
+                for (final type in TransactionType.values)
+                  ChoiceChip(
+                    label: Text(type.label),
+                    selected: _type == type,
+                    onSelected: (_) {
+                      setState(() {
+                        _type = type;
+                        _categoryId = null;
+                        _subcategoryId = null;
+                      });
                       _apply();
                     },
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButton<TransactionStatus>(
-              isExpanded: true,
-              value: _status,
-              items: const [
-                DropdownMenuItem(
-                  value: TransactionStatus.all,
-                  child: Text('Todos os estados'),
-                ),
-                DropdownMenuItem(
-                  value: TransactionStatus.effective,
-                  child: Text('Efetivados'),
-                ),
-                DropdownMenuItem(
-                  value: TransactionStatus.pending,
-                  child: Text('Pendentes'),
-                ),
+                  ),
               ],
-              onChanged: (status) {
-                if (status != null) {
-                  setState(() => _status = status);
-                  _apply();
-                }
-              },
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButton<TransactionDateField>(
-              isExpanded: true,
-              value: _dateField,
-              items: const [
-                DropdownMenuItem(
-                  value: TransactionDateField.posted,
-                  child: Text('Filtrar lançamento'),
+              SizedBox(
+                width: 220,
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: _accountId ?? '',
+                  hint: const Text('Conta'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('Todas as contas'),
+                    ),
+                    for (final account in state.accounts)
+                      DropdownMenuItem(
+                        value: account.id,
+                        child: AccountOption(account: account),
+                      ),
+                  ],
+                  onChanged: (id) {
+                    setState(() => _accountId = id == '' ? null : id);
+                    _apply();
+                  },
                 ),
-                DropdownMenuItem(
-                  value: TransactionDateField.due,
-                  child: Text('Filtrar vencimento'),
+              ),
+              SizedBox(
+                width: 220,
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: _categoryId ?? '',
+                  hint: const Text('Categoria'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('Todas as categorias'),
+                    ),
+                    for (final category in state.categories.where(
+                      (c) =>
+                          c.parentId == null &&
+                          (_type == null || c.type.name == _type!.name),
+                    ))
+                      DropdownMenuItem(
+                        value: category.id,
+                        child: Text(
+                          category.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: (id) {
+                    setState(() {
+                      _categoryId = id == '' ? null : id;
+                      _subcategoryId = null;
+                    });
+                    _apply();
+                  },
                 ),
-                DropdownMenuItem(
-                  value: TransactionDateField.effective,
-                  child: Text('Filtrar efetivação'),
+              ),
+              SizedBox(
+                width: 220,
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: _subcategoryId ?? '',
+                  hint: const Text('Subcategoria'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('Todas as subcategorias'),
+                    ),
+                    for (final category in state.categories.where(
+                      (c) => c.parentId == _categoryId && _categoryId != null,
+                    ))
+                      DropdownMenuItem(
+                        value: category.id,
+                        child: Text(
+                          category.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: _categoryId == null
+                      ? null
+                      : (id) {
+                          setState(() => _subcategoryId = id == '' ? null : id);
+                          _apply();
+                        },
                 ),
-              ],
-              onChanged: (field) {
-                if (field != null) {
-                  setState(() => _dateField = field);
-                  _apply();
-                }
-              },
-            ),
+              ),
+              SizedBox(
+                width: 220,
+                child: DropdownButton<TransactionStatus>(
+                  isExpanded: true,
+                  value: _status,
+                  items: const [
+                    DropdownMenuItem(
+                      value: TransactionStatus.all,
+                      child: Text('Todos os estados'),
+                    ),
+                    DropdownMenuItem(
+                      value: TransactionStatus.effective,
+                      child: Text('Efetivados'),
+                    ),
+                    DropdownMenuItem(
+                      value: TransactionStatus.pending,
+                      child: Text('Pendentes'),
+                    ),
+                  ],
+                  onChanged: (status) {
+                    if (status != null) {
+                      setState(() => _status = status);
+                      _apply();
+                    }
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 220,
+                child: DropdownButton<TransactionDateField>(
+                  isExpanded: true,
+                  value: _dateField,
+                  items: const [
+                    DropdownMenuItem(
+                      value: TransactionDateField.posted,
+                      child: Text('Filtrar lançamento'),
+                    ),
+                    DropdownMenuItem(
+                      value: TransactionDateField.due,
+                      child: Text('Filtrar vencimento'),
+                    ),
+                    DropdownMenuItem(
+                      value: TransactionDateField.effective,
+                      child: Text('Filtrar efetivação'),
+                    ),
+                  ],
+                  onChanged: (field) {
+                    if (field != null) {
+                      setState(() => _dateField = field);
+                      _apply();
+                    }
+                  },
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _pickRange,
+                icon: const Icon(Icons.date_range),
+                label: Text(
+                  _range == null
+                      ? 'Período'
+                      : '${_dateLabel(_range!.start)} – ${_dateLabel(_range!.end)}',
+                ),
+              ),
+              if (_range != null)
+                IconButton(
+                  tooltip: 'Limpar período',
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    setState(() {
+                      _range = _monthRange;
+                      _customPeriod = false;
+                    });
+                    _apply();
+                  },
+                ),
+            ],
           ),
-          OutlinedButton.icon(
-            onPressed: _pickRange,
-            icon: const Icon(Icons.date_range),
-            label: Text(
-              _range == null
-                  ? 'Período'
-                  : '${_dateLabel(_range!.start)} – ${_dateLabel(_range!.end)}',
-            ),
-          ),
-          if (_range != null)
-            IconButton(
-              tooltip: 'Limpar período',
-              icon: const Icon(Icons.clear),
-              onPressed: () {
-                setState(() {
-                  _range = _monthRange;
-                  _customPeriod = false;
-                });
-                _apply();
-              },
-            ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 
   void _openInvoice(FinancialTransaction item) => context.go(
-    '/cards?card=${item.cardId}&month=${item.cardInvoiceMonth!.toIso8601String()}',
-  );
+        '/cards?card=${item.cardId}&month=${item.cardInvoiceMonth!.toIso8601String()}',
+      );
 
   Future<void> _invoiceAction(String id, Future<void> Function() action) async {
     if (!mounted || _changingStatus.contains(id)) return;
@@ -1147,43 +1140,46 @@ class _TransactionsViewState extends State<_TransactionsView> {
 
   Future<void> _undoInvoice(
     FinancialTransaction item,
-  ) => _invoiceAction(item.id, () async {
-    final repo = getIt<CardsRepository>();
-    final bill = await repo.invoice(item.cardInvoiceId!);
-    if (!mounted) return;
-    if (CardsRepository.paymentSignature(bill) != item.cardPaymentSignature) {
-      throw StateError('A fatura mudou. Atualize a lista antes de desfazer.');
-    }
-    final payment = bill.payments.firstWhere(
-      (p) => p.id == item.cardLastPaymentId,
-    );
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: const Text('Desfazer último pagamento?'),
-        content: Text(
-          'O pagamento de ${MoneyMinor.display(payment.amountMinor, 'BRL')} em ${_dateLabel(payment.date)}, pela conta ${payment.accountName}, será removido. Os pagamentos anteriores serão preservados.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Cancelar'),
+  ) =>
+      _invoiceAction(item.id, () async {
+        final repo = getIt<CardsRepository>();
+        final bill = await repo.invoice(item.cardInvoiceId!);
+        if (!mounted) return;
+        if (CardsRepository.paymentSignature(bill) !=
+            item.cardPaymentSignature) {
+          throw StateError(
+              'A fatura mudou. Atualize a lista antes de desfazer.');
+        }
+        final payment = bill.payments.firstWhere(
+          (p) => p.id == item.cardLastPaymentId,
+        );
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+            title: const Text('Desfazer último pagamento?'),
+            content: Text(
+              'O pagamento de ${MoneyMinor.display(payment.amountMinor, 'BRL')} em ${_dateLabel(payment.date)}, pela conta ${payment.accountName}, será removido. Os pagamentos anteriores serão preservados.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialog, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialog, true),
+                child: const Text('Desfazer'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Desfazer'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      await repo.undoInvoicePayment(
-        bill.id,
-        payment.id,
-        item.cardPaymentSignature,
-      );
-    }
-  });
+        );
+        if (confirmed == true) {
+          await repo.undoInvoicePayment(
+            bill.id,
+            payment.id,
+            item.cardPaymentSignature,
+          );
+        }
+      });
 
   Widget _invoiceTile(FinancialTransaction item) {
     final busy = _changingStatus.contains(item.id);
@@ -1202,7 +1198,20 @@ class _TransactionsViewState extends State<_TransactionsView> {
       effectiveLabel: 'Pagar fatura hoje',
       pendingIcon: Icons.schedule,
       highlightLabel:
-          'Fecha dia ${item.date.day.toString().padLeft(2, '0')}/${const ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][item.date.month - 1]}.',
+          'Fecha dia ${item.date.day.toString().padLeft(2, '0')}/${const [
+        'jan',
+        'fev',
+        'mar',
+        'abr',
+        'mai',
+        'jun',
+        'jul',
+        'ago',
+        'set',
+        'out',
+        'nov',
+        'dez'
+      ][item.date.month - 1]}.',
       pendingLabel: 'Desfazer último pagamento',
       tags: [
         if (_categoryId != null ||
@@ -1259,12 +1268,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
   Widget _itemTile(FinancialTransaction item) {
     if (item.cardInvoiceId != null) return _invoiceTile(item);
     final categories = context.read<TransactionsCubit>().state.categories;
-    final category = categories
-        .where((c) => c.id == item.categoryId)
-        .firstOrNull;
-    final parent = categories
-        .where((c) => c.id == category?.parentId)
-        .firstOrNull;
+    final category =
+        categories.where((c) => c.id == item.categoryId).firstOrNull;
+    final parent =
+        categories.where((c) => c.id == category?.parentId).firstOrNull;
     final busy = _changingStatus.contains(item.id);
     return MovementListRow(
       id: item.id,
@@ -1291,8 +1298,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
       effectiveLabel: item.cardId != null
           ? 'Abrir fatura'
           : item.type == TransactionType.income
-          ? 'Receber hoje'
-          : 'Pagar hoje',
+              ? 'Receber hoje'
+              : 'Pagar hoje',
       tags: [
         ...item.tags.map((tag) => '#$tag'),
         if (item.establishment.isNotEmpty) 'Local: ${item.establishment}',
@@ -1548,16 +1555,15 @@ class TransactionFormState extends State<TransactionForm> {
     final parent = category?.parentId == null
         ? category
         : widget.categories
-              .where((c) => c.id == category!.parentId && !c.isArchived)
-              .firstOrNull;
+            .where((c) => c.id == category!.parentId && !c.isArchived)
+            .firstOrNull;
     setState(() {
       _accountId = account.id;
       _cardId = card?.id;
       _cardMonth = null;
       _categoryId = parent?.id;
-      _subcategoryId = parent != null && category?.parentId != null
-          ? category?.id
-          : null;
+      _subcategoryId =
+          parent != null && category?.parentId != null ? category?.id : null;
       _categoryFromHistory = parent != null;
       _showSuggestions = false;
       if (card != null) {
@@ -1574,65 +1580,65 @@ class TransactionFormState extends State<TransactionForm> {
   }
 
   Widget _suggestionsPanel() => Material(
-    color: SomiaColors.surfaceHigh,
-    borderRadius: BorderRadius.circular(12),
-    clipBehavior: Clip.antiAlias,
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 240),
-      child: ListView.builder(
-        shrinkWrap: true,
-        primary: false,
-        itemCount: _matchingSuggestions.length,
-        itemBuilder: (_, index) {
-          final suggestion = _matchingSuggestions[index];
-          return ListTile(
-            key: ValueKey('history-suggestion-${suggestion.id}'),
-            leading: Icon(
-              suggestion.cardId == null ? Icons.history : Icons.credit_card,
-              color: _type == TransactionType.income
-                  ? SomiaColors.green
-                  : SomiaColors.red,
-            ),
-            title: Text(
-              suggestion.description,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              suggestion.accountName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: SizedBox(
-              width: 140,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      MoneyMinor.display(
-                        suggestion.amountMinor,
-                        suggestion.currencyCode,
+        color: SomiaColors.surfaceHigh,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 240),
+          child: ListView.builder(
+            shrinkWrap: true,
+            primary: false,
+            itemCount: _matchingSuggestions.length,
+            itemBuilder: (_, index) {
+              final suggestion = _matchingSuggestions[index];
+              return ListTile(
+                key: ValueKey('history-suggestion-${suggestion.id}'),
+                leading: Icon(
+                  suggestion.cardId == null ? Icons.history : Icons.credit_card,
+                  color: _type == TransactionType.income
+                      ? SomiaColors.green
+                      : SomiaColors.red,
+                ),
+                title: Text(
+                  suggestion.description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  suggestion.accountName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: SizedBox(
+                  width: 140,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          MoneyMinor.display(
+                            suggestion.amountMinor,
+                            suggestion.currencyCode,
+                          ),
+                          textAlign: TextAlign.right,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      textAlign: TextAlign.right,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      IconButton(
+                        tooltip: 'Ocultar sugestão',
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => setState(
+                            () => _hiddenSuggestions.add(suggestion.id)),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: 'Ocultar sugestão',
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () =>
-                        setState(() => _hiddenSuggestions.add(suggestion.id)),
-                  ),
-                ],
-              ),
-            ),
-            onTap: () => _selectSuggestion(suggestion),
-          );
-        },
-      ),
-    ),
-  );
+                ),
+                onTap: () => _selectSuggestion(suggestion),
+              );
+            },
+          ),
+        ),
+      );
 
   Future<void>? _historyLoading;
 
@@ -1666,28 +1672,26 @@ class TransactionFormState extends State<TransactionForm> {
     if (!mounted || widget.item != null || _categoryChosenManually) {
       return;
     }
-    final id =
-        _categoryHistory[CategoryHistoryRepository.normalize(
-          _description.text,
-        )];
+    final id = _categoryHistory[CategoryHistoryRepository.normalize(
+      _description.text,
+    )];
     final category = widget.categories
         .where((c) => c.id == id && !c.isArchived && c.type.name == _type.name)
         .firstOrNull;
     final parent = category?.parentId == null
         ? category
         : widget.categories
-              .where(
-                (c) =>
-                    c.id == category!.parentId &&
-                    c.parentId == null &&
-                    !c.isArchived &&
-                    c.type.name == _type.name,
-              )
-              .firstOrNull;
+            .where(
+              (c) =>
+                  c.id == category!.parentId &&
+                  c.parentId == null &&
+                  !c.isArchived &&
+                  c.type.name == _type.name,
+            )
+            .firstOrNull;
     final rootId = parent?.id;
-    final childId = parent != null && category?.parentId != null
-        ? category?.id
-        : null;
+    final childId =
+        parent != null && category?.parentId != null ? category?.id : null;
     if (_categoryId == rootId &&
         _subcategoryId == childId &&
         _categoryFromHistory == (rootId != null)) {
@@ -1777,9 +1781,11 @@ class TransactionFormState extends State<TransactionForm> {
       initialDate: field == 'posted'
           ? _date
           : field == 'due'
-          ? _dueDate
-          : _effectiveDate ??
-                (_type == TransactionType.expense ? _dueDate : DateTime.now()),
+              ? _dueDate
+              : _effectiveDate ??
+                  (_type == TransactionType.expense
+                      ? _dueDate
+                      : DateTime.now()),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100, 12, 31),
     );
@@ -1847,14 +1853,12 @@ class TransactionFormState extends State<TransactionForm> {
       }
     }
     if (_cardId != null && _selectedCard?.availableMinor != null) {
-      final total =
-          _series.plan
+      final total = _series.plan
               ?.amounts(MoneyMinor.parse(_amount.text))
               .fold(0, (a, b) => a + b) ??
           MoneyMinor.parse(_amount.text);
-      final extra = widget.item == null
-          ? total
-          : total - widget.item!.amountMinor;
+      final extra =
+          widget.item == null ? total : total - widget.item!.amountMinor;
       if (extra > _selectedCard!.availableMinor! + _selectedCard!.creditMinor) {
         final ok = await showDialog<bool>(
           context: context,
@@ -1881,7 +1885,7 @@ class TransactionFormState extends State<TransactionForm> {
     final isEffective = !_forcePending && _isEffective;
     var effective = isEffective
         ? _effectiveDate ??
-              (_type == TransactionType.expense ? _dueDate : DateTime.now())
+            (_type == TransactionType.expense ? _dueDate : DateTime.now())
         : null;
     if (isEffective &&
         _type != TransactionType.expense &&
@@ -1896,9 +1900,8 @@ class TransactionFormState extends State<TransactionForm> {
       TransactionDraft(
         tags: _tags,
         establishment: _establishment,
-        reimbursements: _type == TransactionType.expense
-            ? _reimbursements
-            : null,
+        reimbursements:
+            _type == TransactionType.expense ? _reimbursements : null,
         description: _description.text.trim(),
         type: _type,
         amountMinor: MoneyMinor.parse(_amount.text),
@@ -2004,12 +2007,11 @@ class TransactionFormState extends State<TransactionForm> {
                 controller: _amount,
                 labelText: _series.kind == SeriesKind.installments
                     ? (_series.amountIsTotal
-                          ? 'Valor total'
-                          : 'Valor por parcela')
+                        ? 'Valor total'
+                        : 'Valor por parcela')
                     : 'Valor',
                 focusNode: _amountFocus,
-                currencyCode:
-                    _availableAccounts
+                currencyCode: _availableAccounts
                         .where((a) => a.id == _accountId)
                         .firstOrNull
                         ?.currencyCode ??
@@ -2070,9 +2072,9 @@ class TransactionFormState extends State<TransactionForm> {
                   onChanged: widget.item != null
                       ? null
                       : (value) => setState(() {
-                          _cardId = value;
-                          _cardMonth = null;
-                        }),
+                            _cardId = value;
+                            _cardMonth = null;
+                          }),
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -2117,8 +2119,7 @@ class TransactionFormState extends State<TransactionForm> {
                   onChanged: (id) => setState(() {
                     _debitCardId = id;
                     if (id != null) {
-                      _accountId =
-                          _debitCards
+                      _accountId = _debitCards
                               .where((c) => c.id == id)
                               .firstOrNull
                               ?.accountId ??
@@ -2230,10 +2231,11 @@ class TransactionFormState extends State<TransactionForm> {
                   onChanged: _categoryId == null
                       ? null
                       : (id) => setState(() {
-                          _categoryChosenManually = true;
-                          _categoryFromHistory = false;
-                          _subcategoryId = id == null || id.isEmpty ? null : id;
-                        }),
+                            _categoryChosenManually = true;
+                            _categoryFromHistory = false;
+                            _subcategoryId =
+                                id == null || id.isEmpty ? null : id;
+                          }),
                 ),
               if (_cardId == null)
                 CompactMovementDate(
@@ -2259,13 +2261,13 @@ class TransactionFormState extends State<TransactionForm> {
                       : !_forcePending && _isEffective,
                   onChanged:
                       _forcePending || (widget.item?.settlementCount ?? 0) > 0
-                      ? null
-                      : (value) => setState(() {
-                          _isEffective = value;
-                          if (value && _type == TransactionType.expense) {
-                            _effectiveDate = null;
-                          }
-                        }),
+                          ? null
+                          : (value) => setState(() {
+                                _isEffective = value;
+                                if (value && _type == TransactionType.expense) {
+                                  _effectiveDate = null;
+                                }
+                              }),
                 ),
               if ((widget.item?.settlementCount ?? 0) > 0)
                 const Text('As baixas são gerenciadas em Baixas e histórico.'),
@@ -2275,8 +2277,7 @@ class TransactionFormState extends State<TransactionForm> {
                 title: const Text('Mais opções'),
                 tilePadding: EdgeInsets.zero,
                 maintainState: true,
-                initiallyExpanded:
-                    _establishment.isNotEmpty ||
+                initiallyExpanded: _establishment.isNotEmpty ||
                     _tags.isNotEmpty ||
                     _rateioEnabled ||
                     widget.item?.series != null,
@@ -2300,17 +2301,16 @@ class TransactionFormState extends State<TransactionForm> {
                       currency: _cardId != null
                           ? 'BRL'
                           : _availableAccounts
-                                    .where((a) => a.id == _accountId)
-                                    .firstOrNull
-                                    ?.currencyCode ??
-                                'BRL',
+                                  .where((a) => a.id == _accountId)
+                                  .firstOrNull
+                                  ?.currencyCode ??
+                              'BRL',
                       onChanged: (v) => setState(() => _reimbursements = v),
                     ),
                   if (!_forcePending && _isEffective)
                     CompactMovementDate(
                       label: 'Data de efetivação',
-                      date:
-                          _effectiveDate ??
+                      date: _effectiveDate ??
                           (_type == TransactionType.expense
                               ? _dueDate
                               : DateTime.now()),
@@ -2324,8 +2324,7 @@ class TransactionFormState extends State<TransactionForm> {
                       dueDate: _cardId == null
                           ? _dueDate
                           : _selectedCard?.dueFor(_invoiceMonth) ?? _dueDate,
-                      currencyCode:
-                          _availableAccounts
+                      currencyCode: _availableAccounts
                               .where((a) => a.id == _accountId)
                               .firstOrNull
                               ?.currencyCode ??
@@ -2350,9 +2349,9 @@ class TransactionFormState extends State<TransactionForm> {
                                 n +
                                         (_series.active
                                             ? int.tryParse(
-                                                    _series.count.text,
-                                                  ) ??
-                                                  0
+                                                  _series.count.text,
+                                                ) ??
+                                                0
                                             : 1) -
                                         1 >
                                     1000
@@ -2378,10 +2377,10 @@ class TransactionFormState extends State<TransactionForm> {
                       currencyCode: _cardId != null
                           ? 'BRL'
                           : _availableAccounts
-                                    .where((a) => a.id == _accountId)
-                                    .firstOrNull
-                                    ?.currencyCode ??
-                                'BRL',
+                                  .where((a) => a.id == _accountId)
+                                  .firstOrNull
+                                  ?.currencyCode ??
+                              'BRL',
                       total: MoneyMinor.parse(_amount.text),
                       initial: _allocations,
                       onChanged: (v) => _allocations = v,

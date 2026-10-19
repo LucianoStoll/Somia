@@ -51,82 +51,82 @@ class MovementListRow extends StatelessWidget {
   final Widget menu;
   final WidgetBuilder? detailsBuilder;
 
-  String _date(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}/'
+  String _date(DateTime date) => '${date.day.toString().padLeft(2, '0')}/'
       '${date.month.toString().padLeft(2, '0')}/${date.year}';
 
   Future<void> _details(BuildContext context) => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (sheet) => SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(description, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(account),
-          const SizedBox(height: 8),
-          Text(
-            effective
-                ? 'Efetivado'
-                : effectiveDate != null
-                ? 'Agendado'
-                : 'Previsto',
-          ),
-          Text('Vencimento: ${_date(dueDate)}'),
-          if (effectiveDate != null)
-            Text('Efetivação: ${_date(effectiveDate!)}'),
-          for (final category in categoryTags)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                category.label,
-                style: TextStyle(color: category.color),
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (sheet) => SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(description, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 12),
+              Text(
+                amount,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
-            ),
-          for (final tag in tags)
-            Padding(padding: const EdgeInsets.only(top: 8), child: Text(tag)),
-          if (detailsBuilder != null) detailsBuilder!(sheet),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: busy
-                ? null
-                : () {
+              const SizedBox(height: 16),
+              Text(account),
+              const SizedBox(height: 8),
+              Text(
+                effective
+                    ? 'Efetivado'
+                    : effectiveDate != null
+                        ? 'Agendado'
+                        : 'Previsto',
+              ),
+              Text('Vencimento: ${_date(dueDate)}'),
+              if (effectiveDate != null)
+                Text('Efetivação: ${_date(effectiveDate!)}'),
+              for (final category in categoryTags)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    category.label,
+                    style: TextStyle(color: category.color),
+                  ),
+                ),
+              for (final tag in tags)
+                Padding(
+                    padding: const EdgeInsets.only(top: 8), child: Text(tag)),
+              if (detailsBuilder != null) detailsBuilder!(sheet),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: busy
+                    ? null
+                    : () {
+                        Navigator.pop(sheet);
+                        onEdit();
+                      },
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Editar lançamento'),
+              ),
+              if (onAttachments != null)
+                TextButton.icon(
+                  onPressed: () {
                     Navigator.pop(sheet);
-                    onEdit();
+                    onAttachments!();
                   },
-            icon: const Icon(Icons.edit_outlined),
-            label: const Text('Editar lançamento'),
+                  icon: const Icon(Icons.attach_file),
+                  label: const Text('Anexos'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(sheet),
+                child: const Text('Fechar'),
+              ),
+            ],
           ),
-          if (onAttachments != null)
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(sheet);
-                onAttachments!();
-              },
-              icon: const Icon(Icons.attach_file),
-              label: const Text('Anexos'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(sheet),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 
   double _textWidth(BuildContext context, String text, TextStyle style) {
     final painter = TextPainter(
@@ -147,21 +147,21 @@ class MovementListRow extends StatelessWidget {
     final status = effective
         ? 'Efetivado'
         : effectiveDate != null
-        ? 'Agendado'
-        : 'Pendente';
+            ? 'Agendado'
+            : 'Pendente';
     final statusColor = effective ? SomiaColors.green : SomiaColors.yellow;
     final statusButton = IconButton(
       key: ValueKey('movement-status-$id'),
       tooltip: busy
           ? 'Salvando'
           : effective
-          ? (onPending == null ? status : pendingLabel)
-          : effectiveLabel,
+              ? (onPending == null ? status : pendingLabel)
+              : effectiveLabel,
       onPressed: busy
           ? null
           : effective
-          ? onPending
-          : onEffective,
+              ? onPending
+              : onEffective,
       style: IconButton.styleFrom(
         backgroundColor: statusColor.withValues(alpha: 0.12),
         disabledBackgroundColor: statusColor.withValues(alpha: 0.12),
@@ -176,8 +176,8 @@ class MovementListRow extends StatelessWidget {
               effective
                   ? Icons.check_circle_outline
                   : effectiveDate != null
-                  ? Icons.schedule
-                  : pendingIcon,
+                      ? Icons.schedule
+                      : pendingIcon,
               color: statusColor,
               size: 22,
             ),
@@ -217,21 +217,21 @@ class MovementListRow extends StatelessWidget {
       ],
     );
     Widget badge(MovementTag tag) => Tooltip(
-      message: tag.label,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        decoration: BoxDecoration(
-          color: tag.color.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: Text(
-          tag.label,
-          style: TextStyle(fontSize: 11, color: tag.color),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    );
+          message: tag.label,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: tag.color.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Text(
+              tag.label,
+              style: TextStyle(fontSize: 11, color: tag.color),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
     final labels = <Widget>[
       if (categoryTags.isNotEmpty) ...[
         const SizedBox(height: 5),
@@ -346,8 +346,8 @@ class MovementListRow extends StatelessWidget {
                   final badgeColor = effective
                       ? SomiaColors.green
                       : effectiveDate != null
-                      ? SomiaColors.blue
-                      : SomiaColors.purple;
+                          ? SomiaColors.blue
+                          : SomiaColors.purple;
                   final leadingButton = IconButton(
                     key: ValueKey('movement-status-$id'),
                     tooltip: statusButton.tooltip,
@@ -483,9 +483,8 @@ class MovementListRow extends StatelessWidget {
                       );
                       final valueWidth =
                           (amountWidth > dateWidth ? amountWidth : dateWidth) +
-                          2;
-                      final stacked =
-                          constraints.maxWidth < 210 ||
+                              2;
+                      final stacked = constraints.maxWidth < 210 ||
                           MediaQuery.textScalerOf(context).scale(14) > 21 ||
                           valueWidth > constraints.maxWidth * 0.65;
                       final edit = InkWell(
