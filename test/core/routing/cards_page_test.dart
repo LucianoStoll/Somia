@@ -327,7 +327,10 @@ void main() {
     expect(find.text('Fatura'), findsOneWidget);
     await tester.tap(find.widgetWithText(TextButton, 'Pagamentos'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Pago no mês'), 100);
     expect(find.text('Pago no mês'), findsOneWidget);
+    await tester.scrollUntilVisible(
+        find.widgetWithText(TextButton, 'Fatura'), -100);
     await tester.tap(find.widgetWithText(TextButton, 'Fatura'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Pagar fatura'), 100);
