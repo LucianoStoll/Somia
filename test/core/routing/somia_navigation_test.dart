@@ -428,9 +428,7 @@ void main() {
     for (final path in ['/', '/expenses']) {
       appRouter.go(path);
       await tester.pumpAndSettle();
-      await tester.tap(path == '/'
-          ? find.byKey(const ValueKey('bottom-Mais'))
-          : find.byTooltip('Abrir menu'));
+      await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
       await tester.pumpAndSettle();
       expect(await appRouter.routerDelegate.popRoute(), true);
       await tester.pumpAndSettle();
@@ -555,7 +553,7 @@ void main() {
     for (final path in ['/income', '/expenses']) {
       appRouter.go(path);
       await tester.pumpAndSettle();
-      expect(find.text('Dezembro 2026'), findsOneWidget);
+      expect(find.text('Dez 2026'), findsOneWidget);
       expect(transactions.requestedFilters.last.from, DateTime(2026, 12));
       expect(transactions.requestedFilters.last.to, DateTime(2026, 12, 31));
       expect(find.text('Salário'), findsNothing);
@@ -697,7 +695,7 @@ void main() {
     expect(find.text('Mercado'), findsNothing);
     expect(transactions.requestedTypes.last, TransactionType.income);
 
-    await tester.tap(find.byTooltip('Abrir menu'));
+    await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
     await tester.pumpAndSettle();
     expect(
         tester

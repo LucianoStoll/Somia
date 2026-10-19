@@ -76,6 +76,7 @@ class MovementListRow extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(account),
+              if (highlightLabel != null) Text(highlightLabel!),
               const SizedBox(height: 8),
               Text(
                 effective
