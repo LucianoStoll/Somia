@@ -67,6 +67,44 @@ void main() {
     await getIt.reset();
     await db.close();
   });
+  test('mês da movimentação usa efetivação ou vencimento do pendente',
+      () async {
+    final today = DateTime.now();
+    final month = DateTime(today.year, today.month);
+    final previous = DateTime(today.year, today.month, 0);
+    await transactions.create(TransactionDraft(
+        description: 'Recebido neste mês',
+        type: TransactionType.income,
+        amountMinor: 10000,
+        date: previous,
+        dueDate: previous,
+        isEffective: true,
+        effectiveDate: today,
+        accountId: accountId));
+    await transactions.create(TransactionDraft(
+        description: 'A receber neste mês',
+        type: TransactionType.income,
+        amountMinor: 5000,
+        date: month,
+        dueDate: month,
+        isEffective: false,
+        accountId: accountId));
+    final filter = TransactionFilter(
+        type: TransactionType.income,
+        dateField: TransactionDateField.activity,
+        from: month,
+        to: DateTime(today.year, today.month + 1, 0));
+    expect((await transactions.list(filter)).map((item) => item.description),
+        containsAll(['Recebido neste mês', 'A receber neste mês']));
+    expect(
+        (await transactions.list(TransactionFilter(
+                type: TransactionType.income,
+                dateField: TransactionDateField.due,
+                from: month,
+                to: DateTime(today.year, today.month + 1, 0))))
+            .map((item) => item.description),
+        isNot(contains('Recebido neste mês')));
+  });
   test('lote preserva campos não escolhidos e combina tags sem duplicação',
       () async {
     final a = await transactions.create(draft());
@@ -386,13 +424,36 @@ void main() {
       );
       await transactions.create(
         TransactionDraft(
+          description: 'Adiantamento',
+          type: TransactionType.income,
+          amountMinor: 60390,
+          date: DateTime(2026, 10, 23),
+          dueDate: DateTime(2026, 10, 23),
+          isEffective: false,
+          accountId: accountId,
+        ),
+      );
+      await transactions.create(
+        TransactionDraft(
+          description: 'Lavagem dos carros',
+          type: TransactionType.expense,
+          amountMinor: 6000,
+          date: DateTime(2026, 10, 8),
+          dueDate: DateTime(2026, 10, 10),
+          isEffective: true,
+          effectiveDate: DateTime(2026, 10, 14),
+          accountId: accountId,
+        ),
+      );
+      await transactions.create(
+        TransactionDraft(
           description: 'Salário',
           type: TransactionType.income,
           amountMinor: 420000,
           date: DateTime(2026, 10, 8),
           dueDate: DateTime(2026, 10, 10),
           isEffective: true,
-          effectiveDate: DateTime(2026, 10, 10),
+          effectiveDate: DateTime(2026, 10, 17),
           accountId: accountId,
         ),
       );
@@ -426,10 +487,40 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('R\$ 4.200,00'), findsOneWidget);
       expect(find.text('-R\$ 9.999.999,99'), findsOneWidget);
+      expect(find.text('Pendentes'), findsOneWidget);
+      expect(find.text('17 de outubro'), findsOneWidget);
+      expect(find.text('23 de outubro'), findsNothing);
       await expectLater(
         find.byKey(const ValueKey('movements-preview')),
         matchesGoldenFile('movements-mobile-preview.png'),
       );
+      for (final section in [
+        (TransactionType.income, 'receitas'),
+        (TransactionType.expense, 'despesas'),
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.dark.copyWith(platform: TargetPlatform.android),
+            home: RepaintBoundary(
+              key: ValueKey('${section.$2}-preview'),
+              child: SomiaShell(
+                location: '/${section.$2 == 'receitas' ? 'income' : 'expenses'}',
+                child: TransactionsPage(sectionType: section.$1),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Realizado'), findsOneWidget);
+        expect(find.text('Previsto'), findsOneWidget);
+        expect(find.text('Entradas'), findsNothing);
+        expect(find.text('Pendentes'), findsOneWidget);
+        expect(find.text('23 de outubro'), findsNothing);
+        await expectLater(
+          find.byKey(ValueKey('${section.$2}-preview')),
+          matchesGoldenFile('${section.$2}-mobile-preview.png'),
+        );
+      }
     });
     testWidgets('prévias mobile e desktop de edição em lote e lixeira',
         (tester) async {

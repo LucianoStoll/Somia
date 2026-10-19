@@ -9,6 +9,7 @@ Widget row(
         {VoidCallback? edit,
         VoidCallback? status,
         VoidCallback? amount,
+        IconData? leadingIcon,
         bool effective = false,
         bool busy = false}) =>
     MovementListRow(
@@ -21,6 +22,7 @@ Widget row(
         effective: effective,
         busy: busy,
         color: SomiaColors.red,
+        leadingIcon: leadingIcon,
         categoryTags: const [
           MovementTag('Investimentos e patrimônio', Color(0xFF79D9B6)),
           MovementTag('Financiamento', Color(0xFFB9A8EB))
@@ -119,6 +121,21 @@ void main() {
     expect(find.text('Editar'), findsOneWidget);
     expect(edits, 1);
     expect(statuses, 1);
+  });
+  testWidgets('pendente usa relógio e efetivado mantém o ícone da categoria',
+      (tester) async {
+    await open(tester, row(leadingIcon: Icons.directions_car_outlined),
+        const Size(390, 844), 1);
+    Icon leading() => tester.widget<Icon>(find.descendant(
+        of: find.byKey(const ValueKey('movement-status-a')),
+        matching: find.byType(Icon)));
+    expect(leading().icon, Icons.schedule_outlined);
+    await open(
+        tester,
+        row(effective: true, leadingIcon: Icons.directions_car_outlined),
+        const Size(390, 844),
+        1);
+    expect(leading().icon, Icons.directions_car_outlined);
   });
   testWidgets('linha curta é compacta e categorias ficam nos detalhes', (
     tester,

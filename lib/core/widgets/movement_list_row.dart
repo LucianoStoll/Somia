@@ -174,11 +174,7 @@ class MovementListRow extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : Icon(
-              effective
-                  ? Icons.check_circle_outline
-                  : effectiveDate != null
-                      ? Icons.schedule
-                      : pendingIcon,
+              effective ? Icons.check_circle_outline : Icons.schedule_outlined,
               color: statusColor,
               size: 22,
             ),
@@ -359,9 +355,15 @@ class MovementListRow extends StatelessWidget {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Icon(leadingIcon ?? pendingIcon, color: color),
+                        : Icon(
+                            effective
+                                ? leadingIcon ?? pendingIcon
+                                : Icons.schedule_outlined,
+                            color: effective ? color : SomiaColors.purple,
+                          ),
                     style: IconButton.styleFrom(
-                      backgroundColor: color.withValues(alpha: 0.16),
+                      backgroundColor: (effective ? color : SomiaColors.purple)
+                          .withValues(alpha: 0.16),
                       minimumSize: const Size(44, 44),
                     ),
                   );
@@ -372,7 +374,9 @@ class MovementListRow extends StatelessWidget {
                       key: ValueKey('movement-amount-$id'),
                       onTap: busy ? null : onAmount ?? onEdit,
                       child: Tooltip(
-                        message: 'Vencimento ${_date(dueDate)}',
+                        message: effective && effectiveDate != null
+                            ? 'Efetivado em ${_date(effectiveDate!)}'
+                            : 'Vencimento ${_date(dueDate)}',
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,

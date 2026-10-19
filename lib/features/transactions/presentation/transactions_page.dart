@@ -111,7 +111,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
   String? _tag;
   String? _establishmentFilter;
   TransactionStatus _status = TransactionStatus.all;
-  TransactionDateField _dateField = TransactionDateField.due;
+  TransactionDateField _dateField = TransactionDateField.activity;
   DateTimeRange? _range;
   bool _customPeriod = false;
   VoidCallback? _refreshFilters;
@@ -173,7 +173,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                             _tag = null;
                             _establishmentFilter = null;
                             _status = TransactionStatus.all;
-                            _dateField = TransactionDateField.due;
+                            _dateField = TransactionDateField.activity;
                             _range = _monthRange;
                             _customPeriod = false;
                           });
@@ -691,7 +691,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
       _accountId =
           _categoryId = _subcategoryId = _tag = _establishmentFilter = null;
       _status = TransactionStatus.all;
-      _dateField = TransactionDateField.due;
+      _dateField = TransactionDateField.activity;
       _range = _monthRange;
       _customPeriod = false;
     });
@@ -701,6 +701,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
   Widget _mobileTotals(List<FinancialTransaction> items) {
     final currencies = items.map((item) => item.currencyCode).toSet();
     if (currencies.isEmpty) currencies.add('BRL');
+    final section = widget.sectionType;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Card(
@@ -708,18 +709,21 @@ class _TransactionsViewState extends State<_TransactionsView> {
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           child: Row(
             children: [
-              for (final type in [
-                TransactionType.income,
-                TransactionType.expense,
-              ]) ...[
-                if (type == TransactionType.expense)
+              for (final index in [0, 1]) ...[
+                if (index == 1)
                   const SizedBox(height: 50, child: VerticalDivider()),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        type == TransactionType.income ? 'Entradas' : 'Saídas',
+                        section == null
+                            ? index == 0
+                                ? 'Entradas'
+                                : 'Saídas'
+                            : index == 0
+                                ? 'Realizado'
+                                : 'Previsto',
                         style: const TextStyle(
                           color: SomiaColors.muted,
                           fontSize: 12,
@@ -735,7 +739,13 @@ class _TransactionsViewState extends State<_TransactionsView> {
                               items
                                   .where(
                                     (item) =>
-                                        item.type == type &&
+                                        (section == null
+                                            ? item.type ==
+                                                (index == 0
+                                                    ? TransactionType.income
+                                                    : TransactionType.expense)
+                                            : item.isEffective ==
+                                                (index == 0)) &&
                                         item.currencyCode == currency,
                                   )
                                   .fold<int>(
@@ -745,9 +755,15 @@ class _TransactionsViewState extends State<_TransactionsView> {
                               currency,
                             ),
                             style: TextStyle(
-                              color: type == TransactionType.income
-                                  ? SomiaColors.green
-                                  : SomiaColors.red,
+                              color: section == null
+                                  ? index == 0
+                                      ? SomiaColors.green
+                                      : SomiaColors.red
+                                  : index == 0
+                                      ? section == TransactionType.income
+                                          ? SomiaColors.green
+                                          : SomiaColors.red
+                                      : SomiaColors.purple,
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
                             ),
@@ -765,24 +781,35 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   DateTime _listDay(FinancialTransaction item) {
-    final date = switch (_dateField) {
-      TransactionDateField.posted => item.date,
-      TransactionDateField.due => item.dueDate ?? item.date,
-      TransactionDateField.effective =>
-        item.effectiveDate ?? item.dueDate ?? item.date,
-    };
+    final date = item.effectiveDate ?? item.dueDate ?? item.date;
     return DateTime(date.year, date.month, date.day);
   }
 
   List<Widget> _dailyRows(TransactionsState state) {
     final mobile = somiaUsesMobileNavigation(context) &&
         MediaQuery.sizeOf(context).width < 600;
+    final pending = <FinancialTransaction>[];
     final groups = <DateTime, List<FinancialTransaction>>{};
     for (final item in state.items) {
-      (groups[_listDay(item)] ??= []).add(item);
+      if (item.isEffective) {
+        (groups[_listDay(item)] ??= []).add(item);
+      } else {
+        pending.add(item);
+      }
     }
+    pending.sort((a, b) => (a.dueDate ?? a.date)
+        .compareTo(b.dueDate ?? b.date));
     final days = groups.keys.toList()..sort((a, b) => b.compareTo(a));
     return [
+      if (pending.isNotEmpty)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'Pendentes',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      for (final item in pending) _movementRow(item),
       for (final day in days) ...[
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -808,21 +835,23 @@ class _TransactionsViewState extends State<_TransactionsView> {
             ],
           ),
         ),
-        for (final item in groups[day]!)
-          if (_bulkMode &&
-              getIt.isRegistered<MovementManagementRepository>() &&
-              !item.id.startsWith('invoice:'))
-            SelectableMovementRow(
-              ref: MovementReference.transaction(item),
-              selection: _bulkSelection,
-              onSelection: (selection) =>
-                  setState(() => _bulkSelection = selection),
-              child: _itemTile(item),
-            )
-          else
-            _itemTile(item),
+        for (final item in groups[day]!) _movementRow(item),
       ],
     ];
+  }
+
+  Widget _movementRow(FinancialTransaction item) {
+    if (_bulkMode &&
+        getIt.isRegistered<MovementManagementRepository>() &&
+        !item.id.startsWith('invoice:')) {
+      return SelectableMovementRow(
+        ref: MovementReference.transaction(item),
+        selection: _bulkSelection,
+        onSelection: (selection) => setState(() => _bulkSelection = selection),
+        child: _itemTile(item),
+      );
+    }
+    return _itemTile(item);
   }
 
   String _mobileDayLabel(DateTime day) {
@@ -1047,6 +1076,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
                   isExpanded: true,
                   value: _dateField,
                   items: const [
+                    DropdownMenuItem(
+                      value: TransactionDateField.activity,
+                      child: Text('Filtrar movimentação'),
+                    ),
                     DropdownMenuItem(
                       value: TransactionDateField.posted,
                       child: Text('Filtrar lançamento'),

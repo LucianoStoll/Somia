@@ -12,7 +12,7 @@ enum TransactionType {
 
 enum TransactionStatus { all, effective, pending }
 
-enum TransactionDateField { posted, due, effective }
+enum TransactionDateField { posted, due, effective, activity }
 
 class FinancialTransaction {
   const FinancialTransaction({
