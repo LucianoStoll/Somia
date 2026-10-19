@@ -587,6 +587,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
                     ],
                   ),
                 ),
+                if (MediaQuery.sizeOf(context).width < 600)
+                  _mobileTotals(state.items),
                 Expanded(
                   child: state.items.isEmpty
                       ? Center(
@@ -622,6 +624,71 @@ class _TransactionsViewState extends State<_TransactionsView> {
     _apply();
   }
 
+  Widget _mobileTotals(List<FinancialTransaction> items) {
+    final currencies = items.map((item) => item.currencyCode).toSet();
+    if (currencies.isEmpty) currencies.add('BRL');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              for (final type in [
+                TransactionType.income,
+                TransactionType.expense,
+              ]) ...[
+                if (type == TransactionType.expense)
+                  const SizedBox(height: 50, child: VerticalDivider()),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        type == TransactionType.income ? 'Entradas' : 'Saídas',
+                        style: const TextStyle(
+                          color: SomiaColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      for (final currency in currencies)
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            MoneyMinor.display(
+                              items
+                                  .where(
+                                    (item) =>
+                                        item.type == type &&
+                                        item.currencyCode == currency,
+                                  )
+                                  .fold<int>(
+                                    0,
+                                    (sum, item) => sum + item.amountMinor,
+                                  ),
+                              currency,
+                            ),
+                            style: TextStyle(
+                              color: type == TransactionType.income
+                                  ? SomiaColors.green
+                                  : SomiaColors.red,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   DateTime _listDay(FinancialTransaction item) {
     final date = switch (_dateField) {
       TransactionDateField.posted => item.date,
@@ -647,7 +714,9 @@ class _TransactionsViewState extends State<_TransactionsView> {
                 spacing: 12,
                 runSpacing: 4,
                 children: [
-                  Text(_dateLabel(day),
+                  Text(MediaQuery.sizeOf(context).width < 600
+                      ? _mobileDayLabel(day)
+                      : _dateLabel(day),
                       style: const TextStyle(fontWeight: FontWeight.w700)),
                   for (final code
                       in groups[day]!.map((e) => e.currencyCode).toSet())
@@ -670,6 +739,17 @@ class _TransactionsViewState extends State<_TransactionsView> {
             _itemTile(item),
       ]
     ];
+  }
+
+  String _mobileDayLabel(DateTime day) {
+    final today = DateTime.now();
+    final isToday =
+        today.year == day.year &&
+        today.month == day.month &&
+        today.day == day.day;
+    return '${isToday ? 'Hoje, ' : ''}${day.day} de '
+        '${monthNames[day.month - 1].toLowerCase()}'
+        '${day.year == today.year ? '' : ' de ${day.year}'}';
   }
 
   Widget _filters(TransactionsState state) => ConstrainedBox(

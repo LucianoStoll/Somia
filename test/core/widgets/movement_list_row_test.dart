@@ -72,7 +72,7 @@ Future<void> open(
 }
 
 void main() {
-  testWidgets('categorias longas ficam lado a lado e status centralizado',
+  testWidgets('categorias longas ficam lado a lado e status visível',
       (tester) async {
     await open(tester, row(), const Size(320, 844), 2);
     final first = tester.getRect(find.text('Investimentos e patrimônio'));
@@ -81,8 +81,9 @@ void main() {
     expect(first.right, lessThan(second.left));
     final status =
         tester.getRect(find.byKey(const ValueKey('movement-status-a')));
-    final body = tester.getRect(find.byType(Row).first);
-    expect(status.center.dy, closeTo(body.center.dy, 1));
+    final card = tester.getRect(find.byType(Card).first);
+    expect(status.top, greaterThanOrEqualTo(card.top));
+    expect(find.text('Pendente'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   testWidgets('status, descrição, valor e menu têm toques independentes',
@@ -139,7 +140,7 @@ void main() {
         const Size(390, 844),
         1);
     expect(tester.getSize(find.byType(MovementListRow)).height,
-        lessThanOrEqualTo(100));
+        lessThanOrEqualTo(190));
     expect(tester.widget<Text>(find.text('Renda')).style!.color,
         const Color(0xFF79D9B6));
     expect(tester.widget<Text>(find.text('Salário').last).style!.color,

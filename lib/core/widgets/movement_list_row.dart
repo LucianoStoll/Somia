@@ -133,7 +133,7 @@ class MovementListRow extends StatelessWidget {
         : effectiveDate != null
             ? 'Agendado'
             : 'Pendente';
-    final statusColor = effective ? color : SomiaColors.yellow;
+    final statusColor = effective ? SomiaColors.green : SomiaColors.yellow;
     final statusButton = IconButton(
       key: ValueKey('movement-status-$id'),
       tooltip: busy
@@ -241,6 +241,103 @@ class MovementListRow extends StatelessWidget {
                               color: color,
                               fontSize: 15)),
                     ]))));
+    if (MediaQuery.sizeOf(context).width < 600) {
+      final edit = InkWell(
+        key: ValueKey('movement-edit-$id'),
+        onTap: busy ? null : () => _details(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                account,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: SomiaColors.muted, fontSize: 12),
+              ),
+              if (highlightLabel != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    highlightLabel!,
+                    style: const TextStyle(
+                      color: SomiaColors.blue,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+      return Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  statusButton,
+                  const SizedBox(width: 4),
+                  Expanded(child: edit),
+                  menu,
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(56, 4, 8, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    value,
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        status,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (labels.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 56, right: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: labels,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
     return Material(
         color: Colors.transparent,
         child: Column(children: [
