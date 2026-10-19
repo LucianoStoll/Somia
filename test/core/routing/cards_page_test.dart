@@ -334,6 +334,10 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Fatura'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Pagar fatura'), 100);
+    await Scrollable.ensureVisible(
+        tester.element(find.text('Pagar fatura')),
+        alignment: 0.5);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Pagar fatura'));
     await tester.pumpAndSettle();
     expect(find.text('Registrar pagamento'), findsOneWidget);
