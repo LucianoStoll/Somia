@@ -504,7 +504,8 @@ void main() {
             home: RepaintBoundary(
               key: ValueKey('${section.$2}-preview'),
               child: SomiaShell(
-                location: '/${section.$2 == 'receitas' ? 'income' : 'expenses'}',
+                location:
+                    '/${section.$2 == 'receitas' ? 'income' : 'expenses'}',
                 child: TransactionsPage(sectionType: section.$1),
               ),
             ),

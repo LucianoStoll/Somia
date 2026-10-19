@@ -797,8 +797,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
         pending.add(item);
       }
     }
-    pending.sort((a, b) => (a.dueDate ?? a.date)
-        .compareTo(b.dueDate ?? b.date));
+    pending
+        .sort((a, b) => (a.dueDate ?? a.date).compareTo(b.dueDate ?? b.date));
     final days = groups.keys.toList()..sort((a, b) => b.compareTo(a));
     return [
       if (pending.isNotEmpty)
