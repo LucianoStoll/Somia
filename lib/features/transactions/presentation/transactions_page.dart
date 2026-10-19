@@ -51,6 +51,14 @@ import 'transaction_settlements_page.dart';
 String _dateLabel(DateTime date) => '${date.day.toString().padLeft(2, '0')}/'
     '${date.month.toString().padLeft(2, '0')}/${date.year}';
 
+String _movementMoney(int minor, String currencyCode) {
+  final display = MoneyMinor.display(minor, currencyCode);
+  if (currencyCode != 'BRL') return display;
+  final comma = display.indexOf(',');
+  final whole = display.substring(0, comma);
+  return '${whole.replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (match) => '${match[1]}.')}${display.substring(comma)}';
+}
+
 class TransactionsPage extends StatelessWidget {
   const TransactionsPage({super.key, this.initialCreateType, this.sectionType});
   final String? initialCreateType;
@@ -723,7 +731,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            MoneyMinor.display(
+                            _movementMoney(
                               items
                                   .where(
                                     (item) =>
@@ -1189,7 +1197,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
       description: item.description,
       account: item.accountName,
       leadingIcon: Icons.credit_card_outlined,
-      amount: '-${MoneyMinor.display(item.amountMinor, 'BRL')}',
+      amount: '-${_movementMoney(item.amountMinor, 'BRL')}',
       dueDate: item.dueDate!,
       effectiveDate: item.effectiveDate,
       effective: item.isEffective,
@@ -1287,7 +1295,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
               _ => Icons.shopping_cart_outlined,
             },
       amount:
-          '${item.type == TransactionType.income ? '+' : '-'}${MoneyMinor.display(item.amountMinor, item.currencyCode)}',
+          '${item.type == TransactionType.income ? '+' : '-'}${_movementMoney(item.amountMinor, item.currencyCode)}',
       dueDate: item.dueDate ?? item.date,
       effectiveDate: item.effectiveDate,
       effective: item.isEffective,

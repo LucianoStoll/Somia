@@ -424,6 +424,8 @@ void main() {
         );
       });
       await tester.pumpAndSettle();
+      expect(find.text('R\$ 4.200,00'), findsOneWidget);
+      expect(find.text('-R\$ 9.999.999,99'), findsOneWidget);
       await expectLater(
         find.byKey(const ValueKey('movements-preview')),
         matchesGoldenFile('movements-mobile-preview.png'),
