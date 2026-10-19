@@ -387,7 +387,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(appRouter.routeInformationProvider.value.uri.queryParameters['card'],
         'card');
-    expect(find.text('Detalhes do cartão'), findsOneWidget);
+    expect(find.text('Cartão teste'), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(appRouter.routeInformationProvider.value.uri.path, '/cards');

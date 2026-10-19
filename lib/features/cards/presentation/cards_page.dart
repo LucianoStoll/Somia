@@ -1137,7 +1137,11 @@ class _CardsPageState extends State<CardsPage> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              card == null ? 'Cartão' : 'Cartão ${card.name}',
+                              card == null
+                                  ? 'Cartão'
+                                  : card.name.toLowerCase().startsWith('cartão')
+                                      ? card.name
+                                      : 'Cartão ${card.name}',
                               style: const TextStyle(
                                   fontSize: 24, fontWeight: FontWeight.w700),
                             ),

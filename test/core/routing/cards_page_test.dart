@@ -148,13 +148,18 @@ void main() {
         routes: [
           GoRoute(
               path: '/cards',
-              builder: (context, state) => SomiaSectionBackScope(
-                  location: '/cards',
-                  child: CardsPage(
-                      key: ValueKey(state.uri.toString()),
-                      initialStatement:
-                          state.uri.queryParameters['view'] == 'statement',
-                      cardId: state.uri.queryParameters['card']))),
+              builder: (context, state) {
+                final page = SomiaSectionBackScope(
+                    location: '/cards',
+                    child: CardsPage(
+                        key: ValueKey(state.uri.toString()),
+                        initialStatement:
+                            state.uri.queryParameters['view'] == 'statement',
+                        cardId: state.uri.queryParameters['card']));
+                return shell
+                    ? SomiaShell(location: '/cards', child: page)
+                    : page;
+              }),
           for (final path in ['/income', '/expenses', '/transfers'])
             GoRoute(
                 path: path,
@@ -168,8 +173,7 @@ void main() {
       builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(scale)),
-          child:
-              shell ? SomiaShell(location: '/cards', child: child!) : child!),
+          child: child!),
     ));
     await tester.pumpAndSettle();
   }
