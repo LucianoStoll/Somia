@@ -389,7 +389,8 @@ void main() {
                 of: find.byKey(const ValueKey('movement-amount-a')),
                 matching: find.textContaining('124,45')),
             findsOneWidget);
-        expect(find.textContaining('124,45'), findsNWidgets(2));
+        expect(find.textContaining('124,45'),
+            findsNWidgets(movement == 'transfer' ? 2 : 1));
         expect(tester.takeException(), isNull);
       });
     }
