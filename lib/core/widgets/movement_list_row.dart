@@ -26,6 +26,7 @@ class MovementListRow extends StatelessWidget {
       this.tags = const [],
       this.categoryTags = const [],
       this.highlightLabel,
+      this.leadingIcon,
       this.pendingIcon = Icons.radio_button_unchecked,
       this.busy = false,
       this.onAmount,
@@ -42,6 +43,7 @@ class MovementListRow extends StatelessWidget {
   final List<String> tags;
   final List<MovementTag> categoryTags;
   final String? highlightLabel;
+  final IconData? leadingIcon;
   final IconData pendingIcon;
   final VoidCallback onEdit, onEffective;
   final VoidCallback? onAmount, onPending, onAttachments;
@@ -266,73 +268,138 @@ class MovementListRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: SomiaColors.muted, fontSize: 12),
               ),
-              if (highlightLabel != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    highlightLabel!,
-                    style: const TextStyle(
-                      color: SomiaColors.blue,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
       );
       return Card(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: const EdgeInsets.only(bottom: 8),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+          padding: const EdgeInsets.fromLTRB(8, 10, 4, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  statusButton,
-                  const SizedBox(width: 4),
-                  Expanded(child: edit),
-                  menu,
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(56, 4, 8, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    value,
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        status,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
+                  final amountWidth = _textWidth(
+                    context,
+                    amount,
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  );
+                  final rightWidth = amountWidth
+                      .clamp(
+                        92.0,
+                        (constraints.maxWidth * 0.42).clamp(92.0, 180.0),
+                      )
+                      .toDouble();
+                  final compact = constraints.maxWidth < 340 || scale > 1.3;
+                  final badgeColor = effective
+                      ? SomiaColors.green
+                      : effectiveDate != null
+                      ? SomiaColors.blue
+                      : SomiaColors.purple;
+                  final leadingButton = IconButton(
+                    key: ValueKey('movement-status-$id'),
+                    tooltip: statusButton.tooltip,
+                    onPressed: statusButton.onPressed,
+                    icon: busy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(leadingIcon ?? pendingIcon, color: color),
+                    style: IconButton.styleFrom(
+                      backgroundColor: color.withValues(alpha: 0.16),
+                      minimumSize: const Size(44, 44),
+                    ),
+                  );
+                  final amountButton = Semantics(
+                    button: true,
+                    label: 'Valor $amount',
+                    child: InkWell(
+                      key: ValueKey('movement-amount-$id'),
+                      onTap: busy ? null : onAmount ?? onEdit,
+                      child: Tooltip(
+                        message: 'Vencimento ${_date(dueDate)}',
+                        child: Text(
+                          amount,
+                          maxLines: compact ? 2 : 1,
+                          softWrap: true,
+                          textAlign: TextAlign.right,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  );
+                  final badge = Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: badgeColor.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      status,
+                      style: TextStyle(
+                        color: badgeColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                  if (compact) {
+                    return Column(
+                      children: [
+                        Row(
+                          children: [
+                            leadingButton,
+                            const SizedBox(width: 6),
+                            Expanded(child: edit),
+                            menu,
+                          ],
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [amountButton, badge],
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      leadingButton,
+                      const SizedBox(width: 6),
+                      Expanded(child: edit),
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        width: rightWidth,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            amountButton,
+                            const SizedBox(height: 7),
+                            badge,
+                          ],
+                        ),
+                      ),
+                      menu,
+                    ],
+                  );
+                },
               ),
-              if (labels.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 56, right: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: labels,
-                  ),
-                ),
             ],
           ),
         ),

@@ -4,6 +4,8 @@ import 'package:finapp/features/categories/data/sqlite_categories_repository.dar
 import 'package:finapp/features/transactions/domain/transactions_repository.dart';
 import 'package:finapp/features/transactions/presentation/transactions_page.dart';
 import 'package:finapp/core/filters/reference_month.dart';
+import 'package:finapp/core/routing/somia_shell.dart';
+import 'package:finapp/core/theme/app_theme.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:finapp/features/transactions/data/transaction_settlements_repository.dart';
@@ -358,6 +360,69 @@ void main() {
     expect((await transactions.list()).length, 1);
   });
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+    testWidgets('prévia da tela de movimentos no celular', (tester) async {
+      for (final pair in [
+        ('Roboto', 'Roboto-Regular.ttf'),
+        ('MaterialIcons', 'MaterialIcons-Regular.otf'),
+      ]) {
+        final loader = FontLoader(pair.$1)
+          ..addFont(
+            Future.value(
+              ByteData.sublistView(
+                File(
+                  '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts/${pair.$2}',
+                ).readAsBytesSync(),
+              ),
+            ),
+          );
+        await loader.load();
+      }
+      referenceMonth.select(DateTime(2026, 10));
+      await transactions.create(
+        draft(description: 'Mercado da semana', amount: 12345),
+      );
+      await transactions.create(
+        draft(description: 'Financiamento do carro', amount: 999999999),
+      );
+      await transactions.create(
+        TransactionDraft(
+          description: 'Salário',
+          type: TransactionType.income,
+          amountMinor: 420000,
+          date: DateTime(2026, 10, 8),
+          dueDate: DateTime(2026, 10, 10),
+          isEffective: true,
+          effectiveDate: DateTime(2026, 10, 10),
+          accountId: accountId,
+        ),
+      );
+      getIt.registerSingleton<TransactionsRepository>(transactions);
+      getIt.registerSingleton<AccountsRepository>(SqliteAccountsRepository(db));
+      getIt.registerSingleton<CategoriesRepository>(
+        SqliteCategoriesRepository(db),
+      );
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark.copyWith(platform: TargetPlatform.android),
+          home: const RepaintBoundary(
+            key: ValueKey('movements-preview'),
+            child: SomiaShell(
+              location: '/transactions',
+              child: TransactionsPage(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byKey(const ValueKey('movements-preview')),
+        matchesGoldenFile('movements-mobile-preview.png'),
+      );
+    });
     testWidgets('prévias mobile e desktop de edição em lote e lixeira',
         (tester) async {
       for (final pair in [

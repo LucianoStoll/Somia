@@ -33,6 +33,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/filters/reference_month.dart';
 import '../../../core/widgets/month_selector.dart';
+import '../../../core/widgets/somia_brand.dart';
 import '../../../core/routing/somia_shell.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/effectuation_date_dialog.dart';
@@ -118,6 +119,14 @@ class _TransactionsViewState extends State<_TransactionsView> {
       _customPeriod = false;
     });
     _apply();
+  }
+
+  void _selectMonth(DateTime month) {
+    if (month == referenceMonth.value) {
+      _monthChanged();
+    } else {
+      referenceMonth.select(month);
+    }
   }
 
   @override
@@ -443,173 +452,230 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(
-            widget.sectionType == TransactionType.income
-                ? 'Receitas'
-                : widget.sectionType == TransactionType.expense
+  Widget build(BuildContext context) {
+    final mobile =
+        somiaUsesMobileNavigation(context) &&
+        MediaQuery.sizeOf(context).width < 600;
+    return Scaffold(
+      appBar: mobile
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              toolbarHeight: 64,
+              titleSpacing: 16,
+              title: Row(
+                children: [
+                  SomiaBrand(
+                    symbolOnly: MediaQuery.sizeOf(context).width < 350,
+                    height: 30,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: MonthSelector(
+                        month: referenceMonth.value,
+                        header: true,
+                        onChanged: _selectMonth,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : AppBar(
+              title: Text(
+                widget.sectionType == TransactionType.income
+                    ? 'Receitas'
+                    : widget.sectionType == TransactionType.expense
                     ? 'Despesas'
                     : 'Movimentos',
-          ),
-          leading: somiaMenuLeading(context),
-        ),
-        floatingActionButton: somiaUsesMobileNavigation(context)
-            ? null
-            : const SomiaQuickActions(),
-        body: BlocConsumer<TransactionsCubit, TransactionsState>(
-          listener: (context, state) {
-            if (!_openedInitial &&
-                !state.loading &&
-                state.error == null &&
-                (widget.initialCreateType == 'income' ||
-                    widget.initialCreateType == 'expense')) {
-              _openedInitial = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _edit();
-              });
-            }
-          },
-          builder: (context, state) {
-            if (state.loading &&
-                state.accounts.isEmpty &&
-                state.items.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state.error != null) {
-              return Center(
-                child: TextButton(
-                  onPressed: context.read<TransactionsCubit>().load,
-                  child: Text('${state.error} Tentar novamente'),
+              ),
+              leading: somiaMenuLeading(context),
+            ),
+      floatingActionButton: somiaUsesMobileNavigation(context)
+          ? null
+          : const SomiaQuickActions(),
+      body: BlocConsumer<TransactionsCubit, TransactionsState>(
+        listener: (context, state) {
+          if (!_openedInitial &&
+              !state.loading &&
+              state.error == null &&
+              (widget.initialCreateType == 'income' ||
+                  widget.initialCreateType == 'expense')) {
+            _openedInitial = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _edit();
+            });
+          }
+        },
+        builder: (context, state) {
+          if (state.loading && state.accounts.isEmpty && state.items.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (state.error != null) {
+            return Center(
+              child: TextButton(
+                onPressed: context.read<TransactionsCubit>().load,
+                child: Text('${state.error} Tentar novamente'),
+              ),
+            );
+          }
+          return Column(
+            children: [
+              if (_bulkMode &&
+                  getIt.isRegistered<MovementManagementRepository>())
+                BulkMovementToolbar(
+                  onCancel: _cancelBulk,
+                  selection: _bulkSelection,
+                  available: state.items
+                      .where((item) => !item.id.startsWith('invoice:'))
+                      .map(MovementReference.transaction)
+                      .toList(),
+                  onSelection: (selection) =>
+                      setState(() => _bulkSelection = selection),
+                  onCompleted: () async {
+                    _cancelBulk();
+                    await context.read<TransactionsCubit>().load();
+                  },
                 ),
-              );
-            }
-            return Column(
-              children: [
-                if (_bulkMode &&
-                    getIt.isRegistered<MovementManagementRepository>())
-                  BulkMovementToolbar(
-                    onCancel: _cancelBulk,
-                    selection: _bulkSelection,
-                    available: state.items
-                        .where((item) => !item.id.startsWith('invoice:'))
-                        .map(MovementReference.transaction)
-                        .toList(),
-                    onSelection: (selection) =>
-                        setState(() => _bulkSelection = selection),
-                    onCompleted: () async {
-                      _cancelBulk();
-                      await context.read<TransactionsCubit>().load();
-                    },
-                  ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (mobile)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.sectionType == TransactionType.income
+                                  ? 'Receitas'
+                                  : widget.sectionType ==
+                                        TransactionType.expense
+                                  ? 'Despesas'
+                                  : 'Movimentos',
+                              style: const TextStyle(
+                                fontSize: 25,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _openFilters(state),
+                            icon: const Icon(Icons.tune),
+                            label: const Text('Filtros'),
+                          ),
+                        ],
+                      )
+                    else
                       MonthSelector(
                         month: referenceMonth.value,
-                        onChanged: (month) {
-                          if (month == referenceMonth.value) {
-                            _monthChanged();
-                          } else {
-                            referenceMonth.select(month);
-                          }
-                        },
+                        onChanged: _selectMonth,
                       ),
+                    if (!mobile)
                       OutlinedButton.icon(
                         onPressed: () => _openFilters(state),
                         icon: const Icon(Icons.tune),
                         label: const Text('Filtros'),
                       ),
-                      if (_accountId != null)
-                        InputChip(
-                            label: Text(state.accounts
-                                    .where((a) => a.id == _accountId)
-                                    .firstOrNull
-                                    ?.name ??
-                                'Conta'),
-                            onDeleted: () {
-                              setState(() => _accountId = null);
-                              _apply();
-                            }),
-                      if (_status != TransactionStatus.all)
-                        InputChip(
-                            label: Text(_status == TransactionStatus.effective
-                                ? 'Efetivados'
-                                : 'Pendentes'),
-                            onDeleted: () {
-                              setState(() => _status = TransactionStatus.all);
-                              _apply();
-                            }),
-                      if (_categoryId != null || _subcategoryId != null)
-                        InputChip(
-                            label: const Text('Categoria selecionada'),
-                            onDeleted: () {
-                              setState(() {
-                                _categoryId = null;
-                                _subcategoryId = null;
-                              });
-                              _apply();
-                            }),
-                      if (_tag != null)
-                        InputChip(
-                            label: Text('#$_tag'),
-                            onDeleted: () {
-                              setState(() => _tag = null);
-                              _apply();
-                            }),
-                      if (_establishmentFilter != null)
-                        InputChip(
-                            label: Text(_establishmentFilter!),
-                            onDeleted: () {
-                              setState(() => _establishmentFilter = null);
-                              _apply();
-                            }),
-                      if (_accountId != null ||
-                          _categoryId != null ||
-                          _subcategoryId != null ||
-                          _status != TransactionStatus.all ||
-                          _tag != null ||
-                          _establishmentFilter != null ||
-                          _customPeriod)
-                        TextButton(
-                            onPressed: _clearFilters,
-                            child: const Text('Limpar filtros')),
-                      if (_customPeriod)
-                        Text(
-                          _range == null
-                              ? 'Todos os meses'
-                              : '${_dateLabel(_range!.start)} – ${_dateLabel(_range!.end)}',
+                    if (_accountId != null)
+                      InputChip(
+                        label: Text(
+                          state.accounts
+                                  .where((a) => a.id == _accountId)
+                                  .firstOrNull
+                                  ?.name ??
+                              'Conta',
                         ),
-                    ],
-                  ),
-                ),
-                if (MediaQuery.sizeOf(context).width < 600)
-                  _mobileTotals(state.items),
-                Expanded(
-                  child: state.items.isEmpty
-                      ? Center(
-                          child: Text(
-                            widget.sectionType == TransactionType.income
-                                ? 'Nenhuma receita para estes filtros.'
-                                : widget.sectionType == TransactionType.expense
-                                    ? 'Nenhuma despesa para estes filtros.'
-                                    : 'Nenhum lançamento para estes filtros.',
-                          ),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-                          children: _dailyRows(state),
+                        onDeleted: () {
+                          setState(() => _accountId = null);
+                          _apply();
+                        },
+                      ),
+                    if (_status != TransactionStatus.all)
+                      InputChip(
+                        label: Text(
+                          _status == TransactionStatus.effective
+                              ? 'Efetivados'
+                              : 'Pendentes',
                         ),
+                        onDeleted: () {
+                          setState(() => _status = TransactionStatus.all);
+                          _apply();
+                        },
+                      ),
+                    if (_categoryId != null || _subcategoryId != null)
+                      InputChip(
+                        label: const Text('Categoria selecionada'),
+                        onDeleted: () {
+                          setState(() {
+                            _categoryId = null;
+                            _subcategoryId = null;
+                          });
+                          _apply();
+                        },
+                      ),
+                    if (_tag != null)
+                      InputChip(
+                        label: Text('#$_tag'),
+                        onDeleted: () {
+                          setState(() => _tag = null);
+                          _apply();
+                        },
+                      ),
+                    if (_establishmentFilter != null)
+                      InputChip(
+                        label: Text(_establishmentFilter!),
+                        onDeleted: () {
+                          setState(() => _establishmentFilter = null);
+                          _apply();
+                        },
+                      ),
+                    if (_accountId != null ||
+                        _categoryId != null ||
+                        _subcategoryId != null ||
+                        _status != TransactionStatus.all ||
+                        _tag != null ||
+                        _establishmentFilter != null ||
+                        _customPeriod)
+                      TextButton(
+                        onPressed: _clearFilters,
+                        child: const Text('Limpar filtros'),
+                      ),
+                    if (_customPeriod)
+                      Text(
+                        _range == null
+                            ? 'Todos os meses'
+                            : '${_dateLabel(_range!.start)} – ${_dateLabel(_range!.end)}',
+                      ),
+                  ],
                 ),
-              ],
-            );
-          },
-        ),
-      );
+              ),
+              if (mobile) _mobileTotals(state.items),
+              Expanded(
+                child: state.items.isEmpty
+                    ? Center(
+                        child: Text(
+                          widget.sectionType == TransactionType.income
+                              ? 'Nenhuma receita para estes filtros.'
+                              : widget.sectionType == TransactionType.expense
+                              ? 'Nenhuma despesa para estes filtros.'
+                              : 'Nenhum lançamento para estes filtros.',
+                        ),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                        children: _dailyRows(state),
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   void _clearFilters() {
     setState(() {
@@ -628,10 +694,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
     final currencies = items.map((item) => item.currencyCode).toSet();
     if (currencies.isEmpty) currencies.add('BRL');
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           child: Row(
             children: [
               for (final type in [
@@ -674,6 +740,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                               color: type == TransactionType.income
                                   ? SomiaColors.green
                                   : SomiaColors.red,
+                              fontSize: 20,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -700,6 +767,9 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   List<Widget> _dailyRows(TransactionsState state) {
+    final mobile =
+        somiaUsesMobileNavigation(context) &&
+        MediaQuery.sizeOf(context).width < 600;
     final groups = <DateTime, List<FinancialTransaction>>{};
     for (final item in state.items) {
       (groups[_listDay(item)] ??= []).add(item);
@@ -708,35 +778,54 @@ class _TransactionsViewState extends State<_TransactionsView> {
     return [
       for (final day in days) ...[
         Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                spacing: 12,
-                runSpacing: 4,
-                children: [
-                  Text(_dateLabel(day),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  for (final code
-                      in groups[day]!.map((e) => e.currencyCode).toSet())
-                    Text(
-                        'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + (e.type == TransactionType.income ? e.amountMinor : -e.amountMinor)), code)}',
-                        style: const TextStyle(
-                            color: SomiaColors.muted, fontSize: 12)),
-                ])),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              Text(
+                mobile ? _mobileDayLabel(day) : _dateLabel(day),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              if (!mobile)
+                for (final code
+                    in groups[day]!.map((e) => e.currencyCode).toSet())
+                  Text(
+                    'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + (e.type == TransactionType.income ? e.amountMinor : -e.amountMinor)), code)}',
+                    style: const TextStyle(
+                      color: SomiaColors.muted,
+                      fontSize: 12,
+                    ),
+                  ),
+            ],
+          ),
+        ),
         for (final item in groups[day]!)
           if (_bulkMode &&
               getIt.isRegistered<MovementManagementRepository>() &&
               !item.id.startsWith('invoice:'))
             SelectableMovementRow(
-                ref: MovementReference.transaction(item),
-                selection: _bulkSelection,
-                onSelection: (selection) =>
-                    setState(() => _bulkSelection = selection),
-                child: _itemTile(item))
+              ref: MovementReference.transaction(item),
+              selection: _bulkSelection,
+              onSelection: (selection) =>
+                  setState(() => _bulkSelection = selection),
+              child: _itemTile(item),
+            )
           else
             _itemTile(item),
-      ]
+      ],
     ];
+  }
+
+  String _mobileDayLabel(DateTime day) {
+    final now = DateTime.now();
+    final prefix =
+        day.year == now.year && day.month == now.month && day.day == now.day
+        ? 'Hoje, '
+        : '';
+    return '$prefix${day.day} de ${monthNames[day.month - 1].toLowerCase()}'
+        '${day.year == now.year ? '' : ' de ${day.year}'}';
   }
 
   Widget _filters(TransactionsState state) => ConstrainedBox(
@@ -1100,6 +1189,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
       id: item.id,
       description: item.description,
       account: item.accountName,
+      leadingIcon: Icons.credit_card_outlined,
       amount: '-${MoneyMinor.display(item.amountMinor, 'BRL')}',
       dueDate: item.dueDate!,
       effectiveDate: item.effectiveDate,
@@ -1188,6 +1278,15 @@ class _TransactionsViewState extends State<_TransactionsView> {
       id: item.id,
       description: item.description,
       account: item.accountName,
+      leadingIcon: item.type == TransactionType.income
+          ? Icons.payments_outlined
+          : switch (category?.iconKey ?? parent?.iconKey) {
+              'food' => Icons.restaurant_outlined,
+              'home' => Icons.home_outlined,
+              'transport' => Icons.directions_car_outlined,
+              'work' => Icons.work_outline,
+              _ => Icons.shopping_cart_outlined,
+            },
       amount:
           '${item.type == TransactionType.income ? '+' : '-'}${MoneyMinor.display(item.amountMinor, item.currencyCode)}',
       dueDate: item.dueDate ?? item.date,

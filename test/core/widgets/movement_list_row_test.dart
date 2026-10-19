@@ -72,18 +72,21 @@ Future<void> open(
 }
 
 void main() {
-  testWidgets('categorias longas ficam lado a lado e status visível',
-      (tester) async {
+  testWidgets('categorias ficam nos detalhes e status permanece visível', (
+    tester,
+  ) async {
     await open(tester, row(), const Size(320, 844), 2);
-    final first = tester.getRect(find.text('Investimentos e patrimônio'));
-    final second = tester.getRect(find.text('Financiamento'));
-    expect(first.top, closeTo(second.top, 1));
-    expect(first.right, lessThan(second.left));
-    final status =
-        tester.getRect(find.byKey(const ValueKey('movement-status-a')));
+    final status = tester.getRect(
+      find.byKey(const ValueKey('movement-status-a')),
+    );
     final card = tester.getRect(find.byType(Card).first);
     expect(status.top, greaterThanOrEqualTo(card.top));
     expect(find.text('Pendente'), findsOneWidget);
+    expect(find.text('Investimentos e patrimônio'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('movement-edit-a')));
+    await tester.pumpAndSettle();
+    expect(find.text('Investimentos e patrimônio'), findsOneWidget);
+    expect(find.text('Financiamento'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   testWidgets('status, descrição, valor e menu têm toques independentes',
@@ -117,34 +120,45 @@ void main() {
     expect(edits, 1);
     expect(statuses, 1);
   });
-  testWidgets('etiquetas preservam cores e linha curta é compacta',
-      (tester) async {
+  testWidgets('linha curta é compacta e categorias ficam nos detalhes', (
+    tester,
+  ) async {
     await open(
-        tester,
-        MovementListRow(
-            id: 'compact',
-            description: 'Salário',
-            account: 'Banco',
-            amount: 'R\$ 1.314,56',
-            dueDate: DateTime(2026, 10, 6),
-            effectiveDate: null,
-            effective: true,
-            color: SomiaColors.green,
-            categoryTags: const [
-              MovementTag('Renda', Color(0xFF79D9B6)),
-              MovementTag('Salário', Color(0xFFB9A8EB))
-            ],
-            onEdit: () {},
-            onEffective: () {},
-            menu: const SizedBox(width: 48, height: 48)),
-        const Size(390, 844),
-        1);
-    expect(tester.getSize(find.byType(MovementListRow)).height,
-        lessThanOrEqualTo(190));
-    expect(tester.widget<Text>(find.text('Renda')).style!.color,
-        const Color(0xFF79D9B6));
-    expect(tester.widget<Text>(find.text('Salário').last).style!.color,
-        const Color(0xFFB9A8EB));
+      tester,
+      MovementListRow(
+        id: 'compact',
+        description: 'Salário',
+        account: 'Banco',
+        amount: 'R\$ 1.314,56',
+        dueDate: DateTime(2026, 10, 6),
+        effectiveDate: null,
+        effective: true,
+        color: SomiaColors.green,
+        categoryTags: const [
+          MovementTag('Renda', Color(0xFF79D9B6)),
+          MovementTag('Salário', Color(0xFFB9A8EB)),
+        ],
+        onEdit: () {},
+        onEffective: () {},
+        menu: const SizedBox(width: 48, height: 48),
+      ),
+      const Size(390, 844),
+      1,
+    );
+    expect(
+      tester.getSize(find.byType(MovementListRow)).height,
+      lessThanOrEqualTo(120),
+    );
+    await tester.tap(find.byKey(const ValueKey('movement-edit-compact')));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<Text>(find.text('Renda')).style!.color,
+      const Color(0xFF79D9B6),
+    );
+    expect(
+      tester.widget<Text>(find.text('Salário').last).style!.color,
+      const Color(0xFFB9A8EB),
+    );
     expect(tester.takeException(), isNull);
   });
   testWidgets('efetivado e ocupado não efetivam novamente', (tester) async {
