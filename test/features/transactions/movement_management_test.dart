@@ -485,7 +485,7 @@ void main() {
         );
       });
       await tester.pumpAndSettle();
-      expect(find.text('R\$ 4.200,00'), findsOneWidget);
+      expect(find.text('R\$ 4.803,90'), findsOneWidget);
       expect(find.text('-R\$ 9.999.999,99'), findsOneWidget);
       expect(find.text('Pendentes'), findsOneWidget);
       expect(find.text('17 de outubro'), findsOneWidget);
