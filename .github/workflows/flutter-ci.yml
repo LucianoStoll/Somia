@@ -27,6 +27,17 @@ jobs:
         run: flutter pub get
       - name: Check Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
+      - name: Capture CI formatter output
+        if: failure()
+        run: dart format lib/core/widgets/movement_list_row.dart lib/features/transactions/presentation/transactions_page.dart
+      - name: Publish CI formatter output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-formatted-movements
+          path: |
+            lib/core/widgets/movement_list_row.dart
+            lib/features/transactions/presentation/transactions_page.dart
       - name: Static analysis
         run: flutter analyze
       - name: Release publication guards
