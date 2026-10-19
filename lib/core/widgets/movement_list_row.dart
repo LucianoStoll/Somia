@@ -373,16 +373,17 @@ class MovementListRow extends StatelessWidget {
                       onTap: busy ? null : onAmount ?? onEdit,
                       child: Tooltip(
                         message: 'Vencimento ${_date(dueDate)}',
-                        child: Text(
-                          amount,
-                          maxLines: compact ? 2 : 1,
-                          softWrap: true,
-                          textAlign: TextAlign.right,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: color,
-                            fontSize: 15,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            amount,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: color,
+                              fontSize: 15,
+                            ),
                           ),
                         ),
                       ),
