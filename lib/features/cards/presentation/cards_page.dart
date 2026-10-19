@@ -779,7 +779,7 @@ class _CardsPageState extends State<CardsPage> {
           ],
           Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
           const SizedBox(width: 8),
-          Flexible(
+          Expanded(
             child: Text(
               amountText,
               textAlign: TextAlign.right,
