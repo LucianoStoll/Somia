@@ -417,6 +417,12 @@ void main() {
           ),
         ),
       );
+      await tester.runAsync(() async {
+        await precacheImage(
+          const AssetImage('assets/branding/somia_horizontal.png'),
+          tester.element(find.byType(TransactionsPage)),
+        );
+      });
       await tester.pumpAndSettle();
       await expectLater(
         find.byKey(const ValueKey('movements-preview')),
