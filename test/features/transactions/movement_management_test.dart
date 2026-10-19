@@ -506,7 +506,10 @@ void main() {
               child: SomiaShell(
                 location:
                     '/${section.$2 == 'receitas' ? 'income' : 'expenses'}',
-                child: TransactionsPage(sectionType: section.$1),
+                child: TransactionsPage(
+                  key: ValueKey('section-${section.$2}'),
+                  sectionType: section.$1,
+                ),
               ),
             ),
           ),
@@ -517,6 +520,13 @@ void main() {
         expect(find.text('Entradas'), findsNothing);
         expect(find.text('Pendentes'), findsOneWidget);
         expect(find.text('23 de outubro'), findsNothing);
+        if (section.$1 == TransactionType.income) {
+          expect(find.text('Adiantamento'), findsOneWidget);
+          expect(find.text('Financiamento do carro'), findsNothing);
+        } else {
+          expect(find.text('Financiamento do carro'), findsOneWidget);
+          expect(find.text('Adiantamento'), findsNothing);
+        }
         await expectLater(
           find.byKey(ValueKey('${section.$2}-preview')),
           matchesGoldenFile('${section.$2}-mobile-preview.png'),
