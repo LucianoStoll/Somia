@@ -708,36 +708,44 @@ class _TransactionsViewState extends State<_TransactionsView> {
     return [
       for (final day in days) ...[
         Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                spacing: 12,
-                runSpacing: 4,
-                children: [
-                  Text(MediaQuery.sizeOf(context).width < 600
-                      ? _mobileDayLabel(day)
-                      : _dateLabel(day),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  for (final code
-                      in groups[day]!.map((e) => e.currencyCode).toSet())
-                    Text(
-                        'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + (e.type == TransactionType.income ? e.amountMinor : -e.amountMinor)), code)}',
-                        style: const TextStyle(
-                            color: SomiaColors.muted, fontSize: 12)),
-                ])),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              Text(
+                MediaQuery.sizeOf(context).width < 600
+                    ? _mobileDayLabel(day)
+                    : _dateLabel(day),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              for (final code
+                  in groups[day]!.map((e) => e.currencyCode).toSet())
+                Text(
+                  'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + (e.type == TransactionType.income ? e.amountMinor : -e.amountMinor)), code)}',
+                  style: const TextStyle(
+                    color: SomiaColors.muted,
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
+        ),
         for (final item in groups[day]!)
           if (_bulkMode &&
               getIt.isRegistered<MovementManagementRepository>() &&
               !item.id.startsWith('invoice:'))
             SelectableMovementRow(
-                ref: MovementReference.transaction(item),
-                selection: _bulkSelection,
-                onSelection: (selection) =>
-                    setState(() => _bulkSelection = selection),
-                child: _itemTile(item))
+              ref: MovementReference.transaction(item),
+              selection: _bulkSelection,
+              onSelection: (selection) =>
+                  setState(() => _bulkSelection = selection),
+              child: _itemTile(item),
+            )
           else
             _itemTile(item),
-      ]
+      ],
     ];
   }
 
