@@ -874,6 +874,86 @@ class _CardsPageState extends State<CardsPage> {
         ),
       );
 
+  Widget _referenceActions(CreditCard card) {
+    Widget actionRow(String label, IconData icon, VoidCallback? onTap) =>
+        InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 44,
+            child: Row(children: [
+              Icon(icon, size: 20, color: SomiaColors.blue),
+              const SizedBox(width: 12),
+              Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+              const Icon(Icons.chevron_right,
+                  size: 22, color: SomiaColors.muted),
+            ]),
+          ),
+        );
+
+    final buttonStyle = FilledButton.styleFrom(
+      minimumSize: const Size(0, 46),
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+    );
+    final outlinedStyle = OutlinedButton.styleFrom(
+      minimumSize: const Size(0, 46),
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+    );
+    return Card(
+      key: const ValueKey('card-invoice-actions'),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Ações da fatura',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 14),
+            Row(children: [
+              Expanded(
+                child: FilledButton.icon(
+                  style: buttonStyle,
+                  onPressed: _acting ? null : _pay,
+                  icon: const Icon(Icons.payments_outlined, size: 18),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Pagar fatura'),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: outlinedStyle,
+                  onPressed: _acting || card.isArchived ? null : () => _buy(),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Nova compra'),
+                  ),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 18),
+            const Text('Mais ações',
+                style: TextStyle(color: SomiaColors.muted, fontSize: 13)),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            actionRow('Antecipar parcelas', Icons.storage_outlined,
+                _acting ? null : _anticipate),
+            const Divider(height: 1),
+            actionRow('Ajustar datas', Icons.calendar_today_outlined,
+                _acting ? null : _dates),
+            const Divider(height: 1),
+            actionRow('Saldo inicial', Icons.receipt_long_outlined,
+                _acting ? null : _opening),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _referenceInvoice(CardInvoice invoice) => Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -1678,36 +1758,39 @@ class _CardsPageState extends State<CardsPage> {
                               ),
                             ),
                           if (referenceDetail) const SizedBox(height: 24),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              FilledButton.icon(
-                                onPressed: _acting ? null : _pay,
-                                icon: const Icon(Icons.payments_outlined),
-                                label: const Text('Pagar fatura'),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: _acting || card.isArchived
-                                    ? null
-                                    : () => _buy(),
-                                icon: const Icon(Icons.add),
-                                label: const Text('Nova compra'),
-                              ),
-                              OutlinedButton(
-                                onPressed: _acting ? null : _anticipate,
-                                child: const Text('Antecipar parcelas'),
-                              ),
-                              OutlinedButton(
-                                onPressed: _acting ? null : _dates,
-                                child: const Text('Ajustar datas'),
-                              ),
-                              OutlinedButton(
-                                onPressed: _acting ? null : _opening,
-                                child: const Text('Saldo inicial'),
-                              ),
-                            ],
-                          ),
+                          if (referenceDetail)
+                            _referenceActions(card)
+                          else
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                FilledButton.icon(
+                                  onPressed: _acting ? null : _pay,
+                                  icon: const Icon(Icons.payments_outlined),
+                                  label: const Text('Pagar fatura'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: _acting || card.isArchived
+                                      ? null
+                                      : () => _buy(),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Nova compra'),
+                                ),
+                                OutlinedButton(
+                                  onPressed: _acting ? null : _anticipate,
+                                  child: const Text('Antecipar parcelas'),
+                                ),
+                                OutlinedButton(
+                                  onPressed: _acting ? null : _dates,
+                                  child: const Text('Ajustar datas'),
+                                ),
+                                OutlinedButton(
+                                  onPressed: _acting ? null : _opening,
+                                  child: const Text('Saldo inicial'),
+                                ),
+                              ],
+                            ),
                           const SizedBox(height: 20),
                           Text(
                             'Itens da fatura',

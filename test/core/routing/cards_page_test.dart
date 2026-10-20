@@ -429,6 +429,12 @@ void main() {
       await tester.pumpAndSettle();
       await expectLater(find.byType(SomiaShell),
           matchesGoldenFile('cards-mobile-preview.png'));
+      final actions = find.byKey(const ValueKey('card-invoice-actions'));
+      await tester.scrollUntilVisible(actions, 200);
+      await Scrollable.ensureVisible(tester.element(actions), alignment: 0.25);
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(SomiaShell),
+          matchesGoldenFile('cards-actions-mobile-preview.png'));
       final item = find.text('Compra parcelada com descrição longa');
       await tester.scrollUntilVisible(item, 200);
       await Scrollable.ensureVisible(tester.element(item), alignment: 0.45);
