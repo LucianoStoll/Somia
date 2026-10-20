@@ -191,7 +191,7 @@ void main() {
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
     testWidgets('próxima fatura mostra mês sem acumular anterior $platform',
         (tester) async {
-      await open(tester, platform);
+      await open(tester, platform, shell: platform == TargetPlatform.android);
       if (platform == TargetPlatform.android) {
         final chart = find.byKey(const ValueKey('future-invoices-chart'));
         await tester.scrollUntilVisible(chart, 200);
@@ -227,13 +227,8 @@ void main() {
         final title = find.text('Compra parcelada com descrição longa');
         await tester.scrollUntilVisible(title, 200);
         await tester.pumpAndSettle();
-        final tile = find
-            .ancestor(
-                of: title,
-                matching: platform == TargetPlatform.android
-                    ? find.byType(Card)
-                    : find.byType(ListTile))
-            .first;
+        final tile =
+            find.ancestor(of: title, matching: find.byType(ListTile)).first;
         final menu = find.descendant(
             of: tile, matching: find.byType(PopupMenuButton<String>));
         await tester.ensureVisible(menu);
@@ -379,6 +374,22 @@ void main() {
   testWidgets('referência mobile tolera fonte ampliada', (tester) async {
     await open(tester, TargetPlatform.android, shell: true, scale: 1.5);
     expect(find.text('Cartão Nubank'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('item mobile mantém menu de edição', (tester) async {
+    await open(tester, TargetPlatform.android, shell: true);
+    final item = find.text('Compra parcelada com descrição longa');
+    await tester.scrollUntilVisible(item, 200);
+    final card = find.ancestor(of: item, matching: find.byType(Card)).first;
+    expect(find.descendant(of: card, matching: find.text('-R\$ 1.250,50')),
+        findsOneWidget);
+    final menu = find.descendant(
+        of: card, matching: find.byType(PopupMenuButton<String>));
+    await Scrollable.ensureVisible(tester.element(card), alignment: 0.45);
+    await tester.pumpAndSettle();
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    expect(find.text('Editar / mudar fatura'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
