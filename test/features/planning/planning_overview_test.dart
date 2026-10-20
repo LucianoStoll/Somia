@@ -41,14 +41,16 @@ void main() {
                               child: PlanningOverview(
                                   month: DateTime(2026, month),
                                   accounts: [
-                                    account('a', 'Conta principal', month * 1000),
+                                    account(
+                                        'a', 'Conta principal', month * 1000),
                                     account('b', 'Conta negativa', -1000),
                                   ],
                                   categories: const [],
                                   spending: const [],
                                   budgets: const [],
                                   onRefresh: () async {},
-                                  indicators: const Text('Indicador de teste'))))))));
+                                  indicators:
+                                      const Text('Indicador de teste'))))))));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }
@@ -57,8 +59,8 @@ void main() {
       await open(month);
       final accounts = find.text('Ver contas (2)');
       await tester.scrollUntilVisible(accounts, -200);
-      final tile = tester.widget<ExpansionTile>(find.ancestor(
-          of: accounts, matching: find.byType(ExpansionTile)));
+      final tile = tester.widget<ExpansionTile>(
+          find.ancestor(of: accounts, matching: find.byType(ExpansionTile)));
       if (!tile.initiallyExpanded &&
           find.text('Conta principal').evaluate().isEmpty) {
         await tester.tap(accounts);
@@ -76,12 +78,16 @@ void main() {
 
   FinanceCategory category(String id, String name, {String? parent}) =>
       FinanceCategory(
-          id: id, name: name, type: CategoryType.expense,
-          parentId: parent, isArchived: false,
-          iconKey: null, colorArgb: 0xffa5bcd0);
+          id: id,
+          name: name,
+          type: CategoryType.expense,
+          parentId: parent,
+          isArchived: false,
+          iconKey: null,
+          colorArgb: 0xffa5bcd0);
 
-  Future<void> chart(WidgetTester tester,
-      List<MonthlySpend> rows, List<FinanceCategory> categories) async {
+  Future<void> chart(WidgetTester tester, List<MonthlySpend> rows,
+      List<FinanceCategory> categories) async {
     await tester.pumpWidget(MaterialApp(
         theme: AppTheme.dark,
         home: Scaffold(
@@ -110,24 +116,30 @@ void main() {
     await tester.pumpAndSettle();
     final sheet = find.byKey(const ValueKey('planning-subcategories'));
     expect(sheet, findsOneWidget);
-    expect(find.descendant(of: sheet,
-        matching: find.text('Sem subcategoria')), findsOneWidget);
-    expect(find.descendant(of: sheet,
-        matching: find.text('Mercado')), findsOneWidget);
-    expect(find.descendant(of: sheet,
-        matching: find.text(MoneyMinor.display(4000, 'BRL'))), findsOneWidget);
-    expect(find.descendant(of: sheet,
-        matching: find.text(MoneyMinor.display(-500, 'BRL'))), findsOneWidget);
-    expect(find.descendant(of: sheet,
-        matching: find.text(MoneyMinor.display(4500, 'BRL'))), findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text('Sem subcategoria')),
+        findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text('Mercado')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: sheet, matching: find.text(MoneyMinor.display(4000, 'BRL'))),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: sheet, matching: find.text(MoneyMinor.display(-500, 'BRL'))),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: sheet, matching: find.text(MoneyMinor.display(4500, 'BRL'))),
+        findsOneWidget);
     await tester.tap(find.text('Fechar'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ver categorias'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(
-        const ValueKey('planning-category-detail-p')));
+    await tester.tap(find.byKey(const ValueKey('planning-category-detail-p')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('planning-subcategories')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('planning-subcategories')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -150,8 +162,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('planning-category-other')));
     await tester.pumpAndSettle();
     expect(find.text('Lazer'), findsOneWidget);
-    await tester.tap(find.byKey(
-        const ValueKey('planning-category-detail-e')));
+    await tester.tap(find.byKey(const ValueKey('planning-category-detail-e')));
     await tester.pumpAndSettle();
     expect(find.text('Mercado'), findsOneWidget);
     expect(tester.takeException(), isNull);

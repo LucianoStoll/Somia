@@ -233,7 +233,8 @@ class _PlanningOverviewState extends State<PlanningOverview> {
               ModuleDetails(
                   key: PageStorageKey(
                       'planning-indicators-${widget.month.year}-${widget.month.month}-$code'),
-                  title: 'Indicadores do mês', children: [widget.indicators]),
+                  title: 'Indicadores do mês',
+                  children: [widget.indicators]),
             ]));
   }
 }
@@ -297,12 +298,8 @@ class PlanningCategoryChart extends StatelessWidget {
     }
     final all = grouped.entries.where((e) => e.value != 0).map((entry) {
       final category = categories.where((c) => c.id == entry.key).firstOrNull;
-      return _CategorySlice(
-          category?.name ?? 'Sem categoria',
-          entry.value,
-          category == null
-              ? SomiaColors.muted
-              : categoryDisplayColor(category),
+      return _CategorySlice(category?.name ?? 'Sem categoria', entry.value,
+          category == null ? SomiaColors.muted : categoryDisplayColor(category),
           categoryId: entry.key);
     }).toList()
       ..sort((a, b) => b.amount.compareTo(a.amount));
@@ -335,16 +332,13 @@ class PlanningCategoryChart extends StatelessWidget {
             ifAbsent: () => row.projected);
       }
       final parts = amounts.entries.where((e) => e.value != 0).map((entry) {
-        final category =
-            categories.where((c) => c.id == entry.key).firstOrNull;
+        final category = categories.where((c) => c.id == entry.key).firstOrNull;
         return _CategorySlice(
             entry.key == selected.categoryId
                 ? 'Sem subcategoria'
                 : category?.name ?? 'Subcategoria indisponível',
             entry.value,
-            category == null
-                ? selected.color
-                : categoryDisplayColor(category));
+            category == null ? selected.color : categoryDisplayColor(category));
       }).toList()
         ..sort((a, b) => b.amount.compareTo(a.amount));
       showModalBottomSheet<void>(
@@ -398,7 +392,8 @@ class PlanningCategoryChart extends StatelessWidget {
                     const SizedBox(height: 12),
                     for (final item in items)
                       ListTile(
-                          key: ValueKey('planning-category-detail-${item.categoryId}'),
+                          key: ValueKey(
+                              'planning-category-detail-${item.categoryId}'),
                           contentPadding: EdgeInsets.zero,
                           title: Text(item.name,
                               style: TextStyle(color: item.color)),
@@ -412,7 +407,8 @@ class PlanningCategoryChart extends StatelessWidget {
     }
 
     Widget categoryRow(_CategorySlice item) => InkWell(
-        key: ValueKey('planning-category-${item.isOther ? 'other' : item.categoryId}'),
+        key: ValueKey(
+            'planning-category-${item.isOther ? 'other' : item.categoryId}'),
         borderRadius: BorderRadius.circular(8),
         onTap: () => item.isOther
             ? details(positive.skip(3).toList())
@@ -423,12 +419,11 @@ class PlanningCategoryChart extends StatelessWidget {
               Container(
                   width: 9,
                   height: 9,
-                  decoration: BoxDecoration(
-                      color: item.color, shape: BoxShape.circle)),
+                  decoration:
+                      BoxDecoration(color: item.color, shape: BoxShape.circle)),
               const SizedBox(width: 8),
               Expanded(
-                  child: Text(item.name,
-                      style: const TextStyle(fontSize: 12))),
+                  child: Text(item.name, style: const TextStyle(fontSize: 12))),
               const SizedBox(width: 6),
               Flexible(
                   child: Text(_money(item.amount, currency),
@@ -480,8 +475,7 @@ class PlanningCategoryChart extends StatelessWidget {
         }),
       if (credits.isNotEmpty) ...[
         const SizedBox(height: 8),
-        for (final item in credits)
-          categoryRow(item),
+        for (final item in credits) categoryRow(item),
         ModuleValueRow(
             label: 'Total líquido',
             value:
