@@ -37,3 +37,16 @@ pagamento futuro de fatura sem duplicação e navegação entre as abas.
 O CI gera as prévias Android e Windows existentes com a nova visão geral.
 A aprovação final requer conferir as prévias e testar no aparelho.
 Nenhuma migration ou alteração de dados é necessária.
+
+## Expansão de saldos e detalhamento das categorias
+
+Os blocos expansíveis de contas e indicadores possuem chaves de estado próprias
+por mês e moeda. Sua expansão não compartilha mais o identificador usado para
+guardar a posição de rolagem da lista. A regressão exercita expandir, rolar,
+recriar a tela durante o carregamento e alternar outubro/novembro/outubro.
+
+Tocar em uma categoria na legenda ou em Ver categorias abre as subcategorias.
+Valores lançados diretamente na principal aparecem como Sem subcategoria.
+Transações e compras de cartão na mesma subcategoria são somadas; créditos
+mantêm o sinal. Outras abre as categorias reais agrupadas, que também podem
+ser detalhadas. O total da principal não é somado outra vez às subcategorias.

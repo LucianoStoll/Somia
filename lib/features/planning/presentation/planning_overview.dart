@@ -119,6 +119,8 @@ class _PlanningOverviewState extends State<PlanningOverview> {
                                 style: const TextStyle(
                                     fontSize: 12, color: SomiaColors.muted)),
                             ModuleDetails(
+                                key: PageStorageKey(
+                                    'planning-accounts-${widget.month.year}-${widget.month.month}-$code'),
                                 title: 'Ver contas (${accounts.length})',
                                 children: [
                                   if (accounts.isEmpty)
@@ -229,6 +231,8 @@ class _PlanningOverviewState extends State<PlanningOverview> {
                             ],
                           ]))),
               ModuleDetails(
+                  key: PageStorageKey(
+                      'planning-indicators-${widget.month.year}-${widget.month.month}-$code'),
                   title: 'Indicadores do mês', children: [widget.indicators]),
             ]));
   }
@@ -298,7 +302,8 @@ class PlanningCategoryChart extends StatelessWidget {
           entry.value,
           category == null
               ? SomiaColors.muted
-              : categoryDisplayColor(category));
+              : categoryDisplayColor(category),
+          categoryId: entry.key);
     }).toList()
       ..sort((a, b) => b.amount.compareTo(a.amount));
     final positive = all.where((s) => s.amount > 0).toList();
@@ -311,7 +316,8 @@ class PlanningCategoryChart extends StatelessWidget {
             _CategorySlice(
                 'Outras',
                 positive.skip(3).fold<int>(0, (sum, s) => sum + s.amount),
-                SomiaColors.muted),
+                SomiaColors.muted,
+                isOther: true),
           ];
     if (all.isEmpty) {
       return Padding(
@@ -320,7 +326,63 @@ class PlanningCategoryChart extends StatelessWidget {
               'Nenhuma ${label == 'Receitas' ? 'receita' : 'despesa'} neste mês.',
               style: const TextStyle(color: SomiaColors.muted)));
     }
-    void details() {
+    void subcategories(_CategorySlice selected) {
+      final amounts = <String?, int>{};
+      for (final row in spending.where((r) =>
+          r.currency == currency &&
+          (r.parentId ?? r.categoryId) == selected.categoryId)) {
+        amounts.update(row.categoryId, (sum) => sum + row.projected,
+            ifAbsent: () => row.projected);
+      }
+      final parts = amounts.entries.where((e) => e.value != 0).map((entry) {
+        final category =
+            categories.where((c) => c.id == entry.key).firstOrNull;
+        return _CategorySlice(
+            entry.key == selected.categoryId
+                ? 'Sem subcategoria'
+                : category?.name ?? 'Subcategoria indisponível',
+            entry.value,
+            category == null
+                ? selected.color
+                : categoryDisplayColor(category));
+      }).toList()
+        ..sort((a, b) => b.amount.compareTo(a.amount));
+      showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (sheet) => SingleChildScrollView(
+              key: const ValueKey('planning-subcategories'),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(selected.name,
+                        style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 4),
+                    Text('$label · Previsto no mês',
+                        style: const TextStyle(color: SomiaColors.muted)),
+                    ModuleValueRow(
+                        label: 'Total da categoria',
+                        value: _money(selected.amount, currency)),
+                    const Divider(),
+                    if (parts.isEmpty)
+                      const Text('Sem valores em subcategorias neste mês.'),
+                    for (final part in parts)
+                      ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(part.name,
+                              style: TextStyle(color: part.color)),
+                          subtitle: Text(_money(part.amount, currency))),
+                    TextButton(
+                        onPressed: () => Navigator.pop(sheet),
+                        child: const Text('Fechar')),
+                  ])));
+    }
+
+    void details([List<_CategorySlice>? selection]) {
+      final items = selection ?? all;
       showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
@@ -334,36 +396,50 @@ class PlanningCategoryChart extends StatelessWidget {
                     Text('$label por categoria',
                         style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 12),
-                    for (final item in all)
-                      ModuleValueRow(
-                          label: item.name,
-                          value: _money(item.amount, currency)),
+                    for (final item in items)
+                      ListTile(
+                          key: ValueKey('planning-category-detail-${item.categoryId}'),
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(item.name,
+                              style: TextStyle(color: item.color)),
+                          subtitle: Text(_money(item.amount, currency)),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => subcategories(item)),
                     TextButton(
                         onPressed: () => Navigator.pop(sheet),
                         child: const Text('Fechar')),
                   ])));
     }
 
-    final legend =
-        Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      for (final s in slices)
-        Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+    Widget categoryRow(_CategorySlice item) => InkWell(
+        key: ValueKey('planning-category-${item.isOther ? 'other' : item.categoryId}'),
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => item.isOther
+            ? details(positive.skip(3).toList())
+            : subcategories(item),
+        child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(children: [
               Container(
                   width: 9,
                   height: 9,
-                  decoration:
-                      BoxDecoration(color: s.color, shape: BoxShape.circle)),
+                  decoration: BoxDecoration(
+                      color: item.color, shape: BoxShape.circle)),
               const SizedBox(width: 8),
               Expanded(
-                  child: Text(s.name, style: const TextStyle(fontSize: 12))),
+                  child: Text(item.name,
+                      style: const TextStyle(fontSize: 12))),
               const SizedBox(width: 6),
-              Text(_money(s.amount, currency),
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600)),
-            ])),
-    ]);
+              Flexible(
+                  child: Text(_money(item.amount, currency),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600))),
+            ])));
+
+    final legend = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [for (final item in slices) categoryRow(item)]);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (total > 0)
         LayoutBuilder(builder: (context, box) {
@@ -405,8 +481,7 @@ class PlanningCategoryChart extends StatelessWidget {
       if (credits.isNotEmpty) ...[
         const SizedBox(height: 8),
         for (final item in credits)
-          ModuleValueRow(
-              label: item.name, value: _money(item.amount, currency)),
+          categoryRow(item),
         ModuleValueRow(
             label: 'Total líquido',
             value:
@@ -415,13 +490,16 @@ class PlanningCategoryChart extends StatelessWidget {
       Align(
           alignment: Alignment.centerRight,
           child: TextButton(
-              onPressed: details, child: const Text('Ver categorias'))),
+              onPressed: () => details(), child: const Text('Ver categorias'))),
     ]);
   }
 }
 
 class _CategorySlice {
-  const _CategorySlice(this.name, this.amount, this.color);
+  const _CategorySlice(this.name, this.amount, this.color,
+      {this.categoryId, this.isOther = false});
+  final String? categoryId;
+  final bool isOther;
   final String name;
   final int amount;
   final Color color;
