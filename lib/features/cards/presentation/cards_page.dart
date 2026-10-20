@@ -61,6 +61,7 @@ class _CardsPageState extends State<CardsPage> {
   CardsRepository get _repo => getIt<CardsRepository>();
   List<CreditCard> _cards = [];
   List<CardInvoice> _invoices = [];
+  String? _selectedFutureInvoiceId;
   Map<String, CardInvoice> _summaries = {};
   List<Account> _accounts = [];
   List<FinanceCategory> _categories = [];
@@ -913,6 +914,192 @@ class _CardsPageState extends State<CardsPage> {
         ),
       );
 
+  Widget _futureInvoicesChart(List<CardInvoice> future) {
+    if (future.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('Nenhuma próxima fatura.'),
+      );
+    }
+    final selectedIndex = future.indexWhere(
+      (invoice) => invoice.id == _selectedFutureInvoiceId,
+    );
+    final index = selectedIndex < 0 ? 0 : selectedIndex;
+    final selected = future[index];
+    return Card(
+      key: const ValueKey('future-invoices-chart'),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final visibleCount = constraints.maxWidth < 340 ? 6 : 8;
+          final lastStart =
+              future.length > visibleCount ? future.length - visibleCount : 0;
+          final start = (index - visibleCount ~/ 2).clamp(0, lastStart);
+          final shown = future.skip(start).take(visibleCount).toList();
+          final peak = shown.fold<int>(
+              0,
+              (max, invoice) =>
+                  invoice.chargesMinor > max ? invoice.chargesMinor : max);
+          final chartMax = peak == 0 ? 1 : peak;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Expanded(
+                  child: Text('Compras do mês',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: SomiaColors.blue.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(selected.status.toUpperCase(),
+                      style: const TextStyle(
+                          color: SomiaColors.blue,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              Text(_referenceMoney(selected.chargesMinor),
+                  key: const ValueKey('future-invoice-amount'),
+                  style: const TextStyle(
+                      fontSize: 28, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 24),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SizedBox(
+                  width: 64,
+                  height: 140,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(_referenceMoney(chartMax),
+                          style: const TextStyle(
+                              color: SomiaColors.muted, fontSize: 10)),
+                      Text(_referenceMoney(chartMax ~/ 2),
+                          style: const TextStyle(
+                              color: SomiaColors.muted, fontSize: 10)),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(children: [
+                    SizedBox(
+                      height: 140,
+                      child: Stack(children: [
+                        const Positioned.fill(
+                            child:
+                                CustomPaint(painter: _InvoiceGuidePainter())),
+                        Row(children: [
+                          for (final invoice in shown)
+                            Expanded(
+                              child: Semantics(
+                                button: true,
+                                selected: invoice.id == selected.id,
+                                label: '${cardMonthLabel(invoice.month)}: '
+                                    '${_referenceMoney(invoice.chargesMinor)}',
+                                child: InkWell(
+                                  key: ValueKey(
+                                      'future-invoice-bar-${invoice.month.year}-${invoice.month.month}'),
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () => setState(() =>
+                                      _selectedFutureInvoiceId = invoice.id),
+                                  child: Center(
+                                    child: FractionallySizedBox(
+                                      widthFactor: 0.56,
+                                      child: Container(
+                                        height: 140,
+                                        decoration: BoxDecoration(
+                                          color: SomiaColors.muted
+                                              .withValues(alpha: 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        alignment: Alignment.bottomCenter,
+                                        child: FractionallySizedBox(
+                                          heightFactor:
+                                              invoice.chargesMinor <= 0
+                                                  ? 0
+                                                  : (invoice.chargesMinor /
+                                                          chartMax)
+                                                      .clamp(0.04, 1.0),
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: invoice.id == selected.id
+                                                  ? SomiaColors.blue
+                                                  : SomiaColors.muted
+                                                      .withValues(alpha: 0.62),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ]),
+                      ]),
+                    ),
+                    SizedBox(
+                      height: 18,
+                      child: Row(children: [
+                        for (final invoice in shown)
+                          Expanded(
+                            child: invoice.id == selected.id
+                                ? const Icon(Icons.arrow_drop_up,
+                                    size: 18, color: SomiaColors.blue)
+                                : const SizedBox.shrink(),
+                          ),
+                      ]),
+                    ),
+                  ]),
+                ),
+              ]),
+              const SizedBox(height: 18),
+              Row(children: [
+                IconButton.filledTonal(
+                  tooltip: 'Fatura anterior',
+                  onPressed: index == 0
+                      ? null
+                      : () => setState(() =>
+                          _selectedFutureInvoiceId = future[index - 1].id),
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => referenceMonth.select(selected.month),
+                    child: Text(
+                      '${monthNames[selected.month.month - 1]} ${selected.month.year}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                IconButton.filledTonal(
+                  tooltip: 'Próxima fatura',
+                  onPressed: index == future.length - 1
+                      ? null
+                      : () => setState(() =>
+                          _selectedFutureInvoiceId = future[index + 1].id),
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ]),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
   List<Widget> _dailyStatement(CardInvoice invoice) {
     final days = <int, List<Widget>>{};
     final entries = [...invoice.entries]
@@ -960,8 +1147,8 @@ class _CardsPageState extends State<CardsPage> {
     ];
   }
 
-  Widget _entryTile(CardEntry e) {
-    final row = _entryContent(e);
+  Widget _entryTile(CardEntry e, {bool cardStyle = false}) {
+    final row = cardStyle ? _mobileEntryContent(e) : _entryContent(e);
     if (!_bulkMode ||
         e.kind != 'purchase' ||
         !getIt.isRegistered<MovementManagementRepository>()) {
@@ -972,6 +1159,127 @@ class _CardsPageState extends State<CardsPage> {
       selection: _bulkSelection,
       onSelection: (selection) => setState(() => _bulkSelection = selection),
       child: row,
+    );
+  }
+
+  Widget _mobileEntryContent(CardEntry e) {
+    final category = e.allocations.isEmpty
+        ? e.categoryName ?? 'Sem categoria'
+        : 'Rateio · ${e.allocations.length} categorias';
+    final color = e.amountMinor < 0 ? SomiaColors.green : SomiaColors.red;
+    final icon = switch (e.kind) {
+      'refund' => Icons.keyboard_return_outlined,
+      'fee' => Icons.receipt_long_outlined,
+      'discount' => Icons.sell_outlined,
+      _ => Icons.shopping_cart_outlined,
+    };
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 340 ||
+                MediaQuery.textScalerOf(context).scale(15) > 19.5;
+            final leading = Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.17),
+              ),
+              child: Icon(icon, color: color),
+            );
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(e.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 3),
+                Text(category,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: SomiaColors.muted, fontSize: 12)),
+                const SizedBox(height: 3),
+                Text(
+                    'Compra: ${cardDateLabel(e.postedAt)}'
+                    '${e.establishment.isEmpty ? '' : ' · ${e.establishment}'}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: SomiaColors.muted, fontSize: 11)),
+              ],
+            );
+            final amount = Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    e.amountMinor < 0
+                        ? '+${_referenceMoney(-e.amountMinor)}'
+                        : '-${_referenceMoney(e.amountMinor)}',
+                    maxLines: 1,
+                    style: TextStyle(
+                        color: color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: SomiaColors.blue.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(e.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: SomiaColors.blue,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ],
+            );
+            final menu = _entryMenu(e);
+            if (compact) {
+              return Column(
+                children: [
+                  Row(children: [
+                    leading,
+                    const SizedBox(width: 10),
+                    Expanded(child: details),
+                    menu,
+                  ]),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 44, top: 6),
+                      child: amount,
+                    ),
+                  ),
+                ],
+              );
+            }
+            return Row(children: [
+              leading,
+              const SizedBox(width: 10),
+              Expanded(child: details),
+              const SizedBox(width: 6),
+              SizedBox(width: 110, child: amount),
+              menu,
+            ]);
+          },
+        ),
+      ),
     );
   }
 
@@ -988,33 +1296,32 @@ class _CardsPageState extends State<CardsPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(cardMoney(e.amountMinor)),
-            PopupMenuButton<String>(
-              enabled: !_acting,
-              onSelected: (a) => _entryAction(e, a),
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                    value: 'attachments', child: Text('Anexos')),
-                if (e.kind == 'purchase') ...[
-                  if (getIt.isRegistered<MovementManagementRepository>())
-                    const PopupMenuItem(
-                      value: 'bulk',
-                      child: Text('Editar em lote'),
-                    ),
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Text('Editar / mudar fatura'),
-                  ),
-                  const PopupMenuItem(value: 'refund', child: Text('Estornar')),
-                  const PopupMenuItem(
-                      value: 'history', child: Text('Histórico')),
-                ],
-                if (e.kind != 'fee' &&
-                    (e.kind != 'discount' || e.sourceId == null))
-                  const PopupMenuItem(value: 'delete', child: Text('Excluir')),
-              ],
-            ),
+            _entryMenu(e),
           ],
         ),
+      );
+
+  Widget _entryMenu(CardEntry e) => PopupMenuButton<String>(
+        enabled: !_acting,
+        onSelected: (a) => _entryAction(e, a),
+        itemBuilder: (_) => [
+          const PopupMenuItem(value: 'attachments', child: Text('Anexos')),
+          if (e.kind == 'purchase') ...[
+            if (getIt.isRegistered<MovementManagementRepository>())
+              const PopupMenuItem(
+                value: 'bulk',
+                child: Text('Editar em lote'),
+              ),
+            const PopupMenuItem(
+              value: 'edit',
+              child: Text('Editar / mudar fatura'),
+            ),
+            const PopupMenuItem(value: 'refund', child: Text('Estornar')),
+            const PopupMenuItem(value: 'history', child: Text('Histórico')),
+          ],
+          if (e.kind != 'fee' && (e.kind != 'discount' || e.sourceId == null))
+            const PopupMenuItem(value: 'delete', child: Text('Excluir')),
+        ],
       );
   Future<void> _coverage(CardPayment payment) async {
     try {
@@ -1369,7 +1676,8 @@ class _CardsPageState extends State<CardsPage> {
                             'Itens da fatura',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          for (final e in invoice.entries) _entryTile(e),
+                          for (final e in invoice.entries)
+                            _entryTile(e, cardStyle: referenceDetail),
                           if (invoice.entries.isEmpty)
                             const Padding(
                               padding: EdgeInsets.all(16),
@@ -1391,20 +1699,25 @@ class _CardsPageState extends State<CardsPage> {
                             'Próximas faturas',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          for (final i in _invoices.where(
-                            (i) => i.month.isAfter(invoice.month),
-                          ))
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(cardMonthLabel(i.month)),
-                              subtitle: Text(
-                                i.previousMinor == 0
-                                    ? i.status
-                                    : '${i.status} · anterior ${cardMoney(i.previousMinor)}',
+                          if (referenceDetail)
+                            _futureInvoicesChart(_invoices
+                                .where((i) => i.month.isAfter(invoice.month))
+                                .toList())
+                          else
+                            for (final i in _invoices.where(
+                              (i) => i.month.isAfter(invoice.month),
+                            ))
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(cardMonthLabel(i.month)),
+                                subtitle: Text(
+                                  i.previousMinor == 0
+                                      ? i.status
+                                      : '${i.status} · anterior ${cardMoney(i.previousMinor)}',
+                                ),
+                                trailing: Text(cardMoney(i.chargesMinor)),
+                                onTap: () => referenceMonth.select(i.month),
                               ),
-                              trailing: Text(cardMoney(i.chargesMinor)),
-                              onTap: () => referenceMonth.select(i.month),
-                            ),
                         ],
                       ],
                     ],
@@ -1412,4 +1725,24 @@ class _CardsPageState extends State<CardsPage> {
                 ),
     );
   }
+}
+
+class _InvoiceGuidePainter extends CustomPainter {
+  const _InvoiceGuidePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = SomiaColors.outline
+      ..strokeWidth = 1;
+    for (final y in [0.0, size.height / 2, size.height - 1]) {
+      for (var x = 0.0; x < size.width; x += 9) {
+        canvas.drawLine(
+            Offset(x, y), Offset((x + 5).clamp(0, size.width), y), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _InvoiceGuidePainter oldDelegate) => false;
 }

@@ -112,6 +112,16 @@ class _Cards extends CardsRepository {
             chargesMinor: 0,
             paidMinor: 0,
             scheduledMinor: 0),
+        CardInvoice(
+            id: 'december',
+            cardId: 'nu',
+            month: DateTime(2026, 12),
+            closingAt: DateTime(2026, 11, 25),
+            dueAt: DateTime(2026, 12, 5),
+            previousMinor: 85050,
+            chargesMinor: 94434,
+            paidMinor: 0,
+            scheduledMinor: 0),
       ];
   @override
   Future<void> pay(
@@ -182,6 +192,25 @@ void main() {
     testWidgets('próxima fatura mostra mês sem acumular anterior $platform',
         (tester) async {
       await open(tester, platform);
+      if (platform == TargetPlatform.android) {
+        final chart = find.byKey(const ValueKey('future-invoices-chart'));
+        await tester.scrollUntilVisible(chart, 200);
+        await Scrollable.ensureVisible(tester.element(chart), alignment: 0.5);
+        await tester.pumpAndSettle();
+        expect(find.text('Novembro 2026'), findsOneWidget);
+        expect(find.byKey(const ValueKey('future-invoice-amount')),
+            findsOneWidget);
+        expect(find.text('R\$ 0,00'), findsWidgets);
+        await tester.tap(find.byTooltip('Próxima fatura'));
+        await tester.pumpAndSettle();
+        expect(find.text('Dezembro 2026'), findsOneWidget);
+        expect(find.text('R\$ 944,34'), findsOneWidget);
+        await tester.tap(find.text('Dezembro 2026'));
+        await tester.pumpAndSettle();
+        expect(referenceMonth.value.month, 12);
+        expect(tester.takeException(), isNull);
+        return;
+      }
       await tester.scrollUntilVisible(find.text('11/2026'), 200);
       await tester.pumpAndSettle();
       final tile = tester.widget<ListTile>(find.ancestor(
@@ -198,8 +227,13 @@ void main() {
         final title = find.text('Compra parcelada com descrição longa');
         await tester.scrollUntilVisible(title, 200);
         await tester.pumpAndSettle();
-        final tile =
-            find.ancestor(of: title, matching: find.byType(ListTile)).first;
+        final tile = find
+            .ancestor(
+                of: title,
+                matching: platform == TargetPlatform.android
+                    ? find.byType(Card)
+                    : find.byType(ListTile))
+            .first;
         final menu = find.descendant(
             of: tile, matching: find.byType(PopupMenuButton<String>));
         await tester.ensureVisible(menu);
@@ -369,6 +403,20 @@ void main() {
       await tester.pumpAndSettle();
       await expectLater(find.byType(SomiaShell),
           matchesGoldenFile('cards-mobile-preview.png'));
+      final item = find.text('Compra parcelada com descrição longa');
+      await tester.scrollUntilVisible(item, 200);
+      await Scrollable.ensureVisible(tester.element(item), alignment: 0.45);
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(SomiaShell),
+          matchesGoldenFile('cards-items-mobile-preview.png'));
+      final chart = find.byKey(const ValueKey('future-invoices-chart'));
+      await tester.scrollUntilVisible(chart, 200);
+      await Scrollable.ensureVisible(tester.element(chart), alignment: 0.5);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Próxima fatura'));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(SomiaShell),
+          matchesGoldenFile('cards-future-mobile-preview.png'));
       await tester.ensureVisible(find.text('Extrato'));
       await tester.tap(find.text('Extrato'));
       await tester.pumpAndSettle();
