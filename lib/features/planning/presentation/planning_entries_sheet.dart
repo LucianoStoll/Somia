@@ -55,8 +55,12 @@ class _PlanningEntriesSheetState extends State<PlanningEntriesSheet> {
                     return Column(children: [
                       const Text('Não foi possível carregar os lançamentos.'),
                       TextButton(
-                          onPressed: () =>
-                              setState(() => future = widget.load()),
+                          onPressed: () {
+                            final retry = widget.load();
+                            setState(() {
+                              future = retry;
+                            });
+                          },
                           child: const Text('Tentar novamente')),
                     ]);
                   }
