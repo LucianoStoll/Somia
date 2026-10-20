@@ -1075,6 +1075,28 @@ class _CardsPageState extends State<CardsPage> {
                           ),
                       ]),
                     ),
+                    SizedBox(
+                      height: 32,
+                      child: Row(children: [
+                        for (final invoice in shown)
+                          Expanded(
+                            child: Text(
+                              '${monthNames[invoice.month.month - 1].substring(0, 3)}\n${invoice.month.year}',
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              style: TextStyle(
+                                color: invoice.id == selected.id
+                                    ? SomiaColors.blue
+                                    : SomiaColors.muted,
+                                fontSize: 9,
+                                fontWeight: invoice.id == selected.id
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                      ]),
+                    ),
                   ]),
                 ),
               ]),
