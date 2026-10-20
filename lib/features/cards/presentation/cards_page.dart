@@ -891,16 +891,46 @@ class _CardsPageState extends State<CardsPage> {
           ),
         );
 
-    final buttonStyle = FilledButton.styleFrom(
-      minimumSize: const Size(0, 46),
-      padding: const EdgeInsets.symmetric(horizontal: 7),
-      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-    );
-    final outlinedStyle = OutlinedButton.styleFrom(
-      minimumSize: const Size(0, 46),
-      padding: const EdgeInsets.symmetric(horizontal: 7),
-      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-    );
+    Widget mainAction(
+            String label, IconData icon, bool filled, VoidCallback? onTap) =>
+        Semantics(
+          button: true,
+          enabled: onTap != null,
+          child: Material(
+            color: filled ? SomiaColors.blue : Colors.transparent,
+            shape: StadiumBorder(
+              side: BorderSide(
+                  color: filled ? SomiaColors.blue : SomiaColors.outline),
+            ),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: onTap,
+              child: SizedBox(
+                height: 46,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon,
+                        size: 18,
+                        color: filled ? SomiaColors.sidebar : SomiaColors.blue),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: filled
+                                  ? SomiaColors.sidebar
+                                  : SomiaColors.blue)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
     return Card(
       key: const ValueKey('card-invoice-actions'),
       child: Padding(
@@ -913,21 +943,13 @@ class _CardsPageState extends State<CardsPage> {
             const SizedBox(height: 14),
             Row(children: [
               Expanded(
-                child: FilledButton.icon(
-                  style: buttonStyle,
-                  onPressed: _acting ? null : _pay,
-                  icon: const Icon(Icons.payments_outlined, size: 18),
-                  label: const Text('Pagar fatura', maxLines: 1),
-                ),
+                child: mainAction('Pagar fatura', Icons.payments_outlined, true,
+                    _acting ? null : _pay),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton.icon(
-                  style: outlinedStyle,
-                  onPressed: _acting || card.isArchived ? null : () => _buy(),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Nova compra', maxLines: 1),
-                ),
+                child: mainAction('Nova compra', Icons.add, false,
+                    _acting || card.isArchived ? null : () => _buy()),
               ),
             ]),
             const SizedBox(height: 18),
