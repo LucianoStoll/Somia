@@ -134,7 +134,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('saldo da visão geral muda com o mês selecionado', (tester) async {
+  testWidgets('saldo da visão geral muda com o mês selecionado',
+      (tester) async {
     final tx = SqliteTransactionsRepository(db);
     await tx.create(TransactionDraft(
         description: 'Receita de outubro',
