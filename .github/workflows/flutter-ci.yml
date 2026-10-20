@@ -25,10 +25,6 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
-      - name: Format invoice actions for review
-        run: |
-          dart format lib/features/cards/presentation/cards_page.dart test/core/routing/cards_page_test.dart
-          git diff -- lib/features/cards/presentation/cards_page.dart test/core/routing/cards_page_test.dart
       - name: Check Dart formatting
         run: dart format --output=none --set-exit-if-changed lib test
       - name: Static analysis

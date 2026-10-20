@@ -883,7 +883,8 @@ class _CardsPageState extends State<CardsPage> {
             child: Row(children: [
               Icon(icon, size: 20, color: SomiaColors.blue),
               const SizedBox(width: 12),
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
+              Expanded(
+                  child: Text(label, style: const TextStyle(fontSize: 14))),
               const Icon(Icons.chevron_right,
                   size: 22, color: SomiaColors.muted),
             ]),
@@ -916,10 +917,7 @@ class _CardsPageState extends State<CardsPage> {
                   style: buttonStyle,
                   onPressed: _acting ? null : _pay,
                   icon: const Icon(Icons.payments_outlined, size: 18),
-                  label: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text('Pagar fatura'),
-                  ),
+                  label: const Text('Pagar fatura', maxLines: 1),
                 ),
               ),
               const SizedBox(width: 8),
@@ -928,10 +926,7 @@ class _CardsPageState extends State<CardsPage> {
                   style: outlinedStyle,
                   onPressed: _acting || card.isArchived ? null : () => _buy(),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text('Nova compra'),
-                  ),
+                  label: const Text('Nova compra', maxLines: 1),
                 ),
               ),
             ]),
