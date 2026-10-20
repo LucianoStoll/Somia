@@ -213,6 +213,16 @@ void main() {
         await tester.tap(find.text('Dezembro 2026'));
         await tester.pumpAndSettle();
         expect(referenceMonth.value.month, 12);
+        await tester.scrollUntilVisible(chart, 200);
+        await Scrollable.ensureVisible(tester.element(chart), alignment: 0.5);
+        await tester.pumpAndSettle();
+        expect(find.text('Dezembro 2026'), findsOneWidget);
+        await tester.tap(find.byTooltip('Fatura anterior'));
+        await tester.pumpAndSettle();
+        expect(find.text('Novembro 2026'), findsOneWidget);
+        await tester.tap(find.byTooltip('Fatura anterior'));
+        await tester.pumpAndSettle();
+        expect(find.text('Outubro 2026'), findsOneWidget);
         expect(tester.takeException(), isNull);
         return;
       }

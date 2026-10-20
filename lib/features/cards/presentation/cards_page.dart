@@ -61,7 +61,7 @@ class _CardsPageState extends State<CardsPage> {
   CardsRepository get _repo => getIt<CardsRepository>();
   List<CreditCard> _cards = [];
   List<CardInvoice> _invoices = [];
-  String? _selectedFutureInvoiceId;
+  String? _selectedChartInvoiceId;
   Map<String, CardInvoice> _summaries = {};
   List<Account> _accounts = [];
   List<FinanceCategory> _categories = [];
@@ -914,28 +914,43 @@ class _CardsPageState extends State<CardsPage> {
         ),
       );
 
-  Widget _futureInvoicesChart(List<CardInvoice> future) {
-    if (future.isEmpty) {
+  Widget _invoicesChart(List<CardInvoice> invoices, DateTime currentMonth) {
+    if (invoices.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16),
-        child: Text('Nenhuma próxima fatura.'),
+        child: Text('Nenhuma fatura disponível.'),
       );
     }
-    final selectedIndex = future.indexWhere(
-      (invoice) => invoice.id == _selectedFutureInvoiceId,
+    final selectedIndex = invoices.indexWhere(
+      (invoice) => invoice.id == _selectedChartInvoiceId,
     );
-    final index = selectedIndex < 0 ? 0 : selectedIndex;
-    final selected = future[index];
+    final nextIndex = invoices.indexWhere(
+      (invoice) => invoice.month.isAfter(currentMonth),
+    );
+    final currentIndex = invoices.indexWhere(
+      (invoice) =>
+          invoice.month.year == currentMonth.year &&
+          invoice.month.month == currentMonth.month,
+    );
+    final index = selectedIndex >= 0
+        ? selectedIndex
+        : nextIndex >= 0
+            ? nextIndex
+            : currentIndex >= 0
+                ? currentIndex
+                : 0;
+    final selected = invoices[index];
     return Card(
       key: const ValueKey('future-invoices-chart'),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: LayoutBuilder(builder: (context, constraints) {
           final visibleCount = constraints.maxWidth < 340 ? 6 : 8;
-          final lastStart =
-              future.length > visibleCount ? future.length - visibleCount : 0;
+          final lastStart = invoices.length > visibleCount
+              ? invoices.length - visibleCount
+              : 0;
           final start = (index - visibleCount ~/ 2).clamp(0, lastStart);
-          final shown = future.skip(start).take(visibleCount).toList();
+          final shown = invoices.skip(start).take(visibleCount).toList();
           final peak = shown.fold<int>(
               0,
               (max, invoice) =>
@@ -1008,7 +1023,7 @@ class _CardsPageState extends State<CardsPage> {
                                       'future-invoice-bar-${invoice.month.year}-${invoice.month.month}'),
                                   borderRadius: BorderRadius.circular(16),
                                   onTap: () => setState(() =>
-                                      _selectedFutureInvoiceId = invoice.id),
+                                      _selectedChartInvoiceId = invoice.id),
                                   child: Center(
                                     child: FractionallySizedBox(
                                       widthFactor: 0.56,
@@ -1070,7 +1085,7 @@ class _CardsPageState extends State<CardsPage> {
                   onPressed: index == 0
                       ? null
                       : () => setState(() =>
-                          _selectedFutureInvoiceId = future[index - 1].id),
+                          _selectedChartInvoiceId = invoices[index - 1].id),
                   icon: const Icon(Icons.chevron_left),
                 ),
                 Expanded(
@@ -1086,10 +1101,10 @@ class _CardsPageState extends State<CardsPage> {
                 ),
                 IconButton.filledTonal(
                   tooltip: 'Próxima fatura',
-                  onPressed: index == future.length - 1
+                  onPressed: index == invoices.length - 1
                       ? null
                       : () => setState(() =>
-                          _selectedFutureInvoiceId = future[index + 1].id),
+                          _selectedChartInvoiceId = invoices[index + 1].id),
                   icon: const Icon(Icons.chevron_right),
                 ),
               ]),
@@ -1696,13 +1711,11 @@ class _CardsPageState extends State<CardsPage> {
                             ),
                           const SizedBox(height: 12),
                           Text(
-                            'Próximas faturas',
+                            referenceDetail ? 'Faturas' : 'Próximas faturas',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           if (referenceDetail)
-                            _futureInvoicesChart(_invoices
-                                .where((i) => i.month.isAfter(invoice.month))
-                                .toList())
+                            _invoicesChart(_invoices, invoice.month)
                           else
                             for (final i in _invoices.where(
                               (i) => i.month.isAfter(invoice.month),
