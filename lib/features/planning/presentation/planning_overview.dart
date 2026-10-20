@@ -9,6 +9,7 @@ import '../../categories/domain/category.dart';
 import '../../categories/presentation/category_visuals.dart';
 import '../domain/planning.dart';
 import 'planning_entries_sheet.dart';
+import 'planning_comparison_panel.dart';
 
 String _money(int amount, String code) => MoneyMinor.display(amount, code)
     .replaceAllMapped(RegExp(r'\d{1,3}(?=(\d{3})+,)'), (m) => '${m[0]}.');
@@ -23,11 +24,13 @@ class PlanningOverview extends StatefulWidget {
       required this.budgets,
       required this.onRefresh,
       required this.indicators,
-      this.loadEntries});
+      this.loadEntries,
+      this.previousSpending = const []});
   final DateTime month;
   final List<Account> accounts;
   final List<FinanceCategory> categories;
   final List<MonthlySpend> spending;
+  final List<MonthlySpend> previousSpending;
   final List<BudgetLimit> budgets;
   final Future<void> Function() onRefresh;
   final Widget indicators;
@@ -194,6 +197,8 @@ class _PlanningOverviewState extends State<PlanningOverview> {
                                     fontSize: 12, color: SomiaColors.muted)),
                             const SizedBox(height: 14),
                             PlanningCategoryChart(
+                                month: widget.month,
+                                previousSpending: widget.previousSpending,
                                 spending:
                                     rows.where((s) => s.type == type).toList(),
                                 onSubcategory: widget.loadEntries == null
@@ -309,10 +314,14 @@ class PlanningCategoryChart extends StatelessWidget {
       required this.categories,
       required this.currency,
       required this.label,
-      this.onSubcategory});
+      this.onSubcategory,
+      this.month,
+      this.previousSpending = const []});
   final List<MonthlySpend> spending;
   final List<FinanceCategory> categories;
   final String currency, label;
+  final DateTime? month;
+  final List<MonthlySpend> previousSpending;
   final void Function(String? id, String name)? onSubcategory;
 
   @override
@@ -385,9 +394,19 @@ class PlanningCategoryChart extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text('$label · Previsto no mês',
                         style: const TextStyle(color: SomiaColors.muted)),
-                    ModuleValueRow(
-                        label: 'Total da categoria',
-                        value: _money(selected.amount, currency)),
+                    if (month == null)
+                      ModuleValueRow(
+                          label: 'Total da categoria',
+                          value: _money(selected.amount, currency))
+                    else
+                      PlanningComparisonPanel(
+                          month: month!,
+                          currency: currency,
+                          type: label == 'Receitas' ? 'income' : 'expense',
+                          categoryId: selected.categoryId,
+                          current: spending,
+                          previous: previousSpending,
+                          categories: categories),
                     const Divider(),
                     if (parts.isEmpty)
                       const Text('Sem valores em subcategorias neste mês.'),

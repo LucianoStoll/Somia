@@ -165,6 +165,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('categoria compara o mês selecionado e seu anterior',
+      (tester) async {
+    final tx = SqliteTransactionsRepository(db);
+    for (final pair in [
+      (DateTime(2026, 9, 10), 10000),
+      (DateTime(2026, 10, 10), 15000)
+    ]) {
+      await tx.create(TransactionDraft(
+          description: 'Compra',
+          type: TransactionType.expense,
+          amountMinor: pair.$2,
+          date: pair.$1,
+          isEffective: false,
+          accountId: account,
+          categoryId: category));
+    }
+    referenceMonth.select(DateTime(2026, 10));
+    await open(tester, TargetPlatform.android);
+    final row = find.byKey(ValueKey('planning-category-$category'));
+    await tester.scrollUntilVisible(row, 150,
+        scrollable: find
+            .descendant(
+                of: find.byKey(const PageStorageKey('planning-overview')),
+                matching: find.byType(Scrollable))
+            .first);
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('planning-comparison')), findsOneWidget);
+    expect(find.text('+50,0% em relação ao mês anterior'), findsOneWidget);
+    expect(find.text('Setembro 2026'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
     testWidgets('prévias do planejamento', (tester) async {
       for (final pair in [

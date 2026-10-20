@@ -64,3 +64,18 @@ Lançamentos diretos na principal não incluem suas filhas; Sem categoria filtra
 somente valores sem categoria. Estornos conservam sinal e pagamentos de
 fatura não repetem a despesa. Quando o valor é parte de um rateio, o painel
 informa essa condição e o valor completo do lançamento.
+
+## Comparação com o mês anterior
+
+O detalhe de cada categoria mostra os valores previstos do mês selecionado e
+do anterior, com diferença em dinheiro e percentual. Ambos usam a mesma base
+de spending (rateios, compras de cartão e créditos incluídos). Não compara o
+realizado parcial do mês atual com o previsto completo de outro mês.
+
+Percentual só é calculado sobre uma base anterior positiva; com base zero ou
+negativa, a diferença em dinheiro continua visível, acompanhada da explicação.
+As três maiores contribuições são ordenadas pela diferença absoluta por
+subcategoria, incluindo lançamentos diretos e subcategorias que desapareceram
+no mês atual. Moedas, tipos e identidades de categoria não se misturam.
+Janeiro é comparado a dezembro do ano anterior. A visão geral permanece
+compacta e o acesso aos lançamentos continua no detalhe da subcategoria.

@@ -30,6 +30,7 @@ class _PlanningPageState extends State<PlanningPage> {
   List<BudgetLimit> budgets = [];
   List<PlanningGoal> goals = [];
   List<MonthlySpend> spending = [];
+  List<MonthlySpend> previousSpending = [];
   List<Account> forecast = [];
   List<FinanceCategory> categories = [];
   bool loading = true, busy = false;
@@ -61,6 +62,8 @@ class _PlanningPageState extends State<PlanningPage> {
       final b = await repo.budgets(period),
           g = await repo.goals(),
           s = await repo.spending(period),
+          previous =
+              await repo.spending(DateTime(period.year, period.month - 1)),
           a = await repo.forecastAccounts(period),
           c = await getIt<CategoriesRepository>().list();
       if (mounted && request == generation) {
@@ -68,6 +71,7 @@ class _PlanningPageState extends State<PlanningPage> {
           budgets = b;
           goals = g;
           spending = s;
+          previousSpending = previous;
           forecast = a;
           categories = c;
           loading = false;
@@ -363,6 +367,7 @@ class _PlanningPageState extends State<PlanningPage> {
                                 accounts: forecast,
                                 categories: categories,
                                 spending: spending,
+                                previousSpending: previousSpending,
                                 budgets: budgets,
                                 onRefresh: load,
                                 indicators: indicators(),

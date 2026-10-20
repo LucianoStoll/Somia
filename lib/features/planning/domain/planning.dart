@@ -70,3 +70,55 @@ class PlanningEntry {
 
 typedef PlanningEntriesLoader = Future<List<PlanningEntry>> Function(
     DateTime month, String type, String currency, String? categoryId);
+
+class PlanningCategoryChange {
+  const PlanningCategoryChange(this.categoryId, this.current, this.previous);
+  final String? categoryId;
+  final int current, previous;
+  int get difference => current - previous;
+  double? get percent => previous <= 0 ? null : difference * 100 / previous;
+}
+
+class PlanningCategoryComparison {
+  const PlanningCategoryComparison(this.total, this.changes);
+  final PlanningCategoryChange total;
+  final List<PlanningCategoryChange> changes;
+
+  factory PlanningCategoryComparison.fromSpending({
+    required List<MonthlySpend> current,
+    required List<MonthlySpend> previous,
+    required String? categoryId,
+    required String currency,
+    required String type,
+  }) {
+    Map<String?, int> group(List<MonthlySpend> rows) {
+      final result = <String?, int>{};
+      for (final row in rows.where((r) =>
+          r.currency == currency &&
+          r.type == type &&
+          (r.parentId ?? r.categoryId) == categoryId)) {
+        result.update(row.categoryId, (v) => v + row.projected,
+            ifAbsent: () => row.projected);
+      }
+      return result;
+    }
+
+    final now = group(current), before = group(previous);
+    final changes = [
+      for (final id in {...now.keys, ...before.keys})
+        PlanningCategoryChange(id, now[id] ?? 0, before[id] ?? 0),
+    ].where((c) => c.difference != 0).toList()
+      ..sort((a, b) {
+        final diff = b.difference.abs().compareTo(a.difference.abs());
+        return diff != 0
+            ? diff
+            : (a.categoryId ?? '').compareTo(b.categoryId ?? '');
+      });
+    return PlanningCategoryComparison(
+        PlanningCategoryChange(
+            categoryId,
+            now.values.fold<int>(0, (sum, v) => sum + v),
+            before.values.fold<int>(0, (sum, v) => sum + v)),
+        changes);
+  }
+}
