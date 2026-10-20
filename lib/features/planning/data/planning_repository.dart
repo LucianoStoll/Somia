@@ -4,6 +4,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/entity_metadata.dart';
 import '../../../core/database/planning_integrity.dart';
 import '../../accounts/data/sqlite_accounts_repository.dart';
+import '../../accounts/domain/account.dart';
 import '../domain/planning.dart';
 
 class PlanningRepository {
@@ -22,6 +23,15 @@ class PlanningRepository {
                   : Variable.withString(a as String))
               .toList())
       .get();
+  /// Mesmo corte do Resumo: realizado até hoje/fim do mês e previsão
+  /// acumulada até o último dia do mês selecionado.
+  Future<List<Account>> forecastAccounts(DateTime period) {
+    final end = DateTime(period.year, period.month + 1, 0);
+    final today = now();
+    return SqliteAccountsRepository(db)
+        .list(asOf: end.isBefore(today) ? end : today, through: end);
+  }
+
   Future<List<MonthlySpend>> spending(DateTime period) async {
     final start = month(period),
         end = month(DateTime(period.year, period.month + 1)),

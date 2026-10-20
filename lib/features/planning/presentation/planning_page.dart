@@ -1,4 +1,5 @@
 import '../../../core/widgets/module_surface.dart';
+import 'planning_overview.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -29,6 +30,8 @@ class _PlanningPageState extends State<PlanningPage> {
   List<BudgetLimit> budgets = [];
   List<PlanningGoal> goals = [];
   List<MonthlySpend> spending = [];
+  List<Account> forecast = [];
+  List<FinanceCategory> categories = [];
   bool loading = true, busy = false;
   Object? error;
   int generation = 0;
@@ -53,15 +56,20 @@ class _PlanningPageState extends State<PlanningPage> {
 
   Future<void> load() async {
     final request = ++generation, period = referenceMonth.value;
+    if (mounted) setState(() => loading = true);
     try {
       final b = await repo.budgets(period),
           g = await repo.goals(),
-          s = await repo.spending(period);
+          s = await repo.spending(period),
+          a = await repo.forecastAccounts(period),
+          c = await getIt<CategoriesRepository>().list();
       if (mounted && request == generation) {
         setState(() {
           budgets = b;
           goals = g;
           spending = s;
+          forecast = a;
+          categories = c;
           loading = false;
           error = null;
         });
@@ -328,9 +336,9 @@ class _PlanningPageState extends State<PlanningPage> {
                   leading: somiaMenuLeading(context),
                   title: const Text('Planejamento'),
                   bottom: const TabBar(tabs: [
+                    Tab(text: 'Visão geral'),
                     Tab(text: 'Orçamentos'),
-                    Tab(text: 'Metas'),
-                    Tab(text: 'Indicadores')
+                    Tab(text: 'Metas')
                   ])),
               body: loading
                   ? const Center(child: CircularProgressIndicator())
@@ -342,11 +350,22 @@ class _PlanningPageState extends State<PlanningPage> {
                       : Column(children: [
                           Padding(
                               padding: const EdgeInsets.all(12),
-                              child: MonthSelector(
+                              child: SizedBox(
+                                  width: double.infinity,
+                                  child: MonthSelector(
+                                  centered: true,
                                   month: referenceMonth.value,
-                                  onChanged: referenceMonth.select)),
+                                  onChanged: referenceMonth.select))),
                           Expanded(
                               child: TabBarView(children: [
+                            PlanningOverview(
+                                month: referenceMonth.value,
+                                accounts: forecast,
+                                categories: categories,
+                                spending: spending,
+                                budgets: budgets,
+                                onRefresh: load,
+                                indicators: indicators()),
                             RefreshIndicator(
                                 onRefresh: load,
                                 child: ListView(
@@ -417,11 +436,6 @@ class _PlanningPageState extends State<PlanningPage> {
                                                 'Crie sua primeira meta ou reserva.')),
                                       ...goals.map(goalCard),
                                     ])),
-                            RefreshIndicator(
-                                onRefresh: load,
-                                child: ListView(
-                                    padding: const EdgeInsets.all(16),
-                                    children: [indicators()])),
                           ])),
                         ]))));
 }

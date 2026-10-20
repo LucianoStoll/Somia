@@ -67,6 +67,8 @@ void main() {
     testWidgets('cria limite mensal e navega para metas $platform',
         (tester) async {
       await open(tester, platform);
+      await tester.tap(find.text('Orçamentos'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Novo limite'));
       await tester.pumpAndSettle();
       final field = find.byType(DropdownButtonFormField<String>).first;
@@ -108,12 +110,27 @@ void main() {
       await tester.tap(find.text('Salvar meta'));
       await tester.pumpAndSettle();
       expect((await repo.goals()).single.saved, 40000);
-      await tester.tap(find.text('Indicadores'));
+      await tester.tap(find.text('Visão geral'));
       await tester.pumpAndSettle();
-      expect(find.text('Sem movimentos neste mês.'), findsOneWidget);
+      expect(find.text('Nenhuma despesa neste mês.'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets('visão geral alterna categorias e abre os orçamentos',
+      (tester) async {
+    await open(tester, TargetPlatform.android);
+    expect(find.byKey(const ValueKey('planning-forecast-total')), findsOneWidget);
+    expect(find.text('Nenhuma despesa neste mês.'), findsOneWidget);
+    await tester.tap(find.text('Receitas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nenhuma receita neste mês.'), findsOneWidget);
+    await tester.ensureVisible(find.text('Ver todos'));
+    await tester.tap(find.text('Ver todos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Novo limite'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
     testWidgets('prévias do planejamento', (tester) async {
       for (final pair in [
