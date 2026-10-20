@@ -347,6 +347,43 @@ void main() {
       }
     });
   }
+  testWidgets('lista compacta alinha valores à direita e abre a fatura', (
+    tester,
+  ) async {
+    await open(tester, TargetPlatform.android, detail: false, shell: true);
+    expect(find.text('Meus cartões'), findsOneWidget);
+    expect(find.text('1 cartão'), findsOneWidget);
+    final due = find.text('05 out 2026');
+    final available = find.text(cardMoney(414950));
+    expect(
+      tester.getTopRight(due).dx,
+      closeTo(tester.getTopRight(available).dx, 1),
+    );
+    expect(
+      tester.getTopRight(find.text('Vencimento')).dx,
+      closeTo(tester.getTopRight(due).dx, 1),
+    );
+    expect(
+      tester.getTopRight(find.text('Disponível')).dx,
+      closeTo(tester.getTopRight(available).dx, 1),
+    );
+    await tester.ensureVisible(find.text('Ver fatura'));
+    await tester.tap(find.text('Ver fatura'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cartão Nubank'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('lista compacta suporta fonte ampliada', (tester) async {
+    await open(
+      tester,
+      TargetPlatform.android,
+      detail: false,
+      shell: true,
+      scale: 1.5,
+    );
+    await tester.scrollUntilVisible(find.text('Ver fatura'), 120);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('Voltar Android do detalhe retorna aos cartões', (tester) async {
     await open(tester, TargetPlatform.android);
     await tester.binding.handlePopRoute();
@@ -408,6 +445,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+    testWidgets('prévia lista compacta de cartões Android', (tester) async {
+      await open(tester, TargetPlatform.android, detail: false, shell: true);
+      await expectLater(
+        find.byType(SomiaShell),
+        matchesGoldenFile('cards-list-mobile-preview.png'),
+      );
+    });
     testWidgets('prévia fatura cartões Android', (tester) async {
       for (final pair in [
         ('Roboto', 'Roboto-Regular.ttf'),
