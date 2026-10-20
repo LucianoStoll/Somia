@@ -365,7 +365,13 @@ class _PlanningPageState extends State<PlanningPage> {
                                 spending: spending,
                                 budgets: budgets,
                                 onRefresh: load,
-                                indicators: indicators()),
+                                indicators: indicators(),
+                                loadEntries:
+                                    (month, type, currency, categoryId) =>
+                                        repo.entries(month,
+                                            type: type,
+                                            currency: currency,
+                                            categoryId: categoryId)),
                             RefreshIndicator(
                                 onRefresh: load,
                                 child: ListView(

@@ -150,6 +150,154 @@ void main() {
     expect(summary.currencies.single.projectedBalanceMinor, 85000);
   });
 
+  test('lançamentos da subcategoria conciliam rateios, mês, tipo e moeda',
+      () async {
+    final other = (await categories.create(const CategoryDraft(
+            name: 'Transporte', type: CategoryType.expense)))
+        .id;
+    await tx.create(TransactionDraft(
+        description: 'Compra com rateio',
+        type: TransactionType.expense,
+        amountMinor: 10000,
+        date: DateTime(2026, 10, 5),
+        isEffective: false,
+        accountId: account,
+        allocations: [
+          CategoryAllocation(sub, 4000),
+          CategoryAllocation(other, 6000)
+        ]));
+    await expense(3000, DateTime(2026, 10, 12), paid: false);
+    await expense(2000, DateTime(2026, 10, 15), cat: category, paid: false);
+    await expense(9000, DateTime(2026, 11, 12), paid: false);
+    final entries = await repo.entries(period,
+        type: 'expense', currency: 'BRL', categoryId: sub);
+    expect(entries.length, 2);
+    expect(entries.fold<int>(0, (sum, e) => sum + e.amount), 7000);
+    final split =
+        entries.singleWhere((e) => e.description == 'Compra com rateio');
+    expect(split.amount, 4000);
+    expect(split.fullAmount, 10000);
+    expect(split.isCard, isFalse);
+    final spend = (await repo.spending(period)).where((s) =>
+        s.categoryId == sub && s.currency == 'BRL' && s.type == 'expense');
+    expect(entries.fold<int>(0, (sum, e) => sum + e.amount),
+        spend.fold<int>(0, (sum, s) => sum + s.projected));
+    expect(
+        (await repo.entries(period,
+                type: 'expense', currency: 'BRL', categoryId: category))
+            .single
+            .amount,
+        2000);
+    expect(
+        await repo.entries(period,
+            type: 'expense', currency: 'USD', categoryId: sub),
+        isEmpty);
+    expect(
+        (await repo.entries(DateTime(2026, 11),
+                type: 'expense', currency: 'BRL', categoryId: sub))
+            .single
+            .amount,
+        9000);
+  });
+
+  test('detalhe de receitas e sem categoria usa filtro exato', () async {
+    final income = (await categories.create(
+            const CategoryDraft(name: 'Salário', type: CategoryType.income)))
+        .id;
+    await tx.create(TransactionDraft(
+        description: 'Receita sem categoria',
+        type: TransactionType.income,
+        amountMinor: 5000,
+        date: period,
+        isEffective: false,
+        accountId: account));
+    await tx.create(TransactionDraft(
+        description: 'Salário',
+        type: TransactionType.income,
+        amountMinor: 15000,
+        date: period,
+        isEffective: false,
+        accountId: account,
+        categoryId: income));
+    expect(
+        (await repo.entries(period,
+                type: 'income', currency: 'BRL', categoryId: null))
+            .single
+            .description,
+        'Receita sem categoria');
+    expect(
+        (await repo.entries(period,
+                type: 'income', currency: 'BRL', categoryId: income))
+            .single
+            .amount,
+        15000);
+    expect(
+        await repo.entries(period,
+            type: 'expense', currency: 'BRL', categoryId: income),
+        isEmpty);
+  });
+
+  test('detalhe inclui parte de compra no cartão e estorno sem somar pagamento',
+      () async {
+    final other = (await categories.create(
+            const CategoryDraft(name: 'Outra', type: CategoryType.expense)))
+        .id;
+    final cards = CardsRepository(db);
+    final card = await cards.save(CardDraft(
+        name: 'Crédito',
+        paymentAccountId: account,
+        closingDay: 25,
+        dueDay: 10,
+        limitMinor: 100000));
+    await cards.createPurchase(TransactionDraft(
+        description: 'Compra no crédito',
+        type: TransactionType.expense,
+        amountMinor: 10000,
+        date: DateTime(2026, 10, 1),
+        isEffective: false,
+        accountId: account,
+        cardId: card,
+        cardInvoiceMonth: period,
+        allocations: [
+          CategoryAllocation(sub, 6000),
+          CategoryAllocation(other, 4000)
+        ]));
+    final invoice = (await cards.invoices(card, selected: period))
+        .firstWhere((i) => i.month.month == 10 && i.month.year == 2026);
+    final stamp = PlanningRepository.day(now);
+    await db.customStatement(
+        "INSERT INTO card_entries(id,card_id,invoice_id,purchase_id,description,kind,category_id,amount_minor,posted_at,created_at,updated_at) VALUES(?,?,?,?,?,'refund',?,?,?,?,?)",
+        [
+          'detail-refund',
+          card,
+          invoice.id,
+          'detail-refund',
+          'Estorno',
+          sub,
+          -1000,
+          stamp,
+          stamp,
+          stamp
+        ]);
+    await db.customStatement(
+        'INSERT INTO card_payments(id,invoice_id,account_id,amount_minor,effective_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
+        ['detail-payment', invoice.id, account, 5000, stamp, stamp, stamp]);
+    final entries = await repo.entries(period,
+        type: 'expense', currency: 'BRL', categoryId: sub);
+    expect(entries.length, 2);
+    expect(entries.every((e) => e.isCard), isTrue);
+    expect(entries.fold<int>(0, (sum, e) => sum + e.amount), 5000);
+    expect(
+        entries
+            .singleWhere((e) => e.description == 'Compra no crédito')
+            .fullAmount,
+        10000);
+    final spend =
+        (await repo.spending(period)).where((s) => s.categoryId == sub);
+    expect(entries.fold<int>(0, (sum, e) => sum + e.amount),
+        spend.fold<int>(0, (sum, s) => sum + s.projected));
+  });
+
   test('orçamento separa realizado, pendente e efetivação futura', () async {
     await expense(2000, DateTime(2026, 10, 5));
     await expense(3000, DateTime(2026, 10, 10), paid: false);

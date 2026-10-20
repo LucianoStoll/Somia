@@ -50,3 +50,23 @@ class GoalDraft {
   final DateTime? deadline;
   final List<String> accounts, essential;
 }
+
+/// Valor atribuído à categoria consultada, que pode ser só parte de um rateio.
+class PlanningEntry {
+  const PlanningEntry({
+    required this.id,
+    required this.description,
+    required this.source,
+    required this.date,
+    required this.amount,
+    required this.fullAmount,
+    required this.isCard,
+  });
+  final String id, description, source;
+  final DateTime date;
+  final int amount, fullAmount;
+  final bool isCard;
+}
+
+typedef PlanningEntriesLoader = Future<List<PlanningEntry>> Function(
+    DateTime month, String type, String currency, String? categoryId);

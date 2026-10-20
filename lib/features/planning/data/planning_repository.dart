@@ -66,6 +66,76 @@ class PlanningRepository {
         .toList();
   }
 
+  /// Mesma base de spending: mês de efetivação/vencimento, rateios e
+  /// compras no mês de vencimento da fatura. O filtro é exato, inclusive
+  /// para lançamentos diretos na principal e sem categoria.
+  Future<List<PlanningEntry>> entries(DateTime period,
+      {required String type,
+      required String currency,
+      required String? categoryId}) async {
+    if (type != 'income' && type != 'expense') {
+      throw const FormatException('Tipo de lançamento inválido.');
+    }
+    final start = month(period);
+    final end = month(DateTime(period.year, period.month + 1));
+    final category = categoryId == null ? 't.cid IS NULL' : 't.cid=?';
+    final tx = await rows(
+        r'''WITH allocated AS (
+      SELECT t.*,json_extract(p.value,'$.categoryId') cid,json_extract(p.value,'$.amountMinor') amount
+      FROM transaction_events t,json_each(t.allocations_json) p
+      UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor)
+      FROM transaction_events t WHERE json_array_length(t.allocations_json)=0)
+      SELECT t.id,t.description,a.name source,COALESCE(t.effective_at,t.due_at) date,
+        t.amount,COALESCE(t.actual_amount_minor,t.planned_amount_minor) full_amount
+      FROM allocated t JOIN accounts a ON a.id=t.account_id
+      WHERE t.deleted_at IS NULL AND a.deleted_at IS NULL
+      AND a.include_in_analytics=1 AND t.ignore_analytics=0
+      AND COALESCE(t.effective_at,t.due_at)>=? AND COALESCE(t.effective_at,t.due_at)<?
+      AND t.type=? AND a.currency_code=? AND ''' +
+            category,
+        [start, end, type, currency, if (categoryId != null) categoryId]);
+    final card = type != 'expense' || currency != 'BRL'
+        ? <QueryRow>[]
+        : await rows(
+            r'''WITH allocated AS (
+      SELECT e.*,json_extract(p.value,'$.categoryId') cid,
+        CASE WHEN e.amount_minor<0 THEN -json_extract(p.value,'$.amountMinor')
+          ELSE json_extract(p.value,'$.amountMinor') END amount
+      FROM card_entries e,json_each(e.allocations_json) p
+      UNION ALL SELECT e.*,e.category_id,e.amount_minor
+      FROM card_entries e WHERE json_array_length(e.allocations_json)=0)
+      SELECT e.id,e.description,COALESCE('Cartão '||c.name,'Cartão') source,
+        i.due_at date,e.amount,e.amount_minor full_amount
+      FROM allocated e JOIN card_invoices i ON i.id=e.invoice_id
+      LEFT JOIN credit_cards c ON c.id=e.card_id
+      WHERE e.deleted_at IS NULL AND e.kind<>'opening' AND i.due_at>=? AND i.due_at<?
+      AND ''' +
+                (categoryId == null ? 'e.cid IS NULL' : 'e.cid=?'),
+            [start, end, if (categoryId != null) categoryId]);
+    PlanningEntry map(QueryRow row, bool isCard) => PlanningEntry(
+        id: row.read<String>('id'),
+        description: row.read<String>('description'),
+        source: row.read<String>('source'),
+        date: DateTime.fromMillisecondsSinceEpoch(row.read<int>('date'),
+            isUtc: true),
+        amount: row.read<int>('amount'),
+        fullAmount: row.read<int>('full_amount'),
+        isCard: isCard);
+    return [
+      for (final row in tx) map(row, false),
+      for (final row in card) map(row, true),
+    ]..sort((a, b) {
+        final date = b.date.compareTo(a.date);
+        if (date != 0) return date;
+        final source = a.isCard == b.isCard
+            ? 0
+            : a.isCard
+                ? 1
+                : -1;
+        return source != 0 ? source : a.id.compareTo(b.id);
+      });
+  }
+
   Future<List<BudgetLimit>> budgets(DateTime period) async {
     final spend = await spending(period);
     return (await rows(

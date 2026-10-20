@@ -8,6 +8,7 @@ import '../../accounts/domain/money_minor.dart';
 import '../../categories/domain/category.dart';
 import '../../categories/presentation/category_visuals.dart';
 import '../domain/planning.dart';
+import 'planning_entries_sheet.dart';
 
 String _money(int amount, String code) => MoneyMinor.display(amount, code)
     .replaceAllMapped(RegExp(r'\d{1,3}(?=(\d{3})+,)'), (m) => '${m[0]}.');
@@ -21,7 +22,8 @@ class PlanningOverview extends StatefulWidget {
       required this.spending,
       required this.budgets,
       required this.onRefresh,
-      required this.indicators});
+      required this.indicators,
+      this.loadEntries});
   final DateTime month;
   final List<Account> accounts;
   final List<FinanceCategory> categories;
@@ -29,6 +31,7 @@ class PlanningOverview extends StatefulWidget {
   final List<BudgetLimit> budgets;
   final Future<void> Function() onRefresh;
   final Widget indicators;
+  final PlanningEntriesLoader? loadEntries;
   @override
   State<PlanningOverview> createState() => _PlanningOverviewState();
 }
@@ -193,6 +196,28 @@ class _PlanningOverviewState extends State<PlanningOverview> {
                             PlanningCategoryChart(
                                 spending:
                                     rows.where((s) => s.type == type).toList(),
+                                onSubcategory: widget.loadEntries == null
+                                    ? null
+                                    : (id, name) {
+                                        final month = widget.month;
+                                        final selectedType = type;
+                                        final loader = widget.loadEntries!;
+                                        showModalBottomSheet<void>(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            useSafeArea: true,
+                                            builder: (_) =>
+                                                PlanningEntriesSheet(
+                                                    title: name,
+                                                    month: month,
+                                                    currency: code,
+                                                    type: selectedType,
+                                                    load: () => loader(
+                                                        month,
+                                                        selectedType,
+                                                        code,
+                                                        id)));
+                                      },
                                 categories: widget.categories,
                                 currency: code,
                                 label:
@@ -283,10 +308,12 @@ class PlanningCategoryChart extends StatelessWidget {
       required this.spending,
       required this.categories,
       required this.currency,
-      required this.label});
+      required this.label,
+      this.onSubcategory});
   final List<MonthlySpend> spending;
   final List<FinanceCategory> categories;
   final String currency, label;
+  final void Function(String? id, String name)? onSubcategory;
 
   @override
   Widget build(BuildContext context) {
@@ -338,7 +365,8 @@ class PlanningCategoryChart extends StatelessWidget {
                 ? 'Sem subcategoria'
                 : category?.name ?? 'Subcategoria indisponível',
             entry.value,
-            category == null ? selected.color : categoryDisplayColor(category));
+            category == null ? selected.color : categoryDisplayColor(category),
+            categoryId: entry.key);
       }).toList()
         ..sort((a, b) => b.amount.compareTo(a.amount));
       showModalBottomSheet<void>(
@@ -365,7 +393,16 @@ class PlanningCategoryChart extends StatelessWidget {
                       const Text('Sem valores em subcategorias neste mês.'),
                     for (final part in parts)
                       ListTile(
+                          key: ValueKey(
+                              'planning-subcategory-${part.categoryId}'),
                           contentPadding: EdgeInsets.zero,
+                          onTap: onSubcategory == null
+                              ? null
+                              : () =>
+                                  onSubcategory!(part.categoryId, part.name),
+                          trailing: onSubcategory == null
+                              ? null
+                              : const Icon(Icons.chevron_right),
                           title: Text(part.name,
                               style: TextStyle(color: part.color)),
                           subtitle: Text(_money(part.amount, currency))),

@@ -50,3 +50,17 @@ Valores lançados diretamente na principal aparecem como Sem subcategoria.
 Transações e compras de cartão na mesma subcategoria são somadas; créditos
 mantêm o sinal. Outras abre as categorias reais agrupadas, que também podem
 ser detalhadas. O total da principal não é somado outra vez às subcategorias.
+
+## Lançamentos por subcategoria
+
+Tocar em uma subcategoria abre os lançamentos que compõem o seu valor no mês,
+tipo e moeda selecionados. O painel mostra descrição, conta/cartão, data e
+valor, com total e opção de repetir uma leitura que falhou. Fechar retorna ao
+painel de subcategorias.
+
+A consulta usa a mesma base dos gráficos: efetivação/vencimento nos movimentos,
+vencimento da fatura nas compras, categorias exatas e parcelas de rateios.
+Lançamentos diretos na principal não incluem suas filhas; Sem categoria filtra
+somente valores sem categoria. Estornos conservam sinal e pagamentos de
+fatura não repetem a despesa. Quando o valor é parte de um rateio, o painel
+informa essa condição e o valor completo do lançamento.
