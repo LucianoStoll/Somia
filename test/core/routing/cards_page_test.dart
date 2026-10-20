@@ -204,7 +204,12 @@ void main() {
         await tester.tap(find.byTooltip('Próxima fatura'));
         await tester.pumpAndSettle();
         expect(find.text('Dezembro 2026'), findsOneWidget);
-        expect(find.text('R\$ 944,34'), findsOneWidget);
+        expect(
+            tester
+                .widget<Text>(
+                    find.byKey(const ValueKey('future-invoice-amount')))
+                .data,
+            'R\$ 944,34');
         await tester.tap(find.text('Dezembro 2026'));
         await tester.pumpAndSettle();
         expect(referenceMonth.value.month, 12);
