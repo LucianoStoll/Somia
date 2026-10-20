@@ -17,6 +17,8 @@ import 'package:finapp/features/categories/domain/category.dart';
 import 'package:finapp/features/planning/data/planning_repository.dart';
 import 'package:finapp/features/planning/domain/planning.dart';
 import 'package:finapp/features/planning/presentation/planning_page.dart';
+import 'package:finapp/features/transactions/data/sqlite_transactions_repository.dart';
+import 'package:finapp/features/transactions/domain/financial_transaction.dart';
 
 void main() {
   late AppDatabase db;
@@ -132,6 +134,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('saldo da visão geral muda com o mês selecionado', (tester) async {
+    final tx = SqliteTransactionsRepository(db);
+    await tx.create(TransactionDraft(
+        description: 'Receita de outubro',
+        type: TransactionType.income,
+        amountMinor: 100000,
+        date: DateTime(2026, 10, 10),
+        isEffective: false,
+        accountId: account));
+    await tx.create(TransactionDraft(
+        description: 'Despesa de novembro',
+        type: TransactionType.expense,
+        amountMinor: 30000,
+        date: DateTime(2026, 11, 10),
+        isEffective: false,
+        accountId: account,
+        categoryId: category));
+    referenceMonth.select(DateTime(2026, 10));
+    await open(tester, TargetPlatform.android);
+    final total = find.byKey(const ValueKey('planning-forecast-total'));
+    expect(tester.widget<Text>(total).data, contains('1.400,00'));
+    referenceMonth.select(DateTime(2026, 11));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(total).data, contains('1.100,00'));
+    referenceMonth.select(DateTime(2026, 10));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(total).data, contains('1.400,00'));
+    expect(tester.takeException(), isNull);
+  });
+
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
     testWidgets('prévias do planejamento', (tester) async {
       for (final pair in [
@@ -144,6 +176,22 @@ void main() {
               .readAsBytesSync())));
         await loader.load();
       }
+      final tx = SqliteTransactionsRepository(db);
+      await tx.create(TransactionDraft(
+          description: 'Salário',
+          type: TransactionType.income,
+          amountMinor: 250000,
+          date: referenceMonth.value,
+          isEffective: false,
+          accountId: account));
+      await tx.create(TransactionDraft(
+          description: 'Compras do mês',
+          type: TransactionType.expense,
+          amountMinor: 42500,
+          date: referenceMonth.value,
+          isEffective: false,
+          accountId: account,
+          categoryId: category));
       await repo.saveBudget(referenceMonth.value, category, 'BRL', 50000);
       await repo.saveGoal(GoalDraft(
           name: 'Viagem',
