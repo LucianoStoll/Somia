@@ -104,13 +104,15 @@ void main() {
       final month = DateTime(2026, entry.key);
       final forecast = await repo.forecastAccounts(month);
       expect(forecast.single.projectedBalanceMinor, entry.value);
-      final summary = await SqliteDashboardRepository(db, asOf: now).load(month);
+      final summary =
+          await SqliteDashboardRepository(db, asOf: now).load(month);
       expect(forecast.single.projectedBalanceMinor,
           summary.currencies.single.projectedBalanceMinor);
     }
     final after = await accounts.list();
     expect(after.single.currentBalanceMinor, before.single.currentBalanceMinor);
-    expect(after.single.projectedBalanceMinor, before.single.projectedBalanceMinor);
+    expect(after.single.projectedBalanceMinor,
+        before.single.projectedBalanceMinor);
   });
 
   test('previsão desconta fatura e pagamento agendado sem duplicar', () async {
@@ -137,10 +139,13 @@ void main() {
     await db.customStatement(
         'INSERT INTO card_payments(id,invoice_id,account_id,amount_minor,effective_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',
         ['forecast-payment', invoice.id, account, 5000, stamp, stamp, stamp]);
-    expect((await repo.forecastAccounts(DateTime(2026, 9)))
-        .single.projectedBalanceMinor, 100000);
-    expect((await repo.forecastAccounts(period))
-        .single.projectedBalanceMinor, 85000);
+    expect(
+        (await repo.forecastAccounts(DateTime(2026, 9)))
+            .single
+            .projectedBalanceMinor,
+        100000);
+    expect((await repo.forecastAccounts(period)).single.projectedBalanceMinor,
+        85000);
     final summary = await SqliteDashboardRepository(db, asOf: now).load(period);
     expect(summary.currencies.single.projectedBalanceMinor, 85000);
   });

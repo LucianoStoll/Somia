@@ -23,6 +23,7 @@ class PlanningRepository {
                   : Variable.withString(a as String))
               .toList())
       .get();
+
   /// Mesmo corte do Resumo: realizado até hoje/fim do mês e previsão
   /// acumulada até o último dia do mês selecionado.
   Future<List<Account>> forecastAccounts(DateTime period) {

@@ -119,7 +119,8 @@ void main() {
   testWidgets('visão geral alterna categorias e abre os orçamentos',
       (tester) async {
     await open(tester, TargetPlatform.android);
-    expect(find.byKey(const ValueKey('planning-forecast-total')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('planning-forecast-total')), findsOneWidget);
     expect(find.text('Nenhuma despesa neste mês.'), findsOneWidget);
     await tester.tap(find.text('Receitas'));
     await tester.pumpAndSettle();

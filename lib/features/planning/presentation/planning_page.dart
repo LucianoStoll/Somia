@@ -353,9 +353,9 @@ class _PlanningPageState extends State<PlanningPage> {
                               child: SizedBox(
                                   width: double.infinity,
                                   child: MonthSelector(
-                                  centered: true,
-                                  month: referenceMonth.value,
-                                  onChanged: referenceMonth.select))),
+                                      centered: true,
+                                      month: referenceMonth.value,
+                                      onChanged: referenceMonth.select))),
                           Expanded(
                               child: TabBarView(children: [
                             PlanningOverview(
