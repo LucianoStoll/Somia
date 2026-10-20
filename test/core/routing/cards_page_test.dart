@@ -433,7 +433,7 @@ void main() {
       await tester.pumpAndSettle();
       await expectLater(find.byType(SomiaShell),
           matchesGoldenFile('cards-future-mobile-preview.png'));
-      await tester.ensureVisible(find.text('Extrato'));
+      await tester.scrollUntilVisible(find.text('Extrato'), -200);
       await tester.tap(find.text('Extrato'));
       await tester.pumpAndSettle();
       await expectLater(find.byType(SomiaShell),
