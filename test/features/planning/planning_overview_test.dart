@@ -48,9 +48,7 @@ void main() {
                                   categories: const [],
                                   spending: const [],
                                   budgets: const [],
-                                  onRefresh: () async {},
-                                  indicators:
-                                      const Text('Indicador de teste'))))))));
+                                  onRefresh: () async {})))))));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }

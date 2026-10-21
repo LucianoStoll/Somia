@@ -79,3 +79,8 @@ subcategoria, incluindo lançamentos diretos e subcategorias que desapareceram
 no mês atual. Moedas, tipos e identidades de categoria não se misturam.
 Janeiro é comparado a dezembro do ano anterior. A visão geral permanece
 compacta e o acesso aos lançamentos continua no detalhe da subcategoria.
+# Indicadores do mês
+
+O painel recolhido usa exclusivamente o mês e a moeda selecionados na Visão geral. A alternância Realizado/Previsto mostra receitas, despesas líquidas, resultado mensal e sobra percentual da renda. O previsto inclui os valores realizados e os previstos; não soma duas vezes o realizado. O resultado mensal não é o saldo acumulado das contas.
+
+A taxa é `(receitas - despesas) / receitas × 100`, disponível somente com receitas positivas. Déficits e créditos preservam o sinal; não há limitação artificial do percentual. Meses sem movimentos mostram zero e percentual indisponível. As regras de transferências, cartões e rateios continuam sendo as da consulta mensal compartilhada com os gráficos. A explicação fica no botão de informação para manter o painel compacto.

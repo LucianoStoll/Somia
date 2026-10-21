@@ -48,7 +48,6 @@ void main() {
                 ],
                 budgets: const [],
                 onRefresh: () async {},
-                indicators: const SizedBox(),
                 loadEntries: (month, type, currency, categoryId) async {
                   query = (month, type, currency, categoryId);
                   return [entry];

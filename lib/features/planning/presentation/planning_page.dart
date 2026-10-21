@@ -278,59 +278,6 @@ class _PlanningPageState extends State<PlanningPage> {
             ])));
   }
 
-  Widget indicators() {
-    final codes = spending.map((s) => s.currency).toSet().toList()..sort();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Renda e saúde financeira', style: TextStyle(fontSize: 20)),
-      const SizedBox(height: 8),
-      const Text(
-          'Indicadores do mês selecionado. Poupança = receita menos despesa; não representa aportes em investimentos.'),
-      if (codes.isEmpty)
-        const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Sem movimentos neste mês.')),
-      for (final code in codes)
-        Builder(builder: (context) {
-          final rows = spending.where((s) => s.currency == code);
-          final income = rows
-                  .where((s) => s.type == 'income')
-                  .fold<int>(0, (v, s) => v + s.realized),
-              expense = rows
-                  .where((s) => s.type == 'expense')
-                  .fold<int>(0, (v, s) => v + s.realized);
-          final pi = rows
-                  .where((s) => s.type == 'income')
-                  .fold<int>(0, (v, s) => v + s.projected),
-              pe = rows
-                  .where((s) => s.type == 'expense')
-                  .fold<int>(0, (v, s) => v + s.projected);
-          return Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Receita realizada: ${money(income, code)}'),
-                        Text('Despesa realizada: ${money(expense, code)}'),
-                        Text(
-                            'Resultado realizado: ${money(income - expense, code)}'),
-                        Text(
-                            'Taxa de poupança: ${income <= 0 ? 'indisponível sem renda positiva' : '${((income - expense) * 100 / income).toStringAsFixed(1)}%'}'),
-                        Text('Resultado previsto: ${money(pi - pe, code)}'),
-                        Text(pi - pe < 0
-                            ? 'Alerta: despesas previstas superam as receitas. Revise os limites ou os gastos.'
-                            : income <= 0
-                                ? 'Registre renda para acompanhar a taxa de poupança.'
-                                : 'Compare a sobra com suas metas e mantenha uma reserva para imprevistos.'),
-                      ])));
-        }),
-      const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-              'Transferir dinheiro entre contas não aumenta renda nem poupança. Compras do cartão entram no mês da fatura; pagar a fatura não repete a despesa. Reembolsos permanecem receitas separadas.')),
-    ]);
-  }
-
   @override
   Widget build(BuildContext context) => DefaultTabController(
       length: 3,
@@ -370,7 +317,6 @@ class _PlanningPageState extends State<PlanningPage> {
                                 previousSpending: previousSpending,
                                 budgets: budgets,
                                 onRefresh: load,
-                                indicators: indicators(),
                                 loadEntries:
                                     (month, type, currency, categoryId) =>
                                         repo.entries(month,

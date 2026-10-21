@@ -7,6 +7,25 @@ class MonthlySpend {
   bool matches(String id) => categoryId == id || parentId == id;
 }
 
+/// Resultado do fluxo mensal; não é o saldo acumulado das contas.
+class PlanningMonthIndicators {
+  const PlanningMonthIndicators(this.income, this.expense);
+  final int income, expense;
+  int get result => income - expense;
+  double? get savingRate => income <= 0 ? null : result * 100 / income;
+
+  factory PlanningMonthIndicators.fromSpending(List<MonthlySpend> spending,
+      {required String currency, required bool projected}) {
+    var income = 0, expense = 0;
+    for (final row in spending.where((s) => s.currency == currency)) {
+      final value = projected ? row.projected : row.realized;
+      if (row.type == 'income') income += value;
+      if (row.type == 'expense') expense += value;
+    }
+    return PlanningMonthIndicators(income, expense);
+  }
+}
+
 class BudgetLimit {
   const BudgetLimit(this.id, this.categoryId, this.name, this.currency,
       this.amount, this.realized, this.projected);

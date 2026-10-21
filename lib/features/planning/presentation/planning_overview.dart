@@ -10,6 +10,7 @@ import '../../categories/presentation/category_visuals.dart';
 import '../domain/planning.dart';
 import 'planning_entries_sheet.dart';
 import 'planning_comparison_panel.dart';
+import 'planning_indicators.dart';
 
 String _money(int amount, String code) => MoneyMinor.display(amount, code)
     .replaceAllMapped(RegExp(r'\d{1,3}(?=(\d{3})+,)'), (m) => '${m[0]}.');
@@ -23,7 +24,6 @@ class PlanningOverview extends StatefulWidget {
       required this.spending,
       required this.budgets,
       required this.onRefresh,
-      required this.indicators,
       this.loadEntries,
       this.previousSpending = const []});
   final DateTime month;
@@ -33,7 +33,6 @@ class PlanningOverview extends StatefulWidget {
   final List<MonthlySpend> previousSpending;
   final List<BudgetLimit> budgets;
   final Future<void> Function() onRefresh;
-  final Widget indicators;
   final PlanningEntriesLoader? loadEntries;
   @override
   State<PlanningOverview> createState() => _PlanningOverviewState();
@@ -264,7 +263,12 @@ class _PlanningOverviewState extends State<PlanningOverview> {
                   key: PageStorageKey(
                       'planning-indicators-${widget.month.year}-${widget.month.month}-$code'),
                   title: 'Indicadores do mês',
-                  children: [widget.indicators]),
+                  children: [
+                    PlanningIndicators(
+                        month: widget.month,
+                        currency: code,
+                        spending: widget.spending)
+                  ]),
             ]));
   }
 }
