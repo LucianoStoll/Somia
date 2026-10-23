@@ -1,3 +1,4 @@
+import 'dashboard_transfers_card.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -165,6 +166,8 @@ class _CurrencySection extends StatelessWidget {
       children: [
         if (showCurrency) Text(code),
         SummaryMetrics(currency: currency, month: month),
+        const SizedBox(height: 12),
+        DashboardTransfersCard(currency: currency, month: month),
         const SizedBox(height: 12),
         BalanceEvolutionPanel(currency: currency),
         const SizedBox(height: 12),

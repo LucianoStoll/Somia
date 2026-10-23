@@ -114,3 +114,18 @@ Validação manual: navegar entre dezembro/janeiro e meses futuros, comparar a l
 
 
 Ajuste adicional solicitado em 06/10/2026: ocultar em Despesas faturas cujo valor mensal exibido seria R$0,00 (itens líquidos menores ou iguais a zero), inclusive meses sem compras com saldo anterior. Não excluir dados nem ocultar o histórico de Cartões. Faturas com compras e pagamento realizado continuam no histórico mensal de despesas.
+
+
+## Lista compacta — outubro de 2026
+
+A lista destaca a fatura mensal e a situação, agrupa o limite com barra de uso
+e mantém Disponível e Vencimento alinhados à margem direita. Conta fica
+abaixo do nome; datas usam mês abreviado e ano. Sem limite, o card oferece
+Configurar limite e omite percentuais. Ver fatura abre o detalhe existente;
+pagamento de saldo pendente, crédito do cartão e menu continuam acessíveis.
+O fundo da listagem e seu cabeçalho usam cinza neutro #292B2F.
+Dados, cálculos, sincronização e telas de detalhe mantêm suas regras.
+
+## Itens somente no Extrato
+
+A aba Fatura apresenta o resumo, ações e histórico de faturas. Os itens individuais aparecem somente na aba Extrato, agrupados pela data da compra na fatura selecionada. O Extrato mantém os pagamentos por data e, no mobile, os mesmos cards de lançamentos com menu de edição. A mudança é de apresentação e não altera valores nem registros.

@@ -1,3 +1,8 @@
+import '../../balances/domain/monthly_cash_flow.dart';
+import 'movement_cash_totals.dart';
+import '../../transfers/domain/transfer.dart';
+import '../../transfers/domain/transfers_repository.dart';
+import '../../transfers/presentation/transfer_feed_row.dart';
 import '../../attachments/presentation/attachments_page.dart';
 import '../data/movement_management_repository.dart';
 import '../domain/movement_management.dart';
@@ -59,6 +64,30 @@ String _movementMoney(int minor, String currencyCode) {
   return '${whole.replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (match) => '${match[1]}.')}${display.substring(comma)}';
 }
 
+class _FeedItem {
+  _FeedItem.fromTransaction(this.transaction) : transfer = null;
+  _FeedItem.fromTransfer(this.transfer) : transaction = null;
+  final FinancialTransaction? transaction;
+  final Transfer? transfer;
+  bool get isEffective => transaction?.isEffective ?? transfer!.isEffective;
+  DateTime get date => transaction?.date ?? transfer!.date;
+  DateTime? get dueDate => transaction?.dueDate ?? transfer?.dueDate;
+  DateTime get day {
+    final date = transaction?.effectiveDate ??
+        transfer?.effectiveDate ??
+        dueDate ??
+        this.date;
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  String get currencyCode =>
+      transaction?.currencyCode ?? transfer!.currencyCode;
+  int get netMinor => transaction == null
+      ? 0
+      : transaction!.amountMinor *
+          (transaction!.type == TransactionType.income ? 1 : -1);
+}
+
 class TransactionsPage extends StatelessWidget {
   const TransactionsPage({super.key, this.initialCreateType, this.sectionType});
   final String? initialCreateType;
@@ -71,6 +100,12 @@ class TransactionsPage extends StatelessWidget {
           getIt<AccountsRepository>(),
           getIt<CategoriesRepository>(),
           sectionType: sectionType,
+          transfers: getIt.isRegistered<TransfersRepository>()
+              ? getIt<TransfersRepository>()
+              : null,
+          cashFlow: getIt.isRegistered<MonthlyCashFlowRepository>()
+              ? getIt<MonthlyCashFlowRepository>()
+              : null,
           month: referenceMonth.value,
         ),
         child: _TransactionsView(
@@ -238,6 +273,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
             to: _range?.end,
             dateField: _dateField,
           ),
+          referenceMonth.value,
         );
   }
 
@@ -517,7 +553,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
           }
         },
         builder: (context, state) {
-          if (state.loading && state.accounts.isEmpty && state.items.isEmpty) {
+          if (state.loading &&
+              state.accounts.isEmpty &&
+              state.items.isEmpty &&
+              state.transfers.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
           if (state.error != null) {
@@ -661,9 +700,11 @@ class _TransactionsViewState extends State<_TransactionsView> {
                   ],
                 ),
               ),
-              if (mobile) _mobileTotals(state.items),
+              if (mobile ||
+                  widget.sectionType == null && state.cashFlow != null)
+                _mobileTotals(state),
               Expanded(
-                child: state.items.isEmpty
+                child: state.items.isEmpty && state.transfers.isEmpty
                     ? Center(
                         child: Text(
                           widget.sectionType == TransactionType.income
@@ -698,8 +739,15 @@ class _TransactionsViewState extends State<_TransactionsView> {
     _apply();
   }
 
-  Widget _mobileTotals(List<FinancialTransaction> items) {
-    final currencies = items.map((item) => item.currencyCode).toSet();
+  Widget _mobileTotals(TransactionsState state) {
+    if (widget.sectionType == null && state.cashFlow != null) {
+      return MovementCashTotals(totals: state.cashFlow!);
+    }
+    final items = state.items, transfers = state.transfers;
+    final currencies = {
+      ...items.map((item) => item.currencyCode),
+      ...transfers.map((item) => item.currencyCode)
+    };
     if (currencies.isEmpty) currencies.add('BRL');
     final section = widget.sectionType;
     return Padding(
@@ -780,19 +828,26 @@ class _TransactionsViewState extends State<_TransactionsView> {
     );
   }
 
-  DateTime _listDay(FinancialTransaction item) {
-    final date = item.effectiveDate ?? item.dueDate ?? item.date;
-    return DateTime(date.year, date.month, date.day);
-  }
-
   List<Widget> _dailyRows(TransactionsState state) {
     final mobile = somiaUsesMobileNavigation(context) &&
         MediaQuery.sizeOf(context).width < 600;
-    final pending = <FinancialTransaction>[];
-    final groups = <DateTime, List<FinancialTransaction>>{};
-    for (final item in state.items) {
+    final pending = <_FeedItem>[];
+    final groups = <DateTime, List<_FeedItem>>{};
+    final items = [
+      ...state.items.map(_FeedItem.fromTransaction),
+      ...state.transfers.map(_FeedItem.fromTransfer),
+    ];
+    Widget row(_FeedItem item) => item.transaction != null
+        ? _movementRow(item.transaction!)
+        : TransferFeedRow(
+            key: ValueKey('feed-transfer-${item.transfer!.id}'),
+            item: item.transfer!,
+            accounts: state.accounts,
+            repository: getIt<TransfersRepository>(),
+            onChanged: context.read<TransactionsCubit>().load);
+    for (final item in items) {
       if (item.isEffective) {
-        (groups[_listDay(item)] ??= []).add(item);
+        (groups[item.day] ??= []).add(item);
       } else {
         pending.add(item);
       }
@@ -810,7 +865,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
-      for (final item in pending) _movementRow(item),
+      for (final item in pending) row(item),
       for (final day in days) ...[
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -827,7 +882,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                 for (final code
                     in groups[day]!.map((e) => e.currencyCode).toSet())
                   Text(
-                    'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + (e.type == TransactionType.income ? e.amountMinor : -e.amountMinor)), code)}',
+                    'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + e.netMinor), code)}',
                     style: const TextStyle(
                       color: SomiaColors.muted,
                       fontSize: 12,
@@ -836,7 +891,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
             ],
           ),
         ),
-        for (final item in groups[day]!) _movementRow(item),
+        for (final item in groups[day]!) row(item),
       ],
     ];
   }
