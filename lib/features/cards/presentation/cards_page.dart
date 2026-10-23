@@ -547,160 +547,209 @@ class _CardsPageState extends State<CardsPage> {
     final accent = _accent(card);
     final account =
         _accounts.where((a) => a.id == card.paymentAccountId).firstOrNull;
+    final limit = card.limitMinor;
+    final ratio =
+        limit == null || limit <= 0 ? 0.0 : card.committedMinor / limit;
+    final usage = limit == 0
+        ? (card.committedMinor > 0 ? 'Acima do limite' : 'Limite zero')
+        : 'Usado ${(ratio * 100).round()}%';
     void open() => context.go(
           '${AppRoutes.cardsPath}?card=${Uri.encodeComponent(card.id)}',
         );
-    Widget fact(String label, String value, {Color? color}) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    Widget fact(String label, String value,
+            {bool right = false, Color? color, double size = 14}) =>
+        Column(
+          crossAxisAlignment:
+              right ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 11, color: SomiaColors.muted),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
+            Text(label,
+                textAlign: right ? TextAlign.right : TextAlign.left,
+                style: const TextStyle(fontSize: 12, color: SomiaColors.muted)),
+            Text(value,
+                textAlign: right ? TextAlign.right : TextAlign.left,
+                style: TextStyle(
+                    fontSize: size, fontWeight: FontWeight.w600, color: color)),
           ],
         );
+    Widget pair(Widget left, Widget right) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: left),
+            const SizedBox(width: 12),
+            Expanded(child: right),
+          ],
+        );
+    String date(DateTime value) {
+      const months = [
+        'jan',
+        'fev',
+        'mar',
+        'abr',
+        'mai',
+        'jun',
+        'jul',
+        'ago',
+        'set',
+        'out',
+        'nov',
+        'dez'
+      ];
+      return '${value.day.toString().padLeft(2, '0')} ${months[value.month - 1]} ${value.year}';
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        borderRadius: BorderRadius.circular(20),
-        clipBehavior: Clip.antiAlias,
         color: SomiaColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: SomiaColors.outline, width: .7),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           key: ValueKey('card-open-${card.id}'),
           onTap: _acting ? null : open,
-          child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.alphaBlend(
-                    accent.withValues(alpha: .14),
-                    SomiaColors.surfaceHigh,
-                  ),
-                  SomiaColors.surface,
-                ],
-              ),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    AccountAvatar(institutionId: card.institutionId),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '${card.name}${card.isArchived ? ' (arquivado)' : ''}',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                    _cardMenu(card),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 20,
-                  runSpacing: 12,
-                  children: [
-                    fact(
-                      'Limite total',
-                      card.limitMinor == null
-                          ? 'Não informado'
-                          : cardMoney(card.limitMinor!),
-                    ),
-                    fact('Limite comprometido', cardMoney(card.committedMinor)),
-                    fact(
-                      'Limite disponível',
-                      card.availableMinor == null
-                          ? 'Não informado'
-                          : cardMoney(card.availableMinor!),
-                      color: card.availableMinor != null &&
-                              card.availableMinor! < 0
-                          ? SomiaColors.red
-                          : accent,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _limitProgress(card),
-                if (card.creditMinor > 0) ...[
-                  const SizedBox(height: 8),
-                  fact('Crédito do cartão', cardMoney(card.creditMinor)),
-                ],
-                const Divider(height: 28),
-                Wrap(
-                  spacing: 20,
-                  runSpacing: 12,
-                  children: [
-                    fact('Conta', account?.name ?? 'Não definida'),
-                    fact(
-                      'Fechamento',
-                      cardDateLabel(
-                        invoice?.closingAt ?? card.closingFor(_month),
-                      ),
-                    ),
-                    fact(
-                      'Vencimento',
-                      cardDateLabel(invoice?.dueAt ?? card.dueFor(_month)),
-                    ),
-                  ],
-                ),
-                if (invoice != null) ...[
-                  const Divider(height: 28),
-                  Row(
-                    children: [
-                      const Expanded(child: Text('Fatura do mês')),
-                      Flexible(
-                        child: Text(
-                          cardMoney(invoice.chargesMinor),
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            color: SomiaColors.red,
-                            fontWeight: FontWeight.w600,
-                          ),
+                Row(children: [
+                  AccountAvatar(institutionId: card.institutionId),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${card.name}${card.isArchived ? ' (arquivado)' : ''}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
+                        Text('Conta • ${account?.name ?? 'Não definida'}',
+                            style: const TextStyle(
+                                fontSize: 12, color: SomiaColors.muted)),
+                      ],
+                    ),
+                  ),
+                  _cardMenu(card),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(
+                    child: fact(
+                        'Fatura do mês', cardMoney(invoice?.chargesMinor ?? 0),
+                        size: 24),
+                  ),
+                  if (invoice != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(invoice.status,
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: invoice.status == 'Paga'
+                                    ? SomiaColors.green
+                                    : invoice.status == 'Atrasada'
+                                        ? SomiaColors.red
+                                        : accent)),
                       ),
-                    ],
+                    ),
+                  ],
+                ]),
+                const Divider(height: 18),
+                if (limit == null)
+                  pair(
+                    fact('Limite do cartão', 'Não informado'),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _acting ? null : () => _editCard(card),
+                        style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            alignment: Alignment.centerRight),
+                        child: const Text('Configurar limite ›',
+                            textAlign: TextAlign.right),
+                      ),
+                    ),
+                  )
+                else ...[
+                  pair(
+                    Text(usage,
+                        style: const TextStyle(
+                            fontSize: 12, color: SomiaColors.muted)),
+                    Text('Limite ${cardMoney(limit)}',
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                            fontSize: 12, color: SomiaColors.muted)),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    invoice.status,
-                    style: TextStyle(
-                      color:
-                          invoice.status == 'Paga' ? SomiaColors.green : accent,
-                    ),
+                  LinearProgressIndicator(
+                    value: limit == 0 && card.committedMinor > 0
+                        ? 1
+                        : ratio.clamp(0.0, 1.0),
+                    color:
+                        card.committedMinor > limit ? SomiaColors.red : accent,
+                    minHeight: 6,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      if (invoice.balanceMinor > 0)
-                        TextButton.icon(
-                          onPressed: _acting ? null : () => _pay(card, invoice),
-                          icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Registrar pagamento'),
-                        ),
-                      TextButton.icon(
-                        onPressed: _acting
-                            ? null
-                            : () => context.go(
-                                  '${AppRoutes.cardsPath}?card=${Uri.encodeComponent(card.id)}&view=statement',
-                                ),
-                        icon: const Icon(Icons.receipt_long_outlined),
-                        label: const Text('Extrato'),
-                      ),
-                    ],
+                  const SizedBox(height: 6),
+                  pair(
+                    fact('Utilizado', cardMoney(card.committedMinor)),
+                    fact('Disponível', cardMoney(card.availableMinor!),
+                        right: true,
+                        color:
+                            card.availableMinor! < 0 ? SomiaColors.red : null),
                   ),
                 ],
+                if (card.creditMinor > 0) ...[
+                  const SizedBox(height: 6),
+                  fact('Crédito do cartão', cardMoney(card.creditMinor)),
+                ],
+                const Divider(height: 18),
+                pair(
+                  fact('Fechamento',
+                      date(invoice?.closingAt ?? card.closingFor(_month))),
+                  fact(
+                      'Vencimento', date(invoice?.dueAt ?? card.dueFor(_month)),
+                      right: true),
+                ),
+                const Divider(height: 18),
+                if (invoice != null && invoice.balanceMinor > 0)
+                  TextButton.icon(
+                    onPressed: _acting ? null : () => _pay(card, invoice),
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text('Registrar pagamento'),
+                  ),
+                InkWell(
+                  key: ValueKey('card-invoice-${card.id}'),
+                  onTap: _acting ? null : open,
+                  child: const SizedBox(
+                    height: 48,
+                    child: Row(children: [
+                      Icon(Icons.receipt_long_outlined,
+                          size: 22, color: SomiaColors.blue),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text('Ver fatura',
+                            style: TextStyle(
+                                color: SomiaColors.blue,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                      Icon(Icons.chevron_right, color: SomiaColors.blue),
+                    ]),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1380,14 +1429,14 @@ class _CardsPageState extends State<CardsPage> {
     );
   }
 
-  List<Widget> _dailyStatement(CardInvoice invoice) {
+  List<Widget> _dailyStatement(CardInvoice invoice, {bool cardStyle = false}) {
     final days = <int, List<Widget>>{};
     final entries = [...invoice.entries]
       ..sort((a, b) => a.description.compareTo(b.description));
     for (final entry in entries) {
       days
           .putIfAbsent(cardDay(entry.postedAt), () => [])
-          .add(_entryTile(entry));
+          .add(_entryTile(entry, cardStyle: cardStyle));
     }
     for (final payment in invoice.payments) {
       days
@@ -1693,6 +1742,7 @@ class _CardsPageState extends State<CardsPage> {
         .where((p) => cardDay(p.date) > cardDay(DateTime.now()))
         .fold(0, (a, p) => a + p.amountMinor);
     return Scaffold(
+      backgroundColor: _detail ? null : const Color(0xFF292B2F),
       appBar: referenceDetail
           ? AppBar(
               automaticallyImplyLeading: false,
@@ -1702,6 +1752,7 @@ class _CardsPageState extends State<CardsPage> {
               title: const SomiaBrand(height: 30),
             )
           : AppBar(
+              backgroundColor: _detail ? null : const Color(0xFF292B2F),
               title: Text(_detail ? 'Detalhes do cartão' : 'Cartões'),
               leading: _detail
                   ? BackButton(onPressed: () => context.go(AppRoutes.cardsPath))
@@ -1796,8 +1847,31 @@ class _CardsPageState extends State<CardsPage> {
                           label: const Text('Cadastrar cartão'),
                         ),
                       ],
-                      if (!_detail)
+                      if (!_detail && _cards.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Meus cartões',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Text(
+                              '${_cards.length} ${_cards.length == 1 ? 'cartão' : 'cartões'}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: SomiaColors.blue,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         for (final c in _cards) _cardTile(c),
+                      ],
                       if (_detail && card == null)
                         const Padding(
                           padding: EdgeInsets.all(24),
@@ -1880,7 +1954,8 @@ class _CardsPageState extends State<CardsPage> {
                         ],
                         if (referenceDetail) const SizedBox(height: 12),
                         if (_statement)
-                          ..._dailyStatement(invoice)
+                          ..._dailyStatement(invoice,
+                              cardStyle: referenceDetail)
                         else if (_cash) ...[
                           const SizedBox(height: 12),
                           const Text(
@@ -1987,17 +2062,6 @@ class _CardsPageState extends State<CardsPage> {
                               ],
                             ),
                           const SizedBox(height: 20),
-                          Text(
-                            'Itens da fatura',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          for (final e in invoice.entries)
-                            _entryTile(e, cardStyle: referenceDetail),
-                          if (invoice.entries.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Text('Nenhum item nesta fatura.'),
-                            ),
                           const Divider(),
                           Text(
                             'Pagamentos',
