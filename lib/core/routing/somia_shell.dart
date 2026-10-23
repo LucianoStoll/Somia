@@ -563,6 +563,8 @@ class _SomiaMenu extends StatelessWidget {
     BuildContext context,
     _MenuDestination destination,
   ) {
+    final uri = GoRouter.maybeOf(context)?.routeInformationProvider.value.uri ??
+        Uri.parse(location);
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: ListTile(
@@ -578,10 +580,9 @@ class _SomiaMenu extends StatelessWidget {
         leading: Icon(destination.icon, color: destination.color),
         title: Text(destination.label),
         selected: destination.path.contains('?')
-            ? GoRouterState.of(context).uri.toString() == destination.path
+            ? uri.toString() == destination.path
             : _isSelected(destination) &&
-                !(destination.path == AppRoutes.settingsPath &&
-                    GoRouterState.of(context).uri.hasQuery),
+                !(destination.path == AppRoutes.settingsPath && uri.hasQuery),
         selectedTileColor: SomiaColors.surfaceHigh,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         onTap: () {
