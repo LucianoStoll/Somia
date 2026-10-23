@@ -82,7 +82,9 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.dashboardPath}) {
             GoRoute(
                 path: AppRoutes.debtsPath,
                 builder: (context, state) => SomiaSectionBackScope(
-                    location: state.uri.path, child: const DebtsPage())),
+                    location: state.uri.path,
+                    child:
+                        DebtsPage(debtId: state.uri.queryParameters['debt']))),
             GoRoute(
                 path: AppRoutes.assetsPath,
                 builder: (context, state) => SomiaSectionBackScope(

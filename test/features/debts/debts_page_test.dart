@@ -13,6 +13,10 @@ import 'package:finapp/features/debts/domain/debt.dart';
 import 'package:finapp/features/debts/data/sqlite_debts_repository.dart';
 import 'package:finapp/features/debts/presentation/debts_page.dart';
 import 'package:finapp/features/debts/presentation/debt_forms.dart';
+import 'package:finapp/features/accounts/data/sqlite_accounts_repository.dart';
+import 'package:finapp/features/accounts/domain/account.dart';
+import 'package:finapp/features/transactions/data/sqlite_transactions_repository.dart';
+import 'package:finapp/features/transactions/domain/financial_transaction.dart';
 
 void main() {
   setUpAll(() async {
@@ -41,6 +45,85 @@ void main() {
     await getIt.reset();
     await db.close();
   });
+  for (final size in [const Size(390, 1000), const Size(320, 844)]) {
+    testWidgets(
+        'novo layout filtra dívidas e mantém amortização e histórico $size',
+        (tester) async {
+      final id = await repo.save(DebtDraft(
+          name: 'Financiamento do carro',
+          creditor: 'Banco',
+          kind: DebtKind.financing,
+          balanceMinor: 2000000,
+          referenceAt: DateTime(2025, 1, 1),
+          notes: 'Contrato do carro'));
+      final account = await SqliteAccountsRepository(db).create(
+          const AccountDraft(
+              name: 'Conta',
+              type: AccountType.checking,
+              currencyCode: 'BRL',
+              initialBalanceMinor: 3000000,
+              includeInAnalytics: true));
+      final transactions = SqliteTransactionsRepository(db);
+      for (final paid in [true, false]) {
+        final tx = await transactions.create(TransactionDraft(
+            description: paid ? 'Parcela efetivada' : 'Parcela pendente',
+            type: TransactionType.expense,
+            amountMinor: 55000,
+            date: DateTime(2025, 2, 10),
+            dueDate: DateTime(2025, 2, 10),
+            effectiveDate: paid ? DateTime(2025, 2, 10) : null,
+            isEffective: paid,
+            accountId: account.id));
+        await repo.link(id, tx.id, 50000);
+      }
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+          MaterialApp(theme: AppTheme.dark, home: const DebtsPage()));
+      await tester.pumpAndSettle();
+      expect(find.text('Saldo devedor'), findsOneWidget);
+      await tester.tap(find.text('Quitadas  0'));
+      await tester.pumpAndSettle();
+      expect(find.text('Nenhuma dívida quitada.'), findsOneWidget);
+      await tester.tap(find.text('Ativas  1'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(ValueKey('debt-open-$id')));
+      await tester.tap(find.byKey(ValueKey('debt-open-$id')));
+      await tester.pumpAndSettle();
+      expect(find.text('Detalhes da dívida'), findsOneWidget);
+      expect(find.text('Vincular despesa'), findsOneWidget);
+      final payment = (await repo.load()).single.payments.first;
+      await tester
+          .ensureVisible(find.byKey(ValueKey('debt-payment-${payment.id}')));
+      await tester.tap(find.byKey(ValueKey('debt-payment-${payment.id}')));
+      await tester.pumpAndSettle();
+      expect(find.text('Juros e encargos'), findsOneWidget);
+      await tester.tap(find.text('Desvincular parcela'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect((await repo.load()).single.balanceMinor, 1950000);
+      expect((await repo.load()).single.projectedMinor, 1900000);
+      await tester.ensureVisible(find.text('Dados'));
+      await tester.tap(find.text('Dados'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Contrato do carro'));
+      expect(find.text('Contrato do carro'), findsOneWidget);
+      if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW') &&
+          size.width == 390) {
+        await tester.drag(find.byType(ListView).first, const Offset(0, 1500));
+        await tester.pumpAndSettle();
+        await expectLater(find.byType(MaterialApp),
+            matchesGoldenFile('debt-detail-mobile-preview.png'));
+      }
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Dívidas'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
     testWidgets('cadastro valida credor e preserva campos $platform',
         (tester) async {

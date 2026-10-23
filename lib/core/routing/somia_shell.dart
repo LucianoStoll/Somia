@@ -155,21 +155,25 @@ class SomiaSectionBackScope extends StatelessWidget {
               scaffold!.closeDrawer();
             } else if (location != AppRoutes.dashboardPath) {
               context.go(
-                location == AppRoutes.settingsPath &&
-                        GoRouterState.of(context)
-                                .uri
-                                .queryParameters['section'] !=
+                location == AppRoutes.debtsPath &&
+                        GoRouterState.of(context).uri.queryParameters['debt'] !=
                             null
-                    ? AppRoutes.settingsPath
-                    : location == AppRoutes.cardsPath &&
+                    ? AppRoutes.debtsPath
+                    : location == AppRoutes.settingsPath &&
                             GoRouterState.of(context)
                                     .uri
-                                    .queryParameters['card'] !=
+                                    .queryParameters['section'] !=
                                 null
-                        ? AppRoutes.cardsPath
-                        : location.startsWith('${AppRoutes.accountsPath}/')
-                            ? AppRoutes.accountsPath
-                            : AppRoutes.dashboardPath,
+                        ? AppRoutes.settingsPath
+                        : location == AppRoutes.cardsPath &&
+                                GoRouterState.of(context)
+                                        .uri
+                                        .queryParameters['card'] !=
+                                    null
+                            ? AppRoutes.cardsPath
+                            : location.startsWith('${AppRoutes.accountsPath}/')
+                                ? AppRoutes.accountsPath
+                                : AppRoutes.dashboardPath,
               );
             }
           },
