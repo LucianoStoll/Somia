@@ -98,6 +98,7 @@ void main() {
       final payment = (await repo.load()).single.payments.first;
       await tester
           .ensureVisible(find.byKey(ValueKey('debt-payment-${payment.id}')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('debt-payment-${payment.id}')));
       await tester.pumpAndSettle();
       expect(find.text('Juros e encargos'), findsOneWidget);
