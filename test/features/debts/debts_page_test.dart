@@ -89,15 +89,16 @@ void main() {
       expect(find.text('Nenhuma dívida quitada.'), findsOneWidget);
       await tester.tap(find.text('Ativas  1'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(ValueKey('debt-open-$id')));
+      await tester.scrollUntilVisible(
+          find.byKey(ValueKey('debt-open-$id')), 150);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('debt-open-$id')));
       await tester.pumpAndSettle();
       expect(find.text('Detalhes da dívida'), findsOneWidget);
       expect(find.text('Vincular despesa'), findsOneWidget);
       final payment = (await repo.load()).single.payments.first;
-      await tester
-          .ensureVisible(find.byKey(ValueKey('debt-payment-${payment.id}')));
+      await tester.scrollUntilVisible(
+          find.byKey(ValueKey('debt-payment-${payment.id}')), 150);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('debt-payment-${payment.id}')));
       await tester.pumpAndSettle();
@@ -108,11 +109,13 @@ void main() {
       await tester.pumpAndSettle();
       expect((await repo.load()).single.balanceMinor, 1950000);
       expect((await repo.load()).single.projectedMinor, 1900000);
-      await tester.ensureVisible(find.text('Dados'));
+      await tester.drag(find.byType(ListView).first, const Offset(0, 2000));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Dados'), 150);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Dados'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Contrato do carro'));
+      await tester.scrollUntilVisible(find.text('Contrato do carro'), 150);
       await tester.pumpAndSettle();
       expect(find.text('Contrato do carro'), findsOneWidget);
       if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW') &&
