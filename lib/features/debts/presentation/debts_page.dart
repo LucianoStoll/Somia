@@ -129,7 +129,8 @@ class _DebtsPageState extends State<DebtsPage> {
     }
   }
 
-  String _money(int value) => MoneyMinor.display(value, 'BRL');
+  String _money(int value) => MoneyMinor.display(value, 'BRL').replaceAllMapped(
+      RegExp(r'\d{1,3}(?=(\d{3})+,)'), (match) => '${match[0]}.');
   double _progress(Debt debt) => debt.initialMinor <= 0
       ? 0
       : (debt.paidPrincipalMinor / debt.initialMinor)

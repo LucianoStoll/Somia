@@ -120,7 +120,13 @@ void main() {
       expect(find.text('Contrato do carro'), findsOneWidget);
       if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW') &&
           size.width == 390) {
-        await tester.drag(find.byType(ListView).first, const Offset(0, 1500));
+        await tester.drag(find.byType(ListView).first, const Offset(0, 2000));
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(find.text('Parcelas vinculadas'), 150);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Parcelas vinculadas'));
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(ListView).first, const Offset(0, 2000));
         await tester.pumpAndSettle();
         await expectLater(find.byType(MaterialApp),
             matchesGoldenFile('debt-detail-mobile-preview.png'));
