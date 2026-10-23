@@ -1283,14 +1283,14 @@ class _CardsPageState extends State<CardsPage> {
     );
   }
 
-  List<Widget> _dailyStatement(CardInvoice invoice) {
+  List<Widget> _dailyStatement(CardInvoice invoice, {bool cardStyle = false}) {
     final days = <int, List<Widget>>{};
     final entries = [...invoice.entries]
       ..sort((a, b) => a.description.compareTo(b.description));
     for (final entry in entries) {
       days
           .putIfAbsent(cardDay(entry.postedAt), () => [])
-          .add(_entryTile(entry));
+          .add(_entryTile(entry, cardStyle: cardStyle));
     }
     for (final payment in invoice.payments) {
       days
@@ -1776,7 +1776,8 @@ class _CardsPageState extends State<CardsPage> {
                         ],
                         if (referenceDetail) const SizedBox(height: 12),
                         if (_statement)
-                          ..._dailyStatement(invoice)
+                          ..._dailyStatement(invoice,
+                              cardStyle: referenceDetail)
                         else if (_cash) ...[
                           const SizedBox(height: 12),
                           const Text(
@@ -1883,17 +1884,6 @@ class _CardsPageState extends State<CardsPage> {
                               ],
                             ),
                           const SizedBox(height: 20),
-                          Text(
-                            'Itens da fatura',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          for (final e in invoice.entries)
-                            _entryTile(e, cardStyle: referenceDetail),
-                          if (invoice.entries.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Text('Nenhum item nesta fatura.'),
-                            ),
                           const Divider(),
                           Text(
                             'Pagamentos',

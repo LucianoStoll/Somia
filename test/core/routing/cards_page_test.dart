@@ -146,7 +146,10 @@ void main() {
     await repo.db.close();
   });
   Future<void> open(WidgetTester tester, TargetPlatform platform,
-      {double scale = 1, bool detail = true, bool shell = false}) async {
+      {double scale = 1,
+      bool detail = true,
+      bool shell = false,
+      bool statement = false}) async {
     tester.view.physicalSize = platform == TargetPlatform.android
         ? const Size(390, 844)
         : const Size(1280, 900);
@@ -154,7 +157,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final router = GoRouter(
-        initialLocation: detail ? '/cards?card=nu' : '/cards',
+        initialLocation: detail
+            ? '/cards?card=nu${statement ? '&view=statement' : ''}'
+            : '/cards',
         routes: [
           GoRoute(
               path: '/cards',
@@ -237,7 +242,7 @@ void main() {
     testWidgets(
         'corrigir compra paga pede confirmação e cancelar preserva dados $platform',
         (tester) async {
-      await open(tester, platform);
+      await open(tester, platform, statement: true);
       Future<void> edit() async {
         final title = find.text('Compra parcelada com descrição longa');
         await tester.scrollUntilVisible(title, 200);
@@ -280,10 +285,8 @@ void main() {
         (tester) async {
       await open(tester, platform);
       expect(find.text('Nubank · 10/2026'), findsOneWidget);
-      await tester.scrollUntilVisible(
-          find.text('Compra parcelada com descrição longa'), 200);
-      await tester.pumpAndSettle();
-      expect(find.text('Compra parcelada com descrição longa'), findsOneWidget);
+      expect(find.text('Itens da fatura'), findsNothing);
+      expect(find.text('Compra parcelada com descrição longa'), findsNothing);
       await tester.scrollUntilVisible(find.text('Caixa / pagamentos'), -200);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Caixa / pagamentos'));
@@ -312,6 +315,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('card-open-nu')));
       await tester.pumpAndSettle();
       expect(find.text('Detalhes do cartão'), findsOneWidget);
+      expect(find.text('Itens da fatura'), findsNothing);
+      expect(find.text('Compra parcelada com descrição longa'), findsNothing);
       await tester.ensureVisible(find.text('Extrato'));
       await tester.tap(find.text('Extrato'));
       await tester.pumpAndSettle();
@@ -322,8 +327,14 @@ void main() {
       await tester.scrollUntilVisible(purchaseDay, 160);
       expect(purchaseDay, findsOneWidget);
       expect(paymentDay, findsOneWidget);
+      expect(find.text('Compra parcelada com descrição longa'), findsOneWidget);
       expect(tester.getTopLeft(paymentDay).dy,
           lessThan(tester.getTopLeft(purchaseDay).dy));
+      await tester.scrollUntilVisible(find.text('Competência / fatura'), -160);
+      await tester.tap(find.text('Competência / fatura'));
+      await tester.pumpAndSettle();
+      expect(find.text('Compra parcelada com descrição longa'), findsNothing);
+      expect(find.text('Itens da fatura'), findsNothing);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('card-open-nu')), findsOneWidget);
@@ -429,7 +440,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
   testWidgets('item mobile mantém menu de edição', (tester) async {
-    await open(tester, TargetPlatform.android, shell: true);
+    await open(tester, TargetPlatform.android, shell: true, statement: true);
     final item = find.text('Compra parcelada com descrição longa');
     await tester.scrollUntilVisible(item, 200);
     final card = find.ancestor(of: item, matching: find.byType(Card)).first;
@@ -479,12 +490,6 @@ void main() {
       await tester.pumpAndSettle();
       await expectLater(find.byType(SomiaShell),
           matchesGoldenFile('cards-actions-mobile-preview.png'));
-      final item = find.text('Compra parcelada com descrição longa');
-      await tester.scrollUntilVisible(item, 200);
-      await Scrollable.ensureVisible(tester.element(item), alignment: 0.45);
-      await tester.pumpAndSettle();
-      await expectLater(find.byType(SomiaShell),
-          matchesGoldenFile('cards-items-mobile-preview.png'));
       final chart = find.byKey(const ValueKey('future-invoices-chart'));
       await tester.scrollUntilVisible(chart, 200);
       await Scrollable.ensureVisible(tester.element(chart), alignment: 0.5);
@@ -498,6 +503,12 @@ void main() {
       await tester.pumpAndSettle();
       await expectLater(find.byType(SomiaShell),
           matchesGoldenFile('card-statement-mobile-preview.png'));
+      final item = find.text('Compra parcelada com descrição longa');
+      await tester.scrollUntilVisible(item, 200);
+      await Scrollable.ensureVisible(tester.element(item), alignment: 0.45);
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(SomiaShell),
+          matchesGoldenFile('cards-items-mobile-preview.png'));
       await open(tester, TargetPlatform.android, detail: false);
       await expectLater(find.byType(Scaffold).last,
           matchesGoldenFile('card-list-mobile-preview.png'));

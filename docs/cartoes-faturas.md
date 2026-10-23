@@ -125,3 +125,7 @@ Configurar limite e omite percentuais. Ver fatura abre o detalhe existente;
 pagamento de saldo pendente, crédito do cartão e menu continuam acessíveis.
 O fundo da listagem e seu cabeçalho usam cinza neutro #292B2F.
 Dados, cálculos, sincronização e telas de detalhe mantêm suas regras.
+
+## Itens somente no Extrato
+
+A aba Fatura apresenta o resumo, ações e histórico de faturas. Os itens individuais aparecem somente na aba Extrato, agrupados pela data da compra na fatura selecionada. O Extrato mantém os pagamentos por data e, no mobile, os mesmos cards de lançamentos com menu de edição. A mudança é de apresentação e não altera valores nem registros.
