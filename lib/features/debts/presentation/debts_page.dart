@@ -303,6 +303,19 @@ class _DebtsPageState extends State<DebtsPage> {
       SizedBox(
           width: double.infinity,
           child: SegmentedButton<bool>(
+              style: ButtonStyle(
+                  shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
+                  side: const WidgetStatePropertyAll(
+                      BorderSide(color: SomiaColors.outline)),
+                  backgroundColor: WidgetStateProperty.resolveWith((states) =>
+                      states.contains(WidgetState.selected)
+                          ? SomiaColors.blue
+                          : SomiaColors.surface),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) =>
+                      states.contains(WidgetState.selected)
+                          ? SomiaColors.sidebar
+                          : Theme.of(context).colorScheme.onSurface)),
               showSelectedIcon: false,
               segments: [
                 ButtonSegment(
