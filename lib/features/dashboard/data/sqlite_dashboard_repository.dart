@@ -238,10 +238,43 @@ class SqliteDashboardRepository implements DashboardRepository {
         for (final list in upcoming.values) {
           list.sort((a, b) => a.date.compareTo(b.date));
         }
+        final todayEnd = DateTime.utc(today.year, today.month, today.day + 1)
+            .millisecondsSinceEpoch;
+        final transferRows = await _db.customSelect('''
+          SELECT source.currency_code, COUNT(*) AS count,
+            SUM(CASE WHEN f.effective_at < ? THEN f.amount_minor ELSE 0 END) AS realized,
+            SUM(CASE WHEN f.effective_at IS NULL OR f.effective_at >= ?
+              THEN f.amount_minor ELSE 0 END) AS pending
+          FROM transfers f
+          JOIN accounts source ON source.id=f.source_account_id
+          JOIN accounts destination ON destination.id=f.destination_account_id
+          WHERE f.deleted_at IS NULL AND source.deleted_at IS NULL
+            AND destination.deleted_at IS NULL
+            AND (CASE WHEN f.effective_at < ? THEN f.effective_at ELSE f.due_at END) >= ?
+            AND (CASE WHEN f.effective_at < ? THEN f.effective_at ELSE f.due_at END) < ?
+          GROUP BY source.currency_code
+        ''', variables: [
+          Variable.withInt(todayEnd),
+          Variable.withInt(todayEnd),
+          Variable.withInt(todayEnd),
+          Variable.withInt(start),
+          Variable.withInt(todayEnd),
+          Variable.withInt(end),
+        ]).get();
+        final transfersByCurrency = {
+          for (final row in transferRows)
+            row.read<String>('currency_code'): row,
+        };
         final summaries = [
           for (final currency in currencies)
             DashboardCurrencySummary(
                 currencyCode: currency,
+                transferCount:
+                    transfersByCurrency[currency]?.read<int>('count') ?? 0,
+                transferredMinor:
+                    transfersByCurrency[currency]?.read<int>('realized') ?? 0,
+                pendingTransferMinor:
+                    transfersByCurrency[currency]?.read<int>('pending') ?? 0,
                 dailyBalances: daily[currency] ?? const [],
                 upcoming: upcoming[currency] ?? const [],
                 balanceDetails: details[currency],

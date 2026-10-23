@@ -76,7 +76,7 @@ class _TransfersViewState extends State<_TransfersView> {
   bool _customPeriod = false;
   String? _accountId;
   bool? _effective;
-  TransferDateField _dateField = TransferDateField.due;
+  TransferDateField _dateField = TransferDateField.activity;
   VoidCallback? _refreshFilters;
 
   DateTimeRange get _monthRange => DateTimeRange(
@@ -146,7 +146,7 @@ class _TransfersViewState extends State<_TransfersView> {
                           setState(() {
                             _accountId = null;
                             _effective = null;
-                            _dateField = TransferDateField.due;
+                            _dateField = TransferDateField.activity;
                             _range = _monthRange;
                             _customPeriod = false;
                           });
@@ -219,6 +219,10 @@ class _TransfersViewState extends State<_TransfersView> {
                             isExpanded: true,
                             value: _dateField,
                             items: const [
+                              DropdownMenuItem(
+                                value: TransferDateField.activity,
+                                child: Text('Efetivação / vencimento'),
+                              ),
                               DropdownMenuItem(
                                 value: TransferDateField.posted,
                                 child: Text('Filtrar lançamento'),
@@ -511,7 +515,7 @@ class _TransfersViewState extends State<_TransfersView> {
                           setState(() {
                             _accountId = null;
                             _effective = null;
-                            _dateField = TransferDateField.due;
+                            _dateField = TransferDateField.activity;
                             _range = _monthRange;
                             _customPeriod = false;
                           });
@@ -559,6 +563,7 @@ class _TransfersViewState extends State<_TransfersView> {
                   }
                   DateTime dayOf(Transfer item) {
                     final date = switch (_dateField) {
+                      TransferDateField.activity => item.activityDate,
                       TransferDateField.posted => item.date,
                       TransferDateField.due => item.dueDate ?? item.date,
                       TransferDateField.effective =>

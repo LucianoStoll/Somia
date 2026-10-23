@@ -1,3 +1,4 @@
+import '../widgets/dashboard_transfers_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -188,6 +189,8 @@ class _DashboardViewState extends State<_DashboardView>
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (multipleCurrencies || code != 'BRL') Text(code),
       SummaryMetrics(currency: currency, month: month),
+      const SizedBox(height: 12),
+      DashboardTransfersCard(currency: currency, month: month),
       const SizedBox(height: 16),
       LayoutBuilder(builder: (context, box) {
         final evolution = BalanceEvolutionPanel(currency: currency);
