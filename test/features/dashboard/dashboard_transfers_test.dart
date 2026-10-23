@@ -26,6 +26,7 @@ void main() {
             type: AccountType.checking,
             currencyCode: code,
             initialBalanceMinor: 0,
+            includeInBalance: code != 'USD',
             includeInAnalytics: true));
     final a = await account('A', 'BRL'), b = await account('B', 'BRL');
     Future<Transfer> move(int amount, DateTime due, [DateTime? effective]) =>

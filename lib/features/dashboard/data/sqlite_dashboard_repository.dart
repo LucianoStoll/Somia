@@ -265,6 +265,10 @@ class SqliteDashboardRepository implements DashboardRepository {
           for (final row in transferRows)
             row.read<String>('currency_code'): row,
         };
+        for (final code in transfersByCurrency.keys) {
+          if (!currencies.contains(code)) currencies.add(code);
+        }
+        currencies.sort();
         final summaries = [
           for (final currency in currencies)
             DashboardCurrencySummary(
