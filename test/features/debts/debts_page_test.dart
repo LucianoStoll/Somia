@@ -90,6 +90,7 @@ void main() {
       await tester.tap(find.text('Ativas  1'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.byKey(ValueKey('debt-open-$id')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('debt-open-$id')));
       await tester.pumpAndSettle();
       expect(find.text('Detalhes da dívida'), findsOneWidget);
@@ -107,9 +108,11 @@ void main() {
       expect((await repo.load()).single.balanceMinor, 1950000);
       expect((await repo.load()).single.projectedMinor, 1900000);
       await tester.ensureVisible(find.text('Dados'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Dados'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Contrato do carro'));
+      await tester.pumpAndSettle();
       expect(find.text('Contrato do carro'), findsOneWidget);
       if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW') &&
           size.width == 390) {
