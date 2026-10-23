@@ -9,3 +9,9 @@ O card Transferências aparece no Resumo mobile e desktop, por moeda. Apresenta 
 O período padrão das transferências segue a data de atividade: efetivação para realizadas e vencimento para pendentes/agendadas. As opções explícitas de lançamento, vencimento e efetivação permanecem disponíveis nos filtros. Resumo, Movimentos e a tela de Transferências usam a mesma referência mensal. Valores futuros agendados permanecem separados dos realizados.
 
 Sem migration ou alteração nos cálculos de renda, despesa e saldos. As consultas excluem transferências removidas; o card também exclui contas removidas e mantém moedas separadas.
+
+## Totais de Movimentos na mesma base do Resumo
+
+O cabeçalho de Movimentos mostra Recebido no mês e Pago no mês usando a mesma consulta do detalhamento do Resumo: valores efetivos, datas de efetivação, contas incluídas no saldo e registros que não ignoram saldo. Pago inclui despesas liquidadas e pagamentos efetivos de cartão; não inclui a compra/fatura novamente, pendências nem transferências. Baixas parciais seguem seus valores, datas e contas reais.
+
+Esse cartão é mensal e acompanha o mês do topo; filtros de tipo, conta, categoria e período personalizam a lista, sem mudar o consolidado mensal do cartão. A legenda identifica a referência ao Resumo. A lista e seus valores previstos continuam disponíveis para edição. A consulta é compartilhada entre as telas para evitar divergência de critérios, sem migrations ou alterações de registros.

@@ -1,3 +1,5 @@
+import 'package:finapp/features/balances/domain/monthly_cash_flow.dart';
+import 'package:finapp/features/balances/data/sqlite_monthly_cash_flow_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +73,8 @@ void main() {
     getIt.registerSingleton<AccountsRepository>(accounts);
     getIt.registerSingleton<CategoriesRepository>(categories);
     getIt.registerSingleton<TransfersRepository>(transfers);
+    getIt.registerSingleton<MonthlyCashFlowRepository>(
+        SqliteMonthlyCashFlowRepository(db));
     referenceMonth.select(month);
   });
   tearDown(() async {
@@ -82,7 +86,9 @@ void main() {
       'feed filtra conta de origem/destino e período sem alterar receitas/despesas',
       () async {
     final cubit = TransactionsCubit(transactions, accounts, categories,
-        transfers: transfers, month: month);
+        transfers: transfers,
+        month: month,
+        cashFlow: getIt<MonthlyCashFlowRepository>());
     addTearDown(cubit.close);
     await cubit.load();
     expect(cubit.state.error, isNull);
@@ -92,6 +98,8 @@ void main() {
         accountId: destination.id, from: month, to: DateTime(2020, 1, 31)));
     expect(cubit.state.transfers.single.id, moved.id);
     expect(cubit.state.items, isEmpty);
+    expect(cubit.state.cashFlow!['BRL']!.incomeMinor, 20000);
+    expect(cubit.state.cashFlow!['BRL']!.paidMinor, 5000);
     await cubit.load(const TransactionFilter(type: TransactionType.income));
     expect(cubit.state.transfers, isEmpty);
     await cubit.load(
@@ -148,6 +156,53 @@ void main() {
   });
 
   testWidgets(
+      'totais usam valor efetivo e excluem contas fora do saldo e pendências',
+      (tester) async {
+    final excluded = await accounts.create(const AccountDraft(
+        name: 'Fora do consolidado',
+        type: AccountType.checking,
+        currencyCode: 'BRL',
+        initialBalanceMinor: 0,
+        includeInAnalytics: true,
+        includeInBalance: false));
+    await transactions.create(TransactionDraft(
+        description: 'Receita externa',
+        type: TransactionType.income,
+        amountMinor: 90000,
+        date: DateTime(2020, 1, 15),
+        effectiveDate: DateTime(2020, 1, 15),
+        isEffective: true,
+        accountId: excluded.id));
+    await transactions.create(TransactionDraft(
+        description: 'Pendente',
+        type: TransactionType.expense,
+        amountMinor: 2500,
+        date: DateTime(2020, 1, 18),
+        isEffective: false,
+        accountId: source.id));
+    await db.customStatement(
+        "UPDATE transactions SET actual_amount_minor=4300 WHERE type='expense' AND effective_at IS NOT NULL");
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark.copyWith(platform: TargetPlatform.android),
+        home: const SomiaShell(
+            location: '/transactions', child: TransactionsPage())));
+    await tester.pumpAndSettle();
+    final totals = find.byKey(const ValueKey('movements-cash-totals'));
+    expect(find.descendant(of: totals, matching: find.text('R\$ 200,00')),
+        findsOneWidget);
+    expect(find.descendant(of: totals, matching: find.text('R\$ 43,00')),
+        findsOneWidget);
+    expect(find.descendant(of: totals, matching: find.text('R\$ 900,00')),
+        findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
       'mobile mostra transferência única com origem/destino e totais separados',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -165,6 +220,8 @@ void main() {
     expect(find.text('Conta A → Conta B'), findsOneWidget);
     expect(find.text('R\$ 200,00'), findsOneWidget);
     expect(find.text('R\$ 50,00'), findsOneWidget);
+    expect(find.text('Recebido no mês'), findsOneWidget);
+    expect(find.text('Pago no mês'), findsOneWidget);
     referenceMonth.select(DateTime(2020, 2));
     await tester.pumpAndSettle();
     expect(row, findsNothing);

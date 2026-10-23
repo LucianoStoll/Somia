@@ -1,3 +1,5 @@
+import '../../balances/domain/monthly_cash_flow.dart';
+import 'movement_cash_totals.dart';
 import '../../transfers/domain/transfer.dart';
 import '../../transfers/domain/transfers_repository.dart';
 import '../../transfers/presentation/transfer_feed_row.dart';
@@ -100,6 +102,9 @@ class TransactionsPage extends StatelessWidget {
           sectionType: sectionType,
           transfers: getIt.isRegistered<TransfersRepository>()
               ? getIt<TransfersRepository>()
+              : null,
+          cashFlow: getIt.isRegistered<MonthlyCashFlowRepository>()
+              ? getIt<MonthlyCashFlowRepository>()
               : null,
           month: referenceMonth.value,
         ),
@@ -268,6 +273,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
             to: _range?.end,
             dateField: _dateField,
           ),
+          referenceMonth.value,
         );
   }
 
@@ -694,7 +700,9 @@ class _TransactionsViewState extends State<_TransactionsView> {
                   ],
                 ),
               ),
-              if (mobile) _mobileTotals(state.items, state.transfers),
+              if (mobile ||
+                  widget.sectionType == null && state.cashFlow != null)
+                _mobileTotals(state),
               Expanded(
                 child: state.items.isEmpty && state.transfers.isEmpty
                     ? Center(
@@ -731,8 +739,11 @@ class _TransactionsViewState extends State<_TransactionsView> {
     _apply();
   }
 
-  Widget _mobileTotals(
-      List<FinancialTransaction> items, List<Transfer> transfers) {
+  Widget _mobileTotals(TransactionsState state) {
+    if (widget.sectionType == null && state.cashFlow != null) {
+      return MovementCashTotals(totals: state.cashFlow!);
+    }
+    final items = state.items, transfers = state.transfers;
     final currencies = {
       ...items.map((item) => item.currencyCode),
       ...transfers.map((item) => item.currencyCode)
