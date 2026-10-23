@@ -746,9 +746,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.getSize(find.byType(Drawer)).width, closeTo(343.2, 0.1));
       expect(find.byTooltip('Fechar menu'), findsOneWidget);
+      final drawerScroll = find
+          .descendant(
+              of: find.byType(Drawer), matching: find.byType(Scrollable))
+          .first;
       for (final label in ['FINANÇAS', 'PLANEJAMENTO', 'APLICATIVO']) {
+        await tester.scrollUntilVisible(find.text(label), 150,
+            scrollable: drawerScroll);
         expect(find.text(label), findsOneWidget);
       }
+      await tester.drag(find.byType(Drawer), const Offset(0, 2000));
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('bottom-Mais')), findsNothing);
       expect(find.byKey(const ValueKey('bottom-Relatórios')), findsOneWidget);
       expect(find.byKey(const ValueKey('bottom-Cartões')), findsOneWidget);
