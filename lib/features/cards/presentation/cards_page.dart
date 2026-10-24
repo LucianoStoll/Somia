@@ -265,13 +265,17 @@ class _CardsPageState extends State<CardsPage> {
         availableCoverage: available,
         onSubmitWithCoverage:
             (account, amount, date, fee, discount, coverage) => _repo.pay(
-                invoice.id, account, amount, date,
-                fee: fee,
-                discount: discount,
-                coverage: coverage.isEmpty &&
-                        amount >= available.values.fold(0, (a, b) => a + b)
-                    ? null
-                    : coverage),
+          invoice.id,
+          account,
+          amount,
+          date,
+          fee: fee,
+          discount: discount,
+          coverage: coverage.isEmpty &&
+                  amount >= available.values.fold(0, (a, b) => a + b)
+              ? null
+              : coverage,
+        ),
         onSubmit: (account, amount, date, fee, discount) => _repo.pay(
           invoice.id,
           account,
@@ -433,7 +437,10 @@ class _CardsPageState extends State<CardsPage> {
           ],
         ),
       );
-  Widget _cardMenu(CreditCard c, {bool detailActions = false}) =>
+  Widget _cardMenu(
+    CreditCard c, {
+    bool detailActions = false,
+  }) =>
       PopupMenuButton<String>(
         enabled: !_acting,
         onSelected: (action) async {
@@ -802,13 +809,17 @@ class _CardsPageState extends State<CardsPage> {
         ),
       );
 
-  String _referenceMoney(int minor) => cardMoney(minor).replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{3})+,)'),
-        (match) => '${match[1]}.',
-      );
+  String _referenceMoney(int minor) => cardMoney(
+        minor,
+      ).replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+,)'), (match) => '${match[1]}.');
 
-  Widget _referenceMetric(String label, int amount,
-      {IconData? icon, Color? color}) {
+  Widget _referenceMetric(
+    String label,
+    int amount, {
+    IconData? icon,
+    Color? color,
+  }) {
     final amountText =
         amount < 0 ? '-${_referenceMoney(-amount)}' : _referenceMoney(amount);
     return Padding(
@@ -834,7 +845,10 @@ class _CardsPageState extends State<CardsPage> {
               amountText,
               textAlign: TextAlign.right,
               style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w700, color: color),
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
           ),
         ],
@@ -848,15 +862,21 @@ class _CardsPageState extends State<CardsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                AccountAvatar(institutionId: card.institutionId, size: 44),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(card.name,
+              Row(
+                children: [
+                  AccountAvatar(institutionId: card.institutionId, size: 44),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      card.name,
                       style: const TextStyle(
-                          fontSize: 23, fontWeight: FontWeight.w600)),
-                ),
-              ]),
+                        fontSize: 23,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
               if (card.limitMinor != null)
                 _referenceMetric('Limite total', card.limitMinor!)
@@ -906,7 +926,8 @@ class _CardsPageState extends State<CardsPage> {
                             ? const Color(0xFF394E5D)
                             : Colors.transparent,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(11)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
                   ),
                   onPressed: () => setState(() {
                     _bulkMode = false;
@@ -914,9 +935,13 @@ class _CardsPageState extends State<CardsPage> {
                     _statement = tab == 'Extrato';
                     _cash = tab == 'Pagamentos';
                   }),
-                  child: Text(tab,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w400)),
+                  child: Text(
+                    tab,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
                 ),
               ),
           ],
@@ -924,24 +949,34 @@ class _CardsPageState extends State<CardsPage> {
       );
 
   Widget _referenceActions(CreditCard card) {
-    Widget actionRow(String label, IconData icon, VoidCallback? onTap) =>
+    Widget actionRow(
+      String label,
+      IconData icon,
+      VoidCallback? onTap,
+    ) =>
         InkWell(
           onTap: onTap,
           child: SizedBox(
             height: 44,
-            child: Row(children: [
-              Icon(icon, size: 20, color: SomiaColors.blue),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Text(label, style: const TextStyle(fontSize: 14))),
-              const Icon(Icons.chevron_right,
-                  size: 22, color: SomiaColors.muted),
-            ]),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: SomiaColors.blue),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: Text(label, style: const TextStyle(fontSize: 14))),
+                const Icon(Icons.chevron_right,
+                    size: 22, color: SomiaColors.muted),
+              ],
+            ),
           ),
         );
 
     Widget mainAction(
-            String label, IconData icon, bool filled, VoidCallback? onTap) =>
+      String label,
+      IconData icon,
+      bool filled,
+      VoidCallback? onTap,
+    ) =>
         Semantics(
           button: true,
           enabled: onTap != null,
@@ -949,7 +984,8 @@ class _CardsPageState extends State<CardsPage> {
             color: filled ? SomiaColors.blue : Colors.transparent,
             shape: StadiumBorder(
               side: BorderSide(
-                  color: filled ? SomiaColors.blue : SomiaColors.outline),
+                color: filled ? SomiaColors.blue : SomiaColors.outline,
+              ),
             ),
             child: InkWell(
               customBorder: const StadiumBorder(),
@@ -959,20 +995,24 @@ class _CardsPageState extends State<CardsPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(icon,
-                        size: 18,
-                        color: filled ? SomiaColors.sidebar : SomiaColors.blue),
+                    Icon(
+                      icon,
+                      size: 18,
+                      color: filled ? SomiaColors.sidebar : SomiaColors.blue,
+                    ),
                     const SizedBox(width: 8),
                     Flexible(
-                      child: Text(label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: filled
-                                  ? SomiaColors.sidebar
-                                  : SomiaColors.blue)),
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color:
+                              filled ? SomiaColors.sidebar : SomiaColors.blue,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -987,33 +1027,56 @@ class _CardsPageState extends State<CardsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Ações da fatura',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Ações da fatura',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 14),
-            Row(children: [
-              Expanded(
-                child: mainAction('Pagar fatura', Icons.payments_outlined, true,
-                    _acting ? null : _pay),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: mainAction('Nova compra', Icons.add, false,
-                    _acting || card.isArchived ? null : () => _buy()),
-              ),
-            ]),
+            Row(
+              children: [
+                Expanded(
+                  child: mainAction(
+                    'Pagar fatura',
+                    Icons.payments_outlined,
+                    true,
+                    _acting ? null : _pay,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: mainAction(
+                    'Nova compra',
+                    Icons.add,
+                    false,
+                    _acting || card.isArchived ? null : () => _buy(),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 18),
-            const Text('Mais ações',
-                style: TextStyle(color: SomiaColors.muted, fontSize: 13)),
+            const Text(
+              'Mais ações',
+              style: TextStyle(color: SomiaColors.muted, fontSize: 13),
+            ),
             const SizedBox(height: 8),
             const Divider(height: 1),
-            actionRow('Antecipar parcelas', Icons.storage_outlined,
-                _acting ? null : _anticipate),
+            actionRow(
+              'Antecipar parcelas',
+              Icons.storage_outlined,
+              _acting ? null : _anticipate,
+            ),
             const Divider(height: 1),
-            actionRow('Ajustar datas', Icons.calendar_today_outlined,
-                _acting ? null : _dates),
+            actionRow(
+              'Ajustar datas',
+              Icons.calendar_today_outlined,
+              _acting ? null : _dates,
+            ),
             const Divider(height: 1),
-            actionRow('Saldo inicial', Icons.receipt_long_outlined,
-                _acting ? null : _opening),
+            actionRow(
+              'Saldo inicial',
+              Icons.receipt_long_outlined,
+              _acting ? null : _opening,
+            ),
           ],
         ),
       ),
@@ -1027,32 +1090,45 @@ class _CardsPageState extends State<CardsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                  'Fatura de ${monthNames[invoice.month.month - 1].toLowerCase()}',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w700)),
+                'Fatura de ${monthNames[invoice.month.month - 1].toLowerCase()}',
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 16),
               if (invoice.previousMinor != 0)
                 _referenceMetric(
-                    invoice.previousMinor < 0
-                        ? 'Crédito anterior'
-                        : 'Saldo anterior',
-                    invoice.previousMinor,
-                    icon: Icons.history),
-              _referenceMetric('Compras', invoice.chargesMinor,
-                  icon: Icons.shopping_cart_outlined),
-              _referenceMetric('Pagamentos', -invoice.paidMinor,
-                  icon: Icons.arrow_upward, color: SomiaColors.red),
+                  invoice.previousMinor < 0
+                      ? 'Crédito anterior'
+                      : 'Saldo anterior',
+                  invoice.previousMinor,
+                  icon: Icons.history,
+                ),
+              _referenceMetric(
+                'Compras',
+                invoice.chargesMinor,
+                icon: Icons.shopping_cart_outlined,
+              ),
+              _referenceMetric(
+                'Pagamentos',
+                -invoice.paidMinor,
+                icon: Icons.arrow_upward,
+                color: SomiaColors.red,
+              ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Divider(height: 1),
               ),
               _referenceMetric(
-                  invoice.balanceMinor < 0 ? 'Saldo credor' : 'A pagar',
-                  invoice.balanceMinor,
-                  icon: Icons.description_outlined),
+                invoice.balanceMinor < 0 ? 'Saldo credor' : 'A pagar',
+                invoice.balanceMinor,
+                icon: Icons.description_outlined,
+              ),
               if (invoice.scheduledMinor > 0) ...[
-                _referenceMetric('Agendado', -invoice.scheduledMinor,
-                    icon: Icons.schedule_outlined),
+                _referenceMetric(
+                  'Agendado',
+                  -invoice.scheduledMinor,
+                  icon: Icons.schedule_outlined,
+                ),
                 _referenceMetric('Após agendamentos', invoice.projectedMinor),
               ],
             ],
@@ -1090,195 +1166,265 @@ class _CardsPageState extends State<CardsPage> {
       key: const ValueKey('future-invoices-chart'),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: LayoutBuilder(builder: (context, constraints) {
-          final visibleCount = constraints.maxWidth < 340 ? 6 : 8;
-          final lastStart = invoices.length > visibleCount
-              ? invoices.length - visibleCount
-              : 0;
-          final start = (index - visibleCount ~/ 2).clamp(0, lastStart);
-          final shown = invoices.skip(start).take(visibleCount).toList();
-          final peak = shown.fold<int>(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final visibleCount = constraints.maxWidth < 340 ? 6 : 8;
+            final lastStart = invoices.length > visibleCount
+                ? invoices.length - visibleCount
+                : 0;
+            final start = (index - visibleCount ~/ 2).clamp(0, lastStart);
+            final shown = invoices.skip(start).take(visibleCount).toList();
+            final peak = shown.fold<int>(
               0,
               (max, invoice) =>
-                  invoice.chargesMinor > max ? invoice.chargesMinor : max);
-          final chartMax = peak == 0 ? 1 : peak;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                const Expanded(
-                  child: Text('Compras do mês',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: SomiaColors.blue.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(selected.status.toUpperCase(),
-                      style: const TextStyle(
+                  invoice.chargesMinor > max ? invoice.chargesMinor : max,
+            );
+            final chartMax = peak == 0 ? 1 : peak;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Compras do mês',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: SomiaColors.blue.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        selected.status.toUpperCase(),
+                        style: const TextStyle(
                           color: SomiaColors.blue,
                           fontSize: 11,
-                          fontWeight: FontWeight.w700)),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ]),
-              const SizedBox(height: 12),
-              Text(_referenceMoney(selected.chargesMinor),
+                const SizedBox(height: 12),
+                Text(
+                  _referenceMoney(selected.chargesMinor),
                   key: const ValueKey('future-invoice-amount'),
                   style: const TextStyle(
-                      fontSize: 28, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 24),
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SizedBox(
-                  width: 64,
-                  height: 140,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(_referenceMoney(chartMax),
-                          style: const TextStyle(
-                              color: SomiaColors.muted, fontSize: 10)),
-                      Text(_referenceMoney(chartMax ~/ 2),
-                          style: const TextStyle(
-                              color: SomiaColors.muted, fontSize: 10)),
-                    ],
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                Expanded(
-                  child: Column(children: [
+                const SizedBox(height: 24),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     SizedBox(
+                      width: 64,
                       height: 140,
-                      child: Stack(children: [
-                        const Positioned.fill(
-                            child:
-                                CustomPaint(painter: _InvoiceGuidePainter())),
-                        Row(children: [
-                          for (final invoice in shown)
-                            Expanded(
-                              child: Semantics(
-                                button: true,
-                                selected: invoice.id == selected.id,
-                                label: '${cardMonthLabel(invoice.month)}: '
-                                    '${_referenceMoney(invoice.chargesMinor)}',
-                                child: InkWell(
-                                  key: ValueKey(
-                                      'future-invoice-bar-${invoice.month.year}-${invoice.month.month}'),
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () => setState(() =>
-                                      _selectedChartInvoiceId = invoice.id),
-                                  child: Center(
-                                    child: FractionallySizedBox(
-                                      widthFactor: 0.56,
-                                      child: Container(
-                                        height: 140,
-                                        decoration: BoxDecoration(
-                                          color: SomiaColors.muted
-                                              .withValues(alpha: 0.12),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        alignment: Alignment.bottomCenter,
-                                        child: FractionallySizedBox(
-                                          heightFactor:
-                                              invoice.chargesMinor <= 0
-                                                  ? 0
-                                                  : (invoice.chargesMinor /
-                                                          chartMax)
-                                                      .clamp(0.04, 1.0),
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: invoice.id == selected.id
-                                                  ? SomiaColors.blue
-                                                  : SomiaColors.muted
-                                                      .withValues(alpha: 0.62),
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _referenceMoney(chartMax),
+                            style: const TextStyle(
+                              color: SomiaColors.muted,
+                              fontSize: 10,
+                            ),
+                          ),
+                          Text(
+                            _referenceMoney(chartMax ~/ 2),
+                            style: const TextStyle(
+                              color: SomiaColors.muted,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            height: 140,
+                            child: Stack(
+                              children: [
+                                const Positioned.fill(
+                                  child: CustomPaint(
+                                    painter: _InvoiceGuidePainter(),
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    for (final invoice in shown)
+                                      Expanded(
+                                        child: Semantics(
+                                          button: true,
+                                          selected: invoice.id == selected.id,
+                                          label:
+                                              '${cardMonthLabel(invoice.month)}: '
+                                              '${_referenceMoney(invoice.chargesMinor)}',
+                                          child: InkWell(
+                                            key: ValueKey(
+                                              'future-invoice-bar-${invoice.month.year}-${invoice.month.month}',
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            onTap: () => setState(
+                                              () => _selectedChartInvoiceId =
+                                                  invoice.id,
+                                            ),
+                                            child: Center(
+                                              child: FractionallySizedBox(
+                                                widthFactor: 0.56,
+                                                child: Container(
+                                                  height: 140,
+                                                  decoration: BoxDecoration(
+                                                    color: SomiaColors.muted
+                                                        .withValues(
+                                                      alpha: 0.12,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      16,
+                                                    ),
+                                                  ),
+                                                  alignment:
+                                                      Alignment.bottomCenter,
+                                                  child: FractionallySizedBox(
+                                                    heightFactor: invoice
+                                                                .chargesMinor <=
+                                                            0
+                                                        ? 0
+                                                        : (invoice.chargesMinor /
+                                                                chartMax)
+                                                            .clamp(0.04, 1.0),
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        color: invoice.id ==
+                                                                selected.id
+                                                            ? SomiaColors.blue
+                                                            : SomiaColors.muted
+                                                                .withValues(
+                                                                alpha: 0.62,
+                                                              ),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(
+                                                          16,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            height: 18,
+                            child: Row(
+                              children: [
+                                for (final invoice in shown)
+                                  Expanded(
+                                    child: invoice.id == selected.id
+                                        ? const Icon(
+                                            Icons.arrow_drop_up,
+                                            size: 18,
+                                            color: SomiaColors.blue,
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            height: 32,
+                            child: Row(
+                              children: [
+                                for (final invoice in shown)
+                                  Expanded(
+                                    child: Text(
+                                      '${monthNames[invoice.month.month - 1].substring(0, 3)}\n${invoice.month.year}',
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      style: TextStyle(
+                                        color: invoice.id == selected.id
+                                            ? SomiaColors.blue
+                                            : SomiaColors.muted,
+                                        fontSize: 9,
+                                        fontWeight: invoice.id == selected.id
+                                            ? FontWeight.w700
+                                            : FontWeight.w400,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ),
-                        ]),
-                      ]),
-                    ),
-                    SizedBox(
-                      height: 18,
-                      child: Row(children: [
-                        for (final invoice in shown)
-                          Expanded(
-                            child: invoice.id == selected.id
-                                ? const Icon(Icons.arrow_drop_up,
-                                    size: 18, color: SomiaColors.blue)
-                                : const SizedBox.shrink(),
-                          ),
-                      ]),
-                    ),
-                    SizedBox(
-                      height: 32,
-                      child: Row(children: [
-                        for (final invoice in shown)
-                          Expanded(
-                            child: Text(
-                              '${monthNames[invoice.month.month - 1].substring(0, 3)}\n${invoice.month.year}',
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              style: TextStyle(
-                                color: invoice.id == selected.id
-                                    ? SomiaColors.blue
-                                    : SomiaColors.muted,
-                                fontSize: 9,
-                                fontWeight: invoice.id == selected.id
-                                    ? FontWeight.w700
-                                    : FontWeight.w400,
-                              ),
+                              ],
                             ),
                           ),
-                      ]),
+                        ],
+                      ),
                     ),
-                  ]),
+                  ],
                 ),
-              ]),
-              const SizedBox(height: 18),
-              Row(children: [
-                IconButton.filledTonal(
-                  tooltip: 'Fatura anterior',
-                  onPressed: index == 0
-                      ? null
-                      : () => setState(() =>
-                          _selectedChartInvoiceId = invoices[index - 1].id),
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => referenceMonth.select(selected.month),
-                    child: Text(
-                      '${monthNames[selected.month.month - 1]} ${selected.month.year}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    IconButton.filledTonal(
+                      tooltip: 'Fatura anterior',
+                      onPressed: index == 0
+                          ? null
+                          : () => setState(
+                                () => _selectedChartInvoiceId =
+                                    invoices[index - 1].id,
+                              ),
+                      icon: const Icon(Icons.chevron_left),
                     ),
-                  ),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => referenceMonth.select(selected.month),
+                        child: Text(
+                          '${monthNames[selected.month.month - 1]} ${selected.month.year}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton.filledTonal(
+                      tooltip: 'Próxima fatura',
+                      onPressed: index == invoices.length - 1
+                          ? null
+                          : () => setState(
+                                () => _selectedChartInvoiceId =
+                                    invoices[index + 1].id,
+                              ),
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
                 ),
-                IconButton.filledTonal(
-                  tooltip: 'Próxima fatura',
-                  onPressed: index == invoices.length - 1
-                      ? null
-                      : () => setState(() =>
-                          _selectedChartInvoiceId = invoices[index + 1].id),
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ]),
-            ],
-          );
-        }),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -1376,25 +1522,36 @@ class _CardsPageState extends State<CardsPage> {
             final details = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(e.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 3),
-                Text(category,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: SomiaColors.muted, fontSize: 12)),
+                Text(
+                  e.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 3),
                 Text(
-                    'Compra: ${cardDateLabel(e.postedAt)}'
-                    '${e.establishment.isEmpty ? '' : ' · ${e.establishment}'}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: SomiaColors.muted, fontSize: 11)),
+                  category,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: SomiaColors.muted,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Compra: ${cardDateLabel(e.postedAt)}'
+                  '${e.establishment.isEmpty ? '' : ' · ${e.establishment}'}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: SomiaColors.muted,
+                    fontSize: 11,
+                  ),
+                ),
               ],
             );
             final amount = Column(
@@ -1409,26 +1566,32 @@ class _CardsPageState extends State<CardsPage> {
                         : '-${_referenceMoney(e.amountMinor)}',
                     maxLines: 1,
                     style: TextStyle(
-                        color: color,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700),
+                      color: color,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: SomiaColors.blue.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Text(e.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: SomiaColors.blue,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
+                  child: Text(
+                    e.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: SomiaColors.blue,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             );
@@ -1436,12 +1599,14 @@ class _CardsPageState extends State<CardsPage> {
             if (compact) {
               return Column(
                 children: [
-                  Row(children: [
-                    leading,
-                    const SizedBox(width: 10),
-                    Expanded(child: details),
-                    menu,
-                  ]),
+                  Row(
+                    children: [
+                      leading,
+                      const SizedBox(width: 10),
+                      Expanded(child: details),
+                      menu,
+                    ],
+                  ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: Padding(
@@ -1452,14 +1617,16 @@ class _CardsPageState extends State<CardsPage> {
                 ],
               );
             }
-            return Row(children: [
-              leading,
-              const SizedBox(width: 10),
-              Expanded(child: details),
-              const SizedBox(width: 6),
-              SizedBox(width: 110, child: amount),
-              menu,
-            ]);
+            return Row(
+              children: [
+                leading,
+                const SizedBox(width: 10),
+                Expanded(child: details),
+                const SizedBox(width: 6),
+                SizedBox(width: 110, child: amount),
+                menu,
+              ],
+            );
           },
         ),
       ),
@@ -1477,10 +1644,7 @@ class _CardsPageState extends State<CardsPage> {
         isThreeLine: true,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(cardMoney(e.amountMinor)),
-            _entryMenu(e),
-          ],
+          children: [Text(cardMoney(e.amountMinor)), _entryMenu(e)],
         ),
       );
 
@@ -1491,10 +1655,7 @@ class _CardsPageState extends State<CardsPage> {
           const PopupMenuItem(value: 'attachments', child: Text('Anexos')),
           if (e.kind == 'purchase') ...[
             if (getIt.isRegistered<MovementManagementRepository>())
-              const PopupMenuItem(
-                value: 'bulk',
-                child: Text('Editar em lote'),
-              ),
+              const PopupMenuItem(value: 'bulk', child: Text('Editar em lote')),
             const PopupMenuItem(
               value: 'edit',
               child: Text('Editar / mudar fatura'),
@@ -1513,12 +1674,14 @@ class _CardsPageState extends State<CardsPage> {
       final invoice = await _repo.invoice(data.invoiceId);
       if (!mounted) return;
       final chosen = await showMovementForm<Map<String, int>>(
-          context,
-          (_) => PaymentCoverageForm(
-              payment: payment,
-              entries: invoice.entries,
-              available: data.available,
-              selected: data.selected));
+        context,
+        (_) => PaymentCoverageForm(
+          payment: payment,
+          entries: invoice.entries,
+          available: data.available,
+          selected: data.selected,
+        ),
+      );
       if (chosen != null && mounted) {
         await _run(() => repo.replace(payment.id, chosen));
       }
@@ -1534,27 +1697,31 @@ class _CardsPageState extends State<CardsPage> {
         subtitle: Text(
           '${p.accountName} · ${cardDateLabel(p.date)}${cardDay(p.date) > cardDay(DateTime.now()) ? ' · Agendado' : ''}',
         ),
-        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          IconButton(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
               tooltip: 'Compras cobertas',
               onPressed: _acting ? null : () => _coverage(p),
-              icon: const Icon(Icons.checklist)),
-          IconButton(
-            tooltip: 'Desfazer pagamento',
-            icon: const Icon(Icons.undo),
-            onPressed: _acting
-                ? null
-                : () async {
-                    if (await _confirm(
-                          'Desfazer pagamento?',
-                          'O débito sairá da conta e a dívida voltará à fatura. Encargos e desconto deste pagamento também serão desfeitos.',
-                        ) &&
-                        mounted) {
-                      await _run(() => _repo.undoPayment(p.id));
-                    }
-                  },
-          ),
-        ]),
+              icon: const Icon(Icons.checklist),
+            ),
+            IconButton(
+              tooltip: 'Desfazer pagamento',
+              icon: const Icon(Icons.undo),
+              onPressed: _acting
+                  ? null
+                  : () async {
+                      if (await _confirm(
+                            'Desfazer pagamento?',
+                            'O débito sairá da conta e a dívida voltará à fatura. Encargos e desconto deste pagamento também serão desfeitos.',
+                          ) &&
+                          mounted) {
+                        await _run(() => _repo.undoPayment(p.id));
+                      }
+                    },
+            ),
+          ],
+        ),
       );
   @override
   Widget build(BuildContext context) {
@@ -1579,6 +1746,7 @@ class _CardsPageState extends State<CardsPage> {
       appBar: referenceDetail
           ? AppBar(
               automaticallyImplyLeading: false,
+              leading: somiaMenuLeading(context),
               toolbarHeight: 64,
               titleSpacing: 16,
               title: const SomiaBrand(height: 30),
@@ -1591,14 +1759,17 @@ class _CardsPageState extends State<CardsPage> {
                   : somiaMenuLeading(context),
               actions: [
                 IconButton(
-                    tooltip: 'Cartões de débito',
-                    onPressed: () => context.go(AppRoutes.debitCardsPath),
-                    icon: const Icon(Icons.payment_outlined)),
+                  tooltip: 'Cartões de débito',
+                  onPressed: () => context.go(AppRoutes.debitCardsPath),
+                  icon: const Icon(Icons.payment_outlined),
+                ),
                 IconButton(
-                    tooltip: 'Cashback',
-                    onPressed: () => context.go(
-                        '/cashback${_cardId == null ? '' : '?kind=credit&card=$_cardId'}'),
-                    icon: const Icon(Icons.paid_outlined)),
+                  tooltip: 'Cashback',
+                  onPressed: () => context.go(
+                    '/cashback${_cardId == null ? '' : '?kind=credit&card=$_cardId'}',
+                  ),
+                  icon: const Icon(Icons.paid_outlined),
+                ),
                 IconButton(
                   tooltip: 'Novo cartão',
                   onPressed: _loading || _acting ? null : () => _editCard(),
@@ -1623,24 +1794,31 @@ class _CardsPageState extends State<CardsPage> {
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
                     children: [
                       if (referenceDetail) ...[
-                        Row(children: [
-                          BackButton(
-                              onPressed: () => context.go(AppRoutes.cardsPath)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              card == null
-                                  ? 'Cartão'
-                                  : card.name.toLowerCase().startsWith('cartão')
-                                      ? card.name
-                                      : 'Cartão ${card.name}',
-                              style: const TextStyle(
-                                  fontSize: 24, fontWeight: FontWeight.w700),
+                        Row(
+                          children: [
+                            BackButton(
+                              onPressed: () => context.go(AppRoutes.cardsPath),
                             ),
-                          ),
-                          if (card != null)
-                            _cardMenu(card, detailActions: true),
-                        ]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                card == null
+                                    ? 'Cartão'
+                                    : card.name
+                                            .toLowerCase()
+                                            .startsWith('cartão')
+                                        ? card.name
+                                        : 'Cartão ${card.name}',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (card != null)
+                              _cardMenu(card, detailActions: true),
+                          ],
+                        ),
                         const SizedBox(height: 4),
                         MonthSelector(
                           month: _month,
@@ -1937,7 +2115,10 @@ class _InvoiceGuidePainter extends CustomPainter {
     for (final y in [0.0, size.height / 2, size.height - 1]) {
       for (var x = 0.0; x < size.width; x += 9) {
         canvas.drawLine(
-            Offset(x, y), Offset((x + 5).clamp(0, size.width), y), paint);
+          Offset(x, y),
+          Offset((x + 5).clamp(0, size.width), y),
+          paint,
+        );
       }
     }
   }

@@ -505,12 +505,13 @@ class _TransactionsViewState extends State<_TransactionsView> {
       appBar: mobile
           ? AppBar(
               automaticallyImplyLeading: false,
+              leading: somiaMenuLeading(context),
               toolbarHeight: 64,
               titleSpacing: 16,
               title: Row(
                 children: [
                   SomiaBrand(
-                    symbolOnly: MediaQuery.sizeOf(context).width < 350,
+                    symbolOnly: MediaQuery.sizeOf(context).width < 460,
                     height: 30,
                   ),
                   const SizedBox(width: 8),
@@ -537,8 +538,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
               ),
               leading: somiaMenuLeading(context),
             ),
-      floatingActionButton:
-          somiaUsesMobileNavigation(context) ? null : const SomiaQuickActions(),
+      floatingActionButton: const SomiaQuickActions(),
       body: BlocConsumer<TransactionsCubit, TransactionsState>(
         listener: (context, state) {
           if (!_openedInitial &&
@@ -852,8 +852,9 @@ class _TransactionsViewState extends State<_TransactionsView> {
         pending.add(item);
       }
     }
-    pending
-        .sort((a, b) => (a.dueDate ?? a.date).compareTo(b.dueDate ?? b.date));
+    pending.sort(
+      (a, b) => (a.dueDate ?? a.date).compareTo(b.dueDate ?? b.date),
+    );
     final days = groups.keys.toList()..sort((a, b) => b.compareTo(a));
     return [
       if (pending.isNotEmpty)

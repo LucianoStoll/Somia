@@ -1,6 +1,8 @@
 import 'package:finapp/features/cards/data/cards_repository.dart';
 import 'package:finapp/features/cards/domain/credit_card.dart';
+
 import 'dart:io';
+
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/core/database/backup_manager.dart';
@@ -8,7 +10,9 @@ import 'package:finapp/core/database/local_backup_store.dart';
 import 'package:finapp/core/database/backup_service.dart';
 import 'package:finapp/features/accounts/data/sqlite_accounts_repository.dart';
 import 'package:finapp/features/accounts/data/account_statement_repository.dart';
+
 import 'account_statement_page_test.dart' as statements;
+
 import 'package:finapp/core/series/movement_series.dart';
 import 'package:finapp/app/app.dart';
 import 'package:finapp/core/theme/app_theme.dart';
@@ -41,43 +45,51 @@ class _CardsNavigationStub extends Fake implements CardsRepository {
   @override
   Future<List<CreditCard>> list() async => [
         const CreditCard(
-            id: 'card',
-            name: 'Cartão teste',
-            paymentAccountId: 'a',
-            closingDay: 1,
-            dueDay: 10,
-            limitMinor: 50000)
+          id: 'card',
+          name: 'Cartão teste',
+          paymentAccountId: 'a',
+          closingDay: 1,
+          dueDay: 10,
+          limitMinor: 50000,
+        ),
       ];
   @override
-  Future<List<CardInvoice>> invoices(String cardId,
-          {DateTime? selected}) async =>
+  Future<List<CardInvoice>> invoices(
+    String cardId, {
+    DateTime? selected,
+  }) async =>
       [
         CardInvoice(
-            id: 'invoice',
-            cardId: cardId,
-            month: selected!,
-            closingAt: DateTime(selected.year, selected.month, 1),
-            dueAt: DateTime(selected.year, selected.month, 10),
-            previousMinor: 0,
-            chargesMinor: 0,
-            paidMinor: 0,
-            scheduledMinor: 0)
+          id: 'invoice',
+          cardId: cardId,
+          month: selected!,
+          closingAt: DateTime(selected.year, selected.month, 1),
+          dueAt: DateTime(selected.year, selected.month, 10),
+          previousMinor: 0,
+          chargesMinor: 0,
+          paidMinor: 0,
+          scheduledMinor: 0,
+        ),
       ];
 }
 
 class _DashboardStub implements DashboardRepository {
   @override
-  Future<DashboardSummary> load(DateTime month) async =>
-      DashboardSummary(month: month, currencies: const [
-        DashboardCurrencySummary(
+  Future<DashboardSummary> load(DateTime month) async => DashboardSummary(
+        month: month,
+        currencies: const [
+          DashboardCurrencySummary(
             currencyCode: 'BRL',
             currentBalanceMinor: 10000,
             projectedBalanceMinor: 10000,
             incomeMinor: 20000,
             expenseMinor: 10000,
             accounts: [],
-            history: [])
-      ], recent: const []);
+            history: [],
+          ),
+        ],
+        recent: const [],
+      );
 }
 
 class _AccountsStub implements AccountsRepository {
@@ -114,40 +126,45 @@ class _TransactionsStub implements TransactionsRepository {
   final requestedFilters = <TransactionFilter>[];
   final items = [
     FinancialTransaction(
-        id: 'income',
-        description: 'Salário',
-        type: TransactionType.income,
-        amountMinor: 500000,
-        date: DateTime(2026, 9, 29),
-        isEffective: true,
-        accountId: 'a',
-        accountName: 'Conta',
-        categoryId: null,
-        categoryName: null,
-        currencyCode: 'BRL'),
+      id: 'income',
+      description: 'Salário',
+      type: TransactionType.income,
+      amountMinor: 500000,
+      date: DateTime(2026, 9, 29),
+      isEffective: true,
+      accountId: 'a',
+      accountName: 'Conta',
+      categoryId: null,
+      categoryName: null,
+      currencyCode: 'BRL',
+    ),
     FinancialTransaction(
-        id: 'expense',
-        description: 'Mercado',
-        type: TransactionType.expense,
-        amountMinor: 18000,
-        date: DateTime(2026, 9, 29),
-        isEffective: false,
-        accountId: 'a',
-        accountName: 'Conta',
-        categoryId: null,
-        categoryName: null,
-        currencyCode: 'BRL'),
+      id: 'expense',
+      description: 'Mercado',
+      type: TransactionType.expense,
+      amountMinor: 18000,
+      date: DateTime(2026, 9, 29),
+      isEffective: false,
+      accountId: 'a',
+      accountName: 'Conta',
+      categoryId: null,
+      categoryName: null,
+      currencyCode: 'BRL',
+    ),
   ];
   @override
-  Future<List<FinancialTransaction>> list(
-      [TransactionFilter filter = const TransactionFilter()]) async {
+  Future<List<FinancialTransaction>> list([
+    TransactionFilter filter = const TransactionFilter(),
+  ]) async {
     requestedTypes.add(filter.type);
     requestedFilters.add(filter);
     return items
-        .where((item) =>
-            (filter.type == null || item.type == filter.type) &&
-            (filter.from == null || !item.date.isBefore(filter.from!)) &&
-            (filter.to == null || !item.date.isAfter(filter.to!)))
+        .where(
+          (item) =>
+              (filter.type == null || item.type == filter.type) &&
+              (filter.from == null || !item.date.isBefore(filter.from!)) &&
+              (filter.to == null || !item.date.isAfter(filter.to!)),
+        )
         .toList();
   }
 
@@ -158,17 +175,25 @@ class _TransactionsStub implements TransactionsRepository {
   Future<FinancialTransaction> update(String id, TransactionDraft draft) =>
       throw UnimplementedError();
   @override
-  Future<void> setEffective(String id,
-          {required bool effective, DateTime? effectiveDate}) =>
+  Future<void> setEffective(
+    String id, {
+    required bool effective,
+    DateTime? effectiveDate,
+  }) =>
       throw UnimplementedError();
   @override
-  Future<void> changeEffectiveDate(String id,
-      {required DateTime expectedDate, DateTime? effectiveDate}) async {}
+  Future<void> changeEffectiveDate(
+    String id, {
+    required DateTime expectedDate,
+    DateTime? effectiveDate,
+  }) async {}
   @override
-  Future<void> updateAmount(String id,
-      {required int expectedAmountMinor,
-      required int amountMinor,
-      SeriesScope scope = SeriesScope.onlyThis}) async {}
+  Future<void> updateAmount(
+    String id, {
+    required int expectedAmountMinor,
+    required int amountMinor,
+    SeriesScope scope = SeriesScope.onlyThis,
+  }) async {}
 
   @override
   Future<void> delete(String id, {SeriesScope scope = SeriesScope.onlyThis}) =>
@@ -179,26 +204,28 @@ class _TransfersStub implements TransfersRepository {
   @override
   Future<List<Transfer>> list({String? accountId}) async => [
         Transfer(
-            id: 'dec',
-            sourceAccountId: 'a',
-            sourceAccountName: 'Banco',
-            destinationAccountId: 'b',
-            destinationAccountName: 'Carteira',
-            currencyCode: 'BRL',
-            amountMinor: 10000,
-            date: DateTime(2026, 9, 1),
-            dueDate: DateTime(2026, 12, 31),
-            isEffective: false),
+          id: 'dec',
+          sourceAccountId: 'a',
+          sourceAccountName: 'Banco',
+          destinationAccountId: 'b',
+          destinationAccountName: 'Carteira',
+          currencyCode: 'BRL',
+          amountMinor: 10000,
+          date: DateTime(2026, 9, 1),
+          dueDate: DateTime(2026, 12, 31),
+          isEffective: false,
+        ),
         Transfer(
-            id: 'sep',
-            sourceAccountId: 'a',
-            sourceAccountName: 'Setembro',
-            destinationAccountId: 'b',
-            destinationAccountName: 'Reserva',
-            currencyCode: 'BRL',
-            amountMinor: 10000,
-            date: DateTime(2026, 9, 1),
-            isEffective: false),
+          id: 'sep',
+          sourceAccountId: 'a',
+          sourceAccountName: 'Setembro',
+          destinationAccountId: 'b',
+          destinationAccountName: 'Reserva',
+          currencyCode: 'BRL',
+          amountMinor: 10000,
+          date: DateTime(2026, 9, 1),
+          isEffective: false,
+        ),
       ];
   @override
   Future<Transfer> create(TransferDraft draft) => throw UnimplementedError();
@@ -206,17 +233,25 @@ class _TransfersStub implements TransfersRepository {
   Future<Transfer> update(String id, TransferDraft draft) =>
       throw UnimplementedError();
   @override
-  Future<void> setEffective(String id,
-          {required bool effective, DateTime? effectiveDate}) =>
+  Future<void> setEffective(
+    String id, {
+    required bool effective,
+    DateTime? effectiveDate,
+  }) =>
       throw UnimplementedError();
   @override
-  Future<void> changeEffectiveDate(String id,
-      {required DateTime expectedDate, DateTime? effectiveDate}) async {}
+  Future<void> changeEffectiveDate(
+    String id, {
+    required DateTime expectedDate,
+    DateTime? effectiveDate,
+  }) async {}
   @override
-  Future<void> updateAmount(String id,
-      {required int expectedAmountMinor,
-      required int amountMinor,
-      SeriesScope scope = SeriesScope.onlyThis}) async {}
+  Future<void> updateAmount(
+    String id, {
+    required int expectedAmountMinor,
+    required int amountMinor,
+    SeriesScope scope = SeriesScope.onlyThis,
+  }) async {}
 
   @override
   Future<void> delete(String id, {SeriesScope scope = SeriesScope.onlyThis}) =>
@@ -227,9 +262,11 @@ void main() {
   setUp(() => referenceMonth.select(DateTime(2026, 9)));
   tearDown(() => referenceMonth.select(DateTime.now()));
 
-  Future<void> openBackTest(WidgetTester tester,
-      {TargetPlatform platform = TargetPlatform.android,
-      Size size = const Size(390, 844)}) async {
+  Future<void> openBackTest(
+    WidgetTester tester, {
+    TargetPlatform platform = TargetPlatform.android,
+    Size size = const Size(390, 844),
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     getIt.registerSingleton<DashboardRepository>(_DashboardStub());
@@ -244,15 +281,19 @@ void main() {
       await getIt.reset();
     });
     appRouter.go('/');
-    await tester.pumpWidget(MaterialApp.router(
+    await tester.pumpWidget(
+      MaterialApp.router(
         routerConfig: appRouter,
-        theme: AppTheme.dark.copyWith(platform: platform)));
+        theme: AppTheme.dark.copyWith(platform: platform),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
   for (final size in [const Size(390, 844), const Size(1280, 900)]) {
-    testWidgets('cards do resumo abrem abas preservando mês $size',
-        (tester) async {
+    testWidgets('cards do resumo abrem abas preservando mês $size', (
+      tester,
+    ) async {
       await openBackTest(tester, size: size);
       referenceMonth.select(DateTime(2027, 2));
       await tester.pumpAndSettle();
@@ -268,27 +309,29 @@ void main() {
         expect(appRouter.routeInformationProvider.value.uri.path, path);
         expect(referenceMonth.value, DateTime(2027, 2));
         expect(
-            (getIt<TransactionsRepository>() as _TransactionsStub)
-                .requestedFilters
-                .last
-                .from,
-            DateTime(2027, 2));
+          (getIt<TransactionsRepository>() as _TransactionsStub)
+              .requestedFilters
+              .last
+              .from,
+          DateTime(2027, 2),
+        );
       }
       expect(tester.takeException(), isNull);
     });
   }
-  testWidgets('balão usa mesmos ícones e cores do menu lateral',
-      (tester) async {
+  testWidgets('balão usa mesmos ícones e cores do menu lateral', (
+    tester,
+  ) async {
     await openBackTest(tester);
-    await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
+    await tester.tap(find.byTooltip('Abrir menu'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Movimentos').last);
-    await tester.pumpAndSettle();
+
     final icons = <Icon>[];
     for (final path in ['/income', '/expenses', '/transfers']) {
-      icons.add(tester
-          .widget<ListTile>(find.byKey(ValueKey('menu-$path')))
-          .leading! as Icon);
+      icons.add(
+        tester.widget<ListTile>(find.byKey(ValueKey('menu-$path'))).leading!
+            as Icon,
+      );
     }
     await tester.tap(find.byTooltip('Fechar menu'));
     await tester.pumpAndSettle();
@@ -307,192 +350,224 @@ void main() {
   });
 
   testWidgets(
-      'restauração com app aberto descarta formulário e recarrega contas',
-      (tester) async {
-    late Directory dir;
-    late AppDatabase db;
-    late _LiveUiBackupManager manager;
-    late Uint8List bytes;
-    await tester.runAsync(() async {
-      dir = await Directory.systemTemp.createTemp('somia-live-ui-');
-      db = AppDatabase(NativeDatabase.memory());
-      await db.customStatement(
-          "INSERT INTO accounts (id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES ('a','Restaurada','cash','BRL',0,1,1)");
-      bytes = await BackupService.export(db, dir);
-      await db.customStatement("UPDATE accounts SET name='Anterior'");
-      manager = _LiveUiBackupManager(db, LocalBackupStore(dir));
-    });
-    getIt.registerSingleton<BackupManager>(manager);
-    getIt.registerSingleton<AccountsRepository>(SqliteAccountsRepository(db));
-    addTearDown(() async {
-      appRouter.go('/');
-      await getIt.reset();
-      manager.dispose();
-      await db.close();
-      await dir.delete(recursive: true);
-    });
-    appRouter.go('/accounts');
-    await tester.pumpWidget(const FinApp());
-    await tester.pumpAndSettle();
-    expect(find.text('Anterior'), findsOneWidget);
-    await tester.tap(find.text('Nova conta'));
-    await tester.pumpAndSettle();
-    await tester.runAsync(() => manager.restore(bytes));
-    await tester.pumpAndSettle();
-    expect(appRouter.routeInformationProvider.value.uri.path, '/settings');
-    expect(find.text('Backup restaurado. Os dados já estão atualizados.'),
-        findsOneWidget);
-    appRouter.go('/accounts');
-    await tester.pumpAndSettle();
-    expect(find.text('Restaurada'), findsOneWidget);
-    expect(find.text('Anterior'), findsNothing);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox());
-  });
+    'restauração com app aberto descarta formulário e recarrega contas',
+    (tester) async {
+      late Directory dir;
+      late AppDatabase db;
+      late _LiveUiBackupManager manager;
+      late Uint8List bytes;
+      await tester.runAsync(() async {
+        dir = await Directory.systemTemp.createTemp('somia-live-ui-');
+        db = AppDatabase(NativeDatabase.memory());
+        await db.customStatement(
+          "INSERT INTO accounts (id,name,type,currency_code,initial_balance_minor,created_at,updated_at) VALUES ('a','Restaurada','cash','BRL',0,1,1)",
+        );
+        bytes = await BackupService.export(db, dir);
+        await db.customStatement("UPDATE accounts SET name='Anterior'");
+        manager = _LiveUiBackupManager(db, LocalBackupStore(dir));
+      });
+      getIt.registerSingleton<BackupManager>(manager);
+      getIt.registerSingleton<AccountsRepository>(SqliteAccountsRepository(db));
+      addTearDown(() async {
+        appRouter.go('/');
+        await getIt.reset();
+        manager.dispose();
+        await db.close();
+        await dir.delete(recursive: true);
+      });
+      appRouter.go('/accounts');
+      await tester.pumpWidget(const FinApp());
+      await tester.pumpAndSettle();
+      expect(find.text('Anterior'), findsOneWidget);
+      await tester.tap(find.text('Nova conta'));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() => manager.restore(bytes));
+      await tester.pumpAndSettle();
+      expect(appRouter.routeInformationProvider.value.uri.path, '/settings');
+      expect(
+        find.text('Backup restaurado. Os dados já estão atualizados.'),
+        findsOneWidget,
+      );
+      appRouter.go('/accounts');
+      await tester.pumpAndSettle();
+      expect(find.text('Restaurada'), findsOneWidget);
+      expect(find.text('Anterior'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   for (final size in [const Size(390, 844), const Size(915, 412)]) {
     testWidgets(
-        'Android $size: Voltar retorna ao Resumo em todas as seções e só então permite sair',
-        (tester) async {
-      await openBackTest(tester, size: size);
-      for (final path in [
-        '/income',
-        '/expenses',
-        '/transfers',
-        '/accounts',
-        '/categories',
-        '/settings',
-        '/transactions'
-      ]) {
-        appRouter.go(path);
-        await tester.pumpAndSettle();
-        expect(await appRouter.routerDelegate.popRoute(), true);
-        await tester.pumpAndSettle();
-        expect(appRouter.routeInformationProvider.value.uri.path, '/');
-        // false devolve ao Android a saída padrão, sem remover a rota Resumo.
-        expect(await appRouter.routerDelegate.popRoute(), false);
-        await tester.pumpAndSettle();
-      }
-      expect(tester.takeException(), isNull);
-    });
+      'Android $size: Voltar retorna ao Resumo em todas as seções e só então permite sair',
+      (tester) async {
+        await openBackTest(tester, size: size);
+        for (final path in [
+          '/income',
+          '/expenses',
+          '/transfers',
+          '/accounts',
+          '/categories',
+          '/settings',
+          '/transactions',
+        ]) {
+          appRouter.go(path);
+          await tester.pumpAndSettle();
+          expect(await appRouter.routerDelegate.popRoute(), true);
+          await tester.pumpAndSettle();
+          expect(appRouter.routeInformationProvider.value.uri.path, '/');
+          // false devolve ao Android a saída padrão, sem remover a rota Resumo.
+          expect(await appRouter.routerDelegate.popRoute(), false);
+          await tester.pumpAndSettle();
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
   testWidgets(
-      'roteador real volta do detalhe à lista de cartões antes do resumo',
-      (tester) async {
-    await openBackTest(tester);
-    getIt.registerSingleton<CardsRepository>(_CardsNavigationStub());
-    appRouter.go('/cards');
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('card-open-card')));
-    await tester.pumpAndSettle();
-    expect(appRouter.routeInformationProvider.value.uri.queryParameters['card'],
-        'card');
-    expect(find.text('Cartão teste'), findsWidgets);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(appRouter.routeInformationProvider.value.uri.path, '/cards');
-    expect(appRouter.routeInformationProvider.value.uri.queryParameters['card'],
-        isNull);
-    expect(find.byKey(const ValueKey('card-open-card')), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(appRouter.routeInformationProvider.value.uri.path, '/');
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets(
-      'conta abre extrato e Voltar Android retorna à lista antes do Resumo',
-      (tester) async {
-    await openBackTest(tester);
-    (getIt<AccountsRepository>() as _AccountsStub).items = [statements.account];
-    getIt.registerSingleton<AccountStatementRepository>(
-        statements.FakeStatementRepository());
-    appRouter.go('/accounts');
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Mercado Pago'));
-    await tester.pumpAndSettle();
-    expect(appRouter.routeInformationProvider.value.uri.path, '/accounts/a');
-    expect(find.text('Detalhes da conta'), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(appRouter.routeInformationProvider.value.uri.path, '/accounts');
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(appRouter.routeInformationProvider.value.uri.path, '/');
-    expect(tester.takeException(), isNull);
-  });
-  testWidgets(
-      'Android: drawer, balão + e filtros fecham antes de sair da seção',
-      (tester) async {
-    await openBackTest(tester);
-    for (final path in ['/', '/expenses']) {
-      appRouter.go(path);
+    'roteador real volta do detalhe à lista de cartões antes do resumo',
+    (tester) async {
+      await openBackTest(tester);
+      getIt.registerSingleton<CardsRepository>(_CardsNavigationStub());
+      appRouter.go('/cards');
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
+      await tester.tap(find.byKey(const ValueKey('card-open-card')));
       await tester.pumpAndSettle();
-      expect(await appRouter.routerDelegate.popRoute(), true);
+      expect(
+        appRouter.routeInformationProvider.value.uri.queryParameters['card'],
+        'card',
+      );
+      expect(find.text('Cartão teste'), findsWidgets);
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Fechar menu'), findsNothing);
-      expect(appRouter.routeInformationProvider.value.uri.path, path);
-    }
-    await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
-    await tester.pumpAndSettle();
-    expect(await appRouter.routerDelegate.popRoute(), true);
-    await tester.pumpAndSettle();
-    expect(find.text('Receita'), findsNothing);
-    expect(appRouter.routeInformationProvider.value.uri.path, '/expenses');
-    await tester.tap(find.text('Filtros'));
-    await tester.pumpAndSettle();
-    expect(await appRouter.routerDelegate.popRoute(), true);
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Fechar filtros'), findsNothing);
-    expect(appRouter.routeInformationProvider.value.uri.path, '/expenses');
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(appRouter.routeInformationProvider.value.uri.path, '/');
-    expect(tester.takeException(), isNull);
-  });
-  testWidgets(
-      'Android: navegador principal mantém tratamento nativo do Voltar ao alternar seções',
-      (tester) async {
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    final signals = <bool>[];
-    tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'SystemNavigator.setFrameworkHandlesBack') {
-        signals.add(call.arguments as bool);
-      }
-      return null;
-    });
-    addTearDown(() => tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null));
-    await openBackTest(tester);
-    for (final path in [
-      '/income',
-      '/transfers',
-      '/expenses',
-      '/transfers',
-      '/accounts',
-      '/transfers'
-    ]) {
-      appRouter.go(path);
-      await tester.pumpAndSettle();
-      expect(signals, isNotEmpty);
-      expect(signals.last, true,
-          reason: 'O Android deve entregar Voltar ao Flutter em $path');
+      expect(appRouter.routeInformationProvider.value.uri.path, '/cards');
+      expect(
+        appRouter.routeInformationProvider.value.uri.queryParameters['card'],
+        isNull,
+      );
+      expect(find.byKey(const ValueKey('card-open-card')), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(appRouter.routeInformationProvider.value.uri.path, '/');
-      expect(signals.last, false,
-          reason: 'O Resumo deve liberar a saída nativa');
-    }
-    expect(tester.takeException(), isNull);
-  });
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('Windows mantém navegação sem retorno automático ao Resumo',
-      (tester) async {
-    await openBackTest(tester,
-        platform: TargetPlatform.windows, size: const Size(1280, 900));
+  testWidgets(
+    'conta abre extrato e Voltar Android retorna à lista antes do Resumo',
+    (tester) async {
+      await openBackTest(tester);
+      (getIt<AccountsRepository>() as _AccountsStub).items = [
+        statements.account,
+      ];
+      getIt.registerSingleton<AccountStatementRepository>(
+        statements.FakeStatementRepository(),
+      );
+      appRouter.go('/accounts');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mercado Pago'));
+      await tester.pumpAndSettle();
+      expect(appRouter.routeInformationProvider.value.uri.path, '/accounts/a');
+      expect(find.text('Detalhes da conta'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(appRouter.routeInformationProvider.value.uri.path, '/accounts');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(appRouter.routeInformationProvider.value.uri.path, '/');
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'Android: drawer, balão + e filtros fecham antes de sair da seção',
+    (tester) async {
+      await openBackTest(tester);
+      for (final path in ['/', '/expenses']) {
+        appRouter.go(path);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Abrir menu'));
+        await tester.pumpAndSettle();
+        expect(await appRouter.routerDelegate.popRoute(), true);
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Fechar menu'), findsNothing);
+        expect(appRouter.routeInformationProvider.value.uri.path, path);
+      }
+      await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
+      await tester.pumpAndSettle();
+      expect(await appRouter.routerDelegate.popRoute(), true);
+      await tester.pumpAndSettle();
+      expect(find.text('Receita'), findsNothing);
+      expect(appRouter.routeInformationProvider.value.uri.path, '/expenses');
+      await tester.tap(find.text('Filtros'));
+      await tester.pumpAndSettle();
+      expect(await appRouter.routerDelegate.popRoute(), true);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Fechar filtros'), findsNothing);
+      expect(appRouter.routeInformationProvider.value.uri.path, '/expenses');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(appRouter.routeInformationProvider.value.uri.path, '/');
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'Android: navegador principal mantém tratamento nativo do Voltar ao alternar seções',
+    (tester) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final signals = <bool>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemNavigator.setFrameworkHandlesBack') {
+            signals.add(call.arguments as bool);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await openBackTest(tester);
+      for (final path in [
+        '/income',
+        '/transfers',
+        '/expenses',
+        '/transfers',
+        '/accounts',
+        '/transfers',
+      ]) {
+        appRouter.go(path);
+        await tester.pumpAndSettle();
+        expect(signals, isNotEmpty);
+        expect(
+          signals.last,
+          true,
+          reason: 'O Android deve entregar Voltar ao Flutter em $path',
+        );
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(appRouter.routeInformationProvider.value.uri.path, '/');
+        expect(
+          signals.last,
+          false,
+          reason: 'O Resumo deve liberar a saída nativa',
+        );
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Windows mantém navegação sem retorno automático ao Resumo', (
+    tester,
+  ) async {
+    await openBackTest(
+      tester,
+      platform: TargetPlatform.windows,
+      size: const Size(1280, 900),
+    );
     appRouter.go('/accounts');
     await tester.pumpAndSettle();
     expect(await appRouter.routerDelegate.popRoute(), false);
@@ -501,34 +576,37 @@ void main() {
   });
   for (final path in ['/accounts', '/categories']) {
     testWidgets(
-        '$path: Voltar/Cancelar protege cadastro alterado e preserva campos ao continuar',
-        (tester) async {
-      await openBackTest(tester);
-      appRouter.go(path);
-      await tester.pumpAndSettle();
-      await tester.tap(
-          find.text(path == '/accounts' ? 'Nova conta' : 'Nova categoria'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField).first, 'Novo nome');
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.text('Descartar alterações?'), findsOneWidget);
-      await tester.tap(find.text('Continuar editando'));
-      await tester.pumpAndSettle();
-      expect(find.text('Novo nome'), findsOneWidget);
-      expect(appRouter.routeInformationProvider.value.uri.path, path);
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Descartar'));
-      await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsNothing);
-      expect(appRouter.routeInformationProvider.value.uri.path, path);
-      expect(tester.takeException(), isNull);
-    });
+      '$path: Voltar/Cancelar protege cadastro alterado e preserva campos ao continuar',
+      (tester) async {
+        await openBackTest(tester);
+        appRouter.go(path);
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.text(path == '/accounts' ? 'Nova conta' : 'Nova categoria'),
+        );
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextFormField).first, 'Novo nome');
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Descartar alterações?'), findsOneWidget);
+        await tester.tap(find.text('Continuar editando'));
+        await tester.pumpAndSettle();
+        expect(find.text('Novo nome'), findsOneWidget);
+        expect(appRouter.routeInformationProvider.value.uri.path, path);
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Descartar'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(appRouter.routeInformationProvider.value.uri.path, path);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
-  testWidgets('mês compartilhado e filtros avançados nas três abas',
-      (tester) async {
+  testWidgets('mês compartilhado e filtros avançados nas três abas', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     final transactions = _TransactionsStub();
@@ -568,7 +646,9 @@ void main() {
       await tester.tap(find.byTooltip('Fechar filtros'));
       await tester.pumpAndSettle();
       expect(
-          find.text(path == '/income' ? 'Salário' : 'Mercado'), findsOneWidget);
+        find.text(path == '/income' ? 'Salário' : 'Mercado'),
+        findsOneWidget,
+      );
       expect(referenceMonth.value, DateTime(2026, 12));
     }
     appRouter.go('/transfers');
@@ -592,140 +672,135 @@ void main() {
   });
 
   testWidgets(
-      'sidebar em paisagem respeita recorte do Android e permite rolagem',
-      (tester) async {
-    tester.view.physicalSize = const Size(915, 412);
-    tester.view.devicePixelRatio = 1;
-    getIt.registerSingleton<DashboardRepository>(_DashboardStub());
-    addTearDown(() async {
+    'sidebar em paisagem respeita recorte do Android e permite rolagem',
+    (tester) async {
+      tester.view.physicalSize = const Size(915, 412);
+      tester.view.devicePixelRatio = 1;
+      getIt.registerSingleton<DashboardRepository>(_DashboardStub());
+      addTearDown(() async {
+        appRouter.go('/');
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        await getIt.reset();
+      });
       appRouter.go('/');
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-      await getIt.reset();
-    });
-    appRouter.go('/');
-    await tester.pumpWidget(MaterialApp.router(
-        routerConfig: appRouter,
-        builder: (context, child) => MediaQuery(
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: appRouter,
+          builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context)
                 .copyWith(padding: const EdgeInsets.only(left: 32, bottom: 24)),
-            child: child!)));
-    await tester.pumpAndSettle();
-    final tile = tester.getRect(find.byKey(const ValueKey('menu-/income')));
-    final icon = tester.getRect(find.descendant(
-        of: find.byKey(const ValueKey('menu-/income')),
-        matching: find.byType(Icon)));
-    expect(icon.left, greaterThanOrEqualTo(32));
-    expect(icon.left, greaterThan(tile.left));
-    expect(icon.right, lessThan(tile.right));
-    await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('menu-/settings')), 100,
+            child: child!,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final tile = tester.getRect(find.byKey(const ValueKey('menu-/income')));
+      final icon = tester.getRect(
+        find.descendant(
+          of: find.byKey(const ValueKey('menu-/income')),
+          matching: find.byType(Icon),
+        ),
+      );
+      expect(icon.left, greaterThanOrEqualTo(32));
+      expect(icon.left, greaterThan(tile.left));
+      expect(icon.right, lessThan(tile.right));
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('menu-/settings')),
+        100,
         scrollable: find
             .descendant(
-                of: find.byType(SafeArea).first,
-                matching: find.byType(Scrollable))
-            .first);
-    expect(tester.takeException(), isNull);
-  });
+              of: find.byType(SafeArea).first,
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('drawer mobile separa receitas e despesas sem barra inferior',
-      (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    final transactions = _TransactionsStub();
-    getIt.registerSingleton<DashboardRepository>(_DashboardStub());
-    getIt.registerSingleton<TransactionsRepository>(transactions);
-    getIt.registerSingleton<AccountsRepository>(_AccountsStub());
-    getIt.registerSingleton<CategoriesRepository>(_CategoriesStub());
-    addTearDown(() async {
+  testWidgets(
+    'drawer agrupado e navegação mobile preservam receitas e despesas',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      final transactions = _TransactionsStub();
+      getIt.registerSingleton<DashboardRepository>(_DashboardStub());
+      getIt.registerSingleton<TransactionsRepository>(transactions);
+      getIt.registerSingleton<AccountsRepository>(_AccountsStub());
+      getIt.registerSingleton<CategoriesRepository>(_CategoriesStub());
+      addTearDown(() async {
+        appRouter.go('/');
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        await getIt.reset();
+      });
       appRouter.go('/');
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-      await getIt.reset();
-    });
-    appRouter.go('/');
-    await tester.pumpWidget(const FinApp());
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(const FinApp());
+      await tester.pumpAndSettle();
 
-    expect(find.byType(NavigationBar), findsNothing);
-    expect(find.byTooltip('Abrir menu'), findsNothing);
-    expect(find.byKey(const ValueKey('bottom-Movimentos')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
-    await tester.pumpAndSettle();
-    expect(tester.getSize(find.byType(Drawer)).width, 390);
-    expect(find.byTooltip('Fechar menu'), findsOneWidget);
-    for (final label in [
-      'Resumo',
-      'Movimentos',
-      'Contas e cartões',
-      'Planejamento',
-      'Patrimônio',
-      'Organização'
-    ]) {
-      expect(find.text(label), findsWidgets);
-    }
-    expect(find.byKey(const ValueKey('menu-/income')), findsNothing);
-    await tester.tap(find.text('Movimentos').last);
-    await tester.pumpAndSettle();
-    for (final label in ['Receitas', 'Despesas', 'Transferências']) {
-      expect(find.text(label), findsWidgets);
-    }
-    await tester.tap(find.text('Contas e cartões'));
-    await tester.pumpAndSettle();
-    for (final label in ['Contas', 'Cartões', 'Débito', 'Cashback']) {
-      expect(find.text(label), findsWidgets);
-    }
-    final drawerScroll = find
-        .descendant(of: find.byType(Drawer), matching: find.byType(Scrollable))
-        .first;
-    await tester.scrollUntilVisible(find.text('Organização'), 200,
-        scrollable: drawerScroll);
-    await tester.tap(find.text('Organização'));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Configurações'), 200,
-        scrollable: drawerScroll);
-    expect(find.text('Configurações'), findsWidgets);
-    expect(find.text('Categorias'), findsWidgets);
-    await tester.drag(find.byType(Drawer), const Offset(0, 1000));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const ValueKey('menu-/income')));
-    await tester.tap(find.byKey(const ValueKey('menu-/income')));
-    await tester.pumpAndSettle();
-    expect(find.text('Salário'), findsOneWidget);
-    expect(find.text('Mercado'), findsNothing);
-    expect(transactions.requestedTypes.last, TransactionType.income);
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byTooltip('Abrir menu'), findsOneWidget);
+      expect(find.byKey(const ValueKey('bottom-Movimentos')), findsOneWidget);
+      await tester.tap(find.byTooltip('Abrir menu'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(find.byType(Drawer)).width, closeTo(343.2, 0.1));
+      expect(find.byTooltip('Fechar menu'), findsOneWidget);
+      final drawerScroll = find
+          .descendant(
+              of: find.byType(Drawer), matching: find.byType(Scrollable))
+          .first;
+      for (final label in ['FINANÇAS', 'PLANEJAMENTO', 'APLICATIVO']) {
+        await tester.scrollUntilVisible(find.text(label), 150,
+            scrollable: drawerScroll);
+        expect(find.text(label), findsOneWidget);
+      }
+      await tester.drag(find.byType(Drawer), const Offset(0, 2000));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('bottom-Mais')), findsNothing);
+      expect(find.byKey(const ValueKey('bottom-Relatórios')), findsOneWidget);
+      expect(find.byKey(const ValueKey('bottom-Cartões')), findsOneWidget);
+      expect(find.byKey(const ValueKey('menu-/income')), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const ValueKey('menu-/income')));
+      await tester.tap(find.byKey(const ValueKey('menu-/income')));
+      await tester.pumpAndSettle();
+      expect(find.text('Salário'), findsOneWidget);
+      expect(find.text('Mercado'), findsNothing);
+      expect(transactions.requestedTypes.last, TransactionType.income);
 
-    await tester.tap(find.byKey(const ValueKey('bottom-Mais')));
-    await tester.pumpAndSettle();
-    expect(
+      await tester.tap(find.byTooltip('Abrir menu'));
+      await tester.pumpAndSettle();
+      expect(
         tester
             .widget<ListTile>(find.byKey(const ValueKey('menu-/income')))
             .selected,
-        isTrue);
-    await tester.tap(find.byKey(const ValueKey('menu-/expenses')));
-    await tester.pumpAndSettle();
-    expect(find.text('Mercado'), findsOneWidget);
-    expect(find.text('Salário'), findsNothing);
-    expect(transactions.requestedTypes.last, TransactionType.expense);
-    expect(find.byTooltip('Pagar hoje'), findsOneWidget);
+        isTrue,
+      );
+      await tester.tap(find.byKey(const ValueKey('menu-/expenses')));
+      await tester.pumpAndSettle();
+      expect(find.text('Mercado'), findsOneWidget);
+      expect(find.text('Salário'), findsNothing);
+      expect(transactions.requestedTypes.last, TransactionType.expense);
+      expect(find.byTooltip('Pagar hoje'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Receita').last);
-    await tester.pumpAndSettle();
-    expect(find.text('Nova receita'), findsOneWidget);
-    expect(find.byType(TextFormField).first, findsOneWidget);
-    await tester.tap(find.byType(BackButton));
-    await tester.pumpAndSettle();
-    expect(find.text('Receitas'), findsOneWidget);
+      await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Receita').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Nova receita'), findsOneWidget);
+      expect(find.byType(TextFormField).first, findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Receitas'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('bottom-Movimentos')));
-    await tester.pumpAndSettle();
-    expect(find.text('Movimentos'), findsWidgets);
-    await tester.tap(find.byKey(const ValueKey('bottom-Resumo')));
-    await tester.pumpAndSettle();
-    expect(find.text('Resumo do mês'), findsOneWidget);
-  });
+      await tester.tap(find.byKey(const ValueKey('bottom-Movimentos')));
+      await tester.pumpAndSettle();
+      expect(find.text('Movimentos'), findsWidgets);
+      await tester.tap(find.byKey(const ValueKey('bottom-Resumo')));
+      await tester.pumpAndSettle();
+      expect(find.text('Resumo do mês'), findsOneWidget);
+    },
+  );
 
   testWidgets('sidebar larga mantém as mesmas seções', (tester) async {
     tester.view.physicalSize = const Size(1100, 850);
