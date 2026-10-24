@@ -389,3 +389,17 @@ houver cadastro de usuário. Não exibir nomes ou saldos ilustrativos.
 Esta revisão substitui as decisões antigas de navegação mobile deste
 documento. Mantém tema escuro, monograma S oficial, azul acinzentado, cores
 semânticas e componentes atuais. A sidebar de telas largas permanece.
+
+
+## Dívidas — revisão visual de 23/10/2026
+
+A lista apresenta saldo devedor consolidado, projeção após parcelas vinculadas,
+amortização e quantidade de dívidas ativas. Filtros Ativas/Quitadas e cartões
+com progresso levam aos detalhes. A tela de detalhes apresenta saldo inicial,
+amortização, projeção, ação Vincular despesa e abas Parcelas vinculadas/Dados.
+Tocar numa parcela mostra amortização, encargos e a ação de desvincular.
+O histórico preserva despesas excluídas e parcelas desvinculadas.
+A identidade mantém grafite, azul acinzentado e cores semânticas do Somia.
+Os valores vêm do repositório; a proporção amortizada usa principal sobre
+saldo inicial. Não há estimativa de juros futuros nem criação automática
+de movimentos ao cadastrar uma dívida.
