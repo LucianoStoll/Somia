@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.0-alpha — em desenvolvimento
+
+- Navegação Android com barra inferior para Resumo, Movimentos e Planejamento, acesso a todas as áreas por Mais e criação de lançamentos pelo botão central. O menu lateral e a navegação do Windows continuam disponíveis.
+- Importação e conciliação: perfis CSV, datas compartilhadas, filtros e totais de prévia, vínculos com movimentações existentes e comparação opcional do saldo atual.
+- XLSX, identidade de lotes, cópia de proteção antes de importar/desfazer, revisão de conflitos e desfazer seletivo; diagnóstico local sem dados financeiros. Esquema 27. Validação por etapa antes da publicação.
+
 ## v0.3.0-alpha — 2026-10-15
 
 Publicação autorizada pelo usuário em 15/10/2026. [Notas da versão](docs/releases/v0.3.0-alpha.md). As pendências adicionais de relatórios, importação e conciliação permanecem para a próxima alpha.

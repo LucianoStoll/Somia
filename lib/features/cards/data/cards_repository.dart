@@ -1062,6 +1062,8 @@ class CardsRepository {
               TransactionDateField.posted => bill.closingAt,
               TransactionDateField.due => bill.dueAt,
               TransactionDateField.effective => effective ? date : null,
+              TransactionDateField.activity =>
+                effective ? date ?? bill.dueAt : bill.dueAt,
             };
             if (filterDate == null ||
                 (filter.from != null &&

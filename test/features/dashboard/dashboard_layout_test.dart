@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:finapp/features/dashboard/presentation/widgets/dashboard_overview.dart'
     show AccountTypesPanel;
 
@@ -175,9 +176,9 @@ void main() {
         final selector = tester.getRect(
           find.byKey(const ValueKey('dashboard-month-selector')),
         );
-        final menu = tester.getRect(find.byTooltip('Abrir menu'));
-        expect(selector.center.dy, closeTo(menu.center.dy, 2));
-        expect(selector.left, greaterThan(menu.right));
+        final brand = tester.getRect(find.byType(AppBar).first);
+        expect(selector.center.dy, closeTo(brand.center.dy, 2));
+        expect(selector.left, greaterThan(brand.left));
         expect(selector.right, lessThanOrEqualTo(width));
         final balance = tester.getRect(
           find.byKey(const ValueKey('mobile-balance-BRL')),
@@ -202,25 +203,21 @@ void main() {
         expect(history.top, greaterThan(income.bottom));
         expect(history.top, greaterThan(categories.bottom));
         expect(find.text('Gastos por categoria'), findsOneWidget);
+        final scrollable = find.descendant(
+          of: find.byKey(const ValueKey('dashboard-mobile-scroll')),
+          matching: find.byType(Scrollable),
+        );
         await tester.scrollUntilVisible(
           find.byKey(const ValueKey('mobile-recent')),
           250,
-          scrollable: find.descendant(
-            of: find.byKey(const ValueKey('dashboard-mobile-scroll')),
-            matching: find.byType(Scrollable),
-          ),
+          scrollable: scrollable,
         );
         final recent = tester.getRect(
           find.byKey(const ValueKey('mobile-recent')),
         );
-        expect(
-          recent.top,
-          greaterThan(
-            tester
-                .getRect(find.byKey(const ValueKey('mobile-categories-BRL')))
-                .bottom,
-          ),
-        );
+        final scrollOffset =
+            tester.state<ScrollableState>(scrollable).position.pixels;
+        expect(recent.top + scrollOffset, greaterThan(categories.bottom));
         expect(find.text('Saldo por conta'), findsOneWidget);
         expect(find.byType(NavigationBar), findsNothing);
         expect(tester.takeException(), isNull);
@@ -405,24 +402,33 @@ void main() {
     }
   });
 
-  testWidgets('olho oculta e restaura valores sem abrir detalhes',
-      (tester) async {
+  testWidgets('olho oculta e restaura valores sem abrir detalhes', (
+    tester,
+  ) async {
     await _mount(tester, const Size(390, 900));
     final card = find.byKey(const ValueKey('mobile-balance-BRL'));
     final eye = find.byKey(const ValueKey('summary-visibility'));
-    expect(find.descendant(of: card, matching: find.textContaining('2.350,00')),
-        findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.textContaining('2.350,00')),
+      findsOneWidget,
+    );
     await tester.tap(eye);
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsNothing);
-    expect(find.descendant(of: card, matching: find.textContaining('2.350,00')),
-        findsNothing);
-    expect(find.descendant(of: card, matching: find.text('••••')),
-        findsNWidgets(4));
+    expect(
+      find.descendant(of: card, matching: find.textContaining('2.350,00')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('••••')),
+      findsNWidgets(4),
+    );
     await tester.tap(eye);
     await tester.pumpAndSettle();
-    expect(find.descendant(of: card, matching: find.textContaining('2.350,00')),
-        findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.textContaining('2.350,00')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -461,48 +467,49 @@ void main() {
             ),
             home: Scaffold(
               body: SingleChildScrollView(
-                  child: RepaintBoundary(
-                key: const ValueKey('chart-reference-preview'),
-                child: BalanceEvolutionPanel(
-                  today: DateTime(2026, 10, 20),
-                  currency: DashboardCurrencySummary(
-                    currencyCode: 'BRL',
-                    currentBalanceMinor: 2000,
-                    projectedBalanceMinor: 15000,
-                    incomeMinor: 0,
-                    expenseMinor: 0,
-                    dailyBalances: [
-                      for (var day = 1; day <= 31; day++)
-                        DashboardDailyBalance(
-                          DateTime(2026, 10, day),
-                          [
-                            6000,
-                            7000,
-                            13500,
-                            11000,
-                            7500,
-                            4500,
-                            5000,
-                            2500,
-                            1000,
-                            0,
-                            -5000,
-                            -6000,
-                            -7000,
-                            -10000,
-                            -7500,
-                            -7500,
-                            -3500,
-                            -2000,
-                            0,
-                            2000,
-                          ][(day - 1).clamp(0, 19)],
-                          day <= 20 ? 2000 : 2000 + (day - 20) * 1200,
-                        ),
-                    ],
+                child: RepaintBoundary(
+                  key: const ValueKey('chart-reference-preview'),
+                  child: BalanceEvolutionPanel(
+                    today: DateTime(2026, 10, 20),
+                    currency: DashboardCurrencySummary(
+                      currencyCode: 'BRL',
+                      currentBalanceMinor: 2000,
+                      projectedBalanceMinor: 15000,
+                      incomeMinor: 0,
+                      expenseMinor: 0,
+                      dailyBalances: [
+                        for (var day = 1; day <= 31; day++)
+                          DashboardDailyBalance(
+                            DateTime(2026, 10, day),
+                            [
+                              6000,
+                              7000,
+                              13500,
+                              11000,
+                              7500,
+                              4500,
+                              5000,
+                              2500,
+                              1000,
+                              0,
+                              -5000,
+                              -6000,
+                              -7000,
+                              -10000,
+                              -7500,
+                              -7500,
+                              -3500,
+                              -2000,
+                              0,
+                              2000,
+                            ][(day - 1).clamp(0, 19)],
+                            day <= 20 ? 2000 : 2000 + (day - 20) * 1200,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              )),
+              ),
             ),
           ),
         );
@@ -515,38 +522,64 @@ void main() {
                 : 'balance-reference-desktop-preview.png',
           ),
         );
-        await tester.binding
-            .setSurfaceSize(Size(previewSize.width < 800 ? 390 : 850, 500));
-        await tester.pumpWidget(MaterialApp(
+        await tester.binding.setSurfaceSize(
+          Size(previewSize.width < 800 ? 390 : 850, 500),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
             theme: ThemeData.dark().copyWith(
-                scaffoldBackgroundColor: const Color(0xFF141518),
-                cardTheme: const CardThemeData(color: Color(0xFF202226))),
+              scaffoldBackgroundColor: const Color(0xFF141518),
+              cardTheme: const CardThemeData(color: Color(0xFF202226)),
+            ),
             home: Scaffold(
-                body: SingleChildScrollView(
-                    child: RepaintBoundary(
-                        key: const ValueKey('account-types-reference-preview'),
-                        child: const AccountTypesPanel(
-                            currency: DashboardCurrencySummary(
-                                currencyCode: 'BRL',
-                                currentBalanceMinor: 940092,
-                                projectedBalanceMinor: 940092,
-                                incomeMinor: 0,
-                                expenseMinor: 0,
-                                accounts: [
-                              DashboardAccountBalance(
-                                  'Banco', 'Conta corrente', 'BRL', 489210),
-                              DashboardAccountBalance('Carteira',
-                                  'Carteira / dinheiro', 'BRL', 126350),
-                              DashboardAccountBalance(
-                                  'Reserva', 'Investimento', 'BRL', 324532,
-                                  isInvestment: true, includeInBalance: false),
-                            ])))))));
+              body: SingleChildScrollView(
+                child: RepaintBoundary(
+                  key: const ValueKey('account-types-reference-preview'),
+                  child: const AccountTypesPanel(
+                    currency: DashboardCurrencySummary(
+                      currencyCode: 'BRL',
+                      currentBalanceMinor: 940092,
+                      projectedBalanceMinor: 940092,
+                      incomeMinor: 0,
+                      expenseMinor: 0,
+                      accounts: [
+                        DashboardAccountBalance(
+                          'Banco',
+                          'Conta corrente',
+                          'BRL',
+                          489210,
+                        ),
+                        DashboardAccountBalance(
+                          'Carteira',
+                          'Carteira / dinheiro',
+                          'BRL',
+                          126350,
+                        ),
+                        DashboardAccountBalance(
+                          'Reserva',
+                          'Investimento',
+                          'BRL',
+                          324532,
+                          isInvestment: true,
+                          includeInBalance: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
         await tester.pumpAndSettle();
         await expectLater(
-            find.byKey(const ValueKey('account-types-reference-preview')),
-            matchesGoldenFile(previewSize.width < 800
+          find.byKey(const ValueKey('account-types-reference-preview')),
+          matchesGoldenFile(
+            previewSize.width < 800
                 ? 'account-types-mobile-preview.png'
-                : 'account-types-desktop-preview.png'));
+                : 'account-types-desktop-preview.png',
+          ),
+        );
         await tester.binding.setSurfaceSize(null);
         await _mount(tester, previewSize);
         await expectLater(

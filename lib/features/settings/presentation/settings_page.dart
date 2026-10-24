@@ -1,6 +1,7 @@
 import '../../../core/drive/drive_backup_manager.dart';
 import '../../csv_import/domain/csv_import.dart';
 import '../../csv_import/presentation/csv_import_page.dart';
+import '../../csv_import/domain/import_diagnostics.dart';
 import 'drive_backups_panel.dart';
 import 'sync_panel.dart';
 import '../../../core/sync/sync_manager.dart';
@@ -101,8 +102,20 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     messenger.showSnackBar(SnackBar(
         content: Text(
-            '${result.imported} lançamentos importados.${result.skipped == 0 ? '' : ' ${result.skipped} duplicados ignorados após nova conferência.'}')));
+            '${result.imported} lançamentos importados, ${result.linked} vinculados.${result.skipped == 0 ? '' : ' ${result.skipped} duplicados ignorados após nova conferência.'}')));
   }
+
+  Future<void> _exportImportDiagnostics() => _localAction(() async {
+        final bytes = await ImportDiagnostics.export(getIt<AppDatabase>());
+        final saved = await FilePicker.saveFile(
+          fileName: 'somia-import-diagnostico.json',
+          bytes: bytes,
+          mimeType: 'application/json',
+        );
+        if (saved != null && mounted) {
+          _message('Diagnóstico salvo sem dados financeiros.');
+        }
+      }, '');
 
   Future<void> _configureDrive() => _localAction(() async {
         final file = await FilePicker.pickFile(
@@ -309,8 +322,13 @@ class _SettingsPageState extends State<SettingsPage> {
               () => context.goNamed(AppRoutes.cards)),
           _heading('Dados e utilidades'),
           if (getIt.isRegistered<CsvImportRepository>())
-            _option('Importar extrato CSV', Icons.file_download_outlined,
+            _option('Importar extrato CSV/XLSX', Icons.file_download_outlined,
                 disabled || (_manager?.busy ?? false) ? null : _importCsv),
+          _option(
+              'Exportar diagnóstico da importação',
+              Icons.bug_report_outlined,
+              disabled ? null : _exportImportDiagnostics,
+              subtitle: 'Versão, esquema e contagens; sem valores pessoais'),
           _option('Backup e restauração', Icons.restore_outlined,
               () => _open('local'),
               subtitle: 'Cópias locais e recuperação dos dados'),

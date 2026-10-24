@@ -235,7 +235,11 @@ void main() {
     await open(
         tester, const TransactionsPage(sectionType: TransactionType.expense));
     expect(find.text('Cartão - Nu'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('movement-edit-invoice:bill')));
+    await tester.pumpAndSettle();
     expect(find.text('Fecha dia 25/set.'), findsOneWidget);
+    await tester.tap(find.text('Fechar'));
+    await tester.pumpAndSettle();
     expect(find.text('Compra no cartão'), findsNothing);
     await tester
         .tap(find.byKey(const ValueKey('movement-status-invoice:bill')));
@@ -385,7 +389,8 @@ void main() {
                 of: find.byKey(const ValueKey('movement-amount-a')),
                 matching: find.textContaining('124,45')),
             findsOneWidget);
-        expect(find.textContaining('124,45'), findsNWidgets(2));
+        expect(find.textContaining('124,45'),
+            findsNWidgets(movement == 'transfer' ? 2 : 1));
         expect(tester.takeException(), isNull);
       });
     }
