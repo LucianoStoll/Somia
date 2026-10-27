@@ -129,3 +129,15 @@ Dados, cálculos, sincronização e telas de detalhe mantêm suas regras.
 ## Itens somente no Extrato
 
 A aba Fatura apresenta o resumo, ações e histórico de faturas. Os itens individuais aparecem somente na aba Extrato, agrupados pela data da compra na fatura selecionada. O Extrato mantém os pagamentos por data e, no mobile, os mesmos cards de lançamentos com menu de edição. A mudança é de apresentação e não altera valores nem registros.
+
+
+## Lista compacta — 27/10/2026
+
+A lista mantém o seletor de mês compartilhado existente. Cada cartão destaca
+fatura e situação, com vencimento/fechamento abreviados na mesma linha
+(quebrando quando necessário com texto ampliado). O limite disponível,
+a barra de uso e o utilizado sobre o total ficam reunidos abaixo. Sem limite,
+a ação Definir abre a edição do cartão. Crédito e arquivamento continuam visíveis.
+Ver fatura e Extrato abrem diretamente suas respectivas telas. Registrar
+pagamento permanece no menu do cartão quando há saldo devedor, além dos
+detalhes da fatura. Cálculos de fatura e limite permanecem os do repositório.
