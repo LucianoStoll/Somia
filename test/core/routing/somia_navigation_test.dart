@@ -273,6 +273,8 @@ void main() {
     getIt.registerSingleton<TransactionsRepository>(_TransactionsStub());
     getIt.registerSingleton<TransfersRepository>(_TransfersStub());
     getIt.registerSingleton<AccountsRepository>(_AccountsStub());
+    getIt.registerSingleton<AccountStatementRepository>(
+        statements.FakeStatementRepository());
     getIt.registerSingleton<CategoriesRepository>(_CategoriesStub());
     addTearDown(() async {
       appRouter.go('/');
@@ -368,6 +370,8 @@ void main() {
       });
       getIt.registerSingleton<BackupManager>(manager);
       getIt.registerSingleton<AccountsRepository>(SqliteAccountsRepository(db));
+      getIt.registerSingleton<AccountStatementRepository>(
+          AccountStatementRepository(db));
       addTearDown(() async {
         appRouter.go('/');
         await getIt.reset();
@@ -460,9 +464,7 @@ void main() {
       (getIt<AccountsRepository>() as _AccountsStub).items = [
         statements.account,
       ];
-      getIt.registerSingleton<AccountStatementRepository>(
-        statements.FakeStatementRepository(),
-      );
+
       appRouter.go('/accounts');
       await tester.pumpAndSettle();
       await tester.tap(find.text('Mercado Pago'));
@@ -614,6 +616,8 @@ void main() {
     getIt.registerSingleton<TransactionsRepository>(transactions);
     getIt.registerSingleton<TransfersRepository>(_TransfersStub());
     getIt.registerSingleton<AccountsRepository>(_AccountsStub());
+    getIt.registerSingleton<AccountStatementRepository>(
+        statements.FakeStatementRepository());
     getIt.registerSingleton<CategoriesRepository>(_CategoriesStub());
     addTearDown(() async {
       appRouter.go('/');
@@ -728,6 +732,8 @@ void main() {
       getIt.registerSingleton<DashboardRepository>(_DashboardStub());
       getIt.registerSingleton<TransactionsRepository>(transactions);
       getIt.registerSingleton<AccountsRepository>(_AccountsStub());
+      getIt.registerSingleton<AccountStatementRepository>(
+          statements.FakeStatementRepository());
       getIt.registerSingleton<CategoriesRepository>(_CategoriesStub());
       addTearDown(() async {
         appRouter.go('/');
@@ -808,6 +814,8 @@ void main() {
     getIt.registerSingleton<DashboardRepository>(_DashboardStub());
     getIt.registerSingleton<TransactionsRepository>(_TransactionsStub());
     getIt.registerSingleton<AccountsRepository>(_AccountsStub());
+    getIt.registerSingleton<AccountStatementRepository>(
+        statements.FakeStatementRepository());
     getIt.registerSingleton<CategoriesRepository>(_CategoriesStub());
     addTearDown(() async {
       appRouter.go('/');

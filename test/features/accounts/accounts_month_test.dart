@@ -3,6 +3,7 @@ import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/core/di/injection.dart';
 import 'package:finapp/core/filters/reference_month.dart';
 import 'package:finapp/features/accounts/data/sqlite_accounts_repository.dart';
+import 'package:finapp/features/accounts/data/account_statement_repository.dart';
 import 'package:finapp/features/accounts/domain/account.dart';
 import 'package:finapp/features/accounts/domain/accounts_repository.dart';
 import 'package:finapp/features/accounts/presentation/accounts_page.dart';
@@ -133,6 +134,8 @@ void main() {
         initialBalanceMinor: 50000,
         includeInAnalytics: true));
     getIt.registerSingleton<AccountsRepository>(repo);
+    getIt.registerSingleton<AccountStatementRepository>(
+        AccountStatementRepository(db));
     referenceMonth.select(DateTime(2026, 1));
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
@@ -145,6 +148,12 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: AccountsPage()));
     await tester.pumpAndSettle();
     expect(find.text('Janeiro 2026'), findsOneWidget);
+    expect(find.text('Saldos no fim do mês'), findsNothing);
+    expect(find.text('Saldo consolidado'), findsNothing);
+    expect(find.text('Saldo inicial do mês'), findsOneWidget);
+    expect(find.text('Receitas'), findsOneWidget);
+    expect(find.text('Saldo atual'), findsOneWidget);
+    expect(find.text('Saldo previsto'), findsOneWidget);
     await tester.tap(find.byTooltip('Próximo mês'));
     await tester.pumpAndSettle();
     expect(referenceMonth.value, DateTime(2026, 2));
