@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/features/accounts/domain/account.dart';
 import 'package:finapp/features/accounts/domain/account_statement.dart';
@@ -44,6 +46,26 @@ StatementSection section(int closing) => StatementSection(
         ]);
 
 void main() {
+  if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+    setUpAll(() async {
+      final fonts = Directory(
+          '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts');
+      final font = FontLoader('Roboto'), icons = FontLoader('MaterialIcons');
+      for (final file in fonts.listSync().whereType<File>()) {
+        if (file.path.endsWith('Roboto-Regular.ttf') ||
+            file.path.endsWith('Roboto-Bold.ttf')) {
+          font.addFont(
+              Future.value(ByteData.sublistView(file.readAsBytesSync())));
+        }
+        if (file.path.endsWith('MaterialIcons-Regular.otf')) {
+          icons.addFont(
+              Future.value(ByteData.sublistView(file.readAsBytesSync())));
+        }
+      }
+      await font.load();
+      await icons.load();
+    });
+  }
   for (final (width, scale) in [(390.0, 1.0), (320.0, 1.8), (1000.0, 1.0)]) {
     testWidgets('card preserves ledger and actions at $width with text $scale',
         (tester) async {
