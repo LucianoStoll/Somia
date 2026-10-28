@@ -136,6 +136,7 @@ jobs:
             test/core/allocations/*mobile-preview.png
             test/core/allocations/*desktop-preview.png
             test/core/widgets/*mobile-preview.png
+            test/features/accounts/*mobile-preview.png
             test/features/csv_import/*mobile-preview.png
             test/features/investments/*mobile-preview.png
             test/features/investments/*desktop-preview.png
