@@ -122,7 +122,9 @@ class _Transfers implements TransfersRepository {
             amountMinor: amount,
             currencyCode: 'BRL',
             date: today.subtract(const Duration(days: 2)),
-            dueDate: today.add(const Duration(days: 5)),
+            // Keep the pending fixture visible in the selected month,
+            // including the last five days of a month.
+            dueDate: today,
             effectiveDate: date,
             isEffective: date != null && !date!.isAfter(today))
       ];
