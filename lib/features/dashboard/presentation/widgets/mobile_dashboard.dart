@@ -113,13 +113,13 @@ class MobileDashboardBody extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Resumo do mês',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                   ),
                 ),
                 BalanceHelpButton(),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 8),
             if (state.loading) const LinearProgressIndicator(),
             if (state.error != null)
               Padding(
@@ -167,8 +167,6 @@ class _CurrencySection extends StatelessWidget {
         if (showCurrency) Text(code),
         SummaryMetrics(currency: currency, month: month),
         const SizedBox(height: 12),
-        DashboardTransfersCard(currency: currency, month: month),
-        const SizedBox(height: 12),
         BalanceEvolutionPanel(currency: currency),
         const SizedBox(height: 12),
         _Panel(
@@ -183,6 +181,8 @@ class _CurrencySection extends StatelessWidget {
           key: ValueKey('mobile-history-$code'),
           currency: currency,
         ),
+        const SizedBox(height: 12),
+        DashboardTransfersCard(currency: currency, month: month),
         const SizedBox(height: 12),
         AccountTypesPanel(currency: currency),
         const SizedBox(height: 12),

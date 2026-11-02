@@ -222,33 +222,28 @@ class _DashboardViewState extends State<_DashboardView>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (multipleCurrencies || code != 'BRL') Text(code),
-        SummaryMetrics(currency: currency, month: month),
-        const SizedBox(height: 12),
-        DashboardTransfersCard(currency: currency, month: month),
+        LayoutBuilder(builder: (context, box) {
+          final metrics = SummaryMetrics(currency: currency, month: month);
+          final evolution = BalanceEvolutionPanel(currency: currency);
+          if (box.maxWidth >= 900 &&
+              MediaQuery.textScalerOf(context).scale(16) < 24) {
+            return Row(
+              key: const ValueKey('dashboard-desktop-overview'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 4, child: metrics),
+                const SizedBox(width: 16),
+                Expanded(flex: 6, child: evolution),
+              ],
+            );
+          }
+          return Column(
+              children: [metrics, const SizedBox(height: 12), evolution]);
+        }),
         const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, box) {
-            final evolution = BalanceEvolutionPanel(currency: currency);
-            final categories = _categoryPanel(context, currency);
-            return box.maxWidth >= 900 &&
-                    MediaQuery.textScalerOf(context).scale(16) < 24
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 6, child: evolution),
-                      const SizedBox(width: 16),
-                      Expanded(flex: 5, child: categories),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      evolution,
-                      const SizedBox(height: 16),
-                      categories,
-                    ],
-                  );
-          },
-        ),
+        SummaryAccounts(currencies: [currency]),
+        const SizedBox(height: 16),
+        _categoryPanel(context, currency),
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, box) {
@@ -269,6 +264,8 @@ class _DashboardViewState extends State<_DashboardView>
                   );
           },
         ),
+        const SizedBox(height: 16),
+        DashboardTransfersCard(currency: currency, month: month),
         const SizedBox(height: 16),
         UpcomingPanel(currency: currency),
         const SizedBox(height: 6),
@@ -342,8 +339,6 @@ class _DashboardViewState extends State<_DashboardView>
   ) =>
       LayoutBuilder(
         builder: (context, box) {
-          final wide = box.maxWidth >= 790 &&
-              MediaQuery.textScalerOf(context).scale(16) < 24;
           final transactions = _panel(
             context,
             'Últimos cadastrados',
@@ -359,23 +354,7 @@ class _DashboardViewState extends State<_DashboardView>
               child: const Text('Ver todos'),
             ),
           );
-          final accounts = SummaryAccounts(currencies: currencies);
-          return wide
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: transactions),
-                    const SizedBox(width: 12),
-                    Expanded(child: accounts),
-                  ],
-                )
-              : Column(
-                  children: [
-                    transactions,
-                    const SizedBox(height: 12),
-                    accounts
-                  ],
-                );
+          return transactions;
         },
       );
 
