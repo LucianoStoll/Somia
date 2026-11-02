@@ -1,3 +1,4 @@
+import 'summary_insights.dart';
 import 'dashboard_transfers_card.dart';
 import 'dart:math' as math;
 
@@ -176,6 +177,8 @@ class _CurrencySection extends StatelessWidget {
             currency: currency,
           ),
         ),
+        const SizedBox(height: 12),
+        SummaryInsights(currency: currency, month: month),
         const SizedBox(height: 12),
         _HistoryPanel(
           key: ValueKey('mobile-history-$code'),

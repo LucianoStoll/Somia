@@ -236,6 +236,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('mobile-recent')),
       250,
+      maxScrolls: 150,
       scrollable: find.descendant(
         of: find.byKey(const ValueKey('dashboard-mobile-scroll')),
         matching: find.byType(Scrollable),

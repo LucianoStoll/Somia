@@ -1,3 +1,4 @@
+import '../widgets/summary_insights.dart';
 import '../widgets/dashboard_transfers_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -244,6 +245,8 @@ class _DashboardViewState extends State<_DashboardView>
         SummaryAccounts(currencies: [currency]),
         const SizedBox(height: 16),
         _categoryPanel(context, currency),
+        const SizedBox(height: 16),
+        SummaryInsights(currency: currency, month: month),
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, box) {
