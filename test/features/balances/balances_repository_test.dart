@@ -86,8 +86,11 @@ void main() {
         6500);
 
     // A opção "Contabilizar hoje" antecipa o corte; a outra mantém o prazo.
+    // Reabrir antes de efetivar novamente: repetir o mesmo estado é recusado.
+    await transactions.setEffective(expense.id, effective: false);
     await transactions.setEffective(expense.id,
         effective: true, effectiveDate: DateTime.utc(2026, 9, 29));
+    await transfers.setEffective(transfer.id, effective: false);
     await transfers.setEffective(transfer.id,
         effective: true, effectiveDate: DateTime.utc(2026, 10, 15));
     final updated = await repo.calculate(
