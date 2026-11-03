@@ -149,7 +149,12 @@ class _RecentActivityDetailsState extends State<RecentActivityDetails> {
                     children: [
                       const Text('Não foi possível carregar este lançamento.'),
                       TextButton(
-                        onPressed: () => setState(() => _future = _load()),
+                        onPressed: () {
+                          final retry = _load();
+                          setState(() {
+                            _future = retry;
+                          });
+                        },
                         child: const Text('Tentar novamente'),
                       ),
                     ],
