@@ -1,4 +1,5 @@
 import '../widgets/dashboard_transfers_card.dart';
+import '../widgets/recent_activity_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -416,13 +417,7 @@ class _DashboardViewState extends State<_DashboardView>
         '${MoneyMinor.display(item.amountMinor, item.currencyCode)}',
         style: TextStyle(color: color, fontWeight: FontWeight.w600),
       ),
-      onTap: () => context.goNamed(
-        item.type == DashboardActivityType.transfer
-            ? AppRoutes.transfers
-            : item.type == DashboardActivityType.income
-                ? AppRoutes.income
-                : AppRoutes.expenses,
-      ),
+      onTap: () => showRecentActivityDetails(context, item),
     );
   }
 }

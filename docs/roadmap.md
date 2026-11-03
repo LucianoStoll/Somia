@@ -2,7 +2,23 @@
 
 ## Estratégia
 
-O primeiro marco é um MVP pequeno e utilizável. Recursos avançados já têm requisitos definidos, mas entram incrementalmente.
+O MVP e as versões v0.2.0-alpha/v0.3.0-alpha foram concluídos. O ciclo ativo é **v0.4.0-alpha**, em prévia, com importação/conciliação e melhorias de interface.
+
+Atualização: **03/11/2026**. Neste documento, `[x]` indica implementação disponível na versão indicada; validação manual e publicação são acompanhadas separadamente. Recursos futuros não passam a integrar o ciclo apenas por constarem no roadmap.
+
+## Situação atual
+
+| Área | Estado | Referência |
+| --- | --- | --- |
+| Versão publicada em `main` | v0.3.0-alpha, schema 26 | [Notas](releases/v0.3.0-alpha.md) |
+| Ciclo ativo | v0.4.0-alpha, schema 27; PR de fechamento em rascunho | [PR #89](https://github.com/LucianoStoll/Somia/pull/89) |
+| Importação e conciliação | CSV/XLSX, perfis, prévia, conciliação assistida, lotes e desfazer implementados na alpha | [Importação](importacao-csv.md) |
+| Interface integrada na alpha | Movimentos/transferências, Cartões, Planejamento, menu e Dívidas | PRs #90–#94 |
+| Refinamento da lista de Cartões | PR aberto; aguarda integração | [PR #95](https://github.com/LucianoStoll/Somia/pull/95) |
+| Cards detalhados de Contas, sem saldo consolidado no topo | PR aberto; aguarda integração | [PR #96](https://github.com/LucianoStoll/Somia/pull/96) |
+| Acesso direto aos recentes | Implementado nesta contribuição; aguarda integração à alpha e validação em aparelho | [Resumo](resumo-dashboard.md) |
+
+A integração das prévias não autoriza merge em `main` nem publicação de uma release.
 
 ## Controle de versões e branches
 
@@ -10,7 +26,7 @@ Cada ciclo de desenvolvimento deve possuir uma branch principal com o **nome exa
 
 Todas as issues previstas para aquela versão devem ser implementadas e validadas nessa branch. Evitar branches paralelas desnecessárias; quando uma branch auxiliar for indispensável, ela deve retornar para a branch da versão, nunca diretamente para `main`.
 
-A branch `main` representa somente versões concluídas/estáveis dentro do marco planejado. **A Pull Request da branch da versão para `main` só deve ser aberta quando todo o escopo daquela versão estiver concluído e validado.** Depois do merge, a versão recebe tag/release/changelog e inicia-se uma nova branch com o nome da próxima versão.
+A branch `main` representa somente versões concluídas/estáveis dentro do marco planejado. **O merge da Pull Request da versão para `main` só deve ocorrer quando o escopo estiver concluído e validado.** Um PR em rascunho pode acompanhar a prévia, como o #89. Depois do merge, a versão recebe tag/release/changelog e inicia-se uma nova branch com o nome da próxima versão.
 
 Antes de qualquer implementação, verificar qual é a branch de versão ativa e manter controle das branches existentes para evitar trabalho divergente ou abandonado.
 
@@ -134,16 +150,17 @@ O fechamento do ciclo e a PR para `main` acontecem após concluir e validar o es
 
 ## Fase 3 — Núcleo financeiro avançado
 - [ ] Competência e regras contábeis avançadas (lançamento/vencimento/efetivação já disponíveis no MVP)
-- [ ] Análises avançadas de previsto x realizado (saldo básico já disponível)
+- [x] Previsto x realizado em orçamentos e indicadores; visão mensal e comparação por categoria ampliadas na v0.4.0-alpha.
 - [x] Recorrências e parcelamentos — #46 validada.
-- [ ] Liquidações parciais
-- [ ] Rateio
-- [ ] Reembolsos/pessoas
-- [ ] Tags/estabelecimentos
+- [x] Liquidações parciais — [regras](baixas-parciais.md), v0.3.0-alpha.
+- [x] Rateio por valor/percentual — [regras](rateio-categorias.md), v0.3.0-alpha.
+- [x] Reembolsos/pessoas — [regras](pessoas-reembolsos.md), v0.3.0-alpha.
+- [x] Tags/estabelecimentos e filtros, v0.3.0-alpha.
 - [ ] Regras automáticas
 - [x] Sugestões por descrição e categorias (#48); modelos avançados futuros
-- [ ] Edição em lote, desfazer/refazer, lixeira
-- [ ] Agendamentos/projeções
+- [x] Edição em lote e lixeira, v0.3.0-alpha.
+- [ ] Desfazer/refazer global (o desfazer específico de baixas/importações não cobre todas as operações).
+- [x] Agendamentos e projeções de movimentos; datas futuras permanecem previstas até a efetivação.
 
 ## Fase 4 — Cartões
 
@@ -158,43 +175,55 @@ Entrega #47 (epic #12) concluída e validada. Cadastro, compras, faturas, limite
 - [x] Competência x caixa
 
 ## Fase 5 — Planejamento
-- [ ] Orçamentos/versionamento/acúmulo
-- [ ] Metas e objetivos
-- [ ] Reserva de emergência/grupos
-- [ ] Essencial x não essencial
-- [ ] Renda e taxa de poupança
+- [x] Orçamentos por categoria/subcategoria e mês, histórico e cópia do mês anterior.
+- [ ] Acúmulo automático de sobras do orçamento.
+- [x] Metas e objetivos vinculados a contas.
+- [x] Reserva de emergência com contas vinculadas e meses de cobertura.
+- [x] Seleção de categorias essenciais para a base da reserva.
+- [ ] Classificação essencial/não essencial em todas as análises.
+- [x] Renda, resultado e taxa de poupança por moeda.
 - [ ] Plano financeiro
 - [ ] Saúde financeira
-- [ ] Alertas progressivos
+- [x] Alertas internos de orçamento (80% e ultrapassagem); notificações do sistema futuras.
 
 ## Fase 6 — Dívidas e patrimônio
-- [ ] Empréstimos/financiamentos
-- [ ] Juros/encargos
-- [ ] Renegociação/amortização/simulações
-- [ ] Bens e avaliações
-- [ ] Patrimônio líquido
-- [ ] Investimentos e PriceProvider
+- [x] Empréstimos/financiamentos com amortização manual vinculada a despesas.
+- [x] Separação manual de principal e juros/encargos nas amortizações.
+- [ ] Cálculo automático de juros/encargos.
+- [x] Amortização manual e saldo atual/projetado.
+- [ ] Renegociação e simulações.
+- [x] Bens e avaliações manuais.
+- [x] Patrimônio com contas, bens e dívidas, sem duplicar financiamentos vinculados.
+- [x] Investimentos com aportes, resgates, rendimentos e ajustes manuais.
+- [ ] PriceProvider/cotações automáticas.
 
 ## Fase 7 — Relatórios/importação/produtividade
-- [ ] Dashboard customizável
-- [ ] Relatórios/gráficos
+- [x] Recolhimento dos blocos e preferência de ocultar contas zeradas.
+- [ ] Escolha livre e reordenação dos blocos do dashboard.
+- [x] Análises por categoria, comparação mensal, compromissos e saldos; exportação Excel/PDF.
+- [ ] Relatórios adicionais e filtros salvos.
 - [ ] Relatórios salvos/filtros globais
 - [ ] Fechamento/snapshots
-- [x] Importação CSV de receitas/despesas (#56); Excel/PDF futuros
+- [x] Importação CSV de receitas/despesas (#56).
+- [x] XLSX, perfis bancários, histórico de lotes, diagnóstico e desfazer seletivo na v0.4.0-alpha.
+- [ ] Importação de PDF e faturas.
 - [ ] OFX futuro
-- [ ] Conciliação
+- [x] Conciliação assistida de extrato e conferência opcional de saldo atual na v0.4.0-alpha.
+- [ ] Conferência de saldo histórico.
 - [ ] Pacote portátil
 - [ ] Favoritos/atalhos
 - [ ] Ampliar ajuda contextual (explicação dos saldos disponível no MVP)
 
 ## Fase 8 — Robustez
-- [ ] Anexos (20 MB)
+- [x] Anexos locais e sincronizados — [regras](anexos-sincronizados.md).
 - [x] Backup diário/3 versões
 - [x] Restauração local validada no MVP; evoluir proteção e automação nos próximos ciclos
-- [ ] Logs/diagnóstico
+- [x] Diagnóstico de importação sem dados financeiros na v0.4.0-alpha.
+- [ ] Diagnóstico geral do aplicativo.
 - [ ] Telemetria opt-in
 - [ ] Cache/agregações
-- [ ] Evoluir testes automatizados
+- [x] Suítes de regras financeiras, interface, migrações, backup, sync e importação.
+- [ ] Ampliar testes conforme novos recursos e cenários de aparelho.
 
 ## Fase 9 — Sync Engine
 - [x] SyncProvider/change tracking
@@ -202,7 +231,8 @@ Entrega #47 (epic #12) concluída e validada. Cadastro, compras, faturas, limite
 - [x] Sync ao abrir/após mudanças
 - [x] Last Write Wins + histórico
 - [x] Status/pendências/histórico
-- [ ] Anexos Automático/Wi-Fi/Manual
+- [x] Envio/recebimento de anexos na sincronização manual e automática com app aberto.
+- [ ] Política específica de anexos por Wi-Fi.
 - [x] Primeira sincronização
 - [x] Bloqueio de merge de bases independentes
 - [ ] Migração entre provedores
@@ -218,8 +248,8 @@ Entrega #47 (epic #12) concluída e validada. Cadastro, compras, faturas, limite
 
 ## Antes do 1.0
 - [ ] Identidade visual final
-- [ ] Testes automatizados críticos
-- [ ] CI ampliado
+- [x] Testes automatizados dos fluxos críticos existentes; ampliar conforme novos recursos.
+- [x] CI com formatação, análise, testes Linux/Windows, prévias e builds.
 - [ ] Definir licença
 - [ ] Revisar documentação
 - [ ] Changelog e v1.0.0
@@ -240,7 +270,7 @@ Semantic Versioning: 0.x-alpha para desenvolvimento inicial, 0.x-beta para estab
 Rateio/reembolso (#11) integra agora o ciclo v0.3.0-alpha. [Fluxo e validação da sincronização](sincronizacao-drive.md).
 
 
-## Ciclo atual — v0.3.0-alpha
+## Histórico do ciclo — v0.3.0-alpha
 
 Branch `v0.3.0-alpha` criada a partir do commit integrado de `main` (`8eca99824e0b506d0791c15239adb51cfd480201`), com pubspec, identificação do app, changelog e documentação atualizados. Acompanhamento na [#58](https://github.com/LucianoStoll/Somia/issues/58) e no [documento do ciclo](ciclos/v0.3.0-alpha.md). CI segue gerando pacotes; publicação somente ao integrar o próximo ciclo validado em main.
 
@@ -249,8 +279,34 @@ Escopo aprovado pelo usuário em 06/10/2026: concluir todas as pendências das e
 
 ## Fechamento da v0.3.0-alpha — 15/10/2026
 
-Publicação autorizada pelo usuário. Entregas e limites nas [notas da versão](releases/v0.3.0-alpha.md). O escopo vigente de fechamento prevalece sobre o planejamento inicial: relatórios adicionais/importação/conciliação ficam para a próxima alpha, assim como internacionais/adicionais/importação de faturas. O próximo ciclo e sua numeração ainda não foram abertos.
+Publicação autorizada pelo usuário. Entregas e limites nas [notas da versão](releases/v0.3.0-alpha.md). O escopo vigente de fechamento prevalece sobre o planejamento inicial: relatórios adicionais/importação/conciliação ficam para a próxima alpha, assim como internacionais/adicionais/importação de faturas. O ciclo seguinte é a v0.4.0-alpha, descrito abaixo.
 
-## Ciclo de prévia — v0.4.0-alpha
+## Ciclo atual de prévia — v0.4.0-alpha
 
 Branch `v0.4.0-alpha` a partir da v0.3.0-alpha integrada em `main`; [PR #89](https://github.com/LucianoStoll/Somia/pull/89) em rascunho. Cinco etapas sequenciais: (1) perfis CSV e datas compartilhadas; (2) prévia, filtros, totais e identidade dos lotes; (3) conciliação assistida e saldo atual; (4) XLSX, cópias de proteção, desfazer seletivo e diagnóstico; (5) CI Android/Windows, documentação e APK assinado de teste. Não publicar tag nem mesclar antes da validação final. [Regras da importação](importacao-csv.md) e [notas de prévia](releases/v0.4.0-alpha.md).
+
+
+### Interface e navegação da v0.4.0-alpha
+
+- [x] Movimentos com transferências e totais de caixa compartilhados com o Resumo; transferências não são receita/despesa.
+- [x] Planejamento com saldo previsto por conta, categorias → subcategorias → lançamentos e comparação mensal.
+- [x] Cartões com itens somente no Extrato e navegação no histórico das faturas.
+- [x] Menu lateral e navegação inferior reorganizados; Dívidas com novo resumo e parcelas.
+- [ ] Integrar e validar o refinamento de Cartões (#95).
+- [ ] Integrar e validar os cards detalhados de Contas (#96).
+- [ ] Integrar e validar a abertura direta dos detalhes de recentes em Android e Windows, incluindo compras no cartão e registros de outro mês.
+
+### Fechamento ainda pendente
+
+- [ ] Validação em aparelhos Android/Windows da importação, conciliação, desfazer e sincronização entre os dispositivos atualizados.
+- [ ] Revisão integrada das telas e das contribuições pendentes.
+- [ ] Atualizar notas da v0.4.0-alpha e documentação de uso para o escopo final validado.
+- [ ] Autorizar o fechamento, concluir o PR #89 e publicar a release do ciclo.
+
+### Próximas melhorias sugeridas, fora do escopo atual
+
+- Seletor Realizado / Previsto / Ambos nos gráficos do Resumo.
+- Sincronização com status, última atualização e pendências em destaque; operações avançadas em uma área própria.
+- Avaliar a hierarquia dos blocos do Resumo usando as opções de recolhimento já existentes.
+
+Essas sugestões dependem de definição de escopo; não representam funcionalidades já aprovadas ou entregues.

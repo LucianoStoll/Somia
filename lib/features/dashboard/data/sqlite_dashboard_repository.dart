@@ -307,16 +307,16 @@ class SqliteDashboardRepository implements DashboardRepository {
         ];
         final rows = await _db.customSelect('''
       SELECT id, type, description, account_label, currency_code,
-        amount_minor, event_at, effective_at, created_at FROM (
+        amount_minor, event_at, effective_at, created_at, card_id FROM (
         SELECT t.id, t.type, t.description, a.name AS account_label,
           a.currency_code,
           COALESCE(t.actual_amount_minor, t.planned_amount_minor) AS amount_minor,
-          t.due_at AS event_at, t.effective_at, t.created_at
+          t.due_at AS event_at, t.effective_at, t.created_at, NULL AS card_id
         FROM transaction_events t JOIN accounts a ON a.id = t.account_id
         WHERE t.deleted_at IS NULL AND a.deleted_at IS NULL
         UNION ALL
         SELECT e.id, 'expense', e.description, 'Cartão ' || c.name,
-          'BRL', e.amount_minor, i.due_at, NULL, e.created_at
+          'BRL', e.amount_minor, i.due_at, NULL, e.created_at, e.card_id
         FROM card_entries e JOIN credit_cards c ON c.id=e.card_id
         JOIN card_invoices i ON i.id=e.invoice_id
         WHERE e.deleted_at IS NULL AND e.kind='purchase'
@@ -324,7 +324,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         SELECT f.id, 'transfer' AS type, f.description AS description,
           source.name || ' → ' || destination.name AS account_label,
           source.currency_code, f.amount_minor, f.due_at AS event_at,
-          f.effective_at, f.created_at
+          f.effective_at, f.created_at, NULL AS card_id
         FROM transfers f
         JOIN accounts source ON source.id = f.source_account_id
         JOIN accounts destination ON destination.id = f.destination_account_id
@@ -335,6 +335,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         final recent = rows
             .map((row) => DashboardActivity(
                   id: row.read<String>('id'),
+                  cardId: row.readNullable<String>('card_id'),
                   type: DashboardActivityType.values
                       .byName(row.read<String>('type')),
                   description: row.read<String>('description'),

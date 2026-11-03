@@ -71,7 +71,8 @@ class DashboardActivity {
       required this.currencyCode,
       required this.amountMinor,
       required this.date,
-      required this.isEffective});
+      required this.isEffective,
+      this.cardId});
 
   final String id;
   final DashboardActivityType type;
@@ -81,6 +82,9 @@ class DashboardActivity {
   final int amountMinor;
   final DateTime date;
   final bool isEffective;
+
+  /// Identifica compras no cartão separadamente das despesas de conta.
+  final String? cardId;
 }
 
 class DashboardSummary {

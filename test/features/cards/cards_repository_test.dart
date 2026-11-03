@@ -87,6 +87,18 @@ void main() {
         projectedBalanceMinor: b.projectedMinor);
   }
 
+  test('recentes distinguem compra no cartão de despesa de conta', () async {
+    await cards.createPurchase(draft());
+    final entries = await cards.entries(cardId: cardId);
+    final summary = await SqliteDashboardRepository(
+      db,
+    ).load(DateTime(2026, 11));
+    final recent = summary.recent.singleWhere((e) => e.id == entries.single.id);
+    expect(recent.cardId, cardId);
+    expect(recent.description, entries.single.description);
+    expect(recent.amountMinor, entries.single.amountMinor);
+  });
+
   test(
       'resumo reconcilia vencimentos e curva com fatura parcial e crédito posterior',
       () async {
