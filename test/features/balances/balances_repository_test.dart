@@ -85,11 +85,14 @@ void main() {
         november.accounts.firstWhere((x) => x.accountId == a.id).projectedMinor,
         6500);
 
-    // A opção "Contabilizar hoje" antecipa o corte; a outra mantém o prazo.
-    await transactions.setEffective(expense.id,
-        effective: true, effectiveDate: DateTime.utc(2026, 9, 29));
-    await transfers.setEffective(transfer.id,
-        effective: true, effectiveDate: DateTime.utc(2026, 10, 15));
+    // Ajustar uma efetivação existente exige conferir sua data anterior.
+    // Assim o cenário continua válido depois que novembro de 2026 passar.
+    await transactions.changeEffectiveDate(expense.id,
+        expectedDate: DateTime.utc(2026, 11, 1),
+        effectiveDate: DateTime.utc(2026, 9, 29));
+    await transfers.changeEffectiveDate(transfer.id,
+        expectedDate: DateTime.utc(2026, 11, 5),
+        effectiveDate: DateTime.utc(2026, 10, 15));
     final updated = await repo.calculate(
         asOf: DateTime.utc(2026, 9, 30), through: DateTime.utc(2026, 9, 30));
     expect(updated.accounts.firstWhere((x) => x.accountId == a.id).currentMinor,
