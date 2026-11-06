@@ -554,6 +554,12 @@ class _CardsPageState extends State<CardsPage> {
     final invoice = _summaries[card.id];
     final accent = _accent(card);
     final limit = card.limitMinor;
+    final compactText = MediaQuery.textScalerOf(context).scale(16) <= 20;
+    Widget fit(Widget child, {Alignment alignment = Alignment.centerLeft}) =>
+        compactText
+            ? FittedBox(
+                fit: BoxFit.scaleDown, alignment: alignment, child: child)
+            : child;
     void open({bool statement = false}) => context.go(
           '${AppRoutes.cardsPath}?card=${Uri.encodeComponent(card.id)}'
           '${statement ? '&view=statement' : ''}',
@@ -579,7 +585,7 @@ class _CardsPageState extends State<CardsPage> {
     final due = invoice?.dueAt ?? card.dueFor(_month);
     final closing = invoice?.closingAt ?? card.closingFor(_month);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: SomiaColors.surface,
         shape: RoundedRectangleBorder(
@@ -664,29 +670,31 @@ class _CardsPageState extends State<CardsPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 4,
-                  children: [
+                LayoutBuilder(builder: (context, constraints) {
+                  final dates = [
                     Semantics(
                       label: 'Vencimento ${cardDateLabel(due)}',
                       excludeSemantics: true,
-                      child: Text(
-                        'Vence em ${date(due)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      child: Text('Vence em ${date(due)}',
+                          style: const TextStyle(fontSize: 12)),
                     ),
                     Semantics(
                       label: 'Fechamento ${cardDateLabel(closing)}',
                       excludeSemantics: true,
-                      child: Text(
-                        'Fecha em ${date(closing)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      child: Text('Fecha em ${date(closing)}',
+                          style: const TextStyle(fontSize: 12)),
                     ),
-                  ],
-                ),
-                const Divider(height: 18),
+                  ];
+                  if (!compactText || constraints.maxWidth < 250) {
+                    return Wrap(spacing: 12, runSpacing: 4, children: dates);
+                  }
+                  return Row(children: [
+                    Expanded(child: fit(dates[0])),
+                    const SizedBox(width: 8),
+                    Expanded(child: fit(dates[1])),
+                  ]);
+                }),
+                const Divider(height: 10),
                 if (limit == null)
                   Row(
                     children: [
@@ -718,30 +726,32 @@ class _CardsPageState extends State<CardsPage> {
                         ),
                       ),
                       Flexible(
-                        child: Text(
-                          cardMoney(card.availableMinor!),
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: card.availableMinor! < 0
-                                ? SomiaColors.red
-                                : accent,
-                          ),
-                        ),
+                        child: fit(
+                            Text(
+                              cardMoney(card.availableMinor!),
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: card.availableMinor! < 0
+                                    ? SomiaColors.red
+                                    : accent,
+                              ),
+                            ),
+                            alignment: Alignment.centerRight),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   _limitProgress(card),
                   const SizedBox(height: 4),
-                  Text(
+                  fit(Text(
                     '${cardMoney(card.committedMinor)} de ${cardMoney(limit)} utilizados',
                     style: const TextStyle(
                       fontSize: 11,
                       color: SomiaColors.muted,
                     ),
-                  ),
+                  )),
                 ],
                 if (card.creditMinor > 0) ...[
                   const SizedBox(height: 4),
@@ -753,7 +763,7 @@ class _CardsPageState extends State<CardsPage> {
                     ),
                   ),
                 ],
-                const Divider(height: 12),
+                const Divider(height: 8),
                 Row(
                   children: [
                     Expanded(
@@ -761,7 +771,7 @@ class _CardsPageState extends State<CardsPage> {
                         key: ValueKey('card-invoice-${card.id}'),
                         onPressed: _acting ? null : () => open(),
                         icon: const Icon(Icons.receipt_long_outlined, size: 18),
-                        label: const Text('Ver fatura'),
+                        label: fit(const Text('Ver fatura')),
                       ),
                     ),
                     const SizedBox(

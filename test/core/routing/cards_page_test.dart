@@ -399,7 +399,10 @@ void main() {
     await open(tester, TargetPlatform.android, detail: false, shell: true);
     await tester.tap(find.byKey(const ValueKey('card-statement-nu')));
     await tester.pumpAndSettle();
-    expect(find.text('Compra parcelada com descrição longa'), findsOneWidget);
+    expect(find.text('Extrato · 10/2026'), findsOneWidget);
+    final entry = find.text('Compra parcelada com descrição longa');
+    await tester.scrollUntilVisible(entry, 140);
+    expect(entry, findsOneWidget);
     expect(find.text('Cartão Nubank'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
