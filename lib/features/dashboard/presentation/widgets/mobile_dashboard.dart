@@ -1,4 +1,5 @@
 import 'dashboard_transfers_card.dart';
+import 'recent_activity_details.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -464,25 +465,22 @@ class _RecentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (color, icon, route) = switch (item.type) {
+    final (color, icon) = switch (item.type) {
       DashboardActivityType.income => (
           SomiaColors.green,
           Icons.work_outline_rounded,
-          AppRoutes.income,
         ),
       DashboardActivityType.expense => (
           SomiaColors.red,
           Icons.shopping_cart_outlined,
-          AppRoutes.expenses,
         ),
       DashboardActivityType.transfer => (
           SomiaColors.blue,
           Icons.swap_horiz,
-          AppRoutes.transfers,
         ),
     };
     return InkWell(
-      onTap: () => context.goNamed(route),
+      onTap: () => showRecentActivityDetails(context, item),
       borderRadius: BorderRadius.circular(10),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),

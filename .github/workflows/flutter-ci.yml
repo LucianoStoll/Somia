@@ -82,6 +82,8 @@ jobs:
         run: flutter test test/core/routing/cards_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render category suggestions preview
         run: flutter test test/core/routing/category_history_form_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
+      - name: Render account cards preview
+        run: flutter test test/features/accounts/account_summary_card_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render account statement preview
         run: flutter test test/core/routing/account_statement_page_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render movement list preview
@@ -134,6 +136,7 @@ jobs:
             test/core/allocations/*mobile-preview.png
             test/core/allocations/*desktop-preview.png
             test/core/widgets/*mobile-preview.png
+            test/features/accounts/*mobile-preview.png
             test/features/csv_import/*mobile-preview.png
             test/features/investments/*mobile-preview.png
             test/features/investments/*desktop-preview.png

@@ -31,3 +31,10 @@ Vencimentos: receitas/despesas pendentes (saldo restante de baixas) e dívida de
 6. Android estreito, fonte ampliada e Windows redimensionado; rolar até o fim e trocar mês.
 
 Validação manual posterior pelo uso. A issue permanece aberta até confirmação do usuário.
+
+
+## Acesso aos últimos cadastrados — v0.4.0-alpha
+
+Tocar em um lançamento recente no Android ou Windows abre seus detalhes em uma folha rolável, sem mudar o mês selecionado. A consulta busca o registro atual pelo identificador, independentemente do mês do Resumo: descrição, valor, conta(s), categoria, datas, situação e informações complementares disponíveis. Compras no cartão mostram a compra e o vencimento da fatura, sem apresentá-las como uma despesa de conta efetivada.
+
+O botão de navegação continua disponível para a seção correspondente; em compras, abre o Extrato do cartão e mês da fatura corretos. Fechar os detalhes mantém o Resumo. Um registro removido não abre outro lançamento nem usa os valores antigos; falha de leitura permite tentar novamente. A consulta não altera lançamentos, saldos ou sincronização.
