@@ -13,3 +13,20 @@ Transferências são entradas ou saídas próprias, sem confundir com receitas/d
 - Conferir transferências de entrada/saída, faturas parcialmente pagas, agendadas, atrasadas e pagas por outra conta.
 - Conferir contas arquivadas e fora do consolidado, meses vazios e saldos negativos.
 - Confirmar que não há edição, efetivação ou desfazer nos detalhes e que as ações da lista continuam disponíveis.
+
+### Cards da lista de contas
+
+A lista usa o tema Somia e exibe um card por conta, sem saldo consolidado no
+cabeçalho. O seletor de mês continua compartilhado. Cada card mostra saldo
+inicial **do mês**, receitas, transferências recebidas/enviadas, despesas,
+saldo atual e saldo previsto. As linhas usam o extrato realizado (efetivações
+até hoje, limitado ao fim do mês); despesas incluem pagamentos de fatura.
+O saldo previsto usa o extrato projetado, incluindo pendências e faturas,
+sem contar transferências como receitas/despesas. As exclusões de análises
+e consolidação aparecem como etiquetas e não escondem a conta.
+
+O nome e o botão de extrato abrem os detalhes. O `+` permite criar receita,
+despesa ou transferência com a conta selecionada como padrão; após salvar,
+a lista é recarregada. Contas arquivadas não permitem novos movimentos.
+Editar, arquivar/reativar e incluir/excluir do consolidado continuam no menu.
+A busca filtra por nome e o gesto de atualizar recarrega os valores.

@@ -24,12 +24,14 @@ class MonthSelector extends StatelessWidget {
       required this.onChanged,
       this.compact = false,
       this.header = false,
-      this.arrows = true});
+      this.arrows = true,
+      this.centered = false});
   final DateTime month;
   final ValueChanged<DateTime> onChanged;
   final bool compact;
   final bool header;
   final bool arrows;
+  final bool centered;
 
   Future<void> _choose(BuildContext context) async {
     final selected = await showDialog<DateTime>(
@@ -46,36 +48,46 @@ class MonthSelector extends StatelessWidget {
           border: Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (arrows)
-            IconButton(
-                tooltip: 'Mês anterior',
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () =>
-                    onChanged(DateTime(month.year, month.month - 1))),
-          Flexible(
-              child: TextButton(
-            onPressed: () => _choose(context),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (!header) const Icon(Icons.calendar_month_outlined, size: 18),
-              if (!compact || header) ...[
-                if (!header) const SizedBox(width: 8),
-                Flexible(
-                    child: Text(
-                        '${header ? monthNames[month.month - 1].substring(0, 3) : monthNames[month.month - 1]} ${month.year}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis)),
-                if (!header) const Icon(Icons.expand_more, size: 18),
-              ],
+        child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment:
+                centered ? MainAxisAlignment.center : MainAxisAlignment.start,
+            children: [
+              if (arrows)
+                IconButton(
+                    tooltip: 'Mês anterior',
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: () =>
+                        onChanged(DateTime(month.year, month.month - 1))),
+              Flexible(
+                  child: TextButton(
+                onPressed: () => _choose(context),
+                child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: centered
+                        ? MainAxisAlignment.center
+                        : MainAxisAlignment.start,
+                    children: [
+                      if (!header)
+                        const Icon(Icons.calendar_month_outlined, size: 18),
+                      if (!compact || header) ...[
+                        if (!header) const SizedBox(width: 8),
+                        Flexible(
+                            child: Text(
+                                '${header ? monthNames[month.month - 1].substring(0, 3) : monthNames[month.month - 1]} ${month.year}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis)),
+                        if (!header) const Icon(Icons.expand_more, size: 18),
+                      ],
+                    ]),
+              )),
+              if (arrows)
+                IconButton(
+                    tooltip: 'Próximo mês',
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () =>
+                        onChanged(DateTime(month.year, month.month + 1))),
             ]),
-          )),
-          if (arrows)
-            IconButton(
-                tooltip: 'Próximo mês',
-                icon: const Icon(Icons.chevron_right),
-                onPressed: () =>
-                    onChanged(DateTime(month.year, month.month + 1))),
-        ]),
       );
 }
 

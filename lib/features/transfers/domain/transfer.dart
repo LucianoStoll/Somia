@@ -32,6 +32,8 @@ class Transfer {
   final DateTime? dueDate;
   final DateTime? effectiveDate;
   final bool isEffective;
+  DateTime get activityDate =>
+      isEffective ? effectiveDate ?? dueDate ?? date : dueDate ?? date;
 }
 
 class TransferDraft {
@@ -60,7 +62,7 @@ class TransferDraft {
   final SeriesScope scope;
 }
 
-enum TransferDateField { posted, due, effective }
+enum TransferDateField { posted, due, effective, activity }
 
 class TransferFilter {
   const TransferFilter(
@@ -68,7 +70,7 @@ class TransferFilter {
       this.to,
       this.accountId,
       this.effective,
-      this.dateField = TransferDateField.due});
+      this.dateField = TransferDateField.activity});
   final DateTime? from;
   final DateTime? to;
   final String? accountId;
@@ -80,6 +82,7 @@ class TransferFilter {
       TransferDateField.posted => item.date,
       TransferDateField.due => item.dueDate ?? item.date,
       TransferDateField.effective => item.effectiveDate,
+      TransferDateField.activity => item.activityDate,
     };
     return (accountId == null ||
             item.sourceAccountId == accountId ||

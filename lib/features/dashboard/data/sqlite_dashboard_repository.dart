@@ -238,10 +238,47 @@ class SqliteDashboardRepository implements DashboardRepository {
         for (final list in upcoming.values) {
           list.sort((a, b) => a.date.compareTo(b.date));
         }
+        final todayEnd = DateTime.utc(today.year, today.month, today.day + 1)
+            .millisecondsSinceEpoch;
+        final transferRows = await _db.customSelect('''
+          SELECT source.currency_code, COUNT(*) AS count,
+            SUM(CASE WHEN f.effective_at < ? THEN f.amount_minor ELSE 0 END) AS realized,
+            SUM(CASE WHEN f.effective_at IS NULL OR f.effective_at >= ?
+              THEN f.amount_minor ELSE 0 END) AS pending
+          FROM transfers f
+          JOIN accounts source ON source.id=f.source_account_id
+          JOIN accounts destination ON destination.id=f.destination_account_id
+          WHERE f.deleted_at IS NULL AND source.deleted_at IS NULL
+            AND destination.deleted_at IS NULL
+            AND (CASE WHEN f.effective_at < ? THEN f.effective_at ELSE f.due_at END) >= ?
+            AND (CASE WHEN f.effective_at < ? THEN f.effective_at ELSE f.due_at END) < ?
+          GROUP BY source.currency_code
+        ''', variables: [
+          Variable.withInt(todayEnd),
+          Variable.withInt(todayEnd),
+          Variable.withInt(todayEnd),
+          Variable.withInt(start),
+          Variable.withInt(todayEnd),
+          Variable.withInt(end),
+        ]).get();
+        final transfersByCurrency = {
+          for (final row in transferRows)
+            row.read<String>('currency_code'): row,
+        };
+        for (final code in transfersByCurrency.keys) {
+          if (!currencies.contains(code)) currencies.add(code);
+        }
+        currencies.sort();
         final summaries = [
           for (final currency in currencies)
             DashboardCurrencySummary(
                 currencyCode: currency,
+                transferCount:
+                    transfersByCurrency[currency]?.read<int>('count') ?? 0,
+                transferredMinor:
+                    transfersByCurrency[currency]?.read<int>('realized') ?? 0,
+                pendingTransferMinor:
+                    transfersByCurrency[currency]?.read<int>('pending') ?? 0,
                 dailyBalances: daily[currency] ?? const [],
                 upcoming: upcoming[currency] ?? const [],
                 balanceDetails: details[currency],
@@ -270,16 +307,16 @@ class SqliteDashboardRepository implements DashboardRepository {
         ];
         final rows = await _db.customSelect('''
       SELECT id, type, description, account_label, currency_code,
-        amount_minor, event_at, effective_at, created_at FROM (
+        amount_minor, event_at, effective_at, created_at, card_id FROM (
         SELECT t.id, t.type, t.description, a.name AS account_label,
           a.currency_code,
           COALESCE(t.actual_amount_minor, t.planned_amount_minor) AS amount_minor,
-          t.due_at AS event_at, t.effective_at, t.created_at
+          t.due_at AS event_at, t.effective_at, t.created_at, NULL AS card_id
         FROM transaction_events t JOIN accounts a ON a.id = t.account_id
         WHERE t.deleted_at IS NULL AND a.deleted_at IS NULL
         UNION ALL
         SELECT e.id, 'expense', e.description, 'Cartão ' || c.name,
-          'BRL', e.amount_minor, i.due_at, NULL, e.created_at
+          'BRL', e.amount_minor, i.due_at, NULL, e.created_at, e.card_id
         FROM card_entries e JOIN credit_cards c ON c.id=e.card_id
         JOIN card_invoices i ON i.id=e.invoice_id
         WHERE e.deleted_at IS NULL AND e.kind='purchase'
@@ -287,7 +324,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         SELECT f.id, 'transfer' AS type, f.description AS description,
           source.name || ' → ' || destination.name AS account_label,
           source.currency_code, f.amount_minor, f.due_at AS event_at,
-          f.effective_at, f.created_at
+          f.effective_at, f.created_at, NULL AS card_id
         FROM transfers f
         JOIN accounts source ON source.id = f.source_account_id
         JOIN accounts destination ON destination.id = f.destination_account_id
@@ -298,6 +335,7 @@ class SqliteDashboardRepository implements DashboardRepository {
         final recent = rows
             .map((row) => DashboardActivity(
                   id: row.read<String>('id'),
+                  cardId: row.readNullable<String>('card_id'),
                   type: DashboardActivityType.values
                       .byName(row.read<String>('type')),
                   description: row.read<String>('description'),

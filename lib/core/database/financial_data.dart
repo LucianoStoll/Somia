@@ -40,6 +40,8 @@ const financialTables = [
   'cashback_claims',
   'cashback_receipts',
   'attachment_manifest',
+  'import_batches',
+  'import_batch_entries',
 ];
 typedef FinancialRows = Map<String, Map<String, Map<String, Object?>>>;
 

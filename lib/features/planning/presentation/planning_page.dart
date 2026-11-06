@@ -1,4 +1,5 @@
 import '../../../core/widgets/module_surface.dart';
+import 'planning_overview.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -29,6 +30,9 @@ class _PlanningPageState extends State<PlanningPage> {
   List<BudgetLimit> budgets = [];
   List<PlanningGoal> goals = [];
   List<MonthlySpend> spending = [];
+  List<MonthlySpend> previousSpending = [];
+  List<Account> forecast = [];
+  List<FinanceCategory> categories = [];
   bool loading = true, busy = false;
   Object? error;
   int generation = 0;
@@ -53,15 +57,23 @@ class _PlanningPageState extends State<PlanningPage> {
 
   Future<void> load() async {
     final request = ++generation, period = referenceMonth.value;
+    if (mounted) setState(() => loading = true);
     try {
       final b = await repo.budgets(period),
           g = await repo.goals(),
-          s = await repo.spending(period);
+          s = await repo.spending(period),
+          previous =
+              await repo.spending(DateTime(period.year, period.month - 1)),
+          a = await repo.forecastAccounts(period),
+          c = await getIt<CategoriesRepository>().list();
       if (mounted && request == generation) {
         setState(() {
           budgets = b;
           goals = g;
           spending = s;
+          previousSpending = previous;
+          forecast = a;
+          categories = c;
           loading = false;
           error = null;
         });
@@ -266,59 +278,6 @@ class _PlanningPageState extends State<PlanningPage> {
             ])));
   }
 
-  Widget indicators() {
-    final codes = spending.map((s) => s.currency).toSet().toList()..sort();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Renda e saúde financeira', style: TextStyle(fontSize: 20)),
-      const SizedBox(height: 8),
-      const Text(
-          'Indicadores do mês selecionado. Poupança = receita menos despesa; não representa aportes em investimentos.'),
-      if (codes.isEmpty)
-        const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Sem movimentos neste mês.')),
-      for (final code in codes)
-        Builder(builder: (context) {
-          final rows = spending.where((s) => s.currency == code);
-          final income = rows
-                  .where((s) => s.type == 'income')
-                  .fold<int>(0, (v, s) => v + s.realized),
-              expense = rows
-                  .where((s) => s.type == 'expense')
-                  .fold<int>(0, (v, s) => v + s.realized);
-          final pi = rows
-                  .where((s) => s.type == 'income')
-                  .fold<int>(0, (v, s) => v + s.projected),
-              pe = rows
-                  .where((s) => s.type == 'expense')
-                  .fold<int>(0, (v, s) => v + s.projected);
-          return Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Receita realizada: ${money(income, code)}'),
-                        Text('Despesa realizada: ${money(expense, code)}'),
-                        Text(
-                            'Resultado realizado: ${money(income - expense, code)}'),
-                        Text(
-                            'Taxa de poupança: ${income <= 0 ? 'indisponível sem renda positiva' : '${((income - expense) * 100 / income).toStringAsFixed(1)}%'}'),
-                        Text('Resultado previsto: ${money(pi - pe, code)}'),
-                        Text(pi - pe < 0
-                            ? 'Alerta: despesas previstas superam as receitas. Revise os limites ou os gastos.'
-                            : income <= 0
-                                ? 'Registre renda para acompanhar a taxa de poupança.'
-                                : 'Compare a sobra com suas metas e mantenha uma reserva para imprevistos.'),
-                      ])));
-        }),
-      const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-              'Transferir dinheiro entre contas não aumenta renda nem poupança. Compras do cartão entram no mês da fatura; pagar a fatura não repete a despesa. Reembolsos permanecem receitas separadas.')),
-    ]);
-  }
-
   @override
   Widget build(BuildContext context) => DefaultTabController(
       length: 3,
@@ -328,9 +287,9 @@ class _PlanningPageState extends State<PlanningPage> {
                   leading: somiaMenuLeading(context),
                   title: const Text('Planejamento'),
                   bottom: const TabBar(tabs: [
+                    Tab(text: 'Visão geral'),
                     Tab(text: 'Orçamentos'),
-                    Tab(text: 'Metas'),
-                    Tab(text: 'Indicadores')
+                    Tab(text: 'Metas')
                   ])),
               body: loading
                   ? const Center(child: CircularProgressIndicator())
@@ -342,11 +301,28 @@ class _PlanningPageState extends State<PlanningPage> {
                       : Column(children: [
                           Padding(
                               padding: const EdgeInsets.all(12),
-                              child: MonthSelector(
-                                  month: referenceMonth.value,
-                                  onChanged: referenceMonth.select)),
+                              child: SizedBox(
+                                  width: double.infinity,
+                                  child: MonthSelector(
+                                      centered: true,
+                                      month: referenceMonth.value,
+                                      onChanged: referenceMonth.select))),
                           Expanded(
                               child: TabBarView(children: [
+                            PlanningOverview(
+                                month: referenceMonth.value,
+                                accounts: forecast,
+                                categories: categories,
+                                spending: spending,
+                                previousSpending: previousSpending,
+                                budgets: budgets,
+                                onRefresh: load,
+                                loadEntries:
+                                    (month, type, currency, categoryId) =>
+                                        repo.entries(month,
+                                            type: type,
+                                            currency: currency,
+                                            categoryId: categoryId)),
                             RefreshIndicator(
                                 onRefresh: load,
                                 child: ListView(
@@ -417,11 +393,6 @@ class _PlanningPageState extends State<PlanningPage> {
                                                 'Crie sua primeira meta ou reserva.')),
                                       ...goals.map(goalCard),
                                     ])),
-                            RefreshIndicator(
-                                onRefresh: load,
-                                child: ListView(
-                                    padding: const EdgeInsets.all(16),
-                                    children: [indicators()])),
                           ])),
                         ]))));
 }
