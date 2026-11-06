@@ -218,6 +218,14 @@ void main() {
         await tester.tap(find.text('Dezembro 2026'));
         await tester.pumpAndSettle();
         expect(referenceMonth.value.month, 12);
+        final currentInvoice = find.text('Fatura atual');
+        await tester.scrollUntilVisible(currentInvoice, -200);
+        final currentInvoiceRow =
+            find.ancestor(of: currentInvoice, matching: find.byType(Row)).first;
+        expect(
+            find.descendant(
+                of: currentInvoiceRow, matching: find.text('R\$ 944,34')),
+            findsOneWidget);
         await tester.scrollUntilVisible(chart, 200);
         await Scrollable.ensureVisible(tester.element(chart), alignment: 0.5);
         await tester.pumpAndSettle();

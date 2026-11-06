@@ -898,7 +898,7 @@ class _CardsPageState extends State<CardsPage> {
                 style: const TextStyle(color: SomiaColors.muted, fontSize: 13),
               ),
               const SizedBox(height: 6),
-              _referenceMetric('Fatura atual', invoice.balanceMinor),
+              _referenceMetric('Fatura atual', invoice.chargesMinor),
             ],
           ),
         ),
