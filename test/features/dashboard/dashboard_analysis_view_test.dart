@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:finapp/core/theme/app_theme.dart';
 import 'package:finapp/features/dashboard/domain/dashboard_repository.dart';
 import 'package:finapp/features/dashboard/domain/entities/dashboard_summary.dart';
@@ -87,6 +89,22 @@ void main() {
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
     for (final size in [const Size(390, 1000), const Size(1200, 1000)]) {
       testWidgets('prévia da comparação $size', (tester) async {
+        final fonts = Directory(
+            '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts');
+        final font = FontLoader('Roboto'), icons = FontLoader('MaterialIcons');
+        for (final file in fonts.listSync().whereType<File>()) {
+          if (file.path.endsWith('Roboto-Regular.ttf') ||
+              file.path.endsWith('Roboto-Bold.ttf')) {
+            font.addFont(
+                Future.value(ByteData.sublistView(file.readAsBytesSync())));
+          }
+          if (file.path.endsWith('MaterialIcons-Regular.otf')) {
+            icons.addFont(
+                Future.value(ByteData.sublistView(file.readAsBytesSync())));
+          }
+        }
+        await font.load();
+        await icons.load();
         tester.view.physicalSize = size;
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);

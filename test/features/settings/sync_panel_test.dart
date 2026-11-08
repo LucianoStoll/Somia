@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:finapp/core/theme/app_theme.dart';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/core/database/backup_manager.dart';
@@ -66,6 +68,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.dark,
+        debugShowCheckedModeBanner: false,
         builder: (c, child) => MediaQuery(
             data: MediaQuery.of(c)
                 .copyWith(textScaler: const TextScaler.linear(1.5)),
@@ -274,6 +278,22 @@ void main() {
 
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
     testWidgets('prévia da sincronização simplificada', (tester) async {
+      final fonts = Directory(
+          '${Platform.environment['FLUTTER_ROOT']}/bin/cache/artifacts/material_fonts');
+      final font = FontLoader('Roboto'), icons = FontLoader('MaterialIcons');
+      for (final file in fonts.listSync().whereType<File>()) {
+        if (file.path.endsWith('Roboto-Regular.ttf') ||
+            file.path.endsWith('Roboto-Bold.ttf')) {
+          font.addFont(
+              Future.value(ByteData.sublistView(file.readAsBytesSync())));
+        }
+        if (file.path.endsWith('MaterialIcons-Regular.otf')) {
+          icons.addFont(
+              Future.value(ByteData.sublistView(file.readAsBytesSync())));
+        }
+      }
+      await font.load();
+      await icons.load();
       manager.state = SyncState(
           'base', 'same@example.com', 'device', DateTime(2026, 11, 8, 7), 2, 0);
       await show(tester);
