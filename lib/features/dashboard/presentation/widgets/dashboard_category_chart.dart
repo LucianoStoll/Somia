@@ -40,11 +40,12 @@ class DashboardCategoryChart extends StatelessWidget {
     }
     return LayoutBuilder(builder: (context, box) {
       final scaler = MediaQuery.textScalerOf(context);
-      final sideBySide = box.maxWidth >= 300 && scaler.scale(12) <= 16;
+      final sideBySide = box.maxWidth >= 600 && scaler.scale(12) <= 16;
       final small = box.maxWidth < 500;
-      final diameter =
-          sideBySide ? (box.maxWidth * .34).clamp(104.0, 200.0) : 180.0;
-      final fontSize = small && sideBySide ? 10.0 : 14.0;
+      final diameter = sideBySide
+          ? (box.maxWidth * .34).clamp(104.0, 200.0)
+          : math.min(260.0, box.maxWidth);
+      final fontSize = 14.0;
       final style =
           Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: fontSize);
       double measure(String text) => (TextPainter(
@@ -56,152 +57,210 @@ class DashboardCategoryChart extends StatelessWidget {
       final amountWidth = items
               .map((e) => measure(_money(e.amountMinor, currency.currencyCode)))
               .reduce(math.max) +
-          2;
-      final percentWidth = measure('100%') + 2;
-      final legend = LayoutBuilder(builder: (context, available) {
-        final stacked = available.maxWidth <
-            amountWidth + percentWidth + scaler.scale(fontSize) * 5 + 24;
-        return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < items.length; i++)
-                Padding(
-                    padding: EdgeInsets.symmetric(
-                        vertical: small && sideBySide ? 8 : 10),
-                    child: Semantics(
-                        label:
-                            '${items[i].name}, ${(items[i].amountMinor * 100 / total).round()}%, ${_money(items[i].amountMinor, currency.currencyCode)}',
-                        child: ExcludeSemantics(
-                            child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                              Container(
-                                  width: small ? 8 : 12,
-                                  height: small ? 8 : 12,
-                                  decoration: BoxDecoration(
-                                      color: _colors[i],
-                                      shape: BoxShape.circle)),
-                              SizedBox(width: small ? 6 : 10),
-                              if (stacked)
-                                Expanded(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                      Text(items[i].name, style: style),
-                                      Wrap(
-                                          spacing: 12,
-                                          runSpacing: 4,
-                                          children: [
-                                            Text(
-                                                '${(items[i].amountMinor * 100 / total).round()}%',
-                                                style: style.copyWith(
-                                                    color: SomiaColors.muted)),
-                                            Text(
-                                                _money(items[i].amountMinor,
-                                                    currency.currencyCode),
-                                                style: style),
-                                          ]),
-                                    ]))
-                              else ...[
-                                Expanded(
-                                    child: Text(items[i].name, style: style)),
-                                const SizedBox(width: 4),
-                                SizedBox(
-                                    width: percentWidth,
-                                    child: Text(
-                                        '${(items[i].amountMinor * 100 / total).round()}%',
-                                        textAlign: TextAlign.right,
-                                        style: style.copyWith(
-                                            color: SomiaColors.muted))),
-                                SizedBox(width: small ? 6 : 20),
-                                SizedBox(
-                                    width: amountWidth,
-                                    child: Text(
-                                        _money(items[i].amountMinor,
-                                            currency.currencyCode),
-                                        textAlign: TextAlign.right,
-                                        style: style)),
-                              ],
-                            ]))))
-            ]);
-      });
-      final chart = Semantics(
-          label: 'Total de despesas: ${_money(total, currency.currencyCode)}',
-          child: ExcludeSemantics(
-              child: SizedBox(
-                  width: diameter,
-                  height: diameter,
-                  child: CustomPaint(
-                      painter: _DonutPainter(items, total),
-                      child: Center(
-                          child: SizedBox(
-                              width: diameter * .61,
-                              child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('Despesas',
-                                        style: TextStyle(
-                                            color: SomiaColors.muted,
-                                            fontSize:
-                                                small && sideBySide ? 10 : 12)),
-                                    const SizedBox(height: 4),
-                                    FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                            _money(
-                                                total, currency.currencyCode),
-                                            style: TextStyle(
-                                                fontSize: small && sideBySide
-                                                    ? 12
-                                                    : 17,
-                                                fontWeight: FontWeight.w600))),
-                                  ])))))));
-      return Tooltip(
-          message: 'Toque para abrir a análise completa de despesas.',
-          child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => context.go(AppRoutes.analysisPath),
-              child: sideBySide
-                  ? Row(children: [
-                      chart,
-                      SizedBox(width: small ? 14 : 30),
-                      Expanded(child: legend)
-                    ])
-                  : Column(
-                      children: [chart, const SizedBox(height: 16), legend])));
-    });
+…5184 tokens truncated…ortMonths[
+                                                  item.month.month - 1],
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: SomiaColors.muted,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 10),
+        const Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 18,
+          runSpacing: 6,
+          children: [
+            _Legend('Receitas', SomiaColors.green),
+            _Legend('Despesas', SomiaColors.red),
+          ],
+        ),
+      ],
+    );
   }
+
+  Widget _bar(int value, int ceiling, Color color) => Expanded(
+        child: value <= 0
+            ? const SizedBox()
+            : FractionallySizedBox(
+                heightFactor: (value / ceiling).clamp(0.01, 1.0),
+                alignment: Alignment.bottomCenter,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+      );
 }
 
-class _DonutPainter extends CustomPainter {
-  _DonutPainter(this.items, this.total);
-  final List<DashboardCategoryExpense> items;
-  final int total;
+class _Legend extends StatelessWidget {
+  const _Legend(this.label, this.color);
+  final String label;
+  final Color color;
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(radius: 4, backgroundColor: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: SomiaColors.muted),
+          ),
+        ],
+      );
+}
+
+class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    if (total <= 0) return;
-    final stroke = size.width * .17;
-    final rect = Rect.fromLTWH(stroke / 2 + 1, stroke / 2 + 1,
-        size.width - stroke - 2, size.height - stroke - 2);
-    var start = -math.pi / 2;
-    for (var i = 0; i < items.length; i++) {
-      final angle = items[i].amountMinor / total * math.pi * 2;
-      final gap = items.length == 1 ? 0.0 : math.min(.009, angle * .1);
-      canvas.drawArc(
-          rect,
-          start + gap / 2,
-          angle - gap,
-          false,
-          Paint()
-            ..color = _colors[i]
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = stroke);
-      start += angle;
+    final paint = Paint()
+      ..color = SomiaColors.outline
+      ..strokeWidth = 0.6;
+    for (var i = 0; i <= 4; i++) {
+      final y = size.height * i / 4;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _DonutPainter old) =>
-      old.items != items || old.total != total;
+  bool shouldRepaint(covariant _GridPainter oldDelegate) => false;
+}
+
+class _RecentPanel extends StatelessWidget {
+  const _RecentPanel({required this.recent});
+  final List<DashboardActivity> recent;
+
+  @override
+  Widget build(BuildContext context) => _Panel(
+        title: 'Últimos cadastrados',
+        action: TextButton(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            minimumSize: const Size(48, 36),
+          ),
+          onPressed: () => context.goNamed(AppRoutes.transactions),
+          child: const Text('Ver todas', style: TextStyle(fontSize: 11)),
+        ),
+        child: Column(
+          key: const ValueKey('mobile-recent'),
+          children: [
+            if (recent.isEmpty)
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Nenhuma movimentação ainda.'),
+              ),
+            for (var i = 0; i < recent.length; i++) ...[
+              if (i > 0) const Divider(height: 1),
+              _RecentTile(item: recent[i]),
+            ],
+          ],
+        ),
+      );
+}
+
+class _RecentTile extends StatelessWidget {
+  const _RecentTile({required this.item});
+  final DashboardActivity item;
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, icon) = switch (item.type) {
+      DashboardActivityType.income => (
+          SomiaColors.green,
+          Icons.work_outline_rounded,
+        ),
+      DashboardActivityType.expense => (
+          SomiaColors.red,
+          Icons.shopping_cart_outlined,
+        ),
+      DashboardActivityType.transfer => (
+          SomiaColors.blue,
+          Icons.swap_horiz,
+        ),
+    };
+    return InkWell(
+      onTap: () => showRecentActivityDetails(context, item),
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 21),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')} · ${item.accountLabel}${item.isEffective ? '' : ' · Pendente'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: SomiaColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 112),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '${item.type == DashboardActivityType.income ? '+ ' : item.type == DashboardActivityType.expense ? '- ' : ''}${_money(item.amountMinor, item.currencyCode)}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 3),
+            const Icon(Icons.chevron_right, size: 16, color: SomiaColors.muted),
+          ],
+        ),
+      ),
+    );
+  }
 }
