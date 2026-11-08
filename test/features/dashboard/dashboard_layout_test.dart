@@ -202,6 +202,9 @@ void main() {
         expect(balance.bottom, lessThan(income.top));
         expect(history.top, greaterThan(income.bottom));
         expect(history.top, greaterThan(categories.bottom));
+        final evolution = tester.getRect(find.byType(BalanceEvolutionPanel));
+        expect(evolution.top, greaterThan(income.bottom));
+        expect(evolution.bottom, lessThan(categories.top));
         expect(find.text('Gastos por categoria'), findsOneWidget);
         final scrollable = find.descendant(
           of: find.byKey(const ValueKey('dashboard-mobile-scroll')),
@@ -233,6 +236,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('mobile-recent')),
       250,
+      maxScrolls: 150,
       scrollable: find.descendant(
         of: find.byKey(const ValueKey('dashboard-mobile-scroll')),
         matching: find.byType(Scrollable),
@@ -441,8 +445,9 @@ void main() {
         final directory = Directory('$root/bin/cache/artifacts/material_fonts');
         final loader = FontLoader('Roboto');
         for (final file in directory.listSync().whereType<File>()) {
-          if (file.path.endsWith('Roboto-Regular.ttf') ||
-              file.path.endsWith('Roboto-Bold.ttf')) {
+          final name = file.path.toLowerCase();
+          if (name.endsWith('roboto-regular.ttf') ||
+              name.endsWith('roboto-bold.ttf')) {
             loader.addFont(
               Future.value(ByteData.sublistView(file.readAsBytesSync())),
             );
