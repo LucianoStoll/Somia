@@ -1,3 +1,4 @@
+import 'summary_insights.dart';
 import 'dashboard_transfers_card.dart';
 import 'dashboard_analysis_view.dart';
 import 'recent_activity_details.dart';
@@ -115,13 +116,13 @@ class MobileDashboardBody extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Resumo do mês',
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                   ),
                 ),
                 BalanceHelpButton(),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 8),
             if (state.loading) const LinearProgressIndicator(),
             if (state.error != null)
               Padding(
@@ -169,8 +170,6 @@ class _CurrencySection extends StatelessWidget {
         if (showCurrency) Text(code),
         SummaryMetrics(currency: currency, month: month),
         const SizedBox(height: 12),
-        DashboardTransfersCard(currency: currency, month: month),
-        const SizedBox(height: 12),
         BalanceEvolutionPanel(currency: currency),
         const SizedBox(height: 12),
         _Panel(
@@ -184,10 +183,14 @@ class _CurrencySection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        SummaryInsights(currency: currency, month: month),
+        const SizedBox(height: 12),
         _HistoryPanel(
           key: ValueKey('mobile-history-$code'),
           currency: currency,
         ),
+        const SizedBox(height: 12),
+        DashboardTransfersCard(currency: currency, month: month),
         const SizedBox(height: 12),
         AccountTypesPanel(currency: currency),
         const SizedBox(height: 12),
