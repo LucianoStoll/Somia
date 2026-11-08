@@ -57,7 +57,373 @@ class DashboardCategoryChart extends StatelessWidget {
       final amountWidth = items
               .map((e) => measure(_money(e.amountMinor, currency.currencyCode)))
               .reduce(math.max) +
-…5184 tokens truncated…ortMonths[
+          2;
+      final percentWidth = measure('100%') + 2;
+      final legend = LayoutBuilder(builder: (context, available) {
+        final stacked = available.maxWidth <
+            amountWidth + percentWidth + scaler.scale(fontSize) * 5 + 24;
+        return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < items.length; i++)
+                Padding(
+                    padding: EdgeInsets.symmetric(
+                        vertical: small && sideBySide ? 8 : 10),
+                    child: Semantics(
+                        label:
+                            '${items[i].name}, ${(items[i].amountMinor * 100 / total).round()}%, ${_money(items[i].amountMinor, currency.currencyCode)}',
+                        child: ExcludeSemantics(
+                            child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                              Container(
+                                  width: small ? 8 : 12,
+                                  height: small ? 8 : 12,
+                                  decoration: BoxDecoration(
+                                      color: _colors[i],
+                                      shape: BoxShape.circle)),
+                              SizedBox(width: small ? 6 : 10),
+                              if (stacked)
+                                Expanded(
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                      Text(items[i].name, style: style),
+                                      Wrap(
+                                          spacing: 12,
+                                          runSpacing: 4,
+                                          children: [
+                                            Text(
+                                                '${(items[i].amountMinor * 100 / total).round()}%',
+                                                style: style.copyWith(
+                                                    color: SomiaColors.muted)),
+                                            Text(
+                                                _money(items[i].amountMinor,
+                                                    currency.currencyCode),
+                                                style: style),
+                                          ]),
+                                    ]))
+                              else ...[
+                                Expanded(
+                                    child: Text(items[i].name, style: style)),
+                                const SizedBox(width: 4),
+                                SizedBox(
+                                    width: percentWidth,
+                                    child: Text(
+                                        '${(items[i].amountMinor * 100 / total).round()}%',
+                                        textAlign: TextAlign.right,
+                                        style: style.copyWith(
+                                            color: SomiaColors.muted))),
+                                SizedBox(width: small ? 6 : 20),
+                                SizedBox(
+                                    width: amountWidth,
+                                    child: Text(
+                                        _money(items[i].amountMinor,
+                                            currency.currencyCode),
+                                        textAlign: TextAlign.right,
+                                        style: style)),
+                              ],
+                            ]))))
+            ]);
+      });
+      final chart = Semantics(
+          label: 'Total de despesas: ${_money(total, currency.currencyCode)}',
+          child: ExcludeSemantics(
+              child: SizedBox(
+                  width: diameter,
+                  height: diameter,
+                  child: CustomPaint(
+                      painter: _DonutPainter(items, total),
+                      child: Center(
+                          child: SizedBox(
+                              width: diameter * .61,
+                              child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('Despesas',
+                                        style: TextStyle(
+                                            color: SomiaColors.muted,
+                                            fontSize:
+                                                small && sideBySide ? 10 : 12)),
+                                    const SizedBox(height: 4),
+                                    FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                            _money(
+                                                total, currency.currencyCode),
+                                            style: TextStyle(
+                                                fontSize: small && sideBySide
+                                                    ? 12
+                                                    : 17,
+                                                fontWeight: FontWeight.w600))),
+                                  ])))))));
+      return Tooltip(
+          message: 'Toque para abrir a análise completa de despesas.',
+          child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => context.go(AppRoutes.analysisPath),
+              child: sideBySide
+                  ? Row(children: [
+                      chart,
+                      SizedBox(width: small ? 14 : 30),
+                      Expanded(child: legend)
+                    ])
+                  : Column(
+                      children: [chart, const SizedBox(height: 16), legend])));
+    });
+  }
+}
+
+class _DonutPainter extends CustomPainter {
+  _DonutPainter(this.items, this.total);
+  final List<DashboardCategoryExpense> items;
+  final int total;
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (total <= 0) return;
+    final stroke = size.width * .17;
+    final rect = Rect.fromLTWH(stroke / 2 + 1, stroke / 2 + 1,
+        size.width - stroke - 2, size.height - stroke - 2);
+    var start = -math.pi / 2;
+    for (var i = 0; i < items.length; i++) {
+      final angle = items[i].amountMinor / total * math.pi * 2;
+      final gap = items.length == 1 ? 0.0 : math.min(.009, angle * .1);
+      canvas.drawArc(
+          rect,
+          start + gap / 2,
+          angle - gap,
+          false,
+          Paint()
+            ..color = _colors[i]
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = stroke);
+      // Keep small slices readable in the legend rather than crowding the ring.
+      if (items[i].amountMinor / total >= .08 && size.width >= 180) {
+        final middle = start + angle / 2;
+        final radius = (size.width - stroke) / 2;
+        final center = size.center(Offset.zero) +
+            Offset(math.cos(middle), math.sin(middle)) * radius;
+        final label = TextPainter(
+          text: TextSpan(
+            text: '${(items[i].amountMinor * 100 / total).round()}%',
+            style: const TextStyle(
+              color: SomiaColors.background,
+              fontFamily: 'Roboto',
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        label.paint(canvas, center - Offset(label.width / 2, label.height / 2));
+      }
+ …1184 tokens truncated…       child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('Cadastre uma conta para começar seu resumo.'),
+                ),
+              ),
+            for (final currency in state.summary!.currencies)
+              _CurrencySection(
+                currency: currency,
+                month: state.month,
+                showCurrency: state.summary!.currencies.length > 1 ||
+                    currency.currencyCode != 'BRL',
+              ),
+            SummaryAccounts(currencies: state.summary!.currencies),
+            const SizedBox(height: 12),
+            _RecentPanel(recent: state.summary!.recent),
+          ],
+        ),
+      );
+}
+
+class _CurrencySection extends StatelessWidget {
+  const _CurrencySection({
+    required this.currency,
+    required this.month,
+    required this.showCurrency,
+  });
+  final DashboardCurrencySummary currency;
+  final DateTime month;
+  final bool showCurrency;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = currency.currencyCode;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showCurrency) Text(code),
+        SummaryMetrics(currency: currency, month: month),
+        const SizedBox(height: 12),
+        BalanceEvolutionPanel(currency: currency),
+        const SizedBox(height: 12),
+        _Panel(
+          title: 'Gastos por categoria',
+          child: DashboardAnalysisView(
+            currency: currency,
+            builder: (view) => DashboardCategoryChart(
+              key: ValueKey('mobile-categories-$code'),
+              currency: view,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SummaryInsights(currency: currency, month: month),
+        const SizedBox(height: 12),
+        _HistoryPanel(
+          key: ValueKey('mobile-history-$code'),
+          currency: currency,
+        ),
+        const SizedBox(height: 12),
+        DashboardTransfersCard(currency: currency, month: month),
+        const SizedBox(height: 12),
+        AccountTypesPanel(currency: currency),
+        const SizedBox(height: 12),
+        UpcomingPanel(currency: currency),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+}
+
+class _Panel extends StatelessWidget {
+  const _Panel({required this.title, required this.child, this.action});
+  final String title;
+  final Widget child;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) =>
+      SummaryPanel(title: title, action: action, child: child);
+}
+
+class _HistoryPanel extends StatelessWidget {
+  const _HistoryPanel({super.key, required this.currency});
+  final DashboardCurrencySummary currency;
+
+  String _axisLabel(int minor) {
+    if (minor >= 100000) {
+      final value = minor / 100000;
+      return '${value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1).replaceAll('.', ',')} mil';
+    }
+    return (minor / 100)
+        .toStringAsFixed(minor % 100 == 0 ? 0 : 2)
+        .replaceAll('.', ',');
+  }
+
+  @override
+  Widget build(BuildContext context) => _Panel(
+        title: 'Receitas vs Despesas',
+        action: const Text('Últimos 6 meses'),
+        child: DashboardAnalysisView(
+          currency: currency,
+          builder: (view) => _history(context, view),
+        ),
+      );
+
+  Widget _history(BuildContext context, DashboardCurrencySummary currency) {
+    final maximum = currency.historyAxisMaximumMinor ??
+        currency.history.fold<int>(
+          0,
+          (value, item) =>
+              math.max(value, math.max(item.incomeMinor, item.expenseMinor)),
+        );
+    final magnitude = maximum <= 0
+        ? 100.0
+        : math.pow(10, (math.log(maximum / 4) / math.ln10).floor()).toDouble();
+    final step = maximum <= 0
+        ? 100
+        : ((maximum / 4 / magnitude).ceil() * magnitude).ceil();
+    final ceiling = step * 4;
+    final plotHeight =
+        MediaQuery.textScalerOf(context).scale(10) > 14 ? 160.0 : 122.0;
+    return Column(
+      children: [
+        if (currency.history.isEmpty)
+          SizedBox(
+            height: plotHeight,
+            child: const Center(
+              child: Text('Histórico mensal indisponível.'),
+            ),
+          )
+        else
+          SizedBox(
+            height: plotHeight,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 34,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 22),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (var i = 4; i >= 0; i--)
+                          FittedBox(
+                            child: Text(
+                              _axisLabel(step * i),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: SomiaColors.muted,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: HistoryTooltipChart(
+                    history: currency.history,
+                    currencyCode: currency.currencyCode,
+                    builder: (target) => Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Positioned.fill(
+                          bottom: 22,
+                          child: CustomPaint(painter: _GridPainter()),
+                        ),
+                        Row(
+                          children: [
+                            for (final item in currency.history)
+                              Expanded(
+                                child: target(
+                                  item,
+                                  ExcludeSemantics(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Expanded(
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                _bar(
+                                                  item.incomeMinor,
+                                                  ceiling,
+                                                  SomiaColors.green,
+                                                ),
+                                                const SizedBox(width: 3),
+                                                _bar(
+                                                  item.expenseMinor,
+                                                  ceiling,
+                                                  SomiaColors.red,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 7),
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              _shortMonths[
                                                   item.month.month - 1],
                                               style: const TextStyle(
                                                 fontSize: 10,
