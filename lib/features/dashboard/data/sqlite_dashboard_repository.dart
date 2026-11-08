@@ -23,6 +23,10 @@ class SqliteDashboardRepository implements DashboardRepository {
             DateTime.utc(month.year, month.month + 1).millisecondsSinceEpoch;
         final monthEnd = DateTime.utc(month.year, month.month + 1, 0);
         final today = asOf ?? DateTime.now();
+        final todayEnd = DateTime.utc(today.year, today.month, today.day + 1)
+            .millisecondsSinceEpoch;
+        final currentMonth =
+            DateTime.utc(today.year, today.month).millisecondsSinceEpoch;
         final cutoff = monthEnd.isBefore(today) ? monthEnd : today;
         final balances = await SqliteBalancesRepository(_db)
             .calculate(asOf: cutoff, through: monthEnd);
@@ -31,8 +35,10 @@ class SqliteDashboardRepository implements DashboardRepository {
         // Efetivados pertencem ao mês da efetivação; pendentes, ao vencimento.
         // A data de lançamento não define os totais nem os gráficos.
         final totals = <String, (int, int)>{};
+        final realizedTotals = <String, (int, int)>{};
         final period = await _db.customSelect('''
-      SELECT a.currency_code, t.type, SUM(COALESCE(t.actual_amount_minor, t.planned_amount_minor)) AS amount_minor
+      SELECT a.currency_code, t.type, SUM(COALESCE(t.actual_amount_minor, t.planned_amount_minor)) AS amount_minor,
+        SUM(CASE WHEN t.effective_at < $todayEnd THEN COALESCE(t.actual_amount_minor,t.planned_amount_minor) ELSE 0 END) AS realized_amount_minor
       FROM transaction_events t JOIN accounts a ON a.id = t.account_id
       WHERE t.deleted_at IS NULL AND t.ignore_analytics = 0
         AND a.deleted_at IS NULL AND a.include_in_analytics = 1
@@ -40,13 +46,19 @@ class SqliteDashboardRepository implements DashboardRepository {
       GROUP BY a.currency_code, t.type
     ''', variables: [Variable.withInt(start), Variable.withInt(end)]).get();
         final cardPeriod = await _db.customSelect('''
-          SELECT 'BRL' AS currency_code, 'expense' AS type, SUM(e.amount_minor) AS amount_minor
+          SELECT 'BRL' AS currency_code, 'expense' AS type, SUM(e.amount_minor) AS amount_minor,
+            SUM(CASE WHEN e.posted_at < $todayEnd AND i.month_at <= $currentMonth THEN e.amount_minor ELSE 0 END) AS realized_amount_minor
           FROM card_entries e JOIN card_invoices i ON i.id=e.invoice_id
           WHERE e.deleted_at IS NULL AND e.kind <> 'opening' AND i.due_at >= ? AND i.due_at < ?
           HAVING COUNT(*) > 0
         ''', variables: [Variable.withInt(start), Variable.withInt(end)]).get();
         for (final row in [...period, ...cardPeriod]) {
           final currency = row.read<String>('currency_code');
+          final priorRealized = realizedTotals[currency] ?? (0, 0);
+          final realized = row.read<int>('realized_amount_minor');
+          realizedTotals[currency] = row.read<String>('type') == 'income'
+              ? (priorRealized.$1 + realized, priorRealized.$2)
+              : (priorRealized.$1, priorRealized.$2 + realized);
           final previous = totals[currency] ?? (0, 0);
           final amount = row.read<int>('amount_minor');
           totals[currency] = row.read<String>('type') == 'income'
@@ -57,7 +69,8 @@ class SqliteDashboardRepository implements DashboardRepository {
       WITH allocated AS (SELECT t.*, json_extract(part.value,'\$.categoryId') AS allocation_category, json_extract(part.value,'\$.amountMinor') AS allocation_amount FROM transaction_events t JOIN json_each(t.allocations_json) part
         UNION ALL SELECT t.*,t.category_id,COALESCE(t.actual_amount_minor,t.planned_amount_minor) FROM transaction_events t WHERE json_array_length(t.allocations_json)=0)
       SELECT a.currency_code, COALESCE(parent.name, c.name, 'Sem categoria')
-        AS category_name, SUM(t.allocation_amount) AS amount_minor
+        AS category_name, SUM(t.allocation_amount) AS amount_minor,
+        SUM(CASE WHEN t.effective_at < $todayEnd THEN t.allocation_amount ELSE 0 END) AS realized_amount_minor
       FROM allocated t JOIN accounts a ON a.id = t.account_id
       LEFT JOIN categories c ON c.id = t.allocation_category
       LEFT JOIN categories parent ON parent.id = c.parent_id
@@ -69,38 +82,47 @@ class SqliteDashboardRepository implements DashboardRepository {
       ORDER BY amount_minor DESC, category_name
     ''', variables: [Variable.withInt(start), Variable.withInt(end)]).get();
         final categoryTotals = <String, List<DashboardCategoryExpense>>{};
+        final realizedCategories = <String, List<DashboardCategoryExpense>>{};
         final cardCategories = await _db.customSelect('''
           WITH allocated AS (SELECT e.*,json_extract(part.value,'\$.categoryId') AS allocation_category,CASE WHEN e.amount_minor<0 THEN -json_extract(part.value,'\$.amountMinor') ELSE json_extract(part.value,'\$.amountMinor') END AS allocation_amount FROM card_entries e JOIN json_each(e.allocations_json) part
             UNION ALL SELECT e.*,e.category_id,e.amount_minor FROM card_entries e WHERE json_array_length(e.allocations_json)=0)
           SELECT 'BRL' AS currency_code, COALESCE(parent.name,c.name,'Sem categoria') AS category_name,
-            SUM(e.allocation_amount) AS amount_minor FROM allocated e JOIN card_invoices i ON i.id=e.invoice_id
+            SUM(e.allocation_amount) AS amount_minor,
+            SUM(CASE WHEN e.posted_at < $todayEnd AND i.month_at <= $currentMonth THEN e.allocation_amount ELSE 0 END) AS realized_amount_minor FROM allocated e JOIN card_invoices i ON i.id=e.invoice_id
           LEFT JOIN categories c ON c.id=e.allocation_category LEFT JOIN categories parent ON parent.id=c.parent_id
           WHERE e.deleted_at IS NULL AND e.kind <> 'opening' AND i.due_at >= ? AND i.due_at < ?
           GROUP BY COALESCE(parent.name,c.name,'Sem categoria')
         ''', variables: [Variable.withInt(start), Variable.withInt(end)]).get();
         for (final row in [...categoryRows, ...cardCategories]) {
+          realizedCategories
+              .putIfAbsent(row.read<String>('currency_code'), () => [])
+              .add(DashboardCategoryExpense(row.read<String>('category_name'),
+                  row.read<int>('realized_amount_minor')));
           categoryTotals
               .putIfAbsent(row.read<String>('currency_code'), () => [])
               .add(DashboardCategoryExpense(row.read<String>('category_name'),
                   row.read<int>('amount_minor')));
         }
-        for (final code in categoryTotals.keys.toList()) {
-          final grouped = <String, int>{};
-          for (final category in categoryTotals[code]!) {
-            grouped.update(category.name, (v) => v + category.amountMinor,
-                ifAbsent: () => category.amountMinor);
+        for (final groups in [categoryTotals, realizedCategories]) {
+          for (final code in groups.keys.toList()) {
+            final grouped = <String, int>{};
+            for (final category in groups[code]!) {
+              grouped.update(category.name, (v) => v + category.amountMinor,
+                  ifAbsent: () => category.amountMinor);
+            }
+            groups[code] = [
+              for (final e in grouped.entries)
+                if (e.value > 0) DashboardCategoryExpense(e.key, e.value)
+            ]..sort((a, b) => b.amountMinor.compareTo(a.amountMinor));
           }
-          categoryTotals[code] = [
-            for (final e in grouped.entries)
-              if (e.value > 0) DashboardCategoryExpense(e.key, e.value)
-          ]..sort((a, b) => b.amountMinor.compareTo(a.amountMinor));
         }
         final historyStart =
             DateTime.utc(month.year, month.month - 5).millisecondsSinceEpoch;
         final historyRows = await _db.customSelect('''
       SELECT a.currency_code,
         strftime('%Y-%m', COALESCE(t.effective_at, t.due_at) / 1000, 'unixepoch') AS month_key,
-        t.type, SUM(COALESCE(t.actual_amount_minor, t.planned_amount_minor)) AS amount_minor
+        t.type, SUM(COALESCE(t.actual_amount_minor, t.planned_amount_minor)) AS amount_minor,
+        SUM(CASE WHEN t.effective_at < $todayEnd THEN COALESCE(t.actual_amount_minor,t.planned_amount_minor) ELSE 0 END) AS realized_amount_minor
       FROM transaction_events t JOIN accounts a ON a.id = t.account_id
       WHERE t.deleted_at IS NULL AND t.ignore_analytics = 0
         AND a.deleted_at IS NULL AND a.include_in_analytics = 1
@@ -111,9 +133,11 @@ class SqliteDashboardRepository implements DashboardRepository {
           Variable.withInt(end)
         ]).get();
         final monthly = <String, Map<String, (int, int)>>{};
+        final realizedMonthly = <String, Map<String, (int, int)>>{};
         final cardHistory = await _db.customSelect('''
           SELECT 'BRL' AS currency_code, 'expense' AS type,
-            strftime('%Y-%m',i.due_at/1000,'unixepoch') AS month_key, SUM(e.amount_minor) AS amount_minor
+            strftime('%Y-%m',i.due_at/1000,'unixepoch') AS month_key, SUM(e.amount_minor) AS amount_minor,
+            SUM(CASE WHEN e.posted_at < $todayEnd AND i.month_at <= $currentMonth THEN e.amount_minor ELSE 0 END) AS realized_amount_minor
           FROM card_entries e JOIN card_invoices i ON i.id=e.invoice_id
           WHERE e.deleted_at IS NULL AND e.kind <> 'opening' AND i.due_at >= ? AND i.due_at < ?
           GROUP BY month_key
@@ -124,6 +148,12 @@ class SqliteDashboardRepository implements DashboardRepository {
         for (final row in [...historyRows, ...cardHistory]) {
           final code = row.read<String>('currency_code');
           final key = row.read<String>('month_key');
+          final byRealizedMonth = realizedMonthly.putIfAbsent(code, () => {});
+          final previousRealized = byRealizedMonth[key] ?? (0, 0);
+          final realized = row.read<int>('realized_amount_minor');
+          byRealizedMonth[key] = row.read<String>('type') == 'income'
+              ? (previousRealized.$1 + realized, previousRealized.$2)
+              : (previousRealized.$1, previousRealized.$2 + realized);
           final byMonth = monthly.putIfAbsent(code, () => {});
           final prior = byMonth[key] ?? (0, 0);
           final amount = row.read<int>('amount_minor');
@@ -238,8 +268,6 @@ class SqliteDashboardRepository implements DashboardRepository {
         for (final list in upcoming.values) {
           list.sort((a, b) => a.date.compareTo(b.date));
         }
-        final todayEnd = DateTime.utc(today.year, today.month, today.day + 1)
-            .millisecondsSinceEpoch;
         final transferRows = await _db.customSelect('''
           SELECT source.currency_code, COUNT(*) AS count,
             SUM(CASE WHEN f.effective_at < ? THEN f.amount_minor ELSE 0 END) AS realized,
@@ -285,6 +313,10 @@ class SqliteDashboardRepository implements DashboardRepository {
                 currentBalanceMinor: byCurrency[currency]?.currentMinor ?? 0,
                 projectedBalanceMinor:
                     byCurrency[currency]?.projectedMinor ?? 0,
+                realizedIncomeMinor: realizedTotals[currency]?.$1 ?? 0,
+                realizedExpenseMinor: realizedTotals[currency]?.$2 ?? 0,
+                realizedExpensesByCategory:
+                    realizedCategories[currency] ?? const [],
                 incomeMinor: totals[currency]?.$1 ?? 0,
                 expenseMinor: totals[currency]?.$2 ?? 0,
                 expensesByCategory: categoryTotals[currency] ?? const [],
@@ -299,6 +331,16 @@ class SqliteDashboardRepository implements DashboardRepository {
                                 (0, 0))
                             .$1,
                         (monthly[currency]?[
+                                    '${DateTime(month.year, month.month - i).year}-'
+                                        '${DateTime(month.year, month.month - i).month.toString().padLeft(2, '0')}'] ??
+                                (0, 0))
+                            .$2,
+                        realizedIncomeMinor: (realizedMonthly[currency]?[
+                                    '${DateTime(month.year, month.month - i).year}-'
+                                        '${DateTime(month.year, month.month - i).month.toString().padLeft(2, '0')}'] ??
+                                (0, 0))
+                            .$1,
+                        realizedExpenseMinor: (realizedMonthly[currency]?[
                                     '${DateTime(month.year, month.month - i).year}-'
                                         '${DateTime(month.year, month.month - i).month.toString().padLeft(2, '0')}'] ??
                                 (0, 0))

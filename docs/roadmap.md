@@ -310,3 +310,15 @@ Branch `v0.4.0-alpha` a partir da v0.3.0-alpha integrada em `main`; [PR #89](htt
 - Avaliar a hierarquia dos blocos do Resumo usando as opções de recolhimento já existentes.
 
 Essas sugestões dependem de definição de escopo; não representam funcionalidades já aprovadas ou entregues.
+
+
+### Clareza do Resumo e da sincronização — 08/11/2026
+
+Implementado nesta contribuição, com integração e validação manual pendentes:
+
+- Gráficos com Realizado / Previsto total / Ambos, seleção compartilhada e preservada na troca de mês.
+- Realizado separado por efetivação, baixas, rateios e consumo por fatura; transferências e pagamentos de fatura sem duplicação nas análises.
+- Sincronização com status, última conclusão, pendências e ação principal em destaque; manutenção em Opções avançadas e primeiro vínculo em Conectar este dispositivo.
+- Erros e recuperação de publicação pendente visíveis; confirmações, cópias de proteção e bloqueios operacionais preservados.
+
+As sugestões anteriores desses dois itens estão contempladas por esta contribuição. A hierarquia geral dos blocos do Resumo continua fora desta entrega.

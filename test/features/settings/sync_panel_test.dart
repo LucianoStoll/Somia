@@ -130,6 +130,9 @@ void main() {
           'genesis')
     ];
     await show(tester);
+    await tester.ensureVisible(find.text('Opções avançadas'));
+    await tester.tap(find.text('Opções avançadas'));
+    await tester.pumpAndSettle();
     final action = find.text('Substituir base do Drive pela deste Android');
     await tester.ensureVisible(action);
     await tester.tap(action);
@@ -167,6 +170,9 @@ void main() {
     addTearDown(auto.dispose);
     await auto.initialize();
     await show(tester, automatic: auto);
+    await tester.ensureVisible(find.text('Opções avançadas'));
+    await tester.tap(find.text('Opções avançadas'));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Alterações agrupadas'));
     await tester.tap(find.text('Alterações agrupadas'));
     await tester.pumpAndSettle();
@@ -175,6 +181,7 @@ void main() {
     expect(auto.mode, AutoSyncMode.eachChange);
     expect(pref.mode, AutoSyncMode.eachChange);
     pref.failWrite = true;
+    await tester.ensureVisible(find.text('A cada alteração'));
     await tester.tap(find.text('A cada alteração'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Alterações agrupadas').last);
@@ -198,4 +205,81 @@ void main() {
     expect(pref.value, isFalse);
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+      'status e ação principal ficam visíveis, opções avançadas recolhidas',
+      (tester) async {
+    manager.state = SyncState(
+        'base', 'same@example.com', 'device', DateTime(2026, 11, 8), 0, 0);
+    await show(tester);
+    expect(find.text('Sem pendências locais'), findsOneWidget);
+    expect(find.textContaining('Última sincronização:'), findsOneWidget);
+    expect(find.text('Ver versões anteriores'), findsNothing);
+    expect(find.text('Publicar base deste Android'), findsNothing);
+    final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Sincronizar agora'));
+    expect(button.onPressed, isNotNull);
+    await tester.ensureVisible(find.text('Opções avançadas'));
+    await tester.tap(find.text('Opções avançadas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ver versões anteriores'), findsOneWidget);
+  });
+
+  testWidgets('nova base e publicação pendente não permitem sync comum',
+      (tester) async {
+    manager.state = const SyncState(
+        'base', 'same@example.com', 'device', null, 0, 0,
+        replacementPending: true);
+    await show(tester);
+    expect(find.text('Publicação pendente'), findsOneWidget);
+    expect(find.text('Retomar publicação pendente'), findsOneWidget);
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Sincronizar agora'))
+            .onPressed,
+        isNull);
+    manager.state =
+        const SyncState('base', 'same@example.com', 'device', null, 0, 0);
+    manager.needsJoin = true;
+    await show(tester);
+    await tester.pumpAndSettle();
+    expect(find.text('Receba a base atualizada'), findsOneWidget);
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Sincronizar agora'))
+            .onPressed,
+        isNull);
+    expect(find.text('Conectar este dispositivo'), findsOneWidget);
+  });
+
+  testWidgets(
+      'erros e espera automática ficam visíveis fora das opções avançadas',
+      (tester) async {
+    final auto =
+        AutoSyncController(manager, Preference(), safeToApply: () => false);
+    addTearDown(auto.dispose);
+    await auto.initialize();
+    manager.state =
+        const SyncState('base', 'same@example.com', 'device', null, 0, 0);
+    auto.waiting = true;
+    await show(tester, automatic: auto);
+    expect(find.text('Aguardando fechar o formulário'), findsOneWidget);
+    manager.error = 'Falha de conexão. Tente novamente.';
+    await show(tester, automatic: auto);
+    expect(find.text('Sincronização interrompida'), findsOneWidget);
+    expect(find.text('Falha de conexão. Tente novamente.'), findsOneWidget);
+    expect(find.text('Ver versões anteriores'), findsNothing);
+  });
+
+  if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+    testWidgets('prévia da sincronização simplificada', (tester) async {
+      manager.state = SyncState(
+          'base', 'same@example.com', 'device', DateTime(2026, 11, 8, 7), 2, 0);
+      await show(tester);
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(Scaffold),
+          matchesGoldenFile('sync-status-mobile-preview.png'));
+    });
+  }
 }

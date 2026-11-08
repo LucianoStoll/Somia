@@ -38,3 +38,14 @@ Validação manual posterior pelo uso. A issue permanece aberta até confirmaç�
 Tocar em um lançamento recente no Android ou Windows abre seus detalhes em uma folha rolável, sem mudar o mês selecionado. A consulta busca o registro atual pelo identificador, independentemente do mês do Resumo: descrição, valor, conta(s), categoria, datas, situação e informações complementares disponíveis. Compras no cartão mostram a compra e o vencimento da fatura, sem apresentá-las como uma despesa de conta efetivada.
 
 O botão de navegação continua disponível para a seção correspondente; em compras, abre o Extrato do cartão e mês da fatura corretos. Fechar os detalhes mantém o Resumo. Um registro removido não abre outro lançamento nem usa os valores antigos; falha de leitura permite tentar novamente. A consulta não altera lançamentos, saldos ou sincronização.
+
+## Realizado e previsto nos gráficos — v0.4.0-alpha
+
+Os gráficos de categorias e de receitas/despesas compartilham a seleção **Realizado / Previsto total / Ambos**. A seleção vale para todas as moedas na sessão e permanece ao trocar o mês ou atualizar. O padrão é Previsto total, preservando o conteúdo anterior. Ambos apresenta as duas visões identificadas separadamente; não soma realizado ao previsto total.
+
+- Realizado: efetivações até o dia atual, no mês da efetivação. Baixas parciais entram individualmente; o restante ainda aberto não é realizado.
+- Previsto total: realizado mais pendências e agendamentos já registrados, pela efetivação informada ou vencimento. Não estima novos lançamentos nem recorrências não geradas.
+- Rateios continuam distribuindo os centavos por categoria; transferências não são receita/despesa. As moedas e as exclusões das análises são preservadas.
+- Cartões seguem a base de consumo já usada no Planejamento: compra registrada até hoje e mês da fatura até o mês atual contam no realizado, no mês do vencimento da fatura. Parcelas em meses futuros ficam no previsto; estornos/descontos reduzem os valores. Pagamento de fatura não é uma segunda despesa nos gráficos.
+
+A seleção altera somente os gráficos analíticos. Saldo atual/projetado e recebimentos/pagamentos do consolidado continuam usando sua base de caixa, inclusive os pagamentos de fatura. Gráficos e saldos não devem ser interpretados como a mesma medida. As consultas não reconstroem o estado histórico do cadastro antes de alterações posteriores.

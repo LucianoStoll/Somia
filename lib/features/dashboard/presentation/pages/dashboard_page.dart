@@ -1,4 +1,5 @@
 import '../widgets/dashboard_transfers_card.dart';
+import '../widgets/dashboard_analysis_view.dart';
 import '../widgets/recent_activity_details.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -292,30 +293,28 @@ class _DashboardViewState extends State<_DashboardView>
       _panel(
         context,
         'Receitas vs Despesas',
-        Column(
-          children: [
-            const Text(
-              'Inclui efetivados e previstos',
-              style: TextStyle(color: SomiaColors.muted),
-            ),
-            const SizedBox(height: 12),
-            if (currency.history.isEmpty)
-              const SizedBox(
-                height: 190,
-                child: Center(child: Text('Histórico mensal indisponível.')),
-              )
-            else
-              DesktopHistoryChart(currency: currency),
-            const SizedBox(height: 12),
-            const Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 18,
-              children: [
-                _LegendDot('Receitas', SomiaColors.green),
-                _LegendDot('Despesas', SomiaColors.red),
-              ],
-            ),
-          ],
+        DashboardAnalysisView(
+          currency: currency,
+          builder: (view) => Column(
+            children: [
+              if (view.history.isEmpty)
+                const SizedBox(
+                  height: 190,
+                  child: Center(child: Text('Histórico mensal indisponível.')),
+                )
+              else
+                DesktopHistoryChart(currency: view),
+              const SizedBox(height: 12),
+              const Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 18,
+                children: [
+                  _LegendDot('Receitas', SomiaColors.green),
+                  _LegendDot('Despesas', SomiaColors.red),
+                ],
+              ),
+            ],
+          ),
         ),
         action: Text(
           'Últimos 6 meses',
@@ -333,7 +332,10 @@ class _DashboardViewState extends State<_DashboardView>
       _panel(
         context,
         'Gastos por categoria',
-        DashboardCategoryChart(currency: currency),
+        DashboardAnalysisView(
+          currency: currency,
+          builder: (view) => DashboardCategoryChart(currency: view),
+        ),
       );
 
   Widget _bottomPanels(
