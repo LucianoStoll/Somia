@@ -56,6 +56,8 @@ jobs:
           if-no-files-found: ignore
       - name: Tests
         run: flutter test --reporter expanded
+      - name: Render analysis and sync previews
+        run: flutter test test/features/dashboard/dashboard_analysis_view_test.dart test/features/settings/sync_panel_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render dashboard mobile preview
         run: flutter test test/features/dashboard/dashboard_layout_test.dart --update-goldens --dart-define=SOMIA_RENDER_PREVIEW=true
       - name: Render history tooltip previews

@@ -7,6 +7,10 @@ class DashboardCurrencySummary {
       required this.projectedBalanceMinor,
       required this.incomeMinor,
       required this.expenseMinor,
+      this.historyAxisMaximumMinor,
+      this.realizedIncomeMinor = 0,
+      this.realizedExpenseMinor = 0,
+      this.realizedExpensesByCategory = const [],
       this.transferCount = 0,
       this.transferredMinor = 0,
       this.pendingTransferMinor = 0,
@@ -23,6 +27,9 @@ class DashboardCurrencySummary {
   final String currencyCode;
   final int currentBalanceMinor;
   final int projectedBalanceMinor;
+  final int? historyAxisMaximumMinor;
+  final int realizedIncomeMinor, realizedExpenseMinor;
+  final List<DashboardCategoryExpense> realizedExpensesByCategory;
   final int incomeMinor;
   final int expenseMinor;
   final int transferCount, transferredMinor, pendingTransferMinor;
@@ -30,10 +37,47 @@ class DashboardCurrencySummary {
   final List<DashboardMonthTotal> history;
   final List<DashboardAccountBalance> accounts;
   int get monthlyResultMinor => incomeMinor - expenseMinor;
+
+  /// Analytics follow the same date/category rules as the projected charts.
+  /// Cash balances and invoice payments are not reclassified by this view.
+  DashboardCurrencySummary forAnalysis(
+          {required bool realized, bool compare = false}) =>
+      DashboardCurrencySummary(
+        currencyCode: currencyCode,
+        historyAxisMaximumMinor: compare
+            ? history.fold<int>(0, (maximum, item) {
+                for (final amount in [
+                  item.incomeMinor,
+                  item.expenseMinor,
+                  item.realizedIncomeMinor,
+                  item.realizedExpenseMinor
+                ]) {
+                  if (amount > maximum) maximum = amount;
+                }
+                return maximum;
+              })
+            : null,
+        currentBalanceMinor: currentBalanceMinor,
+        projectedBalanceMinor: projectedBalanceMinor,
+        incomeMinor: realized ? realizedIncomeMinor : incomeMinor,
+        expenseMinor: realized ? realizedExpenseMinor : expenseMinor,
+        expensesByCategory:
+            realized ? realizedExpensesByCategory : expensesByCategory,
+        history: [
+          for (final item in history)
+            DashboardMonthTotal(
+              item.month,
+              realized ? item.realizedIncomeMinor : item.incomeMinor,
+              realized ? item.realizedExpenseMinor : item.expenseMinor,
+            ),
+        ],
+      );
 }
 
 class DashboardMonthTotal {
-  const DashboardMonthTotal(this.month, this.incomeMinor, this.expenseMinor);
+  const DashboardMonthTotal(this.month, this.incomeMinor, this.expenseMinor,
+      {this.realizedIncomeMinor = 0, this.realizedExpenseMinor = 0});
+  final int realizedIncomeMinor, realizedExpenseMinor;
   final DateTime month;
   final int incomeMinor;
   final int expenseMinor;
@@ -123,3 +167,5 @@ class DashboardDue {
       DateTime.utc(date.year, date.month, date.day)
           .isBefore(DateTime.utc(today.year, today.month, today.day));
 }
+
+enum DashboardAnalysisMode { realized, projected, both }

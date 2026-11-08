@@ -127,7 +127,12 @@ class SyncPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: manager,
+        animation: Listenable.merge([
+          manager,
+          manager.drive,
+          manager.local,
+          if (automatic != null) automatic!,
+        ]),
         builder: (context, _) {
           final ready = enabled &&
               !manager.busy &&
@@ -135,6 +140,33 @@ class SyncPanel extends StatelessWidget {
               !manager.local.busy;
           final state = manager.state;
           final linked = state?.base != null;
+          final replacement = state?.replacementPending ?? false;
+          final working =
+              manager.busy || manager.drive.busy || manager.local.busy;
+          final problem = manager.error ?? automatic?.error;
+          final pending = (state?.pending ?? 0) + (state?.uploads ?? 0);
+          final status = manager.busy
+              ? 'Sincronizando…'
+              : working
+                  ? 'Aguardando operação em andamento'
+                  : problem != null
+                      ? 'Sincronização interrompida'
+                      : replacement
+                          ? 'Publicação pendente'
+                          : manager.needsJoin
+                              ? 'Receba a base atualizada'
+                              : !linked
+                                  ? 'Dispositivo não conectado'
+                                  : automatic?.waiting == true
+                                      ? 'Aguardando fechar o formulário'
+                                      : pending > 0
+                                          ? 'Há alterações para enviar'
+                                          : state?.lastSync == null
+                                              ? 'Pronto para sincronizar'
+                                              : 'Sem pendências locais';
+          final color = problem != null
+              ? Theme.of(context).colorScheme.error
+              : Theme.of(context).colorScheme.primary;
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -146,102 +178,64 @@ class SyncPanel extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Envie e receba alterações pelo Google Drive. O primeiro vínculo é confirmado por você.',
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    linked
-                        ? 'Base vinculada à conta ${state!.email}'
-                        : 'Primeiro publique a base pelo Android. Depois receba essa base no Windows.',
-                  ),
-                  if (!linked)
-                    const Text(
-                      'Restaurar um backup desvincula a sincronização para preservar a base do Drive. Ao receber uma base, os dados deste dispositivo serão substituídos com proteção local.',
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      problem != null
+                          ? Icons.sync_problem
+                          : working
+                              ? Icons.sync
+                              : Icons.cloud_outlined,
+                      color: color,
                     ),
-                  if (state?.lastSync != null)
-                    Text(
-                        'Última sincronização: ${backupDate(state!.lastSync!)}'),
+                    title: Text(status,
+                        key: const ValueKey('sync-status'),
+                        style: TextStyle(
+                            color: color, fontWeight: FontWeight.w600)),
+                    subtitle: Text(state?.email ??
+                        'Conecte este dispositivo ao Google Drive.'),
+                  ),
+                  Text(state?.lastSync == null
+                      ? 'Última sincronização: ainda não realizada'
+                      : 'Última sincronização: ${backupDate(state!.lastSync!)}'),
                   if (linked)
                     Text(
-                      'Alterações pendentes: ${state!.pending}${state.uploads > 0 ? ' · envio em preparação' : ''}',
-                    ),
+                        'Alterações pendentes: ${state!.pending}${state.uploads > 0 ? ' · envio em preparação' : ''}'),
                   if (manager.message != null) Text(manager.message!),
                   if (manager.error != null)
-                    Text(
-                      manager.error!,
-                      style:
-                          TextStyle(color: Theme.of(context).colorScheme.error),
-                    ),
-                  if (manager.busy) const LinearProgressIndicator(),
-                  if (!linked && manager.primaryAllowed)
-                    TextButton.icon(
-                      onPressed: ready
-                          ? () async {
-                              if (await _confirm(
-                                context,
-                                'Usar os dados deste Android?',
-                                'Esta será a base inicial compartilhada. O Windows poderá recebê-la depois de guardar uma cópia dos seus dados atuais.',
-                              )) {
-                                await manager.createBase();
-                              }
-                            }
+                    Text(manager.error!, style: TextStyle(color: color)),
+                  if (working) const LinearProgressIndicator(),
+                  if (linked) ...[
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: ready && !manager.needsJoin && !replacement
+                          ? manager.synchronize
                           : null,
-                      icon: const Icon(Icons.cloud_upload_outlined),
-                      label: const Text('Publicar base deste Android'),
+                      icon: const Icon(Icons.sync),
+                      label: const Text('Sincronizar agora'),
                     ),
-                  if (!linked || manager.needsJoin || manager.primaryAllowed)
-                    TextButton.icon(
-                      onPressed: ready ? manager.listBases : null,
-                      icon: const Icon(Icons.cloud_download_outlined),
-                      label: const Text('Buscar bases no Drive'),
-                    ),
-                  if (!linked || manager.needsJoin)
-                    for (final base in manager.bases)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Base publicada pelo Android'),
-                        subtitle: Text(
-                          'Publicação: ${backupDate(base.copy.createdAt)}\nConta: ${manager.listedEmail ?? state?.email ?? ''}\nOrigem: ${base.device}',
-                        ),
-                        trailing: TextButton(
-                          onPressed: ready
-                              ? () async {
-                                  if (await _confirm(
-                                    context,
-                                    'Receber esta base?',
-                                    'Os dados atuais serão substituídos pela base do Drive e suas alterações. Uma cópia Antes de restaurar será salva neste dispositivo.',
-                                  )) {
-                                    await manager.join(base);
-                                  }
-                                }
+                  ],
+                  if (automatic != null) ...[
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Sincronização automática'),
+                      subtitle: const Text(
+                          'Ao abrir e alterar dados, enquanto o app estiver aberto.'),
+                      value: automatic!.enabled,
+                      onChanged:
+                          ready && automatic!.loaded && !automatic!.saving
+                              ? automatic!.setEnabled
                               : null,
-                          child: const Text('Receber'),
-                        ),
-                      ),
-                  if (manager.primaryAllowed && manager.bases.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: ready
-                          ? () async {
-                              final revision = manager.listedRevision;
-                              final email = manager.listedEmail;
-                              if (await _confirm(
-                                context,
-                                'Substituir a base do Drive?',
-                                'Os dados atuais deste Android serão a nova base compartilhada na conta ${manager.listedEmail}. Uma cópia local será salva e a base anterior permanecerá preservada no Drive. Alterações exclusivas dos outros dispositivos não serão mescladas. Atualize o Somia em todos os dispositivos e depois receba a nova base no Windows.',
-                                action: 'Substituir base do Drive',
-                              )) {
-                                await manager.replaceBase(
-                                    expectedRevision: revision,
-                                    expectedEmail: email);
-                              }
-                            }
-                          : null,
-                      icon: const Icon(Icons.cloud_upload_outlined),
-                      label: const Text(
-                        'Substituir base do Drive pela deste Android',
-                      ),
                     ),
+                    if (automatic!.waiting)
+                      const Text(
+                          'Aguardando fechar o formulário ou diálogo para atualizar.'),
+                    if (automatic!.retryAt != null)
+                      Text(
+                          'Nova tentativa: ${backupDate(automatic!.retryAt!)}'),
+                    if (automatic!.error != null)
+                      Text(automatic!.error!, style: TextStyle(color: color)),
+                  ],
                   if (manager.primaryAllowed &&
                       (state?.replacementPending ?? false))
                     TextButton(
@@ -254,90 +248,158 @@ class SyncPanel extends StatelessWidget {
                       onPressed: ready ? manager.cancelReplacement : null,
                       child: const Text('Cancelar publicação pendente'),
                     ),
-                  if (automatic != null)
-                    AnimatedBuilder(
-                      animation: automatic!,
-                      builder: (context, _) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Sincronização automática'),
-                            subtitle: const Text(
-                              'Ao abrir, retomar e alterar dados. Funciona enquanto o app estiver aberto.',
-                            ),
-                            value: automatic!.enabled,
-                            onChanged:
-                                ready && automatic!.loaded && !automatic!.saving
-                                    ? automatic!.setEnabled
-                                    : null,
+                  if (!linked || manager.needsJoin)
+                    ExpansionTile(
+                      key: ValueKey('sync-setup-$linked-${manager.needsJoin}'),
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text('Conectar este dispositivo'),
+                      initiallyExpanded: true,
+                      children: [
+                        const Text(
+                            'Primeiro publique a base pelo Android. Depois receba essa base no Windows.'),
+                        const Text(
+                            'Receber uma base substitui os dados locais com uma cópia de proteção. Restaurar um backup desvincula a sincronização.'),
+                        if (!linked && manager.primaryAllowed)
+                          TextButton.icon(
+                            onPressed: ready
+                                ? () async {
+                                    if (await _confirm(
+                                      context,
+                                      'Usar os dados deste Android?',
+                                      'Esta será a base inicial compartilhada. O Windows poderá recebê-la depois de guardar uma cópia dos seus dados atuais.',
+                                    )) {
+                                      await manager.createBase();
+                                    }
+                                  }
+                                : null,
+                            icon: const Icon(Icons.cloud_upload_outlined),
+                            label: const Text('Publicar base deste Android'),
                           ),
-                          if (automatic!.enabled)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: DropdownButtonFormField<AutoSyncMode>(
-                                key: ValueKey(
-                                  '${automatic!.mode.name}:${automatic!.saving}:${automatic!.error}',
-                                ),
-                                initialValue: automatic!.mode,
-                                isExpanded: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'Quando sincronizar',
-                                ),
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: AutoSyncMode.grouped,
-                                    child: Text('Alterações agrupadas'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: AutoSyncMode.eachChange,
-                                    child: Text('A cada alteração'),
-                                  ),
-                                ],
-                                onChanged: ready &&
-                                        automatic!.loaded &&
-                                        !automatic!.saving
-                                    ? (mode) {
-                                        if (mode != null) {
-                                          automatic!.setMode(mode);
+                        if (!linked ||
+                            manager.needsJoin ||
+                            manager.primaryAllowed)
+                          TextButton.icon(
+                            onPressed: ready ? manager.listBases : null,
+                            icon: const Icon(Icons.cloud_download_outlined),
+                            label: const Text('Buscar bases no Drive'),
+                          ),
+                        if (!linked || manager.needsJoin)
+                          for (final base in manager.bases)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Base publicada pelo Android'),
+                              subtitle: Text(
+                                'Publicação: ${backupDate(base.copy.createdAt)}\nConta: ${manager.listedEmail ?? state?.email ?? ''}\nOrigem: ${base.device}',
+                              ),
+                              trailing: TextButton(
+                                onPressed: ready
+                                    ? () async {
+                                        if (await _confirm(
+                                          context,
+                                          'Receber esta base?',
+                                          'Os dados atuais serão substituídos pela base do Drive e suas alterações. Uma cópia Antes de restaurar será salva neste dispositivo.',
+                                        )) {
+                                          await manager.join(base);
                                         }
                                       }
                                     : null,
+                                child: const Text('Receber'),
                               ),
                             ),
-                          if (automatic!.enabled)
-                            const Text(
-                              'Alterações do outro dispositivo são consultadas a cada minuto.',
-                            ),
-                          if (automatic!.waiting)
-                            const Text(
-                              'Aguardando fechar o formulário ou diálogo para atualizar.',
-                            ),
-                          if (automatic!.retryAt != null)
-                            Text(
-                              'Nova tentativa: ${backupDate(automatic!.retryAt!)}',
-                            ),
-                          if (automatic!.error != null)
-                            Text(
-                              automatic!.error!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            ),
-                        ],
-                      ),
+                      ],
                     ),
-                  if (linked)
-                    TextButton.icon(
-                      onPressed: ready ? manager.synchronize : null,
-                      icon: const Icon(Icons.sync),
-                      label: const Text('Sincronizar agora'),
-                    ),
-                  if (linked)
-                    TextButton(
-                      onPressed: ready ? () => _history(context) : null,
-                      child: const Text('Ver versões anteriores'),
-                    ),
+                  ExpansionTile(
+                    key: const ValueKey('sync-advanced'),
+                    tilePadding: EdgeInsets.zero,
+                    title: const Text('Opções avançadas'),
+                    subtitle:
+                        const Text('Configuração, publicação e recuperação'),
+                    children: [
+                      if (linked &&
+                          !manager.needsJoin &&
+                          manager.primaryAllowed)
+                        TextButton.icon(
+                          onPressed: ready ? manager.listBases : null,
+                          icon: const Icon(Icons.cloud_download_outlined),
+                          label: const Text('Buscar bases no Drive'),
+                        ),
+                      if (manager.primaryAllowed && manager.bases.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: ready
+                              ? () async {
+                                  final revision = manager.listedRevision;
+                                  final email = manager.listedEmail;
+                                  if (await _confirm(
+                                    context,
+                                    'Substituir a base do Drive?',
+                                    'Os dados atuais deste Android serão a nova base compartilhada na conta ${manager.listedEmail}. Uma cópia local será salva e a base anterior permanecerá preservada no Drive. Alterações exclusivas dos outros dispositivos não serão mescladas. Atualize o Somia em todos os dispositivos e depois receba a nova base no Windows.',
+                                    action: 'Substituir base do Drive',
+                                  )) {
+                                    await manager.replaceBase(
+                                        expectedRevision: revision,
+                                        expectedEmail: email);
+                                  }
+                                }
+                              : null,
+                          icon: const Icon(Icons.cloud_upload_outlined),
+                          label: const Text(
+                            'Substituir base do Drive pela deste Android',
+                          ),
+                        ),
+                      if (automatic != null)
+                        AnimatedBuilder(
+                          animation: automatic!,
+                          builder: (context, _) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (automatic!.enabled)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
+                                  child: DropdownButtonFormField<AutoSyncMode>(
+                                    key: ValueKey(
+                                      '${automatic!.mode.name}:${automatic!.saving}:${automatic!.error}',
+                                    ),
+                                    initialValue: automatic!.mode,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Quando sincronizar',
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: AutoSyncMode.grouped,
+                                        child: Text('Alterações agrupadas'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: AutoSyncMode.eachChange,
+                                        child: Text('A cada alteração'),
+                                      ),
+                                    ],
+                                    onChanged: ready &&
+                                            automatic!.loaded &&
+                                            !automatic!.saving
+                                        ? (mode) {
+                                            if (mode != null) {
+                                              automatic!.setMode(mode);
+                                            }
+                                          }
+                                        : null,
+                                  ),
+                                ),
+                              if (automatic!.enabled)
+                                const Text(
+                                  'Alterações do outro dispositivo são consultadas a cada minuto.',
+                                ),
+                            ],
+                          ),
+                        ),
+                      if (linked)
+                        TextButton(
+                          onPressed: ready ? () => _history(context) : null,
+                          child: const Text('Ver versões anteriores'),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),

@@ -36,3 +36,9 @@ Os limites de tamanho, schema/protocolo, integridade e compactação são os mes
 8. Selecionar A cada alteração e conferir envio após salvar; alternar para Alterações agrupadas e conferir a espera. Fechar/reabrir e verificar o modo escolhido. Desativar a opção, fechar/reabrir: a escolha deve permanecer. O botão manual deve continuar funcionando.
 9. Restaurar um backup: conferir desvinculação e ausência de publicação automática dos dados restaurados.
 10. Desconectar/trocar a conta: não abrir login automaticamente nem substituir dados. Reconectar manualmente a conta vinculada.
+
+## Painel simplificado — v0.4.0-alpha
+
+Os Ajustes mostram primeiro o status, conta vinculada, última sincronização concluída e pendências locais, seguidos de **Sincronizar agora** e da opção automática. Erros, espera por formulários e novas tentativas continuam visíveis. “Sem pendências locais” não garante que o outro dispositivo não tenha alterações; elas são consultadas no próximo ciclo.
+
+O primeiro vínculo e o recebimento de uma nova base aparecem em **Conectar este dispositivo**. Frequência, busca de bases de manutenção, substituição da base e versões anteriores ficam em **Opções avançadas**, inicialmente recolhidas. Publicações incompletas mantêm Retomar/Cancelar visíveis. As confirmações de substituição/recebimento e as cópias de proteção permanecem obrigatórias. Os botões ficam indisponíveis durante operações locais/Drive e a sincronização comum fica bloqueada enquanto houver substituição pendente ou uma nova base a receber.

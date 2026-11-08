@@ -158,8 +158,7 @@ class DashboardCategoryChart extends StatelessWidget {
                                                 fontWeight: FontWeight.w600))),
                                   ])))))));
       return Tooltip(
-          message:
-              'Inclui efetivados e previstos. Toque para abrir a análise de despesas.',
+          message: 'Toque para abrir a análise completa de despesas.',
           child: InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: () => context.go(AppRoutes.analysisPath),

@@ -1,4 +1,5 @@
 import 'dashboard_transfers_card.dart';
+import 'dashboard_analysis_view.dart';
 import 'recent_activity_details.dart';
 import 'dart:math' as math;
 
@@ -174,9 +175,12 @@ class _CurrencySection extends StatelessWidget {
         const SizedBox(height: 12),
         _Panel(
           title: 'Gastos por categoria',
-          child: DashboardCategoryChart(
-            key: ValueKey('mobile-categories-$code'),
+          child: DashboardAnalysisView(
             currency: currency,
+            builder: (view) => DashboardCategoryChart(
+              key: ValueKey('mobile-categories-$code'),
+              currency: view,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -220,12 +224,22 @@ class _HistoryPanel extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final maximum = currency.history.fold<int>(
-      0,
-      (value, item) =>
-          math.max(value, math.max(item.incomeMinor, item.expenseMinor)),
-    );
+  Widget build(BuildContext context) => _Panel(
+        title: 'Receitas vs Despesas',
+        action: const Text('Últimos 6 meses'),
+        child: DashboardAnalysisView(
+          currency: currency,
+          builder: (view) => _history(context, view),
+        ),
+      );
+
+  Widget _history(BuildContext context, DashboardCurrencySummary currency) {
+    final maximum = currency.historyAxisMaximumMinor ??
+        currency.history.fold<int>(
+          0,
+          (value, item) =>
+              math.max(value, math.max(item.incomeMinor, item.expenseMinor)),
+        );
     final magnitude = maximum <= 0
         ? 100.0
         : math.pow(10, (math.log(maximum / 4) / math.ln10).floor()).toDouble();
@@ -235,143 +249,124 @@ class _HistoryPanel extends StatelessWidget {
     final ceiling = step * 4;
     final plotHeight =
         MediaQuery.textScalerOf(context).scale(10) > 14 ? 160.0 : 122.0;
-    return _Panel(
-      title: 'Receitas vs Despesas',
-      action: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
-        decoration: BoxDecoration(
-          color: SomiaColors.surfaceHigh,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Text(
-          'Últimos 6 meses',
-          style: TextStyle(fontSize: 10, color: SomiaColors.muted),
-        ),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Inclui efetivados e previstos',
-            style: TextStyle(fontSize: 11, color: SomiaColors.muted),
-          ),
-          const SizedBox(height: 10),
-          if (currency.history.isEmpty)
-            SizedBox(
-              height: plotHeight,
-              child: const Center(
-                child: Text('Histórico mensal indisponível.'),
-              ),
-            )
-          else
-            SizedBox(
-              height: plotHeight,
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 34,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 22),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          for (var i = 4; i >= 0; i--)
-                            FittedBox(
-                              child: Text(
-                                _axisLabel(step * i),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: SomiaColors.muted,
-                                ),
+    return Column(
+      children: [
+        if (currency.history.isEmpty)
+          SizedBox(
+            height: plotHeight,
+            child: const Center(
+              child: Text('Histórico mensal indisponível.'),
+            ),
+          )
+        else
+          SizedBox(
+            height: plotHeight,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 34,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 22),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (var i = 4; i >= 0; i--)
+                          FittedBox(
+                            child: Text(
+                              _axisLabel(step * i),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: SomiaColors.muted,
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: HistoryTooltipChart(
-                      history: currency.history,
-                      currencyCode: currency.currencyCode,
-                      builder: (target) => Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Positioned.fill(
-                            bottom: 22,
-                            child: CustomPaint(painter: _GridPainter()),
-                          ),
-                          Row(
-                            children: [
-                              for (final item in currency.history)
-                                Expanded(
-                                  child: target(
-                                    item,
-                                    ExcludeSemantics(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            Expanded(
-                                              child: Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.end,
-                                                children: [
-                                                  _bar(
-                                                    item.incomeMinor,
-                                                    ceiling,
-                                                    SomiaColors.green,
-                                                  ),
-                                                  const SizedBox(width: 3),
-                                                  _bar(
-                                                    item.expenseMinor,
-                                                    ceiling,
-                                                    SomiaColors.red,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 7),
-                                            FittedBox(
-                                              fit: BoxFit.scaleDown,
-                                              child: Text(
-                                                _shortMonths[
-                                                    item.month.month - 1],
-                                                style: const TextStyle(
-                                                  fontSize: 10,
-                                                  color: SomiaColors.muted,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: HistoryTooltipChart(
+                    history: currency.history,
+                    currencyCode: currency.currencyCode,
+                    builder: (target) => Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Positioned.fill(
+                          bottom: 22,
+                          child: CustomPaint(painter: _GridPainter()),
+                        ),
+                        Row(
+                          children: [
+                            for (final item in currency.history)
+                              Expanded(
+                                child: target(
+                                  item,
+                                  ExcludeSemantics(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Expanded(
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                _bar(
+                                                  item.incomeMinor,
+                                                  ceiling,
+                                                  SomiaColors.green,
                                                 ),
+                                                const SizedBox(width: 3),
+                                                _bar(
+                                                  item.expenseMinor,
+                                                  ceiling,
+                                                  SomiaColors.red,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 7),
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              _shortMonths[
+                                                  item.month.month - 1],
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: SomiaColors.muted,
                                               ),
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
-                        ],
-                      ),
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          const SizedBox(height: 10),
-          const Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 18,
-            runSpacing: 6,
-            children: [
-              _Legend('Receitas', SomiaColors.green),
-              _Legend('Despesas', SomiaColors.red),
-            ],
           ),
-        ],
-      ),
+        const SizedBox(height: 10),
+        const Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 18,
+          runSpacing: 6,
+          children: [
+            _Legend('Receitas', SomiaColors.green),
+            _Legend('Despesas', SomiaColors.red),
+          ],
+        ),
+      ],
     );
   }
 
