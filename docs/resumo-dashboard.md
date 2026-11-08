@@ -41,7 +41,7 @@ O botão de navegação continua disponível para a seção correspondente; em c
 
 ## Realizado e previsto nos gráficos — v0.4.0-alpha
 
-Os gráficos de categorias e de receitas/despesas compartilham a seleção **Realizado / Previsto total / Ambos**. A seleção vale para todas as moedas na sessão e permanece ao trocar o mês ou atualizar. O padrão é Previsto total, preservando o conteúdo anterior. Ambos apresenta as duas visões identificadas separadamente; não soma realizado ao previsto total.
+Os gráficos de categorias e de receitas/despesas compartilham a seleção **Realizado / Previsto total / Ambos**. A seleção vale para todas as moedas na sessão e permanece ao trocar o mês ou atualizar. O padrão é Previsto total, preservando o conteúdo anterior. Ambos apresenta as duas visões identificadas separadamente, com a mesma escala no histórico; não soma realizado ao previsto total.
 
 - Realizado: efetivações até o dia atual, no mês da efetivação. Baixas parciais entram individualmente; o restante ainda aberto não é realizado.
 - Previsto total: realizado mais pendências e agendamentos já registrados, pela efetivação informada ou vencimento. Não estima novos lançamentos nem recorrências não geradas.

@@ -234,11 +234,12 @@ class _HistoryPanel extends StatelessWidget {
       );
 
   Widget _history(BuildContext context, DashboardCurrencySummary currency) {
-    final maximum = currency.history.fold<int>(
-      0,
-      (value, item) =>
-          math.max(value, math.max(item.incomeMinor, item.expenseMinor)),
-    );
+    final maximum = currency.historyAxisMaximumMinor ??
+        currency.history.fold<int>(
+          0,
+          (value, item) =>
+              math.max(value, math.max(item.incomeMinor, item.expenseMinor)),
+        );
     final magnitude = maximum <= 0
         ? 100.0
         : math.pow(10, (math.log(maximum / 4) / math.ln10).floor()).toDouble();

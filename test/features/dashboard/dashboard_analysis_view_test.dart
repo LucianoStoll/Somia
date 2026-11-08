@@ -79,6 +79,16 @@ void main() {
       expect(find.text('categories: 30000/5000'), findsOneWidget);
       expect(find.text('history: 50000/20000'), findsOneWidget);
       expect(find.text('history: 30000/5000'), findsOneWidget);
+      expect(
+          fixture
+              .forAnalysis(realized: true, compare: true)
+              .historyAxisMaximumMinor,
+          50000);
+      expect(
+          fixture
+              .forAnalysis(realized: false, compare: true)
+              .historyAxisMaximumMinor,
+          50000);
       expect(fixture.currentBalanceMinor, 100000);
       expect(fixture.projectedBalanceMinor, 120000);
       expect(repository.calls, 2);

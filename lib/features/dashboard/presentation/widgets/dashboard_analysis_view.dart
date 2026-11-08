@@ -28,7 +28,9 @@ class DashboardAnalysisView extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                 ],
-                builder(currency.forAnalysis(realized: realized)),
+                builder(currency.forAnalysis(
+                    realized: realized,
+                    compare: mode == DashboardAnalysisMode.both)),
               ],
             );
         return Column(

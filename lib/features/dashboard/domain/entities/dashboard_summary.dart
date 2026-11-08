@@ -7,6 +7,7 @@ class DashboardCurrencySummary {
       required this.projectedBalanceMinor,
       required this.incomeMinor,
       required this.expenseMinor,
+      this.historyAxisMaximumMinor,
       this.realizedIncomeMinor = 0,
       this.realizedExpenseMinor = 0,
       this.realizedExpensesByCategory = const [],
@@ -26,6 +27,7 @@ class DashboardCurrencySummary {
   final String currencyCode;
   final int currentBalanceMinor;
   final int projectedBalanceMinor;
+  final int? historyAxisMaximumMinor;
   final int realizedIncomeMinor, realizedExpenseMinor;
   final List<DashboardCategoryExpense> realizedExpensesByCategory;
   final int incomeMinor;
@@ -38,9 +40,23 @@ class DashboardCurrencySummary {
 
   /// Analytics follow the same date/category rules as the projected charts.
   /// Cash balances and invoice payments are not reclassified by this view.
-  DashboardCurrencySummary forAnalysis({required bool realized}) =>
+  DashboardCurrencySummary forAnalysis(
+          {required bool realized, bool compare = false}) =>
       DashboardCurrencySummary(
         currencyCode: currencyCode,
+        historyAxisMaximumMinor: compare
+            ? history.fold<int>(0, (maximum, item) {
+                for (final amount in [
+                  item.incomeMinor,
+                  item.expenseMinor,
+                  item.realizedIncomeMinor,
+                  item.realizedExpenseMinor
+                ]) {
+                  if (amount > maximum) maximum = amount;
+                }
+                return maximum;
+              })
+            : null,
         currentBalanceMinor: currentBalanceMinor,
         projectedBalanceMinor: projectedBalanceMinor,
         incomeMinor: realized ? realizedIncomeMinor : incomeMinor,
