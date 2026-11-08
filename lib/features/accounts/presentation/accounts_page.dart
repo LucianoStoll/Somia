@@ -16,19 +16,31 @@ import '../domain/account.dart';
 import '../domain/accounts_repository.dart';
 import '../domain/money_minor.dart';
 import 'accounts_cubit.dart';
+import '../data/account_statement_repository.dart';
+import 'account_summary_card.dart';
+import 'account_movement_actions.dart';
 
 class AccountsPage extends StatelessWidget {
   const AccountsPage({super.key});
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-        create: (_) => AccountsCubit(getIt<AccountsRepository>()),
+        create: (_) => AccountsCubit(getIt<AccountsRepository>(),
+            statements: getIt<AccountStatementRepository>()),
         child: const _AccountsView(),
       );
 }
 
-class _AccountsView extends StatelessWidget {
+class _AccountsView extends StatefulWidget {
   const _AccountsView();
+
+  @override
+  State<_AccountsView> createState() => _AccountsViewState();
+}
+
+class _AccountsViewState extends State<_AccountsView> {
+  bool _searching = false;
+  String _query = '';
 
   Future<void> _edit(BuildContext context, [Account? account]) async {
     final draft = await showMovementForm<AccountDraft>(
@@ -75,6 +87,16 @@ class _AccountsView extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Contas'),
           leading: somiaMenuLeading(context),
+          actions: [
+            IconButton(
+              tooltip: _searching ? 'Fechar busca' : 'Buscar contas',
+              icon: Icon(_searching ? Icons.close : Icons.search),
+              onPressed: () => setState(() {
+                _searching = !_searching;
+                _query = '';
+              }),
+            )
+          ],
         ),
         floatingActionButton: Builder(
           builder: (context) => FloatingActionButton.extended(
@@ -84,6 +106,17 @@ class _AccountsView extends StatelessWidget {
           ),
         ),
         body: Column(children: [
+          if (_searching)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: TextField(
+                autofocus: true,
+                decoration: const InputDecoration(
+                    labelText: 'Buscar contas', prefixIcon: Icon(Icons.search)),
+                onChanged: (value) =>
+                    setState(() => _query = value.trim().toLowerCase()),
+              ),
+            ),
           Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: ValueListenableBuilder<DateTime>(
@@ -112,110 +145,46 @@ class _AccountsView extends StatelessWidget {
               if (state.accounts.isEmpty) {
                 return const Center(child: Text('Nenhuma conta cadastrada.'));
               }
-              final totals = <String, (int, int)>{};
-              for (final account in state.accounts) {
-                totals.putIfAbsent(account.currencyCode, () => (0, 0));
-                if (!account.includeInBalance) continue;
-                final current = totals[account.currencyCode]!;
-                totals[account.currencyCode] = (
-                  current.$1 + account.currentBalanceMinor,
-                  current.$2 + account.projectedBalanceMinor,
-                );
+              final accounts = state.accounts
+                  .where(
+                      (account) => account.name.toLowerCase().contains(_query))
+                  .toList();
+              if (accounts.isEmpty) {
+                return const Center(child: Text('Nenhuma conta encontrada.'));
               }
-              final currencies = totals.keys.toList()..sort();
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                itemCount: state.accounts.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                            child: Text('Saldos no fim do mês',
-                                style:
-                                    Theme.of(context).textTheme.titleMedium)),
-                        for (final currency in currencies)
-                          Card(
-                              child: ListTile(
-                            title: Text(currency),
-                            subtitle: Text(
-                                'Efetivado: ${MoneyMinor.display(totals[currency]!.$1, currency)}'
-                                '\nProjetado até o fim do mês: '
-                                '${MoneyMinor.display(totals[currency]!.$2, currency)}'),
-                            isThreeLine: true,
-                          )),
-                        const SizedBox(height: 8),
-                      ],
-                    );
-                  }
-                  final account = state.accounts[index - 1];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      title: Text(account.name,
-                          maxLines: 2, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(
-                        '${account.type.label} · ${account.currencyCode}'
-                        '${account.isArchived ? ' · Arquivada' : ''}'
-                        '${account.includeInAnalytics ? '' : ' · Fora das análises'}'
-                        '${account.includeInBalance ? '' : ' · Fora do saldo consolidado'}'
-                        '\nProjetado: ${MoneyMinor.display(account.projectedBalanceMinor, account.currencyCode)}',
+              return RefreshIndicator(
+                onRefresh: context.read<AccountsCubit>().load,
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                  itemCount: accounts.length,
+                  itemBuilder: (context, index) {
+                    final account = accounts[index];
+                    return Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        child: AccountSummaryCard(
+                          account: account,
+                          statement: state.statements[account.id]!,
+                          onOpen: () => context.go(
+                              '/accounts/${Uri.encodeComponent(account.id)}'),
+                          onAdd: () =>
+                              showAccountMovementActions(context, account),
+                          onAction: (action) {
+                            if (action == 'edit') {
+                              _edit(context, account);
+                            } else if (action == 'balance') {
+                              _toggleBalance(context, account);
+                            } else {
+                              _archive(context, account);
+                            }
+                          },
+                        ),
                       ),
-                      trailing: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                                MoneyMinor.display(account.currentBalanceMinor,
-                                    account.currencyCode),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                            SizedBox(
-                                height: 32,
-                                child: PopupMenuButton<String>(
-                                  key: ValueKey('account-menu-${account.id}'),
-                                  tooltip: 'Ações da conta',
-                                  icon: const Icon(Icons.more_horiz, size: 20),
-                                  padding: EdgeInsets.zero,
-                                  onSelected: (action) {
-                                    if (action == 'edit') {
-                                      _edit(context, account);
-                                    } else if (action == 'balance') {
-                                      _toggleBalance(context, account);
-                                    } else {
-                                      _archive(context, account);
-                                    }
-                                  },
-                                  itemBuilder: (_) => [
-                                    const PopupMenuItem(
-                                        value: 'edit', child: Text('Editar')),
-                                    PopupMenuItem(
-                                      value: 'balance',
-                                      child: Text(account.includeInBalance
-                                          ? 'Excluir do saldo do mês'
-                                          : 'Incluir no saldo do mês'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'archive',
-                                      child: Text(account.isArchived
-                                          ? 'Reativar'
-                                          : 'Arquivar'),
-                                    ),
-                                  ],
-                                )),
-                          ]),
-                      isThreeLine: true,
-                      leading: AccountAvatar(
-                          institutionId: account.institutionId,
-                          type: account.type),
-                      dense: false,
-                      onTap: () => context
-                          .go('/accounts/${Uri.encodeComponent(account.id)}'),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               );
             },
           )),

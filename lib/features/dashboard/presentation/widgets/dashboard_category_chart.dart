@@ -40,11 +40,12 @@ class DashboardCategoryChart extends StatelessWidget {
     }
     return LayoutBuilder(builder: (context, box) {
       final scaler = MediaQuery.textScalerOf(context);
-      final sideBySide = box.maxWidth >= 300 && scaler.scale(12) <= 16;
+      final sideBySide = box.maxWidth >= 600 && scaler.scale(12) <= 16;
       final small = box.maxWidth < 500;
-      final diameter =
-          sideBySide ? (box.maxWidth * .34).clamp(104.0, 200.0) : 180.0;
-      final fontSize = small && sideBySide ? 10.0 : 14.0;
+      final diameter = sideBySide
+          ? (box.maxWidth * .34).clamp(104.0, 200.0)
+          : math.min(260.0, box.maxWidth);
+      final fontSize = 14.0;
       final style =
           Theme.of(context).textTheme.bodyMedium!.copyWith(fontSize: fontSize);
       double measure(String text) => (TextPainter(
@@ -158,8 +159,7 @@ class DashboardCategoryChart extends StatelessWidget {
                                                 fontWeight: FontWeight.w600))),
                                   ])))))));
       return Tooltip(
-          message:
-              'Inclui efetivados e previstos. Toque para abrir a análise de despesas.',
+          message: 'Toque para abrir a análise completa de despesas.',
           child: InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: () => context.go(AppRoutes.analysisPath),
@@ -198,6 +198,26 @@ class _DonutPainter extends CustomPainter {
             ..color = _colors[i]
             ..style = PaintingStyle.stroke
             ..strokeWidth = stroke);
+      // Keep small slices readable in the legend rather than crowding the ring.
+      if (items[i].amountMinor / total >= .08 && size.width >= 180) {
+        final middle = start + angle / 2;
+        final radius = (size.width - stroke) / 2;
+        final center = size.center(Offset.zero) +
+            Offset(math.cos(middle), math.sin(middle)) * radius;
+        final label = TextPainter(
+          text: TextSpan(
+            text: '${(items[i].amountMinor * 100 / total).round()}%',
+            style: const TextStyle(
+              color: SomiaColors.background,
+              fontFamily: 'Roboto',
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        label.paint(canvas, center - Offset(label.width / 2, label.height / 2));
+      }
       start += angle;
     }
   }

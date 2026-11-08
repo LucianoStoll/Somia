@@ -93,6 +93,8 @@ class SqliteTransactionsRepository implements TransactionsRepository {
       TransactionDateField.posted => 't.posted_at',
       TransactionDateField.due => 't.due_at',
       TransactionDateField.effective => 't.effective_at',
+      TransactionDateField.activity =>
+        'CASE WHEN t.effective_at IS NOT NULL AND t.effective_at < $todayEnd THEN t.effective_at ELSE t.due_at END',
     };
     final byEffectuation = filter.dateField == TransactionDateField.effective;
     final range = <String>[];

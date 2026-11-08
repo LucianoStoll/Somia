@@ -60,7 +60,7 @@ void main() {
     expect(decoded.sourceSchema, 23);
     expect(decoded.publicationEmail, 'test@example.com');
     expect(decoded.replaces, packet.replaces);
-    expect(AppDatabase.currentSchemaVersion, 26);
+    expect(AppDatabase.currentSchemaVersion, 27);
   });
 
   test(

@@ -12,6 +12,7 @@ import 'package:finapp/core/database/schema_v5.dart';
 import 'package:finapp/core/database/schema_v6.dart';
 import 'package:finapp/core/database/schema_v7.dart';
 import 'package:finapp/features/accounts/data/sqlite_accounts_repository.dart';
+import 'package:finapp/features/accounts/data/account_statement_repository.dart';
 import 'package:finapp/features/accounts/domain/account.dart';
 import 'package:finapp/features/accounts/presentation/accounts_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,7 +74,8 @@ void main() {
     expect(account.institutionId, 'sicredi');
     expect(account.currentBalanceMinor, 12345);
     await repo.update(created.id, draft('nubank'));
-    final cubit = AccountsCubit(repo);
+    final cubit =
+        AccountsCubit(repo, statements: AccountStatementRepository(db));
     await cubit.toggleBalance(
         (await repo.list()).firstWhere((a) => a.id == created.id));
     await cubit.close();
