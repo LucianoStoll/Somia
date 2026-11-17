@@ -1,3 +1,5 @@
+import '../../features/balances/domain/monthly_cash_flow.dart';
+import '../../features/balances/data/sqlite_monthly_cash_flow_repository.dart';
 import '../preferences/interface_preferences.dart';
 import '../../features/analysis/data/expense_analysis_repository.dart';
 import '../../features/attachments/data/attachments_repository.dart';
@@ -126,6 +128,9 @@ Future<void> configureDependencies(AppEnvironment environment) async {
     () => SqliteBalancesRepository(getIt<AppDatabase>()),
   );
 
+  getIt.registerLazySingleton<MonthlyCashFlowRepository>(
+    () => SqliteMonthlyCashFlowRepository(getIt<AppDatabase>()),
+  );
   getIt.registerLazySingleton<DashboardRepository>(
     () => SqliteDashboardRepository(getIt<AppDatabase>()),
   );

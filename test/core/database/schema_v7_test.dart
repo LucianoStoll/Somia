@@ -79,7 +79,6 @@ void main() {
     await BackupService.stageRestore(bytes, directory);
     await BackupService.applyPendingRestore(directory);
     final restored = AppDatabase(NativeDatabase(file));
-    addTearDown(restored.close);
     expect(
         (await SqliteTransfersRepository(restored).list()).single.description,
         'Aplicação de janeiro');
@@ -89,5 +88,6 @@ void main() {
         [500, 500]);
     expect(
         await restored.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+    await restored.close();
   }, timeout: Timeout(Duration(seconds: Platform.isWindows ? 120 : 30)));
 }

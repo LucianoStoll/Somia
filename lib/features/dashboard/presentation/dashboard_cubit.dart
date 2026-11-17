@@ -6,8 +6,13 @@ import '../domain/entities/dashboard_summary.dart';
 
 class DashboardState {
   const DashboardState(
-      {required this.month, this.summary, this.loading = false, this.error});
+      {required this.month,
+      this.summary,
+      this.loading = false,
+      this.error,
+      this.analysisMode = DashboardAnalysisMode.projected});
 
+  final DashboardAnalysisMode analysisMode;
   final DateTime month;
   final DashboardSummary? summary;
   final bool loading;
@@ -27,6 +32,12 @@ class DashboardCubit extends Cubit<DashboardState> {
   final DashboardRepository _repository;
   final ReferenceMonth? _selection;
   int _request = 0;
+  void selectAnalysisMode(DashboardAnalysisMode mode) => emit(DashboardState(
+      month: state.month,
+      summary: state.summary,
+      loading: state.loading,
+      error: state.error,
+      analysisMode: mode));
   void _monthChanged() => load(_selection!.value);
   @override
   Future<void> close() {
@@ -42,17 +53,24 @@ class DashboardCubit extends Cubit<DashboardState> {
             ? state.summary
             : null;
     emit(DashboardState(
-        month: selected, summary: previousSummary, loading: true));
+        month: selected,
+        summary: previousSummary,
+        loading: true,
+        analysisMode: state.analysisMode));
     try {
       final summary = await _repository.load(selected);
       if (!isClosed && request == _request) {
-        emit(DashboardState(month: selected, summary: summary));
+        emit(DashboardState(
+            month: selected,
+            summary: summary,
+            analysisMode: state.analysisMode));
       }
     } catch (_) {
       if (!isClosed && request == _request) {
         emit(DashboardState(
             month: selected,
             summary: previousSummary,
+            analysisMode: state.analysisMode,
             error: 'Não foi possível carregar o resumo.'));
       }
     }

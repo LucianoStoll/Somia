@@ -1,3 +1,8 @@
+import '../../balances/domain/monthly_cash_flow.dart';
+import 'movement_cash_totals.dart';
+import '../../transfers/domain/transfer.dart';
+import '../../transfers/domain/transfers_repository.dart';
+import '../../transfers/presentation/transfer_feed_row.dart';
 import '../../attachments/presentation/attachments_page.dart';
 import '../data/movement_management_repository.dart';
 import '../domain/movement_management.dart';
@@ -33,6 +38,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/filters/reference_month.dart';
 import '../../../core/widgets/month_selector.dart';
+import '../../../core/widgets/somia_brand.dart';
 import '../../../core/routing/somia_shell.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/effectuation_date_dialog.dart';
@@ -50,6 +56,38 @@ import 'transaction_settlements_page.dart';
 String _dateLabel(DateTime date) => '${date.day.toString().padLeft(2, '0')}/'
     '${date.month.toString().padLeft(2, '0')}/${date.year}';
 
+String _movementMoney(int minor, String currencyCode) {
+  final display = MoneyMinor.display(minor, currencyCode);
+  if (currencyCode != 'BRL') return display;
+  final comma = display.indexOf(',');
+  final whole = display.substring(0, comma);
+  return '${whole.replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (match) => '${match[1]}.')}${display.substring(comma)}';
+}
+
+class _FeedItem {
+  _FeedItem.fromTransaction(this.transaction) : transfer = null;
+  _FeedItem.fromTransfer(this.transfer) : transaction = null;
+  final FinancialTransaction? transaction;
+  final Transfer? transfer;
+  bool get isEffective => transaction?.isEffective ?? transfer!.isEffective;
+  DateTime get date => transaction?.date ?? transfer!.date;
+  DateTime? get dueDate => transaction?.dueDate ?? transfer?.dueDate;
+  DateTime get day {
+    final date = transaction?.effectiveDate ??
+        transfer?.effectiveDate ??
+        dueDate ??
+        this.date;
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  String get currencyCode =>
+      transaction?.currencyCode ?? transfer!.currencyCode;
+  int get netMinor => transaction == null
+      ? 0
+      : transaction!.amountMinor *
+          (transaction!.type == TransactionType.income ? 1 : -1);
+}
+
 class TransactionsPage extends StatelessWidget {
   const TransactionsPage({super.key, this.initialCreateType, this.sectionType});
   final String? initialCreateType;
@@ -62,6 +100,12 @@ class TransactionsPage extends StatelessWidget {
           getIt<AccountsRepository>(),
           getIt<CategoriesRepository>(),
           sectionType: sectionType,
+          transfers: getIt.isRegistered<TransfersRepository>()
+              ? getIt<TransfersRepository>()
+              : null,
+          cashFlow: getIt.isRegistered<MonthlyCashFlowRepository>()
+              ? getIt<MonthlyCashFlowRepository>()
+              : null,
           month: referenceMonth.value,
         ),
         child: _TransactionsView(
@@ -102,7 +146,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
   String? _tag;
   String? _establishmentFilter;
   TransactionStatus _status = TransactionStatus.all;
-  TransactionDateField _dateField = TransactionDateField.due;
+  TransactionDateField _dateField = TransactionDateField.activity;
   DateTimeRange? _range;
   bool _customPeriod = false;
   VoidCallback? _refreshFilters;
@@ -118,6 +162,14 @@ class _TransactionsViewState extends State<_TransactionsView> {
       _customPeriod = false;
     });
     _apply();
+  }
+
+  void _selectMonth(DateTime month) {
+    if (month == referenceMonth.value) {
+      _monthChanged();
+    } else {
+      referenceMonth.select(month);
+    }
   }
 
   @override
@@ -156,7 +208,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                             _tag = null;
                             _establishmentFilter = null;
                             _status = TransactionStatus.all;
-                            _dateField = TransactionDateField.due;
+                            _dateField = TransactionDateField.activity;
                             _range = _monthRange;
                             _customPeriod = false;
                           });
@@ -221,6 +273,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
             to: _range?.end,
             dateField: _dateField,
           ),
+          referenceMonth.value,
         );
   }
 
@@ -242,8 +295,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
     }
   }
 
-  Future<void> _edit(
-      [FinancialTransaction? item, bool effectuate = false]) async {
+  Future<void> _edit([
+    FinancialTransaction? item,
+    bool effectuate = false,
+  ]) async {
     if (item?.id.startsWith('cashback-receipt-') ?? false) {
       context.go('/cashback?receipt=${item!.id}');
       return;
@@ -443,169 +498,233 @@ class _TransactionsViewState extends State<_TransactionsView> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(
-            widget.sectionType == TransactionType.income
-                ? 'Receitas'
-                : widget.sectionType == TransactionType.expense
-                    ? 'Despesas'
-                    : 'Lançamentos',
-          ),
-          leading: somiaMenuLeading(context),
-        ),
-        floatingActionButton: const SomiaQuickActions(),
-        body: BlocConsumer<TransactionsCubit, TransactionsState>(
-          listener: (context, state) {
-            if (!_openedInitial &&
-                !state.loading &&
-                state.error == null &&
-                (widget.initialCreateType == 'income' ||
-                    widget.initialCreateType == 'expense')) {
-              _openedInitial = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _edit();
-              });
-            }
-          },
-          builder: (context, state) {
-            if (state.loading &&
-                state.accounts.isEmpty &&
-                state.items.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state.error != null) {
-              return Center(
-                child: TextButton(
-                  onPressed: context.read<TransactionsCubit>().load,
-                  child: Text('${state.error} Tentar novamente'),
-                ),
-              );
-            }
-            return Column(
-              children: [
-                if (_bulkMode &&
-                    getIt.isRegistered<MovementManagementRepository>())
-                  BulkMovementToolbar(
-                    onCancel: _cancelBulk,
-                    selection: _bulkSelection,
-                    available: state.items
-                        .where((item) => !item.id.startsWith('invoice:'))
-                        .map(MovementReference.transaction)
-                        .toList(),
-                    onSelection: (selection) =>
-                        setState(() => _bulkSelection = selection),
-                    onCompleted: () async {
-                      _cancelBulk();
-                      await context.read<TransactionsCubit>().load();
-                    },
+  Widget build(BuildContext context) {
+    final mobile = somiaUsesMobileNavigation(context) &&
+        MediaQuery.sizeOf(context).width < 600;
+    return Scaffold(
+      appBar: mobile
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              leading: somiaMenuLeading(context),
+              toolbarHeight: 64,
+              titleSpacing: 16,
+              title: Row(
+                children: [
+                  SomiaBrand(
+                    symbolOnly: MediaQuery.sizeOf(context).width < 460,
+                    height: 30,
                   ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: MonthSelector(
+                        month: referenceMonth.value,
+                        header: true,
+                        onChanged: _selectMonth,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : AppBar(
+              title: Text(
+                widget.sectionType == TransactionType.income
+                    ? 'Receitas'
+                    : widget.sectionType == TransactionType.expense
+                        ? 'Despesas'
+                        : 'Movimentos',
+              ),
+              leading: somiaMenuLeading(context),
+            ),
+      floatingActionButton: const SomiaQuickActions(),
+      body: BlocConsumer<TransactionsCubit, TransactionsState>(
+        listener: (context, state) {
+          if (!_openedInitial &&
+              !state.loading &&
+              state.error == null &&
+              (widget.initialCreateType == 'income' ||
+                  widget.initialCreateType == 'expense')) {
+            _openedInitial = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _edit();
+            });
+          }
+        },
+        builder: (context, state) {
+          if (state.loading &&
+              state.accounts.isEmpty &&
+              state.items.isEmpty &&
+              state.transfers.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (state.error != null) {
+            return Center(
+              child: TextButton(
+                onPressed: context.read<TransactionsCubit>().load,
+                child: Text('${state.error} Tentar novamente'),
+              ),
+            );
+          }
+          return Column(
+            children: [
+              if (_bulkMode &&
+                  getIt.isRegistered<MovementManagementRepository>())
+                BulkMovementToolbar(
+                  onCancel: _cancelBulk,
+                  selection: _bulkSelection,
+                  available: state.items
+                      .where((item) => !item.id.startsWith('invoice:'))
+                      .map(MovementReference.transaction)
+                      .toList(),
+                  onSelection: (selection) =>
+                      setState(() => _bulkSelection = selection),
+                  onCompleted: () async {
+                    _cancelBulk();
+                    await context.read<TransactionsCubit>().load();
+                  },
+                ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (mobile)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.sectionType == TransactionType.income
+                                  ? 'Receitas'
+                                  : widget.sectionType ==
+                                          TransactionType.expense
+                                      ? 'Despesas'
+                                      : 'Movimentos',
+                              style: const TextStyle(
+                                fontSize: 25,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _openFilters(state),
+                            icon: const Icon(Icons.tune),
+                            label: const Text('Filtros'),
+                          ),
+                        ],
+                      )
+                    else
                       MonthSelector(
                         month: referenceMonth.value,
-                        onChanged: (month) {
-                          if (month == referenceMonth.value) {
-                            _monthChanged();
-                          } else {
-                            referenceMonth.select(month);
-                          }
-                        },
+                        onChanged: _selectMonth,
                       ),
+                    if (!mobile)
                       OutlinedButton.icon(
                         onPressed: () => _openFilters(state),
                         icon: const Icon(Icons.tune),
                         label: const Text('Filtros'),
                       ),
-                      if (_accountId != null)
-                        InputChip(
-                            label: Text(state.accounts
-                                    .where((a) => a.id == _accountId)
-                                    .firstOrNull
-                                    ?.name ??
-                                'Conta'),
-                            onDeleted: () {
-                              setState(() => _accountId = null);
-                              _apply();
-                            }),
-                      if (_status != TransactionStatus.all)
-                        InputChip(
-                            label: Text(_status == TransactionStatus.effective
-                                ? 'Efetivados'
-                                : 'Pendentes'),
-                            onDeleted: () {
-                              setState(() => _status = TransactionStatus.all);
-                              _apply();
-                            }),
-                      if (_categoryId != null || _subcategoryId != null)
-                        InputChip(
-                            label: const Text('Categoria selecionada'),
-                            onDeleted: () {
-                              setState(() {
-                                _categoryId = null;
-                                _subcategoryId = null;
-                              });
-                              _apply();
-                            }),
-                      if (_tag != null)
-                        InputChip(
-                            label: Text('#$_tag'),
-                            onDeleted: () {
-                              setState(() => _tag = null);
-                              _apply();
-                            }),
-                      if (_establishmentFilter != null)
-                        InputChip(
-                            label: Text(_establishmentFilter!),
-                            onDeleted: () {
-                              setState(() => _establishmentFilter = null);
-                              _apply();
-                            }),
-                      if (_accountId != null ||
-                          _categoryId != null ||
-                          _subcategoryId != null ||
-                          _status != TransactionStatus.all ||
-                          _tag != null ||
-                          _establishmentFilter != null ||
-                          _customPeriod)
-                        TextButton(
-                            onPressed: _clearFilters,
-                            child: const Text('Limpar filtros')),
-                      if (_customPeriod)
-                        Text(
-                          _range == null
-                              ? 'Todos os meses'
-                              : '${_dateLabel(_range!.start)} – ${_dateLabel(_range!.end)}',
+                    if (_accountId != null)
+                      InputChip(
+                        label: Text(
+                          state.accounts
+                                  .where((a) => a.id == _accountId)
+                                  .firstOrNull
+                                  ?.name ??
+                              'Conta',
                         ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: state.items.isEmpty
-                      ? Center(
-                          child: Text(
-                            widget.sectionType == TransactionType.income
-                                ? 'Nenhuma receita para estes filtros.'
-                                : widget.sectionType == TransactionType.expense
-                                    ? 'Nenhuma despesa para estes filtros.'
-                                    : 'Nenhum lançamento para estes filtros.',
-                          ),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-                          children: _dailyRows(state),
+                        onDeleted: () {
+                          setState(() => _accountId = null);
+                          _apply();
+                        },
+                      ),
+                    if (_status != TransactionStatus.all)
+                      InputChip(
+                        label: Text(
+                          _status == TransactionStatus.effective
+                              ? 'Efetivados'
+                              : 'Pendentes',
                         ),
+                        onDeleted: () {
+                          setState(() => _status = TransactionStatus.all);
+                          _apply();
+                        },
+                      ),
+                    if (_categoryId != null || _subcategoryId != null)
+                      InputChip(
+                        label: const Text('Categoria selecionada'),
+                        onDeleted: () {
+                          setState(() {
+                            _categoryId = null;
+                            _subcategoryId = null;
+                          });
+                          _apply();
+                        },
+                      ),
+                    if (_tag != null)
+                      InputChip(
+                        label: Text('#$_tag'),
+                        onDeleted: () {
+                          setState(() => _tag = null);
+                          _apply();
+                        },
+                      ),
+                    if (_establishmentFilter != null)
+                      InputChip(
+                        label: Text(_establishmentFilter!),
+                        onDeleted: () {
+                          setState(() => _establishmentFilter = null);
+                          _apply();
+                        },
+                      ),
+                    if (_accountId != null ||
+                        _categoryId != null ||
+                        _subcategoryId != null ||
+                        _status != TransactionStatus.all ||
+                        _tag != null ||
+                        _establishmentFilter != null ||
+                        _customPeriod)
+                      TextButton(
+                        onPressed: _clearFilters,
+                        child: const Text('Limpar filtros'),
+                      ),
+                    if (_customPeriod)
+                      Text(
+                        _range == null
+                            ? 'Todos os meses'
+                            : '${_dateLabel(_range!.start)} – ${_dateLabel(_range!.end)}',
+                      ),
+                  ],
                 ),
-              ],
-            );
-          },
-        ),
-      );
+              ),
+              if (mobile ||
+                  widget.sectionType == null && state.cashFlow != null)
+                _mobileTotals(state),
+              Expanded(
+                child: state.items.isEmpty && state.transfers.isEmpty
+                    ? Center(
+                        child: Text(
+                          widget.sectionType == TransactionType.income
+                              ? 'Nenhuma receita para estes filtros.'
+                              : widget.sectionType == TransactionType.expense
+                                  ? 'Nenhuma despesa para estes filtros.'
+                                  : 'Nenhum lançamento para estes filtros.',
+                        ),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                        children: _dailyRows(state),
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   void _clearFilters() {
     setState(() {
@@ -613,61 +732,192 @@ class _TransactionsViewState extends State<_TransactionsView> {
       _accountId =
           _categoryId = _subcategoryId = _tag = _establishmentFilter = null;
       _status = TransactionStatus.all;
-      _dateField = TransactionDateField.due;
+      _dateField = TransactionDateField.activity;
       _range = _monthRange;
       _customPeriod = false;
     });
     _apply();
   }
 
-  DateTime _listDay(FinancialTransaction item) {
-    final date = switch (_dateField) {
-      TransactionDateField.posted => item.date,
-      TransactionDateField.due => item.dueDate ?? item.date,
-      TransactionDateField.effective =>
-        item.effectiveDate ?? item.dueDate ?? item.date,
+  Widget _mobileTotals(TransactionsState state) {
+    if (widget.sectionType == null && state.cashFlow != null) {
+      return MovementCashTotals(totals: state.cashFlow!);
+    }
+    final items = state.items, transfers = state.transfers;
+    final currencies = {
+      ...items.map((item) => item.currencyCode),
+      ...transfers.map((item) => item.currencyCode)
     };
-    return DateTime(date.year, date.month, date.day);
+    if (currencies.isEmpty) currencies.add('BRL');
+    final section = widget.sectionType;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Row(
+            children: [
+              for (final index in [0, 1]) ...[
+                if (index == 1)
+                  const SizedBox(height: 50, child: VerticalDivider()),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        section == null
+                            ? index == 0
+                                ? 'Entradas'
+                                : 'Saídas'
+                            : index == 0
+                                ? 'Realizado'
+                                : 'Previsto',
+                        style: const TextStyle(
+                          color: SomiaColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      for (final currency in currencies)
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _movementMoney(
+                              items
+                                  .where(
+                                    (item) =>
+                                        (section == null
+                                            ? item.type ==
+                                                (index == 0
+                                                    ? TransactionType.income
+                                                    : TransactionType.expense)
+                                            : item.isEffective ==
+                                                (index == 0)) &&
+                                        item.currencyCode == currency,
+                                  )
+                                  .fold<int>(
+                                    0,
+                                    (sum, item) => sum + item.amountMinor,
+                                  ),
+                              currency,
+                            ),
+                            style: TextStyle(
+                              color: section == null
+                                  ? index == 0
+                                      ? SomiaColors.green
+                                      : SomiaColors.red
+                                  : index == 0
+                                      ? section == TransactionType.income
+                                          ? SomiaColors.green
+                                          : SomiaColors.red
+                                      : SomiaColors.purple,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   List<Widget> _dailyRows(TransactionsState state) {
-    final groups = <DateTime, List<FinancialTransaction>>{};
-    for (final item in state.items) {
-      (groups[_listDay(item)] ??= []).add(item);
+    final mobile = somiaUsesMobileNavigation(context) &&
+        MediaQuery.sizeOf(context).width < 600;
+    final pending = <_FeedItem>[];
+    final groups = <DateTime, List<_FeedItem>>{};
+    final items = [
+      ...state.items.map(_FeedItem.fromTransaction),
+      ...state.transfers.map(_FeedItem.fromTransfer),
+    ];
+    Widget row(_FeedItem item) => item.transaction != null
+        ? _movementRow(item.transaction!)
+        : TransferFeedRow(
+            key: ValueKey('feed-transfer-${item.transfer!.id}'),
+            item: item.transfer!,
+            accounts: state.accounts,
+            repository: getIt<TransfersRepository>(),
+            onChanged: context.read<TransactionsCubit>().load);
+    for (final item in items) {
+      if (item.isEffective) {
+        (groups[item.day] ??= []).add(item);
+      } else {
+        pending.add(item);
+      }
     }
+    pending.sort(
+      (a, b) => (a.dueDate ?? a.date).compareTo(b.dueDate ?? b.date),
+    );
     final days = groups.keys.toList()..sort((a, b) => b.compareTo(a));
     return [
+      if (pending.isNotEmpty)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            'Pendentes',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      for (final item in pending) row(item),
       for (final day in days) ...[
         Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                spacing: 12,
-                runSpacing: 4,
-                children: [
-                  Text(_dateLabel(day),
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  for (final code
-                      in groups[day]!.map((e) => e.currencyCode).toSet())
-                    Text(
-                        'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + (e.type == TransactionType.income ? e.amountMinor : -e.amountMinor)), code)}',
-                        style: const TextStyle(
-                            color: SomiaColors.muted, fontSize: 12)),
-                ])),
-        for (final item in groups[day]!)
-          if (_bulkMode &&
-              getIt.isRegistered<MovementManagementRepository>() &&
-              !item.id.startsWith('invoice:'))
-            SelectableMovementRow(
-                ref: MovementReference.transaction(item),
-                selection: _bulkSelection,
-                onSelection: (selection) =>
-                    setState(() => _bulkSelection = selection),
-                child: _itemTile(item))
-          else
-            _itemTile(item),
-      ]
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 12,
+            runSpacing: 4,
+            children: [
+              Text(
+                mobile ? _mobileDayLabel(day) : _dateLabel(day),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              if (!mobile)
+                for (final code
+                    in groups[day]!.map((e) => e.currencyCode).toSet())
+                  Text(
+                    'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + e.netMinor), code)}',
+                    style: const TextStyle(
+                      color: SomiaColors.muted,
+                      fontSize: 12,
+                    ),
+                  ),
+            ],
+          ),
+        ),
+        for (final item in groups[day]!) row(item),
+      ],
     ];
+  }
+
+  Widget _movementRow(FinancialTransaction item) {
+    if (_bulkMode &&
+        getIt.isRegistered<MovementManagementRepository>() &&
+        !item.id.startsWith('invoice:')) {
+      return SelectableMovementRow(
+        ref: MovementReference.transaction(item),
+        selection: _bulkSelection,
+        onSelection: (selection) => setState(() => _bulkSelection = selection),
+        child: _itemTile(item),
+      );
+    }
+    return _itemTile(item);
+  }
+
+  String _mobileDayLabel(DateTime day) {
+    final now = DateTime.now();
+    final prefix =
+        day.year == now.year && day.month == now.month && day.day == now.day
+            ? 'Hoje, '
+            : '';
+    return '$prefix${day.day} de ${monthNames[day.month - 1].toLowerCase()}'
+        '${day.year == now.year ? '' : ' de ${day.year}'}';
   }
 
   Widget _filters(TransactionsState state) => ConstrainedBox(
@@ -883,6 +1133,10 @@ class _TransactionsViewState extends State<_TransactionsView> {
                   value: _dateField,
                   items: const [
                     DropdownMenuItem(
+                      value: TransactionDateField.activity,
+                      child: Text('Filtrar movimentação'),
+                    ),
+                    DropdownMenuItem(
                       value: TransactionDateField.posted,
                       child: Text('Filtrar lançamento'),
                     ),
@@ -1031,7 +1285,8 @@ class _TransactionsViewState extends State<_TransactionsView> {
       id: item.id,
       description: item.description,
       account: item.accountName,
-      amount: '-${MoneyMinor.display(item.amountMinor, 'BRL')}',
+      leadingIcon: Icons.credit_card_outlined,
+      amount: '-${_movementMoney(item.amountMinor, 'BRL')}',
       dueDate: item.dueDate!,
       effectiveDate: item.effectiveDate,
       effective: item.isEffective,
@@ -1119,8 +1374,17 @@ class _TransactionsViewState extends State<_TransactionsView> {
       id: item.id,
       description: item.description,
       account: item.accountName,
+      leadingIcon: item.type == TransactionType.income
+          ? Icons.payments_outlined
+          : switch (category?.iconKey ?? parent?.iconKey) {
+              'food' => Icons.restaurant_outlined,
+              'home' => Icons.home_outlined,
+              'transport' => Icons.directions_car_outlined,
+              'work' => Icons.work_outline,
+              _ => Icons.shopping_cart_outlined,
+            },
       amount:
-          '${item.type == TransactionType.income ? '+' : '-'}${MoneyMinor.display(item.amountMinor, item.currencyCode)}',
+          '${item.type == TransactionType.income ? '+' : '-'}${_movementMoney(item.amountMinor, item.currencyCode)}',
       dueDate: item.dueDate ?? item.date,
       effectiveDate: item.effectiveDate,
       effective: item.isEffective,
@@ -1165,53 +1429,63 @@ class _TransactionsViewState extends State<_TransactionsView> {
       onPending: () =>
           item.settlementCount > 0 ? _settlements(item) : _markPending(item),
       onAmount: () => _editAmount(item),
-      detailsBuilder: (sheet) =>
-          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (item.allocations.isNotEmpty) ...[
-          const Divider(),
-          const Text('Rateio', style: TextStyle(fontWeight: FontWeight.w700)),
-          for (final part in item.allocations)
-            ListTile(
+      detailsBuilder: (sheet) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (item.allocations.isNotEmpty) ...[
+            const Divider(),
+            const Text('Rateio', style: TextStyle(fontWeight: FontWeight.w700)),
+            for (final part in item.allocations)
+              ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(categories
-                        .where((c) => c.id == part.categoryId)
-                        .firstOrNull
-                        ?.name ??
-                    'Categoria indisponível'),
+                title: Text(
+                  categories
+                          .where((c) => c.id == part.categoryId)
+                          .firstOrNull
+                          ?.name ??
+                      'Categoria indisponível',
+                ),
                 trailing: Text(
-                    MoneyMinor.display(part.amountMinor, item.currencyCode))),
-        ],
-        if (!item.id.startsWith('cashback-receipt-') && item.cardId == null)
-          TextButton.icon(
+                  MoneyMinor.display(part.amountMinor, item.currencyCode),
+                ),
+              ),
+          ],
+          if (!item.id.startsWith('cashback-receipt-') && item.cardId == null)
+            TextButton.icon(
               onPressed: () {
                 Navigator.pop(sheet);
                 _settlements(item);
               },
               icon: const Icon(Icons.receipt_long_outlined),
-              label: const Text('Pagamentos e recebimentos')),
-        if (item.type == TransactionType.expense &&
-            getIt.isRegistered<ReimbursementsRepository>())
-          FutureBuilder<List<ReimbursementDraft>>(
-            future: getIt<ReimbursementsRepository>().drafts(item.id),
-            builder: (context, snapshot) => snapshot.hasError
-                ? const Text('Não foi possível consultar os reembolsos.')
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+              label: const Text('Pagamentos e recebimentos'),
+            ),
+          if (item.type == TransactionType.expense &&
+              getIt.isRegistered<ReimbursementsRepository>())
+            FutureBuilder<List<ReimbursementDraft>>(
+              future: getIt<ReimbursementsRepository>().drafts(item.id),
+              builder: (context, snapshot) => snapshot.hasError
+                  ? const Text('Não foi possível consultar os reembolsos.')
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
                         for (final claim
                             in snapshot.data ?? <ReimbursementDraft>[])
                           Text(
-                              'Reembolso: ${MoneyMinor.display(claim.amountMinor, item.currencyCode)}${claim.dueDate == null ? '' : ' · ${_dateLabel(claim.dueDate!)}'}'),
+                            'Reembolso: ${MoneyMinor.display(claim.amountMinor, item.currencyCode)}${claim.dueDate == null ? '' : ' · ${_dateLabel(claim.dueDate!)}'}',
+                          ),
                         if (snapshot.data?.isNotEmpty ?? false)
                           TextButton(
-                              onPressed: () {
-                                Navigator.pop(sheet);
-                                this.context.go('/people');
-                              },
-                              child: const Text('Acompanhar reembolsos')),
-                      ]),
-          ),
-      ]),
+                            onPressed: () {
+                              Navigator.pop(sheet);
+                              this.context.go('/people');
+                            },
+                            child: const Text('Acompanhar reembolsos'),
+                          ),
+                      ],
+                    ),
+            ),
+        ],
+      ),
       onAttachments: () =>
           showAttachments(context, MovementReference.transaction(item)),
       onEdit: () => _edit(item),
@@ -1569,8 +1843,11 @@ class TransactionFormState extends State<TransactionForm> {
       if (mounted) setState(() => _debitCards = cards);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Não foi possível carregar os cartões de débito.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível carregar os cartões de débito.'),
+          ),
+        );
       }
     }
   }
@@ -1649,9 +1926,13 @@ class TransactionFormState extends State<TransactionForm> {
         !_forcePending &&
         !_rateioEnabled &&
         _categoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
           content: Text(
-              'Escolha a categoria de receita para efetivar o reembolso.')));
+            'Escolha a categoria de receita para efetivar o reembolso.',
+          ),
+        ),
+      );
       return;
     }
     if (_series.active) {
@@ -1914,18 +2195,23 @@ class TransactionFormState extends State<TransactionForm> {
                   initialValue: _debitCardId,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                      labelText: 'Cartão de débito (opcional)'),
+                    labelText: 'Cartão de débito (opcional)',
+                  ),
                   items: [
                     const DropdownMenuItem<String>(
-                        value: null, child: Text('Sem cartão de débito')),
-                    for (final card in _debitCards
-                        .where((c) => !c.archived || c.id == _debitCardId))
+                      value: null,
+                      child: Text('Sem cartão de débito'),
+                    ),
+                    for (final card in _debitCards.where(
+                      (c) => !c.archived || c.id == _debitCardId,
+                    ))
                       DropdownMenuItem(value: card.id, child: Text(card.name)),
                     if (_debitCardId != null &&
                         !_debitCards.any((c) => c.id == _debitCardId))
                       DropdownMenuItem(
-                          value: _debitCardId,
-                          child: const Text('Cartão removido · histórico')),
+                        value: _debitCardId,
+                        child: const Text('Cartão removido · histórico'),
+                      ),
                   ],
                   onChanged: (id) => setState(() {
                     _debitCardId = id;

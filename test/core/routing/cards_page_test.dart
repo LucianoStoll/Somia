@@ -38,6 +38,8 @@ class _Cards extends CardsRepository {
   (String, String, int, DateTime, int, int)? payment;
   TransactionDraft? edited;
   String? deleted;
+  bool withoutLimit = false;
+  bool secondCard = false;
   @override
   Future<bool> purchaseHasPayments(String id, SeriesScope scope,
           {DateTime? invoiceMonth, DateTime? purchaseDate}) async =>
@@ -54,16 +56,23 @@ class _Cards extends CardsRepository {
 
   @override
   Future<List<CreditCard>> list() async => [
-        const CreditCard(
+        CreditCard(
             id: 'nu',
             name: 'Nubank',
             paymentAccountId: 'a',
             closingDay: 25,
             dueDay: 5,
-            limitMinor: 500000,
+            limitMinor: withoutLimit ? null : 500000,
             institutionId: 'nubank',
             colorArgb: 0xffb59add,
-            committedMinor: 85050)
+            committedMinor: 85050),
+        if (secondCard)
+          const CreditCard(
+              id: 'bb',
+              name: 'Banco do Brasil',
+              paymentAccountId: 'a',
+              closingDay: 1,
+              dueDay: 19),
       ];
   @override
   Future<List<CardInvoice>> invoices(String cardId,
@@ -112,6 +121,16 @@ class _Cards extends CardsRepository {
             chargesMinor: 0,
             paidMinor: 0,
             scheduledMinor: 0),
+        CardInvoice(
+            id: 'december',
+            cardId: 'nu',
+            month: DateTime(2026, 12),
+            closingAt: DateTime(2026, 11, 25),
+            dueAt: DateTime(2026, 12, 5),
+            previousMinor: 85050,
+            chargesMinor: 94434,
+            paidMinor: 0,
+            scheduledMinor: 0),
       ];
   @override
   Future<void> pay(
@@ -136,7 +155,10 @@ void main() {
     await repo.db.close();
   });
   Future<void> open(WidgetTester tester, TargetPlatform platform,
-      {double scale = 1, bool detail = true}) async {
+      {double scale = 1,
+      bool detail = true,
+      bool shell = false,
+      bool statement = false}) async {
     tester.view.physicalSize = platform == TargetPlatform.android
         ? const Size(390, 844)
         : const Size(1280, 900);
@@ -144,17 +166,24 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final router = GoRouter(
-        initialLocation: detail ? '/cards?card=nu' : '/cards',
+        initialLocation: detail
+            ? '/cards?card=nu${statement ? '&view=statement' : ''}'
+            : '/cards',
         routes: [
           GoRoute(
               path: '/cards',
-              builder: (context, state) => SomiaSectionBackScope(
-                  location: '/cards',
-                  child: CardsPage(
-                      key: ValueKey(state.uri.toString()),
-                      initialStatement:
-                          state.uri.queryParameters['view'] == 'statement',
-                      cardId: state.uri.queryParameters['card']))),
+              builder: (context, state) {
+                final page = SomiaSectionBackScope(
+                    location: '/cards',
+                    child: CardsPage(
+                        key: ValueKey(state.uri.toString()),
+                        initialStatement:
+                            state.uri.queryParameters['view'] == 'statement',
+                        cardId: state.uri.queryParameters['card']));
+                return shell
+                    ? SomiaShell(location: '/cards', child: page)
+                    : page;
+              }),
           for (final path in ['/income', '/expenses', '/transfers'])
             GoRoute(
                 path: path,
@@ -176,7 +205,49 @@ void main() {
   for (final platform in [TargetPlatform.android, TargetPlatform.windows]) {
     testWidgets('próxima fatura mostra mês sem acumular anterior $platform',
         (tester) async {
-      await open(tester, platform);
+      await open(tester, platform, shell: platform == TargetPlatform.android);
+      if (platform == TargetPlatform.android) {
+        final chart = find.byKey(const ValueKey('future-invoices-chart'));
+        await tester.scrollUntilVisible(chart, 200);
+        await Scrollable.ensureVisible(tester.element(chart), alignment: 0.5);
+        await tester.pumpAndSettle();
+        expect(find.text('Novembro 2026'), findsOneWidget);
+        expect(find.byKey(const ValueKey('future-invoice-amount')),
+            findsOneWidget);
+        expect(find.text('R\$ 0,00'), findsWidgets);
+        await tester.tap(find.byTooltip('Próxima fatura'));
+        await tester.pumpAndSettle();
+        expect(find.text('Dezembro 2026'), findsOneWidget);
+        expect(
+            tester
+                .widget<Text>(
+                    find.byKey(const ValueKey('future-invoice-amount')))
+                .data,
+            'R\$ 944,34');
+        await tester.tap(find.text('Dezembro 2026'));
+        await tester.pumpAndSettle();
+        expect(referenceMonth.value.month, 12);
+        final currentInvoice = find.text('Fatura atual');
+        await tester.scrollUntilVisible(currentInvoice, -200);
+        final currentInvoiceRow =
+            find.ancestor(of: currentInvoice, matching: find.byType(Row)).first;
+        expect(
+            find.descendant(
+                of: currentInvoiceRow, matching: find.text('R\$ 944,34')),
+            findsOneWidget);
+        await tester.scrollUntilVisible(chart, 200);
+        await Scrollable.ensureVisible(tester.element(chart), alignment: 0.5);
+        await tester.pumpAndSettle();
+        expect(find.text('Dezembro 2026'), findsOneWidget);
+        await tester.tap(find.byTooltip('Fatura anterior'));
+        await tester.pumpAndSettle();
+        expect(find.text('Novembro 2026'), findsOneWidget);
+        await tester.tap(find.byTooltip('Fatura anterior'));
+        await tester.pumpAndSettle();
+        expect(find.text('Outubro 2026'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        return;
+      }
       await tester.scrollUntilVisible(find.text('11/2026'), 200);
       await tester.pumpAndSettle();
       final tile = tester.widget<ListTile>(find.ancestor(
@@ -188,7 +259,7 @@ void main() {
     testWidgets(
         'corrigir compra paga pede confirmação e cancelar preserva dados $platform',
         (tester) async {
-      await open(tester, platform);
+      await open(tester, platform, statement: true);
       Future<void> edit() async {
         final title = find.text('Compra parcelada com descrição longa');
         await tester.scrollUntilVisible(title, 200);
@@ -231,10 +302,8 @@ void main() {
         (tester) async {
       await open(tester, platform);
       expect(find.text('Nubank · 10/2026'), findsOneWidget);
-      await tester.scrollUntilVisible(
-          find.text('Compra parcelada com descrição longa'), 200);
-      await tester.pumpAndSettle();
-      expect(find.text('Compra parcelada com descrição longa'), findsOneWidget);
+      expect(find.text('Itens da fatura'), findsNothing);
+      expect(find.text('Compra parcelada com descrição longa'), findsNothing);
       await tester.scrollUntilVisible(find.text('Caixa / pagamentos'), -200);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Caixa / pagamentos'));
@@ -263,6 +332,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('card-open-nu')));
       await tester.pumpAndSettle();
       expect(find.text('Detalhes do cartão'), findsOneWidget);
+      expect(find.text('Itens da fatura'), findsNothing);
+      expect(find.text('Compra parcelada com descrição longa'), findsNothing);
       await tester.ensureVisible(find.text('Extrato'));
       await tester.tap(find.text('Extrato'));
       await tester.pumpAndSettle();
@@ -273,8 +344,14 @@ void main() {
       await tester.scrollUntilVisible(purchaseDay, 160);
       expect(purchaseDay, findsOneWidget);
       expect(paymentDay, findsOneWidget);
+      expect(find.text('Compra parcelada com descrição longa'), findsOneWidget);
       expect(tester.getTopLeft(paymentDay).dy,
           lessThan(tester.getTopLeft(purchaseDay).dy));
+      await tester.scrollUntilVisible(find.text('Competência / fatura'), -160);
+      await tester.tap(find.text('Competência / fatura'));
+      await tester.pumpAndSettle();
+      expect(find.text('Compra parcelada com descrição longa'), findsNothing);
+      expect(find.text('Itens da fatura'), findsNothing);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('card-open-nu')), findsOneWidget);
@@ -298,6 +375,78 @@ void main() {
       }
     });
   }
+  testWidgets('lista compacta prioriza fatura e abre os detalhes', (
+    tester,
+  ) async {
+    await open(tester, TargetPlatform.android, detail: false, shell: true);
+    expect(find.text('Meus cartões'), findsOneWidget);
+    expect(find.text('1 cartão'), findsOneWidget);
+    expect(find.text('Vence em 05 out'), findsOneWidget);
+    expect(find.text('Fecha em 25 set'), findsOneWidget);
+    expect(find.text(cardMoney(125050)), findsOneWidget);
+    expect(find.text(cardMoney(414950)), findsOneWidget);
+    // A altura inclui as duas ações, sem exigir rolagem no celular.
+    expect(
+      tester.getSize(find.byKey(const ValueKey('card-open-nu'))).height,
+      lessThan(330),
+    );
+    await tester.tap(find.byKey(const ValueKey('card-invoice-nu')));
+    await tester.pumpAndSettle();
+    expect(find.text('Cartão Nubank'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('extrato abre diretamente pela lista de cartões', (tester) async {
+    await open(tester, TargetPlatform.android, detail: false, shell: true);
+    await tester.tap(find.byKey(const ValueKey('card-statement-nu')));
+    await tester.pumpAndSettle();
+    expect(find.text('Cartão Nubank'), findsOneWidget);
+    expect(find.text('Extrato · 10/2026'), findsOneWidget);
+    final entry = find.text('Compra parcelada com descrição longa');
+    await tester.scrollUntilVisible(entry, 140);
+    expect(entry, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('pagamento continua acessível no menu da lista', (tester) async {
+    await open(tester, TargetPlatform.android, detail: false, shell: true);
+    await tester.tap(find.byType(PopupMenuButton<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Registrar pagamento'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CardPaymentForm), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('lista compacta suporta fonte ampliada', (tester) async {
+    await open(
+      tester,
+      TargetPlatform.android,
+      detail: false,
+      shell: true,
+      scale: 1.5,
+    );
+    await tester.scrollUntilVisible(find.text('Ver fatura'), 120);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('cartão sem limite oferece edição sem mostrar barra de uso', (
+    tester,
+  ) async {
+    repo.withoutLimit = true;
+    await open(tester, TargetPlatform.android, detail: false, shell: true);
+    expect(find.text('Limite não cadastrado'), findsOneWidget);
+    expect(find.text('Disponível'), findsNothing);
+    await tester.tap(find.text('Definir'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CardForm), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('dois cartões cabem na área visível do celular', (tester) async {
+    repo.secondCard = true;
+    await open(tester, TargetPlatform.android, detail: false, shell: true);
+    expect(
+      find.byKey(const ValueKey('card-statement-bb')).hitTestable(),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('Voltar Android do detalhe retorna aos cartões', (tester) async {
     await open(tester, TargetPlatform.android);
     await tester.binding.handlePopRoute();
@@ -310,7 +459,63 @@ void main() {
     await open(tester, TargetPlatform.android, scale: 1.5);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('detalhes mobile seguem referência e mantêm ações',
+      (tester) async {
+    await open(tester, TargetPlatform.android, shell: true);
+    expect(find.text('Cartão Nubank'), findsOneWidget);
+    expect(find.text('Fatura de outubro'), findsOneWidget);
+    expect(find.text('R\$ 5.000,00'), findsOneWidget);
+    expect(find.text('-R\$ 400,00'), findsOneWidget);
+    expect(find.text('Competência / fatura'), findsNothing);
+    expect(find.text('Saldo da fatura anterior'), findsNothing);
+    expect(find.text('Fatura'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Pagamentos'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Pago no mês'), 100);
+    expect(find.text('Pago no mês'), findsOneWidget);
+    await tester.scrollUntilVisible(
+        find.widgetWithText(TextButton, 'Fatura'), -100);
+    await tester.tap(find.widgetWithText(TextButton, 'Fatura'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Pagar fatura'), 100);
+    final payButton = find.text('Pagar fatura');
+    await Scrollable.ensureVisible(tester.element(payButton), alignment: 0.5);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pagar fatura'));
+    await tester.pumpAndSettle();
+    expect(find.text('Registrar pagamento'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('referência mobile tolera fonte ampliada', (tester) async {
+    await open(tester, TargetPlatform.android, shell: true, scale: 1.5);
+    expect(find.text('Cartão Nubank'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('item mobile mantém menu de edição', (tester) async {
+    await open(tester, TargetPlatform.android, shell: true, statement: true);
+    final item = find.text('Compra parcelada com descrição longa');
+    await tester.scrollUntilVisible(item, 200);
+    final card = find.ancestor(of: item, matching: find.byType(Card)).first;
+    expect(find.descendant(of: card, matching: find.text('-R\$ 1.250,50')),
+        findsOneWidget);
+    final menu = find.descendant(
+        of: card, matching: find.byType(PopupMenuButton<String>));
+    await Scrollable.ensureVisible(tester.element(card), alignment: 0.45);
+    await tester.pumpAndSettle();
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    expect(find.text('Editar / mudar fatura'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
+    testWidgets('prévia lista compacta de cartões Android', (tester) async {
+      repo.secondCard = true;
+      await open(tester, TargetPlatform.android, detail: false, shell: true);
+      await expectLater(
+        find.byType(SomiaShell),
+        matchesGoldenFile('cards-list-mobile-preview.png'),
+      );
+    });
     testWidgets('prévia fatura cartões Android', (tester) async {
       for (final pair in [
         ('Roboto', 'Roboto-Regular.ttf'),
@@ -322,14 +527,41 @@ void main() {
               .readAsBytesSync())));
         await loader.load();
       }
-      await open(tester, TargetPlatform.android);
-      await expectLater(find.byType(Scaffold).last,
+      await open(tester, TargetPlatform.android, shell: true);
+      await tester.runAsync(() async {
+        await precacheImage(
+          const AssetImage('assets/branding/somia_horizontal.png'),
+          tester.element(find.byType(CardsPage)),
+        );
+      });
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(SomiaShell),
           matchesGoldenFile('cards-mobile-preview.png'));
-      await tester.ensureVisible(find.text('Extrato'));
+      final actions = find.byKey(const ValueKey('card-invoice-actions'));
+      await tester.scrollUntilVisible(actions, 200);
+      await Scrollable.ensureVisible(tester.element(actions), alignment: 0.25);
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(SomiaShell),
+          matchesGoldenFile('cards-actions-mobile-preview.png'));
+      final chart = find.byKey(const ValueKey('future-invoices-chart'));
+      await tester.scrollUntilVisible(chart, 200);
+      await Scrollable.ensureVisible(tester.element(chart), alignment: 0.5);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Próxima fatura'));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(SomiaShell),
+          matchesGoldenFile('cards-future-mobile-preview.png'));
+      await tester.scrollUntilVisible(find.text('Extrato'), -200);
       await tester.tap(find.text('Extrato'));
       await tester.pumpAndSettle();
-      await expectLater(find.byType(Scaffold).last,
+      await expectLater(find.byType(SomiaShell),
           matchesGoldenFile('card-statement-mobile-preview.png'));
+      final item = find.text('Compra parcelada com descrição longa');
+      await tester.scrollUntilVisible(item, 200);
+      await Scrollable.ensureVisible(tester.element(item), alignment: 0.45);
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(SomiaShell),
+          matchesGoldenFile('cards-items-mobile-preview.png'));
       await open(tester, TargetPlatform.android, detail: false);
       await expectLater(find.byType(Scaffold).last,
           matchesGoldenFile('card-list-mobile-preview.png'));

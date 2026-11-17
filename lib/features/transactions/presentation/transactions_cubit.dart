@@ -1,3 +1,4 @@
+import '../../balances/domain/monthly_cash_flow.dart';
 import '../../../core/series/movement_series.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -7,10 +8,15 @@ import '../../categories/domain/categories_repository.dart';
 import '../../categories/domain/category.dart';
 import '../domain/financial_transaction.dart';
 import '../domain/transactions_repository.dart';
+import '../domain/transfer_movement_filter.dart';
+import '../../transfers/domain/transfer.dart';
+import '../../transfers/domain/transfers_repository.dart';
 
 class TransactionsState {
   const TransactionsState({
     this.items = const [],
+    this.transfers = const [],
+    this.cashFlow,
     this.accounts = const [],
     this.categories = const [],
     this.filter = const TransactionFilter(),
@@ -19,6 +25,8 @@ class TransactionsState {
   });
 
   final List<FinancialTransaction> items;
+  final List<Transfer> transfers;
+  final Map<String, MonthlyCashFlow>? cashFlow;
   final List<Account> accounts;
   final List<FinanceCategory> categories;
   final TransactionFilter filter;
@@ -28,9 +36,17 @@ class TransactionsState {
 
 class TransactionsCubit extends Cubit<TransactionsState> {
   TransactionsCubit(this._transactions, this._accounts, this._categories,
-      {TransactionType? sectionType, DateTime? month})
-      : super(TransactionsState(
+      {TransactionType? sectionType,
+      DateTime? month,
+      TransfersRepository? transfers,
+      MonthlyCashFlowRepository? cashFlow})
+      : _transfers = sectionType == null ? transfers : null,
+        _cashFlow = sectionType == null ? cashFlow : null,
+        _summaryMonth =
+            month ?? DateTime(DateTime.now().year, DateTime.now().month),
+        super(TransactionsState(
             filter: TransactionFilter(
+                dateField: TransactionDateField.activity,
                 type: sectionType,
                 from: month == null ? null : DateTime(month.year, month.month),
                 to: month == null
@@ -43,23 +59,39 @@ class TransactionsCubit extends Cubit<TransactionsState> {
   final TransactionsRepository _transactions;
   final AccountsRepository _accounts;
   final CategoriesRepository _categories;
+  final TransfersRepository? _transfers;
+  final MonthlyCashFlowRepository? _cashFlow;
+  DateTime _summaryMonth;
 
-  Future<void> load([TransactionFilter? filter]) async {
+  Future<void> load([TransactionFilter? filter, DateTime? month]) async {
     final request = ++_request;
     final nextFilter = filter ?? state.filter;
+    final monthChanged = month != null && month != _summaryMonth;
+    _summaryMonth = month ?? _summaryMonth;
+    final selectedMonth = _summaryMonth;
     emit(TransactionsState(
         items: state.items,
+        transfers: state.transfers,
+        cashFlow: monthChanged && _cashFlow != null ? const {} : state.cashFlow,
         accounts: state.accounts,
         categories: state.categories,
         filter: nextFilter,
         loading: true));
     try {
       final items = await _transactions.list(nextFilter);
+      final transfers = _transfers == null
+          ? <Transfer>[]
+          : (await _transfers.list(accountId: nextFilter.accountId))
+              .where((item) => matchesTransferMovement(item, nextFilter))
+              .toList();
+      final cashFlow = await _cashFlow?.load(selectedMonth);
       final accounts = await _accounts.list();
       final categories = await _categories.list();
       if (!isClosed && request == _request) {
         emit(TransactionsState(
             items: items,
+            transfers: transfers,
+            cashFlow: cashFlow,
             accounts: accounts,
             categories: categories,
             filter: nextFilter));
@@ -68,6 +100,8 @@ class TransactionsCubit extends Cubit<TransactionsState> {
       if (!isClosed && request == _request) {
         emit(TransactionsState(
             items: state.items,
+            transfers: state.transfers,
+            cashFlow: state.cashFlow,
             accounts: state.accounts,
             categories: state.categories,
             filter: nextFilter,

@@ -1,3 +1,4 @@
+import 'package:finapp/features/balances/data/sqlite_monthly_cash_flow_repository.dart';
 import 'package:drift/native.dart';
 import 'package:finapp/core/database/app_database.dart';
 import 'package:finapp/features/accounts/data/sqlite_accounts_repository.dart';
@@ -61,6 +62,14 @@ void main() {
             .load(date))
         .currencies
         .singleWhere((c) => c.currencyCode == code);
+    final cash =
+        (await SqliteMonthlyCashFlowRepository(db, asOf: DateTime.utc(2030))
+            .load(date))[code]!;
+    expect(cash.incomeMinor, s.balanceDetails!.incomeMinor);
+    expect(cash.expenseMinor, s.balanceDetails!.expenseMinor);
+    expect(cash.cardPaymentsMinor, s.balanceDetails!.cardPaymentsMinor);
+    expect(cash.paidMinor,
+        s.balanceDetails!.expenseMinor + s.balanceDetails!.cardPaymentsMinor);
     expect(s.balanceDetails!.currentMinor, s.currentBalanceMinor);
     expect(s.balanceDetails!.projectedMinor, s.projectedBalanceMinor);
     return s;

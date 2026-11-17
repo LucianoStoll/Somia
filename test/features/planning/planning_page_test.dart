@@ -17,6 +17,8 @@ import 'package:finapp/features/categories/domain/category.dart';
 import 'package:finapp/features/planning/data/planning_repository.dart';
 import 'package:finapp/features/planning/domain/planning.dart';
 import 'package:finapp/features/planning/presentation/planning_page.dart';
+import 'package:finapp/features/transactions/data/sqlite_transactions_repository.dart';
+import 'package:finapp/features/transactions/domain/financial_transaction.dart';
 
 void main() {
   late AppDatabase db;
@@ -67,6 +69,8 @@ void main() {
     testWidgets('cria limite mensal e navega para metas $platform',
         (tester) async {
       await open(tester, platform);
+      await tester.tap(find.text('Orçamentos'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Novo limite'));
       await tester.pumpAndSettle();
       final field = find.byType(DropdownButtonFormField<String>).first;
@@ -108,12 +112,92 @@ void main() {
       await tester.tap(find.text('Salvar meta'));
       await tester.pumpAndSettle();
       expect((await repo.goals()).single.saved, 40000);
-      await tester.tap(find.text('Indicadores'));
+      await tester.tap(find.text('Visão geral'));
       await tester.pumpAndSettle();
-      expect(find.text('Sem movimentos neste mês.'), findsOneWidget);
+      expect(find.text('Nenhuma despesa neste mês.'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets('visão geral alterna categorias e abre os orçamentos',
+      (tester) async {
+    await open(tester, TargetPlatform.android);
+    expect(
+        find.byKey(const ValueKey('planning-forecast-total')), findsOneWidget);
+    expect(find.text('Nenhuma despesa neste mês.'), findsOneWidget);
+    await tester.tap(find.text('Receitas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nenhuma receita neste mês.'), findsOneWidget);
+    await tester.ensureVisible(find.text('Ver todos'));
+    await tester.tap(find.text('Ver todos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Novo limite'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('saldo da visão geral muda com o mês selecionado',
+      (tester) async {
+    final tx = SqliteTransactionsRepository(db);
+    await tx.create(TransactionDraft(
+        description: 'Receita de outubro',
+        type: TransactionType.income,
+        amountMinor: 100000,
+        date: DateTime(2026, 10, 10),
+        isEffective: false,
+        accountId: account));
+    await tx.create(TransactionDraft(
+        description: 'Despesa de novembro',
+        type: TransactionType.expense,
+        amountMinor: 30000,
+        date: DateTime(2026, 11, 10),
+        isEffective: false,
+        accountId: account,
+        categoryId: category));
+    referenceMonth.select(DateTime(2026, 10));
+    await open(tester, TargetPlatform.android);
+    final total = find.byKey(const ValueKey('planning-forecast-total'));
+    expect(tester.widget<Text>(total).data, contains('1.400,00'));
+    referenceMonth.select(DateTime(2026, 11));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(total).data, contains('1.100,00'));
+    referenceMonth.select(DateTime(2026, 10));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(total).data, contains('1.400,00'));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('categoria compara o mês selecionado e seu anterior',
+      (tester) async {
+    final tx = SqliteTransactionsRepository(db);
+    for (final pair in [
+      (DateTime(2026, 9, 10), 10000),
+      (DateTime(2026, 10, 10), 15000)
+    ]) {
+      await tx.create(TransactionDraft(
+          description: 'Compra',
+          type: TransactionType.expense,
+          amountMinor: pair.$2,
+          date: pair.$1,
+          isEffective: false,
+          accountId: account,
+          categoryId: category));
+    }
+    referenceMonth.select(DateTime(2026, 10));
+    await open(tester, TargetPlatform.android);
+    final row = find.byKey(ValueKey('planning-category-$category'));
+    await tester.scrollUntilVisible(row, 150,
+        scrollable: find
+            .descendant(
+                of: find.byKey(const PageStorageKey('planning-overview')),
+                matching: find.byType(Scrollable))
+            .first);
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('planning-comparison')), findsOneWidget);
+    expect(find.text('+50,0% em relação ao mês anterior'), findsOneWidget);
+    expect(find.text('Setembro 2026'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   if (const bool.fromEnvironment('SOMIA_RENDER_PREVIEW')) {
     testWidgets('prévias do planejamento', (tester) async {
       for (final pair in [
@@ -126,6 +210,22 @@ void main() {
               .readAsBytesSync())));
         await loader.load();
       }
+      final tx = SqliteTransactionsRepository(db);
+      await tx.create(TransactionDraft(
+          description: 'Salário',
+          type: TransactionType.income,
+          amountMinor: 250000,
+          date: referenceMonth.value,
+          isEffective: false,
+          accountId: account));
+      await tx.create(TransactionDraft(
+          description: 'Compras do mês',
+          type: TransactionType.expense,
+          amountMinor: 42500,
+          date: referenceMonth.value,
+          isEffective: false,
+          accountId: account,
+          categoryId: category));
       await repo.saveBudget(referenceMonth.value, category, 'BRL', 50000);
       await repo.saveGoal(GoalDraft(
           name: 'Viagem',

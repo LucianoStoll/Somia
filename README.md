@@ -2,6 +2,10 @@
 
 Seu dinheiro, mais claro. Aplicativo de finanças pessoais para Android e Windows, com dados locais e funcionamento offline.
 
+## v0.4.0-alpha — prévia em validação
+
+No [PR #89](https://github.com/LucianoStoll/Somia/pull/89): importação de extratos CSV/XLSX com perfis de banco, prévia e conciliação assistida, lotes reversíveis com cópia de proteção e diagnóstico local. [Regras e limites](docs/importacao-csv.md) · [Notas de prévia](docs/releases/v0.4.0-alpha.md). Ainda não é a release publicada: valide os pacotes de teste antes de atualizar seus dispositivos e atualize Android/Windows juntos antes de sincronizar (esquema 27).
+
 ## v0.3.0-alpha
 
 [Baixar para Android e Windows](https://github.com/LucianoStoll/Somia/releases/tag/v0.3.0-alpha) · [Notas da versão](docs/releases/v0.3.0-alpha.md)

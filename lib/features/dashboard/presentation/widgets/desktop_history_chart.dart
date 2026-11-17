@@ -54,10 +54,11 @@ class DesktopHistoryChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maximum = currency.history.fold<int>(
-        0,
-        (value, item) =>
-            math.max(value, math.max(item.incomeMinor, item.expenseMinor)));
+    final maximum = currency.historyAxisMaximumMinor ??
+        currency.history.fold<int>(
+            0,
+            (value, item) =>
+                math.max(value, math.max(item.incomeMinor, item.expenseMinor)));
     final step = historyAxisStep(maximum), ceiling = step * 4;
     final scaler = MediaQuery.textScalerOf(context);
     final style = Theme.of(context)

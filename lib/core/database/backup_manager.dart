@@ -75,6 +75,8 @@ class BackupManager extends ChangeNotifier {
       }, clearError: false);
   Future<LocalBackupCopy> create() =>
       _run(() => store.create(database, BackupKind.manual));
+  Future<LocalBackupCopy> protectImport() =>
+      _run(() => store.create(database, BackupKind.beforeImport));
   Future<Uint8List> export() =>
       _run(() => BackupService.export(database, store.directory));
   Future<Uint8List> readCopy(LocalBackupCopy copy) => _run(() async {

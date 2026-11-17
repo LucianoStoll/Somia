@@ -1,12 +1,14 @@
-# Importação CSV — #56 / epic #14
+# Importação CSV/XLSX — alpha v0.4.0
 
-Primeira etapa da importação no fechamento #54 da v0.2.0-alpha. A entrada fica em **Ajustes → Importar extrato CSV** e funciona offline no Android e Windows.
+A entrada fica em **Ajustes → Importar extrato CSV/XLSX** e funciona offline no Android e Windows.
 
 ## Arquivo e mapeamento
 
 CSV com cabeçalho, até 2 MB, 5.000 linhas de dados, 50 colunas e 4.096 caracteres por campo. Aceita UTF-8/BOM e Windows-1252, separadores `;`, `,` ou tabulação, diretiva `sep=`, aspas escapadas e campos multilinha. O separador é detectado e pode ser corrigido antes da prévia.
 
-Escolha uma conta ativa. Cada campo usa uma coluna distinta. Descrição, valor e data de lançamento são obrigatórios; vencimento, efetivação, tipo, categoria e subcategoria são opcionais. Cabeçalhos comuns são sugeridos, mas a seleção pode ser alterada. O valor usa a moeda da conta; não há conversão de moedas.
+XLSX também é aceito, com o mesmo limite de tamanho e linhas. Lê a primeira aba não vazia, datas e números, sem executar fórmulas; substitua fórmulas por valores antes de importar. Não aceita arquivos `.xls` antigos, PDF ou OFX.
+
+Escolha uma conta ativa. Descrição, valor e data de lançamento são obrigatórios; vencimento, efetivação, tipo, categoria e subcategoria são opcionais. Os três campos de data podem compartilhar uma coluna por escolha explícita; os demais campos usam colunas distintas. Cabeçalhos comuns são sugeridos, mas a seleção pode ser alterada. É possível salvar um perfil local com nome de banco, separador, cabeçalhos e formatos, e reaplicá-lo mesmo quando a ordem das colunas mudar. Um cabeçalho ausente ou ambíguo bloqueia a aplicação do perfil para evitar leitura incorreta. O valor usa a moeda da conta; não há conversão de moedas.
 
 O formato decimal é explícito: brasileiro `1.234,56` ou internacional `1,234.56`. Valores são convertidos diretamente em centavos inteiros, sem ponto flutuante, arredondamento ou troca automática de separadores. Zero e valores fora do limite financeiro são inválidos.
 
@@ -16,19 +18,25 @@ O tipo pode vir de uma coluna (receita/despesa ou crédito/débito), do sinal (+
 
 ## Prévia e categorias
 
-A prévia não grava dados. Mostra linha, descrição, tipo, valor, lançamento, vencimento, efetivação/pendência, erros, categoria e possíveis duplicados. Linhas válidas novas vêm selecionadas; erros e duplicados ficam desmarcados. É possível desmarcar linhas e escolher/remover uma categoria antes de confirmar.
+A prévia não grava dados. Mostra linha, descrição, tipo, valor, lançamento, vencimento, efetivação/pendência, erros, categoria e possíveis duplicados. Linhas válidas novas vêm selecionadas; erros e duplicados ficam desmarcados. É possível filtrar linhas selecionadas, duplicadas e inválidas, ver os totais separados de receitas e despesas, desmarcar linhas e escolher/remover uma categoria antes de confirmar.
 
 Categorias/subcategorias já cadastradas são associadas por nome e tipo, ignorando caixa e acentuação. Nomes inexistentes ou ambíguos geram aviso e não criam categorias automaticamente. Sem classificação no arquivo, uma categoria ativa do histórico de mesmo texto/tipo é sugerida. A sugestão pode ser alterada na prévia.
 
 Duplicidade considera conta, descrição normalizada, receita/despesa, valor, lançamento e vencimento. Categoria e efetivação não tornam um lançamento existente novo. Há sinalização no arquivo e contra receitas/despesas já cadastradas; nunca se substituem registros existentes. Pode haver lançamentos legítimos iguais: selecionar um duplicado e confirmar o aviso adiciona outra ocorrência intencionalmente.
 
+Na conciliação assistida, linhas de mesmo valor e tipo com até três dias de diferença oferecem até quatro sugestões entre receitas/despesas, baixas parciais, transferências e pagamentos de fatura da mesma conta. O usuário escolhe vincular, criar novo ou desmarcar/ignorar. Vínculos são revalidados na confirmação e não geram outra movimentação de caixa. Um registro já vinculado em outro lote não pode ser vinculado novamente. A prévia aceita o saldo **atual** informado pelo banco para comparação com o Somia após novos lançamentos efetivados até hoje; não use essa comparação para extratos históricos.
+
 ## Confirmação e segurança dos dados
 
-A confirmação informa a quantidade e os duplicados selecionados. O lote é gravado numa única transação, com UUIDs e os mesmos repositórios/regras das entradas manuais. Qualquer falha reverte todo o lote, incluindo alterações capturadas para sincronização. Conta/categoria são revalidadas; duplicados surgidos após a prévia são ignorados, exceto os selecionados explicitamente como duplicados.
+A confirmação informa a quantidade criada/vinculada e os duplicados selecionados. O lote é gravado numa única transação, com UUIDs e os mesmos repositórios/regras das entradas manuais. A identidade do lote, nome do arquivo, ação e vínculo de cada linha ao registro são preservados no banco, backup e sincronização. Qualquer falha reverte todo o lote, incluindo alterações capturadas para sincronização. Conta/categoria são revalidadas; duplicados surgidos após a prévia são ignorados, exceto os selecionados explicitamente como duplicados.
 
-A gravação é serializada com manutenção local. A tela de importação protege a prévia contra aplicação automática de dados remotos. Depois de concluir e fechar a prévia, as seções atualizam com o app aberto; a sincronização existente captura o lote confirmado. Cancelar ou voltar antes da confirmação mantém o banco intacto.
+A gravação é serializada com manutenção local e exige uma cópia local validada **antes** de gravar. A tela de importação protege a prévia contra aplicação automática de dados remotos. Depois de concluir e fechar a prévia, as seções atualizam com o app aberto; a sincronização existente captura o lote confirmado. Cancelar ou voltar antes da confirmação mantém o banco intacto.
 
-Esta etapa adiciona receitas/despesas em uma conta por importação. Não cria transferências, compras/faturas de cartão, séries, categorias ou contas; não altera saldo inicial. Excel, PDF, OFX, conciliação e demais relatórios da epic #14 ficam para entregas futuras.
+Em **Histórico e desfazer importação**, cada lote pode ser revisado item a item. Lançamentos importados ainda intactos podem ser removidos; vínculos apenas são desfeitos, sem apagar o registro preexistente. Itens alterados, excluídos ou sincronizados ficam bloqueados e precisam de revisão manual. É criada outra cópia validada antes de desfazer. O histórico acompanha o banco e os backups, e os vínculos desfeitos podem ser reutilizados em uma importação posterior.
+
+Em Ajustes, **Exportar diagnóstico da importação** salva JSON com versão, esquema e contagens de lotes e ações, sem nomes, valores, contas ou dados pessoais.
+
+Esta etapa cria receitas/despesas em uma conta por importação ou vincula linhas a registros existentes. Não cria transferências, compras/faturas de cartão, séries, categorias ou contas; não altera saldo inicial. PDF e OFX continuam fora do escopo.
 
 ## Validação manual
 

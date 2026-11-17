@@ -12,6 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('três datas controlam saldo realizado, projeção e ambas as contas',
       () async {
+    // Mantém o cenário de agendamento no futuro, sem depender de um ano fixo.
+    final year = DateTime.now().year + 1;
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final accounts = SqliteAccountsRepository(db);
@@ -33,38 +35,38 @@ void main() {
         description: 'Conta futura',
         type: TransactionType.expense,
         amountMinor: 2000,
-        date: DateTime.utc(2026, 9, 1),
-        dueDate: DateTime.utc(2026, 10, 10),
-        effectiveDate: DateTime.utc(2026, 11, 1),
+        date: DateTime.utc(year, 9, 1),
+        dueDate: DateTime.utc(year, 10, 10),
+        effectiveDate: DateTime.utc(year, 11, 1),
         isEffective: true,
         accountId: a.id));
     final transfer = await transfers.create(TransferDraft(
         sourceAccountId: a.id,
         destinationAccountId: b.id,
         amountMinor: 1000,
-        date: DateTime.utc(2026, 9, 2),
-        dueDate: DateTime.utc(2026, 10, 15),
-        effectiveDate: DateTime.utc(2026, 11, 5),
+        date: DateTime.utc(year, 9, 2),
+        dueDate: DateTime.utc(year, 10, 15),
+        effectiveDate: DateTime.utc(year, 11, 5),
         isEffective: true));
     await transactions.create(TransactionDraft(
         description: 'Outra pendência',
         type: TransactionType.expense,
         amountMinor: 500,
-        date: DateTime.utc(2026, 9, 3),
-        dueDate: DateTime.utc(2026, 10, 20),
+        date: DateTime.utc(year, 9, 3),
+        dueDate: DateTime.utc(year, 10, 20),
         isEffective: false,
         accountId: a.id));
 
     final repo = SqliteBalancesRepository(db);
     final september = await repo.calculate(
-        asOf: DateTime.utc(2026, 9, 30), through: DateTime.utc(2026, 9, 30));
+        asOf: DateTime.utc(year, 9, 30), through: DateTime.utc(year, 9, 30));
     expect(
         september.accounts
             .firstWhere((x) => x.accountId == a.id)
             .projectedMinor,
         10000);
     final october = await repo.calculate(
-        asOf: DateTime.utc(2026, 10, 31), through: DateTime.utc(2026, 10, 31));
+        asOf: DateTime.utc(year, 10, 31), through: DateTime.utc(year, 10, 31));
     expect(october.accounts.firstWhere((x) => x.accountId == a.id).currentMinor,
         10000);
     expect(
@@ -74,7 +76,7 @@ void main() {
         october.accounts.firstWhere((x) => x.accountId == b.id).projectedMinor,
         0);
     final november = await repo.calculate(
-        asOf: DateTime.utc(2026, 11, 30), through: DateTime.utc(2026, 11, 30));
+        asOf: DateTime.utc(year, 11, 30), through: DateTime.utc(year, 11, 30));
     expect(
         november.accounts.firstWhere((x) => x.accountId == a.id).currentMinor,
         7000);
@@ -85,24 +87,26 @@ void main() {
         november.accounts.firstWhere((x) => x.accountId == a.id).projectedMinor,
         6500);
 
-    // A opção "Contabilizar hoje" antecipa o corte; a outra mantém o prazo.
-    await transactions.setEffective(expense.id,
-        effective: true, effectiveDate: DateTime.utc(2026, 9, 29));
-    await transfers.setEffective(transfer.id,
-        effective: true, effectiveDate: DateTime.utc(2026, 10, 15));
+    // Ajustar uma efetivação existente exige conferir sua data anterior.
+    await transactions.changeEffectiveDate(expense.id,
+        expectedDate: DateTime.utc(year, 11, 1),
+        effectiveDate: DateTime.utc(year, 9, 29));
+    await transfers.changeEffectiveDate(transfer.id,
+        expectedDate: DateTime.utc(year, 11, 5),
+        effectiveDate: DateTime.utc(year, 10, 15));
     final updated = await repo.calculate(
-        asOf: DateTime.utc(2026, 9, 30), through: DateTime.utc(2026, 9, 30));
+        asOf: DateTime.utc(year, 9, 30), through: DateTime.utc(year, 9, 30));
     expect(updated.accounts.firstWhere((x) => x.accountId == a.id).currentMinor,
         8000);
     expect(updated.accounts.firstWhere((x) => x.accountId == b.id).currentMinor,
         0);
     final txByDue = await transactions.list(TransactionFilter(
-        from: DateTime.utc(2026, 10, 10), to: DateTime.utc(2026, 10, 10)));
+        from: DateTime.utc(year, 10, 10), to: DateTime.utc(year, 10, 10)));
     expect(txByDue.single.id, expense.id);
     final txByPosted = await transactions.list(TransactionFilter(
         dateField: TransactionDateField.posted,
-        from: DateTime.utc(2026, 9, 1),
-        to: DateTime.utc(2026, 9, 1)));
+        from: DateTime.utc(year, 9, 1),
+        to: DateTime.utc(year, 9, 1)));
     expect(txByPosted.single.id, expense.id);
   });
 
