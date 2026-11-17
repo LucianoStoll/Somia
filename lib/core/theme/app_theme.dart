@@ -172,8 +172,17 @@ abstract final class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: Colors.transparent,
         selectedColor: t.ink,
+        checkmarkColor: t.background,
+        showCheckmark: false,
         side: BorderSide(color: t.outline),
         shape: const StadiumBorder(),
+        labelStyle: TextStyle(
+          fontFamily: somiaFontFamily,
+          fontSize: 14,
+          color: WidgetStateColor.resolveWith(
+              (s) => s.contains(WidgetState.selected) ? t.background : t.ink),
+          fontWeight: FontWeight.w600,
+        ),
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: t.surfaceHigh,

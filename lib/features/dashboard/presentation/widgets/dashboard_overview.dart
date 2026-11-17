@@ -423,36 +423,39 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
   Widget build(BuildContext context) {
     final t = context.somia;
     final code = widget.currency.currencyCode;
+    final upcoming = widget.currency.upcoming;
+    final total = upcoming.fold<int>(
+        0,
+        (sum, item) =>
+            sum +
+            (item.kind == 'income' ? item.amountMinor : -item.amountMinor));
     return SummaryPanel(
       title: 'Ainda este mês',
-      action: widget.currency.upcoming.length > 3
-          ? TextButton(
-              onPressed: () => setState(() => expanded = !expanded),
-              child: Text(expanded ? 'Ver menos' : 'Ver todos'),
-            )
-          : null,
+      action: upcoming.isEmpty
+          ? null
+          : Text(
+              '${total >= 0 ? '+ ' : '− '}${_money(total.abs(), code)}',
+              style: TextStyle(color: t.muted, fontSize: 13),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Pendências até o fim do mês selecionado, incluindo atrasadas.',
-            style: TextStyle(color: t.muted, fontSize: 13),
-          ),
-          if (widget.currency.upcoming.isEmpty)
+          if (upcoming.isEmpty)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
+              padding: EdgeInsets.symmetric(vertical: 12),
               child: Text('Nenhum vencimento pendente.'),
             ),
-          const SizedBox(height: SomiaSpace.xs),
           for (final item in widget.currency.upcoming.take(
             expanded ? widget.currency.upcoming.length : 3,
           ))
             InkWell(
               key: ValueKey('upcoming-open-${item.id}'),
-              borderRadius: BorderRadius.circular(SomiaRadius.sm),
               onTap: () => openDetails(item),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: SomiaSpace.sm),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: t.outline)),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Row(
                   children: [
                     Container(
@@ -533,6 +536,16 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
                     ],
                   ],
                 ),
+              ),
+            ),
+          if (upcoming.length > 3)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: t.outline)),
+              ),
+              child: TextButton(
+                onPressed: () => setState(() => expanded = !expanded),
+                child: Text(expanded ? 'Ver menos' : 'Ver todos'),
               ),
             ),
         ],

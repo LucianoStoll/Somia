@@ -39,9 +39,9 @@ void main() {
             DashboardCategoryExpense('Maior', 30000)
           ]),
     )))));
-    expect(find.text('Vencidas · 1'), findsOneWidget);
-    expect(find.text('Hoje e próximos 7 dias · 2'), findsOneWidget);
-    expect(find.text('Mais adiante · 1'), findsOneWidget);
+    expect(find.text('Vencidas, 1'), findsOneWidget);
+    expect(find.text('Hoje e próximos 7 dias, 2'), findsOneWidget);
+    expect(find.text('Mais adiante, 1'), findsOneWidget);
     expect(tester.getTopLeft(find.text('Maior')).dy,
         lessThan(tester.getTopLeft(find.text('Menor')).dy));
     expect(find.textContaining('75,0%'), findsOneWidget);

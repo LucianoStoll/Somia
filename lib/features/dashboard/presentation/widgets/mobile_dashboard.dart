@@ -6,7 +6,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'dashboard_category_chart.dart';
+import 'fluxo_category_bars.dart';
+import 'balance_details_panel.dart';
+import '../../../../core/theme/app_theme.dart';
 import 'dashboard_overview.dart';
 import 'history_tooltip_chart.dart';
 
@@ -18,7 +20,6 @@ import '../../../../core/routing/somia_shell.dart';
 import '../../../../core/filters/reference_month.dart';
 import '../../../../core/widgets/month_selector.dart';
 import '../../../../core/widgets/balance_help_button.dart';
-import 'dashboard_palette.dart';
 import '../../../../core/widgets/somia_brand.dart';
 import '../../../accounts/domain/money_minor.dart';
 import '../../domain/entities/dashboard_summary.dart';
@@ -45,7 +46,7 @@ const _shortMonths = [
   'Dez',
 ];
 
-/// Cabeçalho compacto da referência mobile, com o período sempre acessível.
+/// Cabeçalho do Resumo no celular (direção Fluxo): menu, marca e mês.
 class MobileDashboardAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const MobileDashboardAppBar({super.key});
@@ -57,42 +58,50 @@ class MobileDashboardAppBar extends StatelessWidget
   Widget build(BuildContext context) =>
       BlocBuilder<DashboardCubit, DashboardState>(
         builder: (context, state) {
-          final width = MediaQuery.sizeOf(context).width;
           final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-          final symbolOnly = width < 460 || scale > 1.3;
+          final width = MediaQuery.sizeOf(context).width;
           return AppBar(
             toolbarHeight: 64,
-            titleSpacing: 16,
+            titleSpacing: 4,
             automaticallyImplyLeading: false,
             leading: somiaMenuLeading(context),
-            title: SizedBox(
-              height: 48,
-              child: Row(
-                children: [
-                  SomiaBrand(symbolOnly: symbolOnly, height: 30),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: MonthSelector(
-                        key: const ValueKey('dashboard-month-selector'),
-                        month: state.month,
-                        header: true,
-                        arrows: true,
-                        onChanged: referenceMonth.select,
-                      ),
+            title: Row(
+              children: [
+                const SomiaBrand(symbolOnly: true, height: 28),
+                if (width >= 340 && scale <= 1.3) ...[
+                  const SizedBox(width: SomiaSpace.sm),
+                  const Text(
+                    'Somia',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
                     ),
                   ),
                 ],
-              ),
+                const Spacer(),
+                Flexible(
+                  flex: 6,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: MonthSelector(
+                      key: const ValueKey('dashboard-month-selector'),
+                      month: state.month,
+                      header: true,
+                      arrows: true,
+                      onChanged: referenceMonth.select,
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },
       );
 }
 
-/// Ordem no Android: saldo, receitas/despesas, gráficos e transações.
-class MobileDashboardBody extends StatelessWidget {
+/// Resumo no celular, na ordem e no desenho do protótipo P-03.
+class MobileDashboardBody extends StatefulWidget {
   const MobileDashboardBody({
     super.key,
     required this.state,
@@ -102,98 +111,322 @@ class MobileDashboardBody extends StatelessWidget {
   final Future<void> Function() onRefresh;
 
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
-        onRefresh: onRefresh,
-        child: ListView(
-          key: const ValueKey('dashboard-mobile-scroll'),
-          scrollCacheExtent: const ScrollCacheExtent.pixels(2400),
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-          children: [
-            const Row(
+  State<MobileDashboardBody> createState() => _MobileDashboardBodyState();
+}
+
+class _MobileDashboardBodyState extends State<MobileDashboardBody> {
+  bool hidden = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final t = context.somia;
+    return RefreshIndicator(
+      onRefresh: widget.onRefresh,
+      child: ListView(
+        key: const ValueKey('dashboard-mobile-scroll'),
+        scrollCacheExtent: const ScrollCacheExtent.pixels(2400),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 110),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 10, 12, 0),
+            child: Row(
               children: [
-                Expanded(
+                const Expanded(
                   child: Text(
                     'Resumo do mês',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                    ),
                   ),
                 ),
-                BalanceHelpButton(),
+                IconTheme.merge(
+                  data: IconThemeData(color: t.muted),
+                  child: const BalanceHelpButton(),
+                ),
+                IconButton(
+                  key: const ValueKey('summary-visibility'),
+                  tooltip: hidden
+                      ? 'Mostrar valores do resumo'
+                      : 'Ocultar valores do resumo',
+                  color: t.muted,
+                  onPressed: () => setState(() => hidden = !hidden),
+                  icon: Icon(hidden
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            if (state.loading) const LinearProgressIndicator(),
-            if (state.error != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(state.error!),
-              ),
-            if (state.summary!.currencies.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('Cadastre uma conta para começar seu resumo.'),
-                ),
-              ),
-            for (final currency in state.summary!.currencies)
-              _CurrencySection(
-                currency: currency,
-                month: state.month,
-                showCurrency: state.summary!.currencies.length > 1 ||
-                    currency.currencyCode != 'BRL',
-              ),
-            SummaryAccounts(currencies: state.summary!.currencies),
-            const SizedBox(height: 12),
-            _RecentPanel(recent: state.summary!.recent),
-          ],
-        ),
-      );
+          ),
+          if (state.loading)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 8, 24, 0),
+              child: LinearProgressIndicator(),
+            ),
+          if (state.error != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+              child: Text(state.error!),
+            ),
+          if (state.summary!.currencies.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              child: Text('Cadastre uma conta para começar seu resumo.',
+                  style: TextStyle(color: t.muted)),
+            ),
+          for (final currency in state.summary!.currencies)
+            _CurrencySection(
+              currency: currency,
+              month: state.month,
+              hidden: hidden,
+              showCurrency: state.summary!.currencies.length > 1 ||
+                  currency.currencyCode != 'BRL',
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SummaryAccounts(currencies: state.summary!.currencies),
+                const SizedBox(height: 12),
+                _RecentPanel(recent: state.summary!.recent),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _CurrencySection extends StatelessWidget {
   const _CurrencySection({
     required this.currency,
     required this.month,
+    required this.hidden,
     required this.showCurrency,
   });
   final DashboardCurrencySummary currency;
   final DateTime month;
+  final bool hidden;
   final bool showCurrency;
 
   @override
   Widget build(BuildContext context) {
+    final t = context.somia;
     final code = currency.currencyCode;
+    final d = currency.balanceDetails;
+    final now = DateTime.now();
+    final period = DateTime(month.year, month.month);
+    final current = DateTime(now.year, now.month);
+    final future = period.isAfter(current);
+    String money(int value, [String sign = '']) =>
+        hidden ? '••••' : '$sign${_money(value, code)}';
+
+    Widget figure(String label, String value, Color color,
+        {String? route, String? key}) {
+      final content = Padding(
+        key: key == null ? null : ValueKey('mobile-$key-$code'),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(color: t.muted, fontSize: 13)),
+            const SizedBox(height: SomiaSpace.xs),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  style: TextStyle(
+                      color: color, fontSize: 17, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      return Material(
+        color: t.surface,
+        shape: somiaSurfaceShape(t, SomiaRadius.md),
+        child: route == null
+            ? content
+            : InkWell(
+                key: ValueKey('dashboard-link-$route'),
+                customBorder: somiaSurfaceShape(t, SomiaRadius.md),
+                onTap: () => context.go(route),
+                child: content,
+              ),
+      );
+    }
+
+    Widget row(Widget left, Widget right) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: left),
+            const SizedBox(width: 10),
+            Expanded(child: right),
+          ],
+        );
+
+    Widget section(Widget child) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: child,
+        );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (showCurrency) Text(code),
-        SummaryMetrics(currency: currency, month: month),
+        if (showCurrency)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+            child: Text(code,
+                style: TextStyle(color: t.muted, fontWeight: FontWeight.w700)),
+          ),
+        BalanceDetailCard(
+          currencyCode: code,
+          child: Padding(
+            key: ValueKey('mobile-balance-$code'),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  future
+                      ? 'Saldo previsto'
+                      : period.isBefore(current)
+                          ? 'Saldo efetivado no mês'
+                          : 'Saldo atual',
+                  style: TextStyle(color: t.muted, fontSize: 14),
+                ),
+                const SizedBox(height: SomiaSpace.xs),
+                LayoutBuilder(builder: (context, box) {
+                  final balance = FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      money(future
+                          ? currency.projectedBalanceMinor
+                          : currency.currentBalanceMinor),
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1,
+                        height: 1.1,
+                      ),
+                    ),
+                  );
+                  final stacked = box.maxWidth < 330 ||
+                      MediaQuery.textScalerOf(context).scale(14) > 18;
+                  final projected = Column(
+                    crossAxisAlignment: stacked
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.end,
+                    children: [
+                      Text('Previsto no fim do mês',
+                          style: TextStyle(color: t.muted, fontSize: 12)),
+                      const SizedBox(height: 2),
+                      Text(
+                        money(currency.projectedBalanceMinor),
+                        key: ValueKey('desktop-projected-$code'),
+                        style: TextStyle(
+                          color: t.accent,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  );
+                  if (stacked) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        balance,
+                        const SizedBox(height: SomiaSpace.sm),
+                        projected,
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(child: balance),
+                      const SizedBox(width: SomiaSpace.md),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: projected,
+                      ),
+                    ],
+                  );
+                }),
+                const SizedBox(height: SomiaSpace.xs),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text('Ver detalhamento do saldo',
+                          style: TextStyle(color: t.muted, fontSize: 13)),
+                    ),
+                    Icon(Icons.chevron_right, size: 16, color: t.muted),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          child: BalanceEvolutionPanel(currency: currency, bare: true),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Column(
+            children: [
+              row(
+                figure('Recebido no mês', money(d?.incomeMinor ?? 0, '+ '),
+                    t.income),
+                figure(
+                    'Pago no mês',
+                    money((d?.expenseMinor ?? 0) + (d?.cardPaymentsMinor ?? 0),
+                        '− '),
+                    t.ink),
+              ),
+              const SizedBox(height: 10),
+              row(
+                figure('A receber', money(d?.pendingIncomeMinor ?? 0, '+ '),
+                    t.income,
+                    route: AppRoutes.incomePath, key: 'income'),
+                figure(
+                    'A pagar',
+                    money(
+                        (d?.pendingExpenseMinor ?? 0) +
+                            (d?.pendingInvoicesMinor ?? 0),
+                        '− '),
+                    t.ink,
+                    route: AppRoutes.expensesPath,
+                    key: 'expense'),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 12),
-        BalanceEvolutionPanel(currency: currency),
-        const SizedBox(height: 12),
-        UpcomingPanel(currency: currency),
-        const SizedBox(height: 12),
-        _Panel(
+        section(UpcomingPanel(currency: currency)),
+        section(_Panel(
           title: 'Gastos por categoria',
           child: DashboardAnalysisView(
             currency: currency,
-            builder: (view) => DashboardCategoryChart(
+            builder: (view) => FluxoCategoryBars(
               key: ValueKey('mobile-categories-$code'),
               currency: view,
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        SummaryInsights(currency: currency, month: month),
-        const SizedBox(height: 12),
-        _HistoryPanel(
+        )),
+        section(SummaryInsights(currency: currency, month: month)),
+        section(_HistoryPanel(
           key: ValueKey('mobile-history-$code'),
           currency: currency,
-        ),
-        const SizedBox(height: 12),
-        DashboardTransfersCard(currency: currency, month: month),
-        const SizedBox(height: 12),
-        AccountTypesPanel(currency: currency),
+        )),
+        section(DashboardTransfersCard(currency: currency, month: month)),
+        section(AccountTypesPanel(currency: currency)),
         const SizedBox(height: 12),
       ],
     );

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 import '../filters/reference_month.dart';
 
 const monthNames = [
@@ -42,53 +44,66 @@ class MonthSelector extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border: Border.all(color: Theme.of(context).dividerColor),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment:
-                centered ? MainAxisAlignment.center : MainAxisAlignment.start,
-            children: [
-              if (arrows)
-                IconButton(
-                    tooltip: 'Mês anterior',
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: () =>
-                        onChanged(DateTime(month.year, month.month - 1))),
+  Widget build(BuildContext context) {
+    final t = context.somia;
+    Widget arrow(String tooltip, IconData icon, int delta) => SizedBox(
+          width: 40,
+          height: 40,
+          child: IconButton(
+            tooltip: tooltip,
+            padding: EdgeInsets.zero,
+            style: IconButton.styleFrom(
+              foregroundColor: t.ink,
+              shape: CircleBorder(side: BorderSide(color: t.outline)),
+            ),
+            icon: Icon(icon, size: 20),
+            onPressed: () =>
+                onChanged(DateTime(month.year, month.month + delta)),
+          ),
+        );
+    final label = TextButton(
+      onPressed: () => _choose(context),
+      style: TextButton.styleFrom(
+        foregroundColor: t.ink,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        shape: arrows
+            ? const StadiumBorder()
+            : StadiumBorder(side: BorderSide(color: t.outline)),
+        textStyle: const TextStyle(
+            fontFamily: somiaFontFamily,
+            fontSize: 14,
+            fontWeight: FontWeight.w700),
+      ),
+      child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment:
+              centered ? MainAxisAlignment.center : MainAxisAlignment.start,
+          children: [
+            if (!header)
+              Icon(Icons.calendar_month_outlined, size: 18, color: t.muted),
+            if (!compact || header) ...[
+              if (!header) const SizedBox(width: 8),
               Flexible(
-                  child: TextButton(
-                onPressed: () => _choose(context),
-                child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: centered
-                        ? MainAxisAlignment.center
-                        : MainAxisAlignment.start,
-                    children: [
-                      if (!header)
-                        const Icon(Icons.calendar_month_outlined, size: 18),
-                      if (!compact || header) ...[
-                        if (!header) const SizedBox(width: 8),
-                        Flexible(
-                            child: Text(
-                                '${header ? monthNames[month.month - 1].substring(0, 3) : monthNames[month.month - 1]} ${month.year}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis)),
-                        if (!header) const Icon(Icons.expand_more, size: 18),
-                      ],
-                    ]),
-              )),
-              if (arrows)
-                IconButton(
-                    tooltip: 'Próximo mês',
-                    icon: const Icon(Icons.chevron_right),
-                    onPressed: () =>
-                        onChanged(DateTime(month.year, month.month + 1))),
-            ]),
-      );
+                  child: Text(
+                      '${header ? monthNames[month.month - 1].substring(0, 3) : monthNames[month.month - 1]} ${month.year}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis)),
+              if (!header) Icon(Icons.expand_more, size: 18, color: t.muted),
+            ],
+          ]),
+    );
+    return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment:
+            centered ? MainAxisAlignment.center : MainAxisAlignment.start,
+        children: [
+          if (arrows) arrow('Mês anterior', Icons.chevron_left, -1),
+          if (arrows) const SizedBox(width: 2),
+          Flexible(child: label),
+          if (arrows) const SizedBox(width: 2),
+          if (arrows) arrow('Próximo mês', Icons.chevron_right, 1),
+        ]);
+  }
 }
 
 class _MonthDialog extends StatefulWidget {

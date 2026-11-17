@@ -2,14 +2,23 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
+
 import '../../../accounts/domain/money_minor.dart';
 import '../../domain/entities/dashboard_summary.dart';
 import 'dashboard_overview.dart' show SummaryPanel;
-import 'dashboard_palette.dart';
 
 /// Presentation only: forecasts retain the repository's cumulative balances.
 class BalanceEvolutionPanel extends StatefulWidget {
-  const BalanceEvolutionPanel({super.key, required this.currency, this.today});
+  const BalanceEvolutionPanel({
+    super.key,
+    required this.currency,
+    this.today,
+    this.bare = false,
+  });
+
+  /// Sem moldura nem eixo de valores, como no Resumo do celular.
+  final bool bare;
   final DashboardCurrencySummary currency;
   final DateTime? today;
 
@@ -63,119 +72,125 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
         );
     final direction = Directionality.of(context);
     final labels = axis.ticks.map(axis.label).toList();
-    final left = labels
-            .map((value) => _text(value, labelStyle, scaler, direction).width)
-            .reduce(math.max) +
-        12;
-    final top = scaler.scale(11) + 13;
-    final bottom = scaler.scale(11) + 18;
+    final bare = widget.bare;
+    final t = context.somia;
+    final left = bare
+        ? 6.0
+        : labels
+                .map((value) =>
+                    _text(value, labelStyle, scaler, direction).width)
+                .reduce(math.max) +
+            12;
+    final top = bare ? 8.0 : scaler.scale(11) + 13;
+    final bottom = scaler.scale(bare ? 12 : 11) + 18;
     String detail(int i) => 'Dia ${points[i].date.day} • '
         '${i <= actualEnd ? 'realizado' : 'previsto'} '
         '${MoneyMinor.display(values[i], widget.currency.currencyCode)}';
-    return SummaryPanel(
-      title: 'Evolução do saldo',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LayoutBuilder(
-            builder: (context, box) {
-              final height =
-                  (box.maxWidth * .38).clamp(130.0, 220.0) + top + bottom;
-              final plot = Rect.fromLTRB(
-                left,
-                top,
-                box.maxWidth - 8,
-                height - bottom,
-              );
-              void select(double x) => setState(
-                    () => selected =
-                        ((x - plot.left) / plot.width * (points.length - 1))
-                            .round()
-                            .clamp(0, points.length - 1),
-                  );
-              return Semantics(
-                label: 'Consultar saldo diário',
-                hint:
-                    'Toque ou arraste para consultar os valores. Previsão inclui pendências cadastradas e faturas, inclusive vencidas.',
-                value: detail(index),
-                increasedValue:
-                    index < points.length - 1 ? detail(index + 1) : null,
-                decreasedValue: index > 0 ? detail(index - 1) : null,
-                onIncrease: index < points.length - 1
-                    ? () => setState(() => selected = index + 1)
-                    : null,
-                onDecrease: index > 0
-                    ? () => setState(() => selected = index - 1)
-                    : null,
-                child: GestureDetector(
-                  key: const ValueKey('balance-evolution-plot'),
-                  behavior: HitTestBehavior.opaque,
-                  onTapDown: (event) => select(event.localPosition.dx),
-                  onHorizontalDragUpdate: (event) =>
-                      select(event.localPosition.dx),
-                  child: SizedBox(
-                    height: height,
-                    width: double.infinity,
-                    child: CustomPaint(
-                      painter: _BalancePainter(
-                        points: points,
-                        values: values,
-                        actualEnd: actualEnd,
-                        todayIndex: todayIndex,
-                        selected: selected == null ? null : index,
-                        axis: axis,
-                        plot: plot,
-                        labelStyle: labelStyle,
-                        scaler: scaler,
-                        direction: direction,
-                      ),
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
+          builder: (context, box) {
+            final height = bare
+                ? 120.0 + top + bottom
+                : (box.maxWidth * .38).clamp(130.0, 220.0) + top + bottom;
+            final plot = Rect.fromLTRB(
+              left,
+              top,
+              box.maxWidth - (bare ? 6 : 8),
+              height - bottom,
+            );
+            void select(double x) => setState(
+                  () => selected =
+                      ((x - plot.left) / plot.width * (points.length - 1))
+                          .round()
+                          .clamp(0, points.length - 1),
+                );
+            return Semantics(
+              label: 'Consultar saldo diário',
+              hint:
+                  'Toque ou arraste para consultar os valores. Previsão inclui pendências cadastradas e faturas, inclusive vencidas.',
+              value: detail(index),
+              increasedValue:
+                  index < points.length - 1 ? detail(index + 1) : null,
+              decreasedValue: index > 0 ? detail(index - 1) : null,
+              onIncrease: index < points.length - 1
+                  ? () => setState(() => selected = index + 1)
+                  : null,
+              onDecrease:
+                  index > 0 ? () => setState(() => selected = index - 1) : null,
+              child: GestureDetector(
+                key: const ValueKey('balance-evolution-plot'),
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (event) => select(event.localPosition.dx),
+                onHorizontalDragUpdate: (event) =>
+                    select(event.localPosition.dx),
+                child: SizedBox(
+                  height: height,
+                  width: double.infinity,
+                  child: CustomPaint(
+                    painter: _BalancePainter(
+                      points: points,
+                      values: values,
+                      actualEnd: actualEnd,
+                      todayIndex: todayIndex,
+                      selected: selected == null ? null : index,
+                      axis: axis,
+                      plot: plot,
+                      labelStyle: labelStyle,
+                      scaler: scaler,
+                      direction: direction,
+                      tokens: t,
+                      bare: bare,
                     ),
                   ),
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 24,
-            runSpacing: 10,
-            children: [
-              for (final projected in [false, true])
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 27,
-                      height: 12,
-                      child: CustomPaint(painter: _LegendPainter(projected)),
-                    ),
-                    const SizedBox(width: 9),
-                    Flexible(
-                        child: Text(
-                      projected ? 'Previsto' : 'Realizado',
-                      style: TextStyle(color: SomiaColors.muted),
-                    )),
-                  ],
-                ),
-            ],
-          ),
-          if (selected != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              detail(index),
-              key: const ValueKey('balance-day-detail'),
-              style: TextStyle(color: SomiaColors.blue),
-            ),
-            if (index <= actualEnd &&
-                point.projectedMinor != point.currentMinor)
-              Text(
-                'Com pendências: ${MoneyMinor.display(point.projectedMinor, widget.currency.currencyCode)}',
-                style: TextStyle(color: SomiaColors.muted),
+              ),
+            );
+          },
+        ),
+        SizedBox(height: bare ? 4 : 12),
+        Wrap(
+          spacing: bare ? 16 : 24,
+          runSpacing: 10,
+          children: [
+            for (final projected in [false, true])
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 27,
+                    height: 12,
+                    child: CustomPaint(painter: _LegendPainter(projected, t)),
+                  ),
+                  const SizedBox(width: 9),
+                  Flexible(
+                      child: Text(
+                    projected ? 'Previsto' : 'Realizado',
+                    style: TextStyle(color: t.muted, fontSize: 12),
+                  )),
+                ],
               ),
           ],
+        ),
+        if (selected != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            detail(index),
+            key: const ValueKey('balance-day-detail'),
+            style: TextStyle(color: t.ink, fontWeight: FontWeight.w600),
+          ),
+          if (index <= actualEnd && point.projectedMinor != point.currentMinor)
+            Text(
+              'Com pendências: ${MoneyMinor.display(point.projectedMinor, widget.currency.currencyCode)}',
+              style: TextStyle(color: SomiaColors.muted),
+            ),
         ],
-      ),
+      ],
     );
+    return bare
+        ? content
+        : SummaryPanel(title: 'Evolução do saldo', child: content);
   }
 }
 
@@ -242,7 +257,11 @@ class _BalancePainter extends CustomPainter {
     required this.labelStyle,
     required this.scaler,
     required this.direction,
+    required this.tokens,
+    required this.bare,
   });
+  final SomiaTokens tokens;
+  final bool bare;
   final List<DashboardDailyBalance> points;
   final List<int> values;
   final int actualEnd, todayIndex;
@@ -255,169 +274,151 @@ class _BalancePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final t = tokens;
     double x(int i) =>
         plot.left + i / math.max(1, points.length - 1) * plot.width;
+    // No modo enxuto a escala acompanha o mês, sem partir do zero.
+    final minValue = values.reduce(math.min).toDouble();
+    final maxValue = values.reduce(math.max).toDouble();
+    final spread = math.max(maxValue - minValue, maxValue.abs() * .02 + 1);
+    final low = bare ? minValue - spread * .15 : axis.low.toDouble();
+    final high = bare ? maxValue + spread * .15 : axis.high.toDouble();
     double y(num value) =>
-        plot.bottom - (value - axis.low) / (axis.high - axis.low) * plot.height;
+        plot.bottom - (value - low) / (high - low) * plot.height;
     final grid = Paint()
-      ..color = SomiaColors.outline.withValues(alpha: .6)
+      ..color = t.outline.withValues(alpha: .7)
       ..strokeWidth = 1;
-    for (final value in axis.ticks) {
-      canvas.drawLine(
-        Offset(plot.left, y(value)),
-        Offset(plot.right, y(value)),
-        grid,
-      );
-      final label = _text(axis.label(value), labelStyle, scaler, direction);
-      label.paint(
-        canvas,
-        Offset(plot.left - label.width - 12, y(value) - label.height / 2),
-      );
-    }
-    final tickCount = math.min(
-      points.length,
-      plot.width < scaler.scale(210) ? 4 : 6,
-    );
-    for (final i in {
-      for (var n = 0; n < tickCount; n++)
-        (n * (points.length - 1) / math.max(1, tickCount - 1)).round(),
-    }) {
-      canvas.drawLine(Offset(x(i), plot.top), Offset(x(i), plot.bottom), grid);
-      final label = _text(
-        points[i].date.day.toString().padLeft(2, '0'),
-        labelStyle,
+    void label(String text, double cx, {bool strong = false}) {
+      final painter = _text(
+        text,
+        strong
+            ? labelStyle.copyWith(
+                color: t.ink, fontWeight: FontWeight.w700, fontSize: 12)
+            : labelStyle.copyWith(fontSize: bare ? 12 : 11),
         scaler,
         direction,
       );
-      label.paint(
+      painter.paint(
         canvas,
-        Offset(
-          (x(i) - label.width / 2).clamp(0, size.width - label.width),
-          plot.bottom + 10,
-        ),
+        Offset((cx - painter.width / 2).clamp(0, size.width - painter.width),
+            plot.bottom + 10),
       );
     }
-    canvas.drawLine(
-      Offset(plot.left, y(0)),
-      Offset(plot.right, y(0)),
-      Paint()
-        ..color = SomiaColors.blue.withValues(alpha: .32)
-        ..strokeWidth = 1.2,
-    );
+
+    if (!bare) {
+      for (final value in axis.ticks) {
+        canvas.drawLine(
+          Offset(plot.left, y(value)),
+          Offset(plot.right, y(value)),
+          grid,
+        );
+        final text = _text(axis.label(value), labelStyle, scaler, direction);
+        text.paint(
+          canvas,
+          Offset(plot.left - text.width - 12, y(value) - text.height / 2),
+        );
+      }
+      final tickCount = math.min(
+        points.length,
+        plot.width < scaler.scale(210) ? 4 : 6,
+      );
+      for (final i in {
+        for (var n = 0; n < tickCount; n++)
+          (n * (points.length - 1) / math.max(1, tickCount - 1)).round(),
+      }) {
+        if (i == todayIndex) continue;
+        label(points[i].date.day.toString().padLeft(2, '0'), x(i));
+      }
+    } else {
+      final edges = {0, points.length - 1}..remove(todayIndex);
+      for (final i in edges) {
+        if (todayIndex >= 0 && (x(i) - x(todayIndex)).abs() < 36) continue;
+        label(points[i].date.day.toString(), x(i));
+      }
+    }
     final locations = [
       for (var i = 0; i < points.length; i++) Offset(x(i), y(values[i])),
     ];
-    final area = Path()..moveTo(plot.left, y(0));
-    for (final location in locations) {
-      area.lineTo(location.dx, location.dy);
-    }
-    area.lineTo(locations.last.dx, y(0));
-    area.close();
     canvas.save();
-    canvas.clipRect(plot.inflate(3));
-    canvas.drawPath(
-      area,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            SomiaColors.blue.withValues(alpha: .19),
-            SomiaColors.blue.withValues(alpha: .03),
-          ],
-        ).createShader(plot),
-    );
-    final line = Paint()
-      ..color = SomiaColors.blue
-      ..strokeWidth = 2.6
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    canvas.clipRect(plot.inflate(8));
     if (actualEnd >= 0) {
+      final area = Path()..moveTo(locations.first.dx, plot.bottom);
+      for (var i = 0; i <= actualEnd; i++) {
+        area.lineTo(locations[i].dx, locations[i].dy);
+      }
+      area.lineTo(locations[actualEnd].dx, plot.bottom);
+      area.close();
+      canvas.drawPath(area, Paint()..color = t.chartArea);
       final path = Path()..moveTo(locations.first.dx, locations.first.dy);
       for (var i = 1; i <= actualEnd; i++) {
         path.lineTo(locations[i].dx, locations[i].dy);
       }
-      canvas.drawPath(path, line);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = t.ink
+          ..strokeWidth = 2.5
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
       if (actualEnd == 0) {
-        canvas.drawCircle(
-          locations.first,
-          2,
-          Paint()..color = SomiaColors.blue,
-        );
+        canvas.drawCircle(locations.first, 2, Paint()..color = t.ink);
       }
     }
-    // A single arc-length cadence keeps round dots evenly spaced across day boundaries.
     if (actualEnd < points.length - 1) {
       final first = math.max(0, actualEnd);
       final path = Path()..moveTo(locations[first].dx, locations[first].dy);
       for (var i = first + 1; i < locations.length; i++) {
         path.lineTo(locations[i].dx, locations[i].dy);
       }
+      final dash = Paint()
+        ..color = t.accent
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
       for (final metric in path.computeMetrics()) {
-        for (var distance = 0.0; distance < metric.length; distance += 8) {
-          canvas.drawCircle(
-            metric.getTangentForOffset(distance)!.position,
-            1.65,
-            Paint()..color = SomiaColors.blue,
+        for (var distance = 0.0; distance < metric.length; distance += 11) {
+          canvas.drawPath(
+            metric.extractPath(distance, math.min(distance + 5, metric.length)),
+            dash,
           );
         }
       }
-      canvas.drawCircle(
-        locations.last,
-        1.65,
-        Paint()..color = SomiaColors.blue,
-      );
     }
     if (todayIndex >= 0) {
       final tx = x(todayIndex);
       final marker = Paint()
-        ..color = SomiaColors.blue.withValues(alpha: .8)
+        ..color = t.muted
         ..strokeWidth = 1;
       for (var yy = plot.top; yy < plot.bottom; yy += 6) {
         canvas.drawLine(
           Offset(tx, yy),
-          Offset(tx, math.min(yy + 3, plot.bottom)),
+          Offset(tx, math.min(yy + 2, plot.bottom)),
           marker,
         );
       }
       canvas.drawCircle(
-        Offset(tx, plot.top),
-        2.6,
-        Paint()..color = SomiaColors.blue,
-      );
+          locations[todayIndex], 6, Paint()..color = t.background);
       canvas.drawCircle(
         locations[todayIndex],
-        4.6,
-        Paint()..color = SomiaColors.blue,
+        6,
+        Paint()
+          ..color = t.ink
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5,
       );
     }
     if (selected != null && selected != todayIndex) {
       canvas.drawLine(
         Offset(x(selected!), plot.top),
         Offset(x(selected!), plot.bottom),
-        Paint()..color = SomiaColors.blue.withValues(alpha: .25),
+        Paint()..color = t.muted.withValues(alpha: .5),
       );
-      canvas.drawCircle(
-        locations[selected!],
-        3.5,
-        Paint()..color = SomiaColors.blue,
-      );
+      canvas.drawCircle(locations[selected!], 4, Paint()..color = t.ink);
     }
     canvas.restore();
-    if (todayIndex >= 0) {
-      final label = _text('Hoje', labelStyle, scaler, direction);
-      label.paint(
-        canvas,
-        Offset(
-          (x(todayIndex) - label.width / 2).clamp(
-            plot.left,
-            size.width - label.width,
-          ),
-          0,
-        ),
-      );
-    }
+    if (todayIndex >= 0) label('Hoje', x(todayIndex), strong: true);
   }
 
   @override
@@ -425,28 +426,27 @@ class _BalancePainter extends CustomPainter {
 }
 
 class _LegendPainter extends CustomPainter {
-  const _LegendPainter(this.projected);
+  const _LegendPainter(this.projected, this.tokens);
   final bool projected;
+  final SomiaTokens tokens;
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = SomiaColors.blue
-      ..strokeWidth = 2.6
+      ..color = projected ? tokens.accent : tokens.ink
+      ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
+    final y = size.height / 2;
     if (projected) {
-      for (var x = 2.0; x < size.width; x += 7) {
-        canvas.drawCircle(Offset(x, size.height / 2), 1.65, paint);
+      for (var x = 2.0; x < size.width - 2; x += 9) {
+        canvas.drawLine(
+            Offset(x, y), Offset(math.min(x + 4, size.width - 2), y), paint);
       }
     } else {
-      canvas.drawLine(
-        Offset(2, size.height / 2),
-        Offset(size.width - 2, size.height / 2),
-        paint,
-      );
+      canvas.drawLine(Offset(2, y), Offset(size.width - 2, y), paint);
     }
   }
 
   @override
   bool shouldRepaint(covariant _LegendPainter oldDelegate) =>
-      projected != oldDelegate.projected;
+      projected != oldDelegate.projected || tokens != oldDelegate.tokens;
 }

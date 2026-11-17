@@ -195,7 +195,7 @@ void main() {
         final categories = tester.getRect(
           find.byKey(const ValueKey('mobile-categories-BRL')),
         );
-        expect(balance.width, closeTo(width - 32, 0.1));
+        expect(balance.width, closeTo(width, 0.1));
 
         expect(expense.top, income.top);
 
@@ -203,7 +203,9 @@ void main() {
         expect(history.top, greaterThan(income.bottom));
         expect(history.top, greaterThan(categories.bottom));
         final evolution = tester.getRect(find.byType(BalanceEvolutionPanel));
-        expect(evolution.top, greaterThan(income.bottom));
+        // Ordem do protótipo: saldo, evolução, valores do mês, categorias.
+        expect(evolution.top, greaterThan(balance.bottom));
+        expect(evolution.bottom, lessThan(income.top));
         expect(evolution.bottom, lessThan(categories.top));
         expect(find.text('Gastos por categoria'), findsOneWidget);
         final scrollable = find.descendant(
@@ -427,10 +429,12 @@ void main() {
       find.descendant(of: card, matching: find.textContaining('2.350,00')),
       findsNothing,
     );
+    // Saldo e previsão no destaque; os quatro valores do mês na grade.
     expect(
       find.descendant(of: card, matching: find.text('••••')),
-      findsNWidgets(4),
+      findsNWidgets(2),
     );
+    expect(find.text('••••'), findsNWidgets(6));
     await tester.tap(eye);
     await tester.pumpAndSettle();
     expect(
