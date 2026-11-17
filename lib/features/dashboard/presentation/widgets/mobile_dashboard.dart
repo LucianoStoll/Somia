@@ -115,7 +115,7 @@ class MobileDashboardBody extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Resumo do mês',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
                   ),
                 ),
                 BalanceHelpButton(),
@@ -171,6 +171,8 @@ class _CurrencySection extends StatelessWidget {
         const SizedBox(height: 12),
         BalanceEvolutionPanel(currency: currency),
         const SizedBox(height: 12),
+        UpcomingPanel(currency: currency),
+        const SizedBox(height: 12),
         _Panel(
           title: 'Gastos por categoria',
           child: DashboardAnalysisView(
@@ -192,8 +194,6 @@ class _CurrencySection extends StatelessWidget {
         DashboardTransfersCard(currency: currency, month: month),
         const SizedBox(height: 12),
         AccountTypesPanel(currency: currency),
-        const SizedBox(height: 12),
-        UpcomingPanel(currency: currency),
         const SizedBox(height: 12),
       ],
     );

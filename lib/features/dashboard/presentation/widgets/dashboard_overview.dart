@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/filters/reference_month.dart';
 import '../../../../core/routing/app_router.dart';
-import 'dashboard_palette.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/effectuation_date_dialog.dart';
 import '../../../accounts/domain/money_minor.dart';
 import '../../../accounts/presentation/account_identity.dart';
@@ -63,45 +63,65 @@ class _SummaryPanelState extends State<SummaryPanel> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 12,
-                children: [
-                  Text(
-                    widget.title,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  Wrap(
-                      spacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (widget.action != null) widget.action!,
-                        IconButton(
-                            tooltip:
-                                collapsed ? 'Expandir bloco' : 'Recolher bloco',
-                            onPressed: toggle,
-                            icon: Icon(collapsed
-                                ? Icons.expand_more
-                                : Icons.expand_less)),
-                      ]),
-                ],
+  Widget build(BuildContext context) {
+    final t = context.somia;
+    return Material(
+      color: t.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: somiaSurfaceShape(t),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 8, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: SomiaSpace.md,
+              children: [
+                Text(
+                  widget.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Wrap(
+                  spacing: SomiaSpace.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (widget.action != null) widget.action!,
+                    IconButton(
+                      tooltip: collapsed ? 'Expandir bloco' : 'Recolher bloco',
+                      onPressed: toggle,
+                      visualDensity: VisualDensity.compact,
+                      color: t.muted,
+                      icon: Icon(
+                          collapsed ? Icons.expand_more : Icons.expand_less),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (!collapsed) ...[
+              const SizedBox(height: SomiaSpace.md),
+              Padding(
+                padding: const EdgeInsets.only(right: SomiaSpace.md),
+                child: widget.child,
               ),
-              if (!collapsed) ...[const SizedBox(height: 16), widget.child],
             ],
-          ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
+
+/// Forma das superfícies da direção Fluxo: sem borda no escuro, contorno
+/// discreto no claro.
+ShapeBorder somiaSurfaceShape(SomiaTokens t,
+        [double radius = SomiaRadius.lg]) =>
+    RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(radius),
+      side: t.isDark ? BorderSide.none : BorderSide(color: t.outline),
+    );
 
 class SummaryMetrics extends StatefulWidget {
   const SummaryMetrics(
@@ -117,29 +137,27 @@ class _SummaryMetricsState extends State<SummaryMetrics> {
   @override
   Widget build(BuildContext context) {
     final c = widget.currency, d = c.balanceDetails;
+    final t = context.somia;
+    final text = Theme.of(context).textTheme;
     final now = DateTime.now();
     final period = DateTime(widget.month.year, widget.month.month);
     final current = DateTime(now.year, now.month);
-    String money(int value) => hidden ? '••••' : _money(value, c.currencyCode);
-    Widget amount(String label, int value, Color color, {bool small = false}) =>
+    String money(int value, [String sign = '']) =>
+        hidden ? '••••' : '$sign${_money(value, c.currencyCode)}';
+    Widget amount(String label, String value, Color color,
+            {bool small = false}) =>
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
-              style: TextStyle(
-                  color: SomiaColors.muted, fontSize: small ? 12 : 13)),
-          const SizedBox(height: 6),
-          if (small)
-            FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(money(value),
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600)))
-          else
-            Text(money(value),
-                style: TextStyle(
-                    color: color, fontSize: 20, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: t.muted, fontSize: small ? 12 : 13)),
+          const SizedBox(height: SomiaSpace.xs),
+          FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  style: TextStyle(
+                      color: color,
+                      fontSize: small ? 16 : 18,
+                      fontWeight: FontWeight.w700))),
         ]);
     Widget pair(Widget left, Widget right, {bool divider = false}) =>
         LayoutBuilder(builder: (context, box) {
@@ -156,125 +174,144 @@ class _SummaryMetricsState extends State<SummaryMetrics> {
                 Expanded(child: left),
                 if (divider)
                   SizedBox(
-                      height: 56,
-                      child: VerticalDivider(
-                          width: 26, color: SomiaColors.outline))
+                      height: 48,
+                      child: VerticalDivider(width: 26, color: t.outline))
                 else
                   const SizedBox(width: 10),
                 Expanded(child: right),
               ]));
         });
-    Widget pending(String title, int value, Color color, String route,
-            String key, IconData icon) =>
+    Widget pending(String title, String value, Color color, String route,
+            String key) =>
         Material(
-            color: color.withValues(alpha: .17),
-            borderRadius: BorderRadius.circular(18),
+            color: t.surface,
+            shape: somiaSurfaceShape(t, SomiaRadius.md),
             child: InkWell(
                 key: ValueKey('dashboard-link-$route'),
-                borderRadius: BorderRadius.circular(18),
+                customBorder: somiaSurfaceShape(t, SomiaRadius.md),
                 onTap: () => context.go(route),
                 child: Padding(
                     key: ValueKey('mobile-$key-${c.currencyCode}'),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 16),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
                     child: Row(children: [
-                      Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: color, width: 1.5)),
-                          child: Icon(icon, size: 20, color: color)),
-                      const SizedBox(width: 9),
-                      Expanded(child: amount(title, value, color, small: true)),
-                      const SizedBox(width: 2),
-                      Icon(Icons.chevron_right,
-                          color: SomiaColors.muted, size: 16),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            amount(title, value, color, small: true),
+                            const SizedBox(height: SomiaSpace.sm),
+                            Container(
+                                height: 3,
+                                width: 40,
+                                decoration: BoxDecoration(
+                                    color:
+                                        key == 'income' ? t.income : t.expense,
+                                    borderRadius: BorderRadius.circular(2))),
+                          ])),
+                      Icon(Icons.chevron_right, color: t.muted, size: 18),
                     ]))));
+    final future = period.isAfter(current);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Card(
+      Material(
+          color: t.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: somiaSurfaceShape(t),
           child: BalanceDetailCard(
               currencyCode: c.currencyCode,
               child: Padding(
                   key: ValueKey('mobile-balance-${c.currencyCode}'),
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 8, 20),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                  child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                    Text(
-                                        period.isAfter(current)
-                                            ? 'Saldo previsto'
-                                            : period.isBefore(current)
-                                                ? 'Saldo efetivado no mês'
-                                                : 'Saldo atual',
-                                        style: TextStyle(
-                                            color: SomiaColors.blue,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w500)),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                        money(period.isAfter(current)
-                                            ? c.projectedBalanceMinor
-                                            : c.currentBalanceMinor),
-                                        style: TextStyle(
-                                            color: SomiaColors.blue,
-                                            fontSize: 34,
-                                            fontWeight: FontWeight.w700)),
-                                  ])),
-                              IconButton(
-                                  key: const ValueKey('summary-visibility'),
-                                  tooltip: hidden
-                                      ? 'Mostrar valores do resumo'
-                                      : 'Ocultar valores do resumo',
-                                  onPressed: () =>
-                                      setState(() => hidden = !hidden),
-                                  icon: Icon(
-                                      hidden
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      color: SomiaColors.blue)),
-                            ]),
-                        const SizedBox(height: 10),
-                        Wrap(spacing: 8, runSpacing: 4, children: [
-                          Text('Previsto no fim do mês',
-                              style: TextStyle(
-                                  color: SomiaColors.muted, fontSize: 13)),
-                          Text(money(c.projectedBalanceMinor),
-                              key: ValueKey(
-                                  'desktop-projected-${c.currencyCode}'),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 14)),
+                        Row(children: [
+                          Expanded(
+                              child: Text(
+                                  future
+                                      ? 'Saldo previsto'
+                                      : period.isBefore(current)
+                                          ? 'Saldo efetivado no mês'
+                                          : 'Saldo atual',
+                                  style: text.bodyMedium
+                                      ?.copyWith(color: t.muted))),
+                          IconButton(
+                              key: const ValueKey('summary-visibility'),
+                              tooltip: hidden
+                                  ? 'Mostrar valores do resumo'
+                                  : 'Ocultar valores do resumo',
+                              onPressed: () => setState(() => hidden = !hidden),
+                              icon: Icon(
+                                  hidden
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: t.muted)),
                         ]),
-                        Divider(height: 26, color: SomiaColors.outline),
-                        pair(
-                            amount('Recebido no mês', d?.incomeMinor ?? 0,
-                                SomiaColors.green),
-                            amount(
-                                'Pago no mês',
-                                (d?.expenseMinor ?? 0) +
-                                    (d?.cardPaymentsMinor ?? 0),
-                                SomiaColors.red),
-                            divider: true),
+                        Padding(
+                          padding: const EdgeInsets.only(right: SomiaSpace.md),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                                money(future
+                                    ? c.projectedBalanceMinor
+                                    : c.currentBalanceMinor),
+                                style: text.displaySmall),
+                          ),
+                        ),
+                        const SizedBox(height: SomiaSpace.sm),
+                        Wrap(
+                            spacing: SomiaSpace.sm,
+                            runSpacing: SomiaSpace.xs,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                      color: t.accent, shape: BoxShape.circle)),
+                              Text('Previsto no fim do mês',
+                                  style:
+                                      TextStyle(color: t.muted, fontSize: 14)),
+                              Text(money(c.projectedBalanceMinor),
+                                  key: ValueKey(
+                                      'desktop-projected-${c.currencyCode}'),
+                                  style: TextStyle(
+                                      color: t.accent,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15)),
+                            ]),
+                        Padding(
+                          padding: const EdgeInsets.only(right: SomiaSpace.md),
+                          child: Divider(height: 28, color: t.outline),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: SomiaSpace.md),
+                          child: pair(
+                              amount('Recebido no mês',
+                                  money(d?.incomeMinor ?? 0, '+ '), t.income),
+                              amount(
+                                  'Pago no mês',
+                                  money(
+                                      (d?.expenseMinor ?? 0) +
+                                          (d?.cardPaymentsMinor ?? 0),
+                                      '− '),
+                                  t.ink),
+                              divider: true),
+                        ),
                       ])))),
-      const SizedBox(height: 10),
+      const SizedBox(height: SomiaSpace.md),
       pair(
-          pending('A receber', d?.pendingIncomeMinor ?? 0, SomiaColors.green,
-              AppRoutes.incomePath, 'income', Icons.arrow_downward),
+          pending('A receber', money(d?.pendingIncomeMinor ?? 0, '+ '),
+              t.income, AppRoutes.incomePath, 'income'),
           pending(
               'A pagar',
-              (d?.pendingExpenseMinor ?? 0) + (d?.pendingInvoicesMinor ?? 0),
-              SomiaColors.red,
+              money(
+                  (d?.pendingExpenseMinor ?? 0) +
+                      (d?.pendingInvoicesMinor ?? 0),
+                  '− '),
+              t.ink,
               AppRoutes.expensesPath,
-              'expense',
-              Icons.arrow_upward)),
+              'expense')),
     ]);
   }
 }
@@ -367,82 +404,141 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
     );
   }
 
+  static const _months = [
+    'jan',
+    'fev',
+    'mar',
+    'abr',
+    'mai',
+    'jun',
+    'jul',
+    'ago',
+    'set',
+    'out',
+    'nov',
+    'dez',
+  ];
+
   @override
-  Widget build(BuildContext context) => SummaryPanel(
-        title: 'Próximos vencimentos',
-        action: widget.currency.upcoming.length > 3
-            ? TextButton(
-                onPressed: () => setState(() => expanded = !expanded),
-                child: Text(expanded ? 'Ver menos' : 'Ver todos'),
-              )
-            : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Pendências até o fim do mês selecionado, incluindo atrasadas.',
-              style: TextStyle(color: SomiaColors.muted),
+  Widget build(BuildContext context) {
+    final t = context.somia;
+    final code = widget.currency.currencyCode;
+    return SummaryPanel(
+      title: 'Ainda este mês',
+      action: widget.currency.upcoming.length > 3
+          ? TextButton(
+              onPressed: () => setState(() => expanded = !expanded),
+              child: Text(expanded ? 'Ver menos' : 'Ver todos'),
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Pendências até o fim do mês selecionado, incluindo atrasadas.',
+            style: TextStyle(color: t.muted, fontSize: 13),
+          ),
+          if (widget.currency.upcoming.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text('Nenhum vencimento pendente.'),
             ),
-            if (widget.currency.upcoming.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Nenhum vencimento pendente.'),
-              ),
-            for (final item in widget.currency.upcoming.take(
-              expanded ? widget.currency.upcoming.length : 3,
-            ))
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+          const SizedBox(height: SomiaSpace.xs),
+          for (final item in widget.currency.upcoming.take(
+            expanded ? widget.currency.upcoming.length : 3,
+          ))
+            InkWell(
+              key: ValueKey('upcoming-open-${item.id}'),
+              borderRadius: BorderRadius.circular(SomiaRadius.sm),
+              onTap: () => openDetails(item),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: SomiaSpace.sm),
+                child: Row(
                   children: [
-                    Text(
-                      item.description,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')}/${item.date.year} • ${item.isOverdue(DateTime.now()) ? 'Vencido' : 'Pendente'}',
-                      style: TextStyle(color: SomiaColors.muted),
-                    ),
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      children: [
-                        Text(
-                          _money(
-                              item.amountMinor, widget.currency.currencyCode),
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: item.kind == 'income'
-                                ? SomiaColors.green
-                                : SomiaColors.red,
+                    Container(
+                      width: 46,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: item.isOverdue(DateTime.now())
+                            ? t.expense.withValues(alpha: 0.14)
+                            : t.background,
+                        borderRadius: BorderRadius.circular(SomiaRadius.sm),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            item.date.day.toString().padLeft(2, '0'),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w800),
                           ),
-                        ),
-                        Wrap(
-                          children: [
-                            TextButton(
-                              onPressed: () => openDetails(item),
-                              child: const Text('Abrir'),
-                            ),
-                            if (item.canSettle)
-                              TextButton(
-                                onPressed: busy ? null : () => settle(item),
-                                child: const Text('Efetivar'),
-                              ),
-                          ],
-                        ),
-                      ],
+                          Text(
+                            _months[item.date.month - 1],
+                            style: TextStyle(fontSize: 11, color: t.muted),
+                          ),
+                        ],
+                      ),
                     ),
-                    const Divider(height: 1),
+                    const SizedBox(width: SomiaSpace.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 2),
+                          Text.rich(
+                            TextSpan(children: [
+                              TextSpan(
+                                text: item.isOverdue(DateTime.now())
+                                    ? 'Vencido, '
+                                    : 'Pendente, ',
+                                style: TextStyle(
+                                  color: item.isOverdue(DateTime.now())
+                                      ? t.expense
+                                      : t.muted,
+                                ),
+                              ),
+                              TextSpan(
+                                text:
+                                    '${item.kind == 'income' ? '+ ' : '− '}${_money(item.amountMinor, code)}',
+                                style: TextStyle(
+                                  color:
+                                      item.kind == 'income' ? t.income : t.ink,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ]),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (item.canSettle) ...[
+                      const SizedBox(width: SomiaSpace.sm),
+                      OutlinedButton(
+                        onPressed: busy ? null : () => settle(item),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: t.accent,
+                          side: BorderSide(color: t.accent),
+                          minimumSize: const Size(0, 36),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                        ),
+                        child: const Text('Efetivar'),
+                      ),
+                    ],
                   ],
                 ),
               ),
-          ],
-        ),
-      );
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class SummaryAccounts extends StatefulWidget {

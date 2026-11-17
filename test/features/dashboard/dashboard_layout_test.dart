@@ -308,7 +308,11 @@ void main() {
   ) async {
     await _mount(tester, const Size(390, 900));
     final initial = referenceMonth.value;
-    final button = find.widgetWithText(TextButton, 'Abrir');
+    final button = find
+        .byWidgetPredicate((w) =>
+            w.key is ValueKey<String> &&
+            (w.key as ValueKey<String>).value.startsWith('upcoming-open-'))
+        .first;
     await tester.ensureVisible(button);
     await tester.pumpAndSettle();
     await tester.tap(button);
