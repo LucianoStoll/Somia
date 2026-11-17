@@ -193,7 +193,7 @@ class MovementListRow extends StatelessWidget {
           account,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: SomiaColors.muted, fontSize: 12),
+          style: TextStyle(color: SomiaColors.muted, fontSize: 12),
         ),
         if (highlightLabel != null) ...[
           const SizedBox(height: 5),
@@ -205,7 +205,7 @@ class MovementListRow extends StatelessWidget {
             ),
             child: Text(
               highlightLabel!,
-              style: const TextStyle(color: SomiaColors.sidebar, fontSize: 12),
+              style: TextStyle(color: SomiaColors.sidebar, fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -268,7 +268,7 @@ class MovementListRow extends StatelessWidget {
                     'Vencimento ${_date(dueDate)}${effectiveDate == null ? '' : ' · $status ${_date(effectiveDate!)}'}',
                 child: Text(
                   _date(effectiveDate ?? dueDate),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     color: SomiaColors.muted,
                   ),
@@ -312,7 +312,7 @@ class MovementListRow extends StatelessWidget {
                 account,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: SomiaColors.muted, fontSize: 12),
+                style: TextStyle(color: SomiaColors.muted, fontSize: 12),
               ),
             ],
           ),

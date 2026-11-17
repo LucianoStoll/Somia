@@ -128,7 +128,7 @@ class _HistoryTooltipChartState extends State<HistoryTooltipChart> {
                     color: SomiaColors.surfaceHigh,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: SomiaColors.outline)),
+                        side: BorderSide(color: SomiaColors.outline)),
                     child: SingleChildScrollView(
                         padding: const EdgeInsets.all(14),
                         child: Column(
@@ -137,7 +137,7 @@ class _HistoryTooltipChartState extends State<HistoryTooltipChart> {
                             children: [
                               Text(
                                   '${monthNames[item.month.month - 1]} ${item.month.year}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       color: SomiaColors.blue)),
                               const SizedBox(height: 8),

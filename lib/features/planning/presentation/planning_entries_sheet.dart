@@ -41,7 +41,7 @@ class _PlanningEntriesSheetState extends State<PlanningEntriesSheet> {
             Text(
                 '${widget.type == 'income' ? 'Receitas' : 'Despesas'} · '
                 '${monthNames[widget.month.month - 1]} ${widget.month.year}',
-                style: const TextStyle(color: SomiaColors.muted)),
+                style: TextStyle(color: SomiaColors.muted)),
             const SizedBox(height: 12),
             FutureBuilder<List<PlanningEntry>>(
                 future: future,
@@ -106,7 +106,7 @@ class _PlanningEntriesSheetState extends State<PlanningEntriesSheet> {
                                         ]),
                                     const SizedBox(height: 4),
                                     Text('${item.source} · ${date(item.date)}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontSize: 12,
                                             color: SomiaColors.muted)),
                                     const SizedBox(height: 4),
@@ -121,7 +121,7 @@ class _PlanningEntriesSheetState extends State<PlanningEntriesSheet> {
                                     if (item.amount != item.fullAmount)
                                       Text(
                                           'Parte nesta subcategoria · lançamento total ${money(item.fullAmount)}',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               fontSize: 12,
                                               color: SomiaColors.muted)),
                                   ])),

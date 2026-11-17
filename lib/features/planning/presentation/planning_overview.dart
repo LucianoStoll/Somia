@@ -78,7 +78,7 @@ class _PlanningOverviewState extends State<PlanningOverview> {
     Widget metric(String label, int value, Color color) =>
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
-              style: const TextStyle(fontSize: 12, color: SomiaColors.muted)),
+              style: TextStyle(fontSize: 12, color: SomiaColors.muted)),
           const SizedBox(height: 4),
           Text(_money(value, code),
               style: TextStyle(
@@ -121,7 +121,7 @@ class _PlanningOverviewState extends State<PlanningOverview> {
                             const SizedBox(height: 4),
                             Text(
                                 'Contas até ${DateTime(widget.month.year, widget.month.month + 1, 0).day}/${widget.month.month}/${widget.month.year}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontSize: 12, color: SomiaColors.muted)),
                             ModuleDetails(
                                 key: PageStorageKey(
@@ -191,7 +191,7 @@ class _PlanningOverviewState extends State<PlanningOverview> {
                                 onSelectionChanged: (value) =>
                                     setState(() => type = value.single)),
                             const SizedBox(height: 8),
-                            const Text('Previsto no mês',
+                            Text('Previsto no mês',
                                 style: TextStyle(
                                     fontSize: 12, color: SomiaColors.muted)),
                             const SizedBox(height: 14),
@@ -246,7 +246,7 @@ class _PlanningOverviewState extends State<PlanningOverview> {
                                   child: const Text('Ver todos')),
                             ]),
                             if (warnings.isEmpty)
-                              const Padding(
+                              Padding(
                                   padding: EdgeInsets.symmetric(vertical: 12),
                                   child: Text(
                                       'Nenhum limite em atenção neste mês.',
@@ -298,7 +298,7 @@ class _BudgetWarning extends StatelessWidget {
       const SizedBox(height: 8),
       Text(
           'Previsto ${_money(b.projected, b.currency)} de ${_money(b.amount, b.currency)}',
-          style: const TextStyle(fontSize: 12, color: SomiaColors.muted)),
+          style: TextStyle(fontSize: 12, color: SomiaColors.muted)),
       const SizedBox(height: 4),
       Text(
           left < 0
@@ -361,7 +361,7 @@ class PlanningCategoryChart extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 24),
           child: Text(
               'Nenhuma ${label == 'Receitas' ? 'receita' : 'despesa'} neste mês.',
-              style: const TextStyle(color: SomiaColors.muted)));
+              style: TextStyle(color: SomiaColors.muted)));
     }
     void subcategories(_CategorySlice selected) {
       final amounts = <String?, int>{};
@@ -397,7 +397,7 @@ class PlanningCategoryChart extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 4),
                     Text('$label · Previsto no mês',
-                        style: const TextStyle(color: SomiaColors.muted)),
+                        style: TextStyle(color: SomiaColors.muted)),
                     if (month == null)
                       ModuleValueRow(
                           label: 'Total da categoria',
@@ -515,7 +515,7 @@ class PlanningCategoryChart extends StatelessWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(label,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontSize: 11,
                                             color: SomiaColors.muted)),
                                     const SizedBox(height: 4),

@@ -55,7 +55,7 @@ class AccountSummaryCard extends StatelessWidget {
                             ?.copyWith(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
                     Text('${account.type.label} · ${account.currencyCode}',
-                        style: const TextStyle(color: SomiaColors.muted)),
+                        style: TextStyle(color: SomiaColors.muted)),
                   ])),
             ]),
           ),
@@ -64,12 +64,12 @@ class AccountSummaryCard extends StatelessWidget {
                 key: ValueKey('account-add-${account.id}'),
                 tooltip: 'Adicionar movimento nesta conta',
                 onPressed: account.isArchived ? null : onAdd,
-                icon: const Icon(Icons.add, color: SomiaColors.blue)),
+                icon: Icon(Icons.add, color: SomiaColors.blue)),
             IconButton(
                 key: ValueKey('account-statement-${account.id}'),
                 tooltip: 'Abrir extrato',
                 onPressed: onOpen,
-                icon: const Icon(Icons.receipt_long_outlined,
+                icon: Icon(Icons.receipt_long_outlined,
                     color: SomiaColors.blue)),
             PopupMenuButton<String>(
               key: ValueKey('account-menu-${account.id}'),
@@ -99,7 +99,7 @@ class AccountSummaryCard extends StatelessWidget {
                       color: SomiaColors.surfaceHigh,
                       borderRadius: BorderRadius.circular(20)),
                   child: Text(tag,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 12, color: SomiaColors.blue)),
                 ),
             ]),

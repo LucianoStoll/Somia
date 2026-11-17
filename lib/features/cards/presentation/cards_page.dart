@@ -522,7 +522,7 @@ class _CardsPageState extends State<CardsPage> {
   Widget _limitProgress(CreditCard card) {
     final limit = card.limitMinor;
     if (limit == null) {
-      return const Text(
+      return Text(
         'Sem controle de limite',
         style: TextStyle(color: SomiaColors.muted, fontSize: 12),
       );
@@ -590,7 +590,7 @@ class _CardsPageState extends State<CardsPage> {
         color: SomiaColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: SomiaColors.outline, width: .7),
+          side: BorderSide(color: SomiaColors.outline, width: .7),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -621,7 +621,7 @@ class _CardsPageState extends State<CardsPage> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(top: 4),
                         child: Text(
@@ -698,7 +698,7 @@ class _CardsPageState extends State<CardsPage> {
                 if (limit == null)
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Limite não cadastrado',
                           style: TextStyle(
@@ -716,7 +716,7 @@ class _CardsPageState extends State<CardsPage> {
                 else ...[
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Disponível',
                           style: TextStyle(
@@ -747,7 +747,7 @@ class _CardsPageState extends State<CardsPage> {
                   const SizedBox(height: 4),
                   fit(Text(
                     '${cardMoney(card.committedMinor)} de ${cardMoney(limit)} utilizados',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       color: SomiaColors.muted,
                     ),
@@ -757,7 +757,7 @@ class _CardsPageState extends State<CardsPage> {
                   const SizedBox(height: 4),
                   Text(
                     'Crédito do cartão: ${cardMoney(card.creditMinor)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       color: SomiaColors.green,
                     ),
@@ -822,7 +822,7 @@ class _CardsPageState extends State<CardsPage> {
               const SizedBox(height: 12),
               _metric('Limite total', card.limitMinor ?? 0),
               if (card.limitMinor == null)
-                const Text(
+                Text(
                   'Sem controle de limite',
                   style: TextStyle(color: SomiaColors.muted),
                 ),
@@ -837,11 +837,11 @@ class _CardsPageState extends State<CardsPage> {
               const SizedBox(height: 12),
               Text(
                 'Fecha ${cardDateLabel(invoice.closingAt)} · Vence ${cardDateLabel(invoice.dueAt)}',
-                style: const TextStyle(color: SomiaColors.muted),
+                style: TextStyle(color: SomiaColors.muted),
               ),
               _metric('Fatura do mês', invoice.chargesMinor),
               Text(invoice.status,
-                  style: const TextStyle(color: SomiaColors.blue)),
+                  style: TextStyle(color: SomiaColors.blue)),
             ],
           ),
         ),
@@ -933,7 +933,7 @@ class _CardsPageState extends State<CardsPage> {
               ),
               Text(
                 'Fecha em ${cardDateLabel(invoice.closingAt)} · Vence em ${cardDateLabel(invoice.dueAt)}',
-                style: const TextStyle(color: SomiaColors.muted, fontSize: 13),
+                style: TextStyle(color: SomiaColors.muted, fontSize: 13),
               ),
               const SizedBox(height: 6),
               _referenceMetric('Fatura atual', invoice.chargesMinor),
@@ -1002,7 +1002,7 @@ class _CardsPageState extends State<CardsPage> {
                 const SizedBox(width: 12),
                 Expanded(
                     child: Text(label, style: const TextStyle(fontSize: 14))),
-                const Icon(Icons.chevron_right,
+                Icon(Icons.chevron_right,
                     size: 22, color: SomiaColors.muted),
               ],
             ),
@@ -1092,7 +1092,7 @@ class _CardsPageState extends State<CardsPage> {
               ],
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Mais ações',
               style: TextStyle(color: SomiaColors.muted, fontSize: 13),
             ),
@@ -1243,7 +1243,7 @@ class _CardsPageState extends State<CardsPage> {
                       ),
                       child: Text(
                         selected.status.toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: SomiaColors.blue,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -1274,14 +1274,14 @@ class _CardsPageState extends State<CardsPage> {
                         children: [
                           Text(
                             _referenceMoney(chartMax),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: SomiaColors.muted,
                               fontSize: 10,
                             ),
                           ),
                           Text(
                             _referenceMoney(chartMax ~/ 2),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: SomiaColors.muted,
                               fontSize: 10,
                             ),
@@ -1382,7 +1382,7 @@ class _CardsPageState extends State<CardsPage> {
                                 for (final invoice in shown)
                                   Expanded(
                                     child: invoice.id == selected.id
-                                        ? const Icon(
+                                        ? Icon(
                                             Icons.arrow_drop_up,
                                             size: 18,
                                             color: SomiaColors.blue,
@@ -1487,7 +1487,7 @@ class _CardsPageState extends State<CardsPage> {
         'Extrato · ${cardMonthLabel(invoice.month)}',
         style: Theme.of(context).textTheme.titleMedium,
       ),
-      const Text(
+      Text(
         'Itens desta fatura por data da compra e pagamentos por data do pagamento.',
         style: TextStyle(color: SomiaColors.muted, fontSize: 12),
       ),
@@ -1502,7 +1502,7 @@ class _CardsPageState extends State<CardsPage> {
           child: Text(
             cardDateLabel(cardDate(day)),
             key: ValueKey('card-statement-day-$day'),
-            style: const TextStyle(
+            style: TextStyle(
               color: SomiaColors.blue,
               fontWeight: FontWeight.w600,
             ),
@@ -1574,7 +1574,7 @@ class _CardsPageState extends State<CardsPage> {
                   category,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: SomiaColors.muted,
                     fontSize: 12,
                   ),
@@ -1585,7 +1585,7 @@ class _CardsPageState extends State<CardsPage> {
                   '${e.establishment.isEmpty ? '' : ' · ${e.establishment}'}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: SomiaColors.muted,
                     fontSize: 11,
                   ),
@@ -1624,7 +1624,7 @@ class _CardsPageState extends State<CardsPage> {
                     e.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: SomiaColors.blue,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -1900,7 +1900,7 @@ class _CardsPageState extends State<CardsPage> {
                             ),
                             Text(
                               '${_cards.length} ${_cards.length == 1 ? 'cartão' : 'cartões'}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 color: SomiaColors.blue,
                               ),

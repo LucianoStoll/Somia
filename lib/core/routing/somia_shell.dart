@@ -23,12 +23,12 @@ class _MobileNavigationScope extends InheritedWidget {
 }
 
 class _MenuDestination {
-  const _MenuDestination(
+  _MenuDestination(
     this.label,
     this.path,
     this.icon, [
-    this.color = SomiaColors.muted,
-  ]);
+    Color? color,
+  ]) : color = color ?? SomiaColors.muted;
   final String label;
   final String path;
   final IconData icon;
@@ -39,12 +39,12 @@ abstract final class MovementIdentity {
   static const incomeIcon = Icons.arrow_circle_up_outlined;
   static const expenseIcon = Icons.arrow_circle_down_outlined;
   static const transferIcon = Icons.swap_horiz;
-  static const incomeColor = SomiaColors.green;
-  static const expenseColor = SomiaColors.red;
-  static const transferColor = SomiaColors.muted;
+  static final incomeColor = SomiaColors.green;
+  static final expenseColor = SomiaColors.red;
+  static final transferColor = SomiaColors.muted;
 }
 
-const _menu = <_MenuDestination>[
+final _menu = <_MenuDestination>[
   _MenuDestination(
     'Resumo',
     AppRoutes.dashboardPath,
@@ -295,7 +295,7 @@ class _SomiaMobileNavigation extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(top: BorderSide(color: SomiaColors.outline)),
           ),
           child: Row(
@@ -398,7 +398,7 @@ class _SomiaMenu extends StatelessWidget {
                       '/categories' => 'ORGANIZAÇÃO',
                       _ => 'DIA A DIA',
                     },
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       color: SomiaColors.muted,
                     ),
@@ -457,7 +457,7 @@ class _SomiaMenu extends StatelessWidget {
         'PLANEJAMENTO',
         [
           _menu[9],
-          const _MenuDestination(
+          _MenuDestination(
             'Relatórios',
             AppRoutes.analysisPath,
             Icons.bar_chart_outlined,
@@ -470,7 +470,7 @@ class _SomiaMenu extends StatelessWidget {
       (
         'APLICATIVO',
         [
-          const _MenuDestination(
+          _MenuDestination(
             'Sincronização',
             '${AppRoutes.settingsPath}?section=sync',
             Icons.sync,
@@ -506,9 +506,9 @@ class _SomiaMenu extends StatelessWidget {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                padding: EdgeInsets.fromLTRB(12, 8, 12, 24),
                 children: [
-                  const ListTile(
+                  ListTile(
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                     leading: CircleAvatar(
                       backgroundColor: SomiaColors.surfaceHigh,
@@ -520,11 +520,11 @@ class _SomiaMenu extends StatelessWidget {
                     title: Text('Minhas finanças'),
                     subtitle: Text('Seu espaço no Somia'),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   _drawerDestination(context, _menu.first),
                   _drawerDestination(
                     context,
-                    const _MenuDestination(
+                    _MenuDestination(
                       'Movimentos',
                       AppRoutes.transactionsPath,
                       Icons.receipt_long_outlined,
@@ -539,7 +539,7 @@ class _SomiaMenu extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(16, 8, 8, 12),
                       child: Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           color: SomiaColors.muted,
                           fontWeight: FontWeight.w600,
@@ -574,7 +574,7 @@ class _SomiaMenu extends StatelessWidget {
       child: ListTile(
         key: ValueKey('menu-${destination.path}'),
         visualDensity: VisualDensity.standard,
-        trailing: const Icon(
+        trailing: Icon(
           Icons.chevron_right,
           size: 18,
           color: SomiaColors.muted,
@@ -692,14 +692,14 @@ class SomiaQuickActions extends StatelessWidget {
     }
     return PopupMenuButton<String>(
       tooltip: 'Adicionar lançamento ou transferência',
-      icon: const Icon(Icons.add),
+      icon: Icon(Icons.add),
       iconColor: Theme.of(context).colorScheme.onPrimary,
       style: IconButton.styleFrom(
         backgroundColor: Theme.of(context).colorScheme.primary,
         minimumSize: const Size(56, 56),
       ),
       onSelected: (action) => context.go(_pathFor(action)),
-      itemBuilder: (_) => const [
+      itemBuilder: (_) => [
         PopupMenuItem(
           value: 'income',
           child: ListTile(

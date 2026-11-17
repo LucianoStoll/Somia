@@ -29,7 +29,7 @@ class DashboardTransfersCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(children: [
-                    const Icon(Icons.swap_horiz, color: SomiaColors.blue),
+                    Icon(Icons.swap_horiz, color: SomiaColors.blue),
                     const SizedBox(width: 10),
                     const Expanded(
                         child: Text('Transferências',
@@ -38,15 +38,15 @@ class DashboardTransfersCard extends StatelessWidget {
                     IconButton(
                         tooltip: 'Nova transferência',
                         onPressed: () => open(true),
-                        icon: const Icon(Icons.add, color: SomiaColors.blue)),
+                        icon: Icon(Icons.add, color: SomiaColors.blue)),
                   ]),
                   if (c.transferCount == 0)
-                    const Text('Nenhuma transferência neste mês.',
+                    Text('Nenhuma transferência neste mês.',
                         style: TextStyle(color: SomiaColors.muted))
                   else ...[
                     Text(
                         '${c.transferCount} ${c.transferCount == 1 ? 'transferência' : 'transferências'} no mês',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12, color: SomiaColors.muted)),
                     const SizedBox(height: 8),
                     ModuleValueRow(

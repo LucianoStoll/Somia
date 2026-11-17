@@ -278,7 +278,7 @@ class _HistoryPanel extends StatelessWidget {
                           FittedBox(
                             child: Text(
                               _axisLabel(step * i),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10,
                                 color: SomiaColors.muted,
                               ),
@@ -338,7 +338,7 @@ class _HistoryPanel extends StatelessWidget {
                                             child: Text(
                                               _shortMonths[
                                                   item.month.month - 1],
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 10,
                                                 color: SomiaColors.muted,
                                               ),
@@ -360,7 +360,7 @@ class _HistoryPanel extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 10),
-        const Wrap(
+        Wrap(
           alignment: WrapAlignment.center,
           spacing: 18,
           runSpacing: 6,
@@ -403,7 +403,7 @@ class _Legend extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: SomiaColors.muted),
+            style: TextStyle(fontSize: 11, color: SomiaColors.muted),
           ),
         ],
       );
@@ -512,7 +512,7 @@ class _RecentTile extends StatelessWidget {
                     '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')} · ${item.accountLabel}${item.isEffective ? '' : ' · Pendente'}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       color: SomiaColors.muted,
                     ),
@@ -536,7 +536,7 @@ class _RecentTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 3),
-            const Icon(Icons.chevron_right, size: 16, color: SomiaColors.muted),
+            Icon(Icons.chevron_right, size: 16, color: SomiaColors.muted),
           ],
         ),
       ),

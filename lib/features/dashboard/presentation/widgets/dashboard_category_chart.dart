@@ -6,7 +6,7 @@ import '../../../accounts/domain/money_minor.dart';
 import '../../domain/entities/dashboard_summary.dart';
 import 'dashboard_palette.dart';
 
-const _colors = [
+final _colors = [
   Color(0xFFA5CDE2),
   SomiaColors.red,
   Color(0xFFF0C895),
@@ -207,9 +207,9 @@ class _DonutPainter extends CustomPainter {
         final label = TextPainter(
           text: TextSpan(
             text: '${(items[i].amountMinor * 100 / total).round()}%',
-            style: const TextStyle(
+            style: TextStyle(
               color: SomiaColors.background,
-              fontFamily: 'Roboto',
+              fontFamily: somiaFontFamily,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),

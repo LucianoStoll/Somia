@@ -153,7 +153,7 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
                     Flexible(
                         child: Text(
                       projected ? 'Previsto' : 'Realizado',
-                      style: const TextStyle(color: SomiaColors.muted),
+                      style: TextStyle(color: SomiaColors.muted),
                     )),
                   ],
                 ),
@@ -164,13 +164,13 @@ class _BalanceEvolutionPanelState extends State<BalanceEvolutionPanel> {
             Text(
               detail(index),
               key: const ValueKey('balance-day-detail'),
-              style: const TextStyle(color: SomiaColors.blue),
+              style: TextStyle(color: SomiaColors.blue),
             ),
             if (index <= actualEnd &&
                 point.projectedMinor != point.currentMinor)
               Text(
                 'Com pendências: ${MoneyMinor.display(point.projectedMinor, widget.currency.currencyCode)}',
-                style: const TextStyle(color: SomiaColors.muted),
+                style: TextStyle(color: SomiaColors.muted),
               ),
           ],
         ],

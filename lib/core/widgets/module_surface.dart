@@ -11,7 +11,7 @@ class ModuleSurface extends StatelessWidget {
           cardTheme: Theme.of(context)
               .cardTheme
               .copyWith(margin: const EdgeInsets.only(bottom: 12)),
-          expansionTileTheme: const ExpansionTileThemeData(
+          expansionTileTheme: ExpansionTileThemeData(
             shape: Border(),
             collapsedShape: Border(),
             iconColor: SomiaColors.muted,
@@ -29,13 +29,14 @@ class ModuleSurface extends StatelessWidget {
 }
 
 class ModuleHero extends StatelessWidget {
-  const ModuleHero(
+  ModuleHero(
       {super.key,
       required this.label,
       required this.value,
       required this.icon,
-      this.color = SomiaColors.blue,
-      this.children = const []});
+      Color? color,
+      this.children = const []})
+      : color = color ?? SomiaColors.blue;
   final String label, value;
   final IconData icon;
   final Color color;
@@ -49,7 +50,7 @@ class ModuleHero extends StatelessWidget {
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
                 child: Text(label,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: SomiaColors.muted, fontSize: 13))),
             Icon(icon, color: color, size: 22),
           ]),
@@ -78,7 +79,7 @@ class ModuleDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ExpansionTile(
         title: Text(title,
-            style: const TextStyle(fontSize: 13, color: SomiaColors.muted)),
+            style: TextStyle(fontSize: 13, color: SomiaColors.muted)),
         childrenPadding: const EdgeInsets.only(bottom: 12),
         expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
         children: children,
@@ -86,11 +87,12 @@ class ModuleDetails extends StatelessWidget {
 }
 
 class ModuleStat extends StatelessWidget {
-  const ModuleStat(
+  ModuleStat(
       {super.key,
       required this.label,
       required this.value,
-      this.color = SomiaColors.blue});
+      Color? color})
+      : color = color ?? SomiaColors.blue;
   final String label, value;
   final Color color;
   @override
@@ -101,7 +103,7 @@ class ModuleStat extends StatelessWidget {
             borderRadius: BorderRadius.circular(14)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
-              style: const TextStyle(color: SomiaColors.muted, fontSize: 12)),
+              style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
           const SizedBox(height: 6),
           Text(value,
               style: TextStyle(
@@ -118,7 +120,7 @@ class ModuleValueRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: LayoutBuilder(builder: (context, box) {
           final title = Text(label,
-              style: const TextStyle(color: SomiaColors.muted, fontSize: 13));
+              style: TextStyle(color: SomiaColors.muted, fontSize: 13));
           final amount = Text(value,
               style:
                   const TextStyle(fontSize: 14, fontWeight: FontWeight.w600));

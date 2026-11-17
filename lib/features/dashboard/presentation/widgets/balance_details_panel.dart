@@ -108,13 +108,13 @@ class _Details extends StatelessWidget {
                       children: [
                         Text(
                             '${monthNames[state.month.month - 1]} ${state.month.year} · $currencyCode',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: SomiaColors.blue,
                                 fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         Text(
                             'Corte: ${DateTime(state.month.year, state.month.month + 1, 0).day}/${state.month.month.toString().padLeft(2, '0')}/${state.month.year}. Inclui efetivações agendadas até essa data.',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: SomiaColors.muted, fontSize: 12)),
                         if (state.error != null) ...[
                           Text(state.error!),
@@ -155,7 +155,7 @@ class _Details extends StatelessWidget {
                           Text('Previsto',
                               style: Theme.of(context).textTheme.titleMedium),
                           const SizedBox(height: 6),
-                          const Text(
+                          Text(
                               'Parte do saldo efetivado e inclui pendências com vencimento até o corte, inclusive de meses anteriores.',
                               style: TextStyle(
                                   color: SomiaColors.muted, fontSize: 12)),
@@ -180,7 +180,7 @@ class _Details extends StatelessWidget {
                               color: SomiaColors.blue,
                               key: 'balance-projected'),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                               'Somente contas incluídas no saldo consolidado. Transferências entre elas se compensam. Pagamentos de cartão debitam a conta; a previsão inclui apenas a dívida restante.',
                               style: TextStyle(
                                   color: SomiaColors.muted, fontSize: 12)),

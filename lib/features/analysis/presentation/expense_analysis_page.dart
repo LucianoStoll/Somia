@@ -230,7 +230,7 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
             ModuleDetails(title: 'Como interpretar', children: [
               Text(explanation,
                   style:
-                      const TextStyle(color: SomiaColors.muted, fontSize: 13))
+                      TextStyle(color: SomiaColors.muted, fontSize: 13))
             ]),
             const SizedBox(height: 18),
             ...children
@@ -245,15 +245,15 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
         'Efetivação ou vencimento; cartões pelo vencimento da fatura. Inclui previstos, rateios e estornos. Toque para ver subcategorias e lançamentos.',
         [
           Text('Total: ${money(total)}',
-              style: const TextStyle(
+              style: TextStyle(
                   color: SomiaColors.blue,
                   fontSize: 25,
                   fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          if (rows.isEmpty) const Text('Nenhuma despesa neste mês.'),
+          SizedBox(height: 12),
+          if (rows.isEmpty) Text('Nenhuma despesa neste mês.'),
           for (final r in rows)
             AnalysisBar(
-                color: const [
+                color: [
                   SomiaColors.blue,
                   SomiaColors.purple,
                   SomiaColors.green,
@@ -345,7 +345,7 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
         'Compromissos futuros',
         'Próximos 6 meses após o selecionado. Pendências existentes hoje: despesas ainda não pagas e encargos de cartão não liquidados, sem repetir pagamentos ou saldos antigos. Recorrências ainda não geradas não são estimadas.',
         [
-          const Wrap(spacing: 16, children: [
+          Wrap(spacing: 16, children: [
             Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.circle, size: 8, color: SomiaColors.red),
               SizedBox(width: 6),
@@ -388,7 +388,7 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
                           const SizedBox(height: 6),
                           Text(
                               'Despesas: ${money(r.expenseTotal)} · Cartões: ${money(r.cardTotal)}',
-                              style: const TextStyle(color: SomiaColors.muted)),
+                              style: TextStyle(color: SomiaColors.muted)),
                         ]))),
         ]);
   }
@@ -493,7 +493,7 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
 }
 
 class AnalysisBar extends StatelessWidget {
-  const AnalysisBar(
+  AnalysisBar(
       {super.key,
       required this.label,
       required this.value,
@@ -501,8 +501,9 @@ class AnalysisBar extends StatelessWidget {
       required this.formatted,
       this.detail,
       this.onTap,
-      this.color = SomiaColors.blue,
-      this.signed = false});
+      Color? color,
+      this.signed = false})
+      : color = color ?? SomiaColors.blue;
   final String label, formatted;
   final String? detail;
   final int value, maximum;
@@ -567,6 +568,6 @@ class AnalysisBar extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 5),
                           child: Text(detail!,
                               style:
-                                  const TextStyle(color: SomiaColors.muted))),
+                                  TextStyle(color: SomiaColors.muted))),
                   ]))));
 }

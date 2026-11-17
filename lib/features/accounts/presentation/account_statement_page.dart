@@ -100,7 +100,7 @@ class _StatementViewState extends State<_StatementView> {
                       projected
                           ? 'Inclui realizados, pendentes pelo vencimento e agendados pela efetivação.'
                           : 'Somente movimentações efetivadas até hoje, no mês selecionado.',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: SomiaColors.muted, fontSize: 12)),
                   const SizedBox(height: 16),
                   LayoutBuilder(builder: (_, constraints) {
@@ -170,7 +170,7 @@ class _StatementViewState extends State<_StatementView> {
                                           section.openingMinor,
                                           ...section.dailyBalances
                                         ].reduce(math.max), currency)}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         color: SomiaColors.muted,
                                         fontSize: 12)),
                                 const SizedBox(height: 8),
@@ -251,7 +251,7 @@ class _StatementViewState extends State<_StatementView> {
                                       minHeight: 8),
                                   const SizedBox(height: 12)
                                 ],
-                                const Text(
+                                Text(
                                     'Transferências incluídas. Compensações de previsão de cartão aparecem separadamente.',
                                     style: TextStyle(
                                         color: SomiaColors.muted, fontSize: 12))
@@ -282,7 +282,7 @@ class _StatementViewState extends State<_StatementView> {
                                   Wrap(spacing: 12, children: [
                                     const Text('Saldo ao fim do dia'),
                                     Text(_money(day.closingMinor, currency),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontWeight: FontWeight.w600,
                                             color: SomiaColors.blue))
                                   ])
@@ -326,7 +326,7 @@ class _StatementViewState extends State<_StatementView> {
                     Padding(
                         padding: const EdgeInsets.only(left: 26, top: 3),
                         child: Text(entry.detail!,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: SomiaColors.muted, fontSize: 12))),
                   Padding(
                       padding: const EdgeInsets.only(left: 26, top: 4),
@@ -343,7 +343,7 @@ class _StatementViewState extends State<_StatementView> {
                                     : entry.kind == StatementKind.invoice
                                         ? 'Previsto'
                                         : 'Pendente / agendado',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: SomiaColors.muted, fontSize: 12))
                       ]))
                 ])));

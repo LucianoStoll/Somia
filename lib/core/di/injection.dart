@@ -1,6 +1,7 @@
 import '../../features/balances/domain/monthly_cash_flow.dart';
 import '../../features/balances/data/sqlite_monthly_cash_flow_repository.dart';
 import '../preferences/interface_preferences.dart';
+import '../theme/theme_controller.dart';
 import '../../features/analysis/data/expense_analysis_repository.dart';
 import '../../features/attachments/data/attachments_repository.dart';
 import '../../features/transactions/data/movement_management_repository.dart';
@@ -61,6 +62,7 @@ Future<void> configureDependencies(AppEnvironment environment) async {
       InterfacePreferences(File('${support.path}/somia-interface.json'));
   await preferences.load();
   getIt.registerSingleton<InterfacePreferences>(preferences);
+  getIt.registerSingleton<ThemeController>(ThemeController(preferences));
   final database = AppDatabase.open();
   try {
     // Força a abertura e a criação/migration antes de exibir a interface.

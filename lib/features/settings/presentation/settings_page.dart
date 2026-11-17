@@ -19,6 +19,8 @@ import '../../../core/database/backup_manager.dart';
 import '../../../core/database/local_backup_store.dart';
 import 'local_backups_panel.dart';
 import '../../../core/di/injection.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_controller.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/routing/somia_shell.dart';
 
@@ -236,6 +238,42 @@ class _SettingsPageState extends State<SettingsPage> {
               color: Theme.of(context).colorScheme.primary,
               fontWeight: FontWeight.w600)));
 
+  Widget _themeSelector() {
+    final controller = getIt.isRegistered<ThemeController>()
+        ? getIt<ThemeController>()
+        : null;
+    if (controller == null) return const SizedBox.shrink();
+    return ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Tema', style: Theme.of(context).textTheme.titleSmall),
+                  const SizedBox(height: SomiaSpace.sm),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<ThemeMode>(
+                      key: const Key('settings-theme-mode'),
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(
+                            value: ThemeMode.dark, label: Text('Escuro')),
+                        ButtonSegment(
+                            value: ThemeMode.light, label: Text('Claro')),
+                        ButtonSegment(
+                            value: ThemeMode.system, label: Text('Sistema')),
+                      ],
+                      selected: {controller.mode},
+                      onSelectionChanged: (value) =>
+                          controller.setMode(value.single),
+                    ),
+                  ),
+                  const SizedBox(height: SomiaSpace.xs),
+                  Text('Sistema acompanha o modo claro ou escuro do aparelho.',
+                      style: Theme.of(context).textTheme.bodySmall),
+                ]));
+  }
+
   Widget _option(String label, IconData icon, VoidCallback? onTap,
           {String? subtitle}) =>
       ListTile(
@@ -336,6 +374,8 @@ class _SettingsPageState extends State<SettingsPage> {
             _option('Google Drive', Icons.cloud_outlined, () => _open('drive')),
           if (_sync != null)
             _option('Sincronização', Icons.sync, () => _open('sync')),
+          _heading('Aparência'),
+          _themeSelector(),
           _heading('Ajuda e aplicativo'),
           _option('Entender os saldos', Icons.help_outline,
               () => showBalanceHelp(context)),

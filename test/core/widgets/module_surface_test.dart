@@ -17,7 +17,7 @@ void main() {
             data: MediaQueryData(
                 size: Size(pair.$1, 900),
                 textScaler: TextScaler.linear(pair.$2)),
-            child: const ModuleSurface(
+            child: ModuleSurface(
                 child: Scaffold(
                     body: SingleChildScrollView(
                         padding: EdgeInsets.all(16),

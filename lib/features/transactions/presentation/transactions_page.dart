@@ -772,7 +772,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                             : index == 0
                                 ? 'Realizado'
                                 : 'Previsto',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: SomiaColors.muted,
                           fontSize: 12,
                         ),
@@ -883,7 +883,7 @@ class _TransactionsViewState extends State<_TransactionsView> {
                     in groups[day]!.map((e) => e.currencyCode).toSet())
                   Text(
                     'Total listado: ${MoneyMinor.display(groups[day]!.where((e) => e.currencyCode == code).fold<int>(0, (sum, e) => sum + e.netMinor), code)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: SomiaColors.muted,
                       fontSize: 12,
                     ),

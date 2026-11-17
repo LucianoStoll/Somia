@@ -83,7 +83,7 @@ class SummaryInsights extends StatelessWidget {
                 color: SomiaColors.blue),
             row('Saldo previsto no fim do mês', c.projectedBalanceMinor),
           ],
-          const Text(
+          Text(
               'Caixa das contas incluídas no saldo. Compras no cartão entram no caixa pelo pagamento.',
               style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
         ]));
@@ -94,7 +94,7 @@ class SummaryInsights extends StatelessWidget {
             child: const Text('Ver despesas')),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text(
+          Text(
               'Despesas e faturas em aberto com vencimento até o fim do mês selecionado, incluindo atrasos anteriores.',
               style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
           const SizedBox(height: 8),
@@ -108,7 +108,7 @@ class SummaryInsights extends StatelessWidget {
               groups.values
                   .expand((e) => e)
                   .fold<int>(0, (sum, e) => sum + e.amountMinor)),
-          const Text('Faixas de vencimento calculadas em relação a hoje.',
+          Text('Faixas de vencimento calculadas em relação a hoje.',
               style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
         ]));
     final ranking = SummaryPanel(
@@ -118,7 +118,7 @@ class SummaryInsights extends StatelessWidget {
             child: const Text('Ver análises')),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('Efetivadas e previstas por categoria · mês selecionado',
+          Text('Efetivadas e previstas por categoria · mês selecionado',
               style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
           if (categories.isEmpty)
             const Padding(
@@ -146,7 +146,7 @@ class SummaryInsights extends StatelessWidget {
           const SizedBox(height: 12),
           row('Total por categorias', total),
           if (categories.length > 6)
-            const Text(
+            Text(
                 'As 6 maiores estão acima. Consulte as demais em Análises.',
                 style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
         ]));

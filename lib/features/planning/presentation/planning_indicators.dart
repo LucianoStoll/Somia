@@ -39,7 +39,7 @@ class _PlanningIndicatorsState extends State<PlanningIndicators> {
               child: Text(
                   '${monthNames[widget.month.month - 1]} ${widget.month.year} · ${widget.currency}',
                   style:
-                      const TextStyle(color: SomiaColors.muted, fontSize: 13))),
+                      TextStyle(color: SomiaColors.muted, fontSize: 13))),
           IconButton(
               tooltip: 'Como os indicadores são calculados',
               icon: const Icon(Icons.info_outline, size: 20),
@@ -72,14 +72,14 @@ class _PlanningIndicatorsState extends State<PlanningIndicators> {
                 setState(() => projected = selection.single)),
         const SizedBox(height: 16),
         if (!hasRows)
-          const Padding(
+          Padding(
               padding: EdgeInsets.only(bottom: 12),
               child: Text('Sem movimentos nesta moeda e neste mês.',
                   style: TextStyle(color: SomiaColors.muted))),
         ModuleValueRow(label: 'Receitas', value: money(data.income)),
         ModuleValueRow(label: 'Despesas', value: money(data.expense)),
         const Divider(height: 24),
-        const Text('Resultado do mês',
+        Text('Resultado do mês',
             style: TextStyle(color: SomiaColors.muted, fontSize: 13)),
         const SizedBox(height: 6),
         Text(money(data.result),
@@ -99,7 +99,7 @@ class _PlanningIndicatorsState extends State<PlanningIndicators> {
                 ? '—'
                 : '${rate.toStringAsFixed(1).replaceAll('.', ',')}%'),
         if (rate == null)
-          const Text('Sem receitas positivas para calcular o percentual.',
+          Text('Sem receitas positivas para calcular o percentual.',
               style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
         if (data.result < 0)
           Padding(
@@ -109,7 +109,7 @@ class _PlanningIndicatorsState extends State<PlanningIndicators> {
                       ? 'Despesas previstas acima das receitas.'
                       : 'Despesas realizadas acima das receitas.',
                   style:
-                      const TextStyle(color: SomiaColors.red, fontSize: 12))),
+                      TextStyle(color: SomiaColors.red, fontSize: 12))),
       ]),
     ));
   }

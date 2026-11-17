@@ -189,7 +189,7 @@ class _DashboardViewState extends State<_DashboardView>
               children: [
                 Text(
                   'Olá, bem-vindo ao Somia!',
-                  style: const TextStyle(color: SomiaColors.muted),
+                  style: TextStyle(color: SomiaColors.muted),
                 ),
                 const SizedBox(height: 3),
                 Row(
@@ -305,7 +305,7 @@ class _DashboardViewState extends State<_DashboardView>
               else
                 DesktopHistoryChart(currency: view),
               const SizedBox(height: 12),
-              const Wrap(
+              Wrap(
                 alignment: WrapAlignment.center,
                 spacing: 18,
                 children: [

@@ -1,8 +1,14 @@
 # Somia — Identidade visual e interface do MVP
 
-Versão do documento: 1.3 • 30/09/2026  
-Projeto: FinApp • Marco: v0.1.0-alpha  
+Versão do documento: 1.4 • 17/11/2026  
+Projeto: FinApp • Marco: v0.1.0-alpha (revisado para v0.4.0-alpha)  
 Origem: chat “Definir identidade visual”, de 28/09/2026.
+
+> **Atualização de 17/11/2026 — nova direção visual “Fluxo”.** A seção
+> [Direção Fluxo](#direção-fluxo--17112026) no fim deste documento substitui
+> a paleta azul acinzentada, a tipografia Roboto, a regra de “somente tema
+> escuro” e a composição do gráfico do resumo mobile descritas nas seções 1, 3
+> e 5. As demais decisões de navegação e regras de dados continuam valendo.
 
 ## 1. Decisões aprovadas
 
@@ -403,3 +409,34 @@ A identidade mantém grafite, azul acinzentado e cores semânticas do Somia.
 Os valores vêm do repositório; a proporção amortizada usa principal sobre
 saldo inicial. Não há estimativa de juros futuros nem criação automática
 de movimentos ao cadastrar uma dívida.
+
+## Direção Fluxo — 17/11/2026
+
+Escolhida entre três direções exploradas (Ardósia, Fluxo e Clareza) para a
+refatoração da interface no ciclo v0.4.0-alpha. Mockups: tela de Resumo
+(Android, escuro e claro), Despesas, Nova despesa e Resumo no Windows.
+
+### Decisões aprovadas
+
+| Item | Decisão |
+| --- | --- |
+| Temas | Escuro e claro desde já, com opção “Sistema”. Escuro continua sendo o padrão. |
+| Fundo e superfícies | Azul-índigo profundo no escuro (`#0F1222` / `#191D33`); quase branco frio no claro (`#F5F6FB` / `#FFFFFF`). |
+| Cor de destaque | Âmbar (`#F2B45A` no escuro, `#94600C` no claro): ação principal, previsão, item ativo e pendências. |
+| Entradas e saídas | Verde-água para entradas, coral para saídas; sinal `+`/`−` sempre presente, sem depender só da cor. |
+| Tipografia | Plus Jakarta Sans (empacotada, funciona offline), algarismos tabulares nos valores. |
+| Gráfico do resumo | Linha do saldo ao longo do mês: realizado em linha cheia até hoje e previsão tracejada em âmbar até o fim do mês. Substitui as barras de 6 meses no resumo mobile. |
+| Seção “Ainda este mês” | Aprovada no resumo: lançamentos a pagar/receber até o fim do mês, com ação **Efetivar** na própria linha. |
+| Botão de lançar | Somente o ícone **+** (sem texto), abrindo o balão com Receita, Despesa e Transferência. |
+| Listas | Agrupadas por dia, com total do dia; pendências primeiro, marcadas por contorno e ação Efetivar. |
+| Contraste | Textos e valores com contraste mínimo de 4,5:1 nos dois temas (verificado em teste). |
+
+### Implementação
+
+- Tokens em `lib/core/theme/somia_tokens.dart` (`SomiaTokens`, `SomiaSpace`,
+  `SomiaRadius`); tema Material derivado em `AppTheme.build`.
+- Código novo lê cores por `context.somia`. `SomiaColors` virou uma ponte que
+  devolve a cor do tema ativo e sai quando todas as telas forem migradas.
+- Escolha do tema em Configurações › Aparência, guardada nas preferências
+  locais da interface (não entra no backup nem na sincronização).
+

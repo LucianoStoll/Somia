@@ -4,6 +4,7 @@ import '../core/database/backup_lifecycle.dart';
 import '../core/di/injection.dart';
 import '../core/routing/app_router.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_controller.dart';
 import '../core/sync/auto_sync_controller.dart';
 import '../core/sync/sync_lifecycle.dart';
 
@@ -14,14 +15,19 @@ class FinApp extends StatefulWidget {
   State<FinApp> createState() => _FinAppState();
 }
 
-class _FinAppState extends State<FinApp> {
+class _FinAppState extends State<FinApp> with WidgetsBindingObserver {
   BackupManager? _manager;
+  late final ThemeController _theme = getIt.isRegistered<ThemeController>()
+      ? getIt<ThemeController>()
+      : ThemeController();
   AutoSyncController? _auto;
   int _revision = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _theme.addListener(_themeChanged);
     if (getIt.isRegistered<AutoSyncController>()) {
       _auto = getIt<AutoSyncController>();
     }
@@ -48,20 +54,57 @@ class _FinAppState extends State<FinApp> {
   }
 
   @override
+  void didChangePlatformBrightness() {
+    if (_theme.mode == ThemeMode.system) _themeChanged();
+  }
+
+  void _themeChanged() => setState(() {});
+
+  /// Tokens do tema efetivo, considerando a escolha do usuário e o sistema.
+  SomiaTokens _effectiveTokens() {
+    final platform =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final dark = switch (_theme.mode) {
+      ThemeMode.dark => true,
+      ThemeMode.light => false,
+      ThemeMode.system => platform == Brightness.dark,
+    };
+    return dark ? SomiaTokens.dark : SomiaTokens.light;
+  }
+
+  /// Telas antigas leem `SomiaColors` fora do `Theme`; ao trocar de tema,
+  /// reconstrói a árvore inteira preservando estado (formulários, rolagem).
+  void _rebuildEverything() {
+    void mark(Element element) {
+      element.markNeedsBuild();
+      element.visitChildren(mark);
+    }
+
+    if (mounted) (context as Element).visitChildren(mark);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _theme.removeListener(_themeChanged);
     _manager?.removeListener(_databaseChanged);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final tokens = _effectiveTokens();
+    if (!identical(SomiaColors.active, tokens)) {
+      SomiaColors.active = tokens;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _rebuildEverything());
+    }
     final app = MaterialApp.router(
       key: ValueKey(_revision),
       title: 'Somia',
       debugShowCheckedModeBanner: false,
       darkTheme: AppTheme.dark,
-      theme: AppTheme.dark,
-      themeMode: ThemeMode.dark,
+      theme: AppTheme.light,
+      themeMode: _theme.mode,
       routerConfig: appRouter,
       builder: (context, child) => Stack(children: [
         ExcludeFocus(

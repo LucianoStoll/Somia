@@ -67,7 +67,7 @@ class PlanningComparisonPanel extends StatelessWidget {
               percent == null
                   ? 'Sem base positiva no mês anterior para calcular o percentual.'
                   : '${percent > 0 ? '+' : ''}${percent.toStringAsFixed(1).replaceAll('.', ',')}% em relação ao mês anterior',
-              style: const TextStyle(fontSize: 12, color: SomiaColors.muted)),
+              style: TextStyle(fontSize: 12, color: SomiaColors.muted)),
           if (comparison.changes.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Text('Maiores mudanças',
@@ -96,7 +96,7 @@ class PlanningComparisonPanel extends StatelessWidget {
                                   const TextStyle(fontWeight: FontWeight.w600)),
                           Text(
                               '${money(change.previous)} → ${money(change.current)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 12, color: SomiaColors.muted)),
                         ]));
               }),

@@ -164,7 +164,7 @@ class _DebtsPageState extends State<DebtsPage> {
               children: children)));
 
   Widget _label(String text) => Text(text,
-      style: const TextStyle(color: SomiaColors.muted, fontSize: 13));
+      style: TextStyle(color: SomiaColors.muted, fontSize: 13));
   Widget _value(int value, {double size = 24}) => Text(_money(value),
       style: TextStyle(fontSize: size, fontWeight: FontWeight.w700));
   Widget _badge(Debt debt, {double size = 48}) => Container(
@@ -273,7 +273,7 @@ class _DebtsPageState extends State<DebtsPage> {
         Row(children: [
           _label('Saldo devedor'),
           const SizedBox(width: 6),
-          const Tooltip(
+          Tooltip(
               message: 'Somente pagamentos efetivados amortizam o saldo atual. '
                   'A projeção considera as parcelas vinculadas, sem juros futuros.',
               child:
@@ -307,7 +307,7 @@ class _DebtsPageState extends State<DebtsPage> {
               style: ButtonStyle(
                   shape: WidgetStatePropertyAll(RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12))),
-                  side: const WidgetStatePropertyAll(
+                  side: WidgetStatePropertyAll(
                       BorderSide(color: SomiaColors.outline)),
                   backgroundColor: WidgetStateProperty.resolveWith((states) =>
                       states.contains(WidgetState.selected)
@@ -415,7 +415,7 @@ class _DebtsPageState extends State<DebtsPage> {
             title: Text(payment.description,
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             subtitle: Text('${assetDate(payment.date)} · ${_status(payment)}',
-                style: const TextStyle(fontSize: 12, color: SomiaColors.muted)),
+                style: TextStyle(fontSize: 12, color: SomiaColors.muted)),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               Text(_money(payment.amountMinor),
                   style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -480,7 +480,7 @@ class _DebtsPageState extends State<DebtsPage> {
             icon: const Icon(Icons.link),
             label: const Text('Vincular despesa')),
         const SizedBox(height: 10),
-        const Text('Vincule pagamentos já registrados.',
+        Text('Vincule pagamentos já registrados.',
             textAlign: TextAlign.center,
             style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
       ]),
@@ -516,7 +516,7 @@ class _DebtsPageState extends State<DebtsPage> {
               label: const Text('Editar dívida')),
         ])
       else ...[
-        const Padding(
+        Padding(
             padding: EdgeInsets.only(bottom: 16),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Icon(Icons.info_outline, size: 16, color: SomiaColors.blue),
@@ -532,7 +532,7 @@ class _DebtsPageState extends State<DebtsPage> {
       ],
       const SizedBox(height: 4),
       _card([
-        const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(Icons.info_outline, size: 18, color: SomiaColors.muted),
           SizedBox(width: 10),
           Expanded(
@@ -567,7 +567,7 @@ class _DebtsPageState extends State<DebtsPage> {
             appBar: AppBar(
                 toolbarHeight: debt == null ? 76 : 64,
                 title: debt == null
-                    ? const Column(
+                    ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                             Text('Dívidas',
@@ -617,7 +617,7 @@ class _DebtsPageState extends State<DebtsPage> {
                             Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: Text(_error!,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         color: SomiaColors.red))),
                           if (debt == null)
                             ..._overview(debts)

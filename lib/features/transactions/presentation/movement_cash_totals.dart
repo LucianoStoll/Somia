@@ -13,7 +13,7 @@ class MovementCashTotals extends StatelessWidget {
     Widget column(String title, bool paid) =>
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title,
-              style: const TextStyle(color: SomiaColors.muted, fontSize: 12)),
+              style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
           const SizedBox(height: 4),
           for (final code in codes)
             FittedBox(
@@ -41,7 +41,7 @@ class MovementCashTotals extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text('Totais do mês · mesmas contas do Resumo',
+                      Text('Totais do mês · mesmas contas do Resumo',
                           style: TextStyle(
                               color: SomiaColors.muted, fontSize: 11)),
                       const SizedBox(height: 12),

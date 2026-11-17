@@ -155,7 +155,7 @@ class _SummaryMetricsState extends State<SummaryMetrics> {
                   children: [
                 Expanded(child: left),
                 if (divider)
-                  const SizedBox(
+                  SizedBox(
                       height: 56,
                       child: VerticalDivider(
                           width: 26, color: SomiaColors.outline))
@@ -188,7 +188,7 @@ class _SummaryMetricsState extends State<SummaryMetrics> {
                       const SizedBox(width: 9),
                       Expanded(child: amount(title, value, color, small: true)),
                       const SizedBox(width: 2),
-                      const Icon(Icons.chevron_right,
+                      Icon(Icons.chevron_right,
                           color: SomiaColors.muted, size: 16),
                     ]))));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -215,7 +215,7 @@ class _SummaryMetricsState extends State<SummaryMetrics> {
                                             : period.isBefore(current)
                                                 ? 'Saldo efetivado no mês'
                                                 : 'Saldo atual',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             color: SomiaColors.blue,
                                             fontSize: 15,
                                             fontWeight: FontWeight.w500)),
@@ -224,7 +224,7 @@ class _SummaryMetricsState extends State<SummaryMetrics> {
                                         money(period.isAfter(current)
                                             ? c.projectedBalanceMinor
                                             : c.currentBalanceMinor),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             color: SomiaColors.blue,
                                             fontSize: 34,
                                             fontWeight: FontWeight.w700)),
@@ -244,7 +244,7 @@ class _SummaryMetricsState extends State<SummaryMetrics> {
                             ]),
                         const SizedBox(height: 10),
                         Wrap(spacing: 8, runSpacing: 4, children: [
-                          const Text('Previsto no fim do mês',
+                          Text('Previsto no fim do mês',
                               style: TextStyle(
                                   color: SomiaColors.muted, fontSize: 13)),
                           Text(money(c.projectedBalanceMinor),
@@ -253,7 +253,7 @@ class _SummaryMetricsState extends State<SummaryMetrics> {
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600, fontSize: 14)),
                         ]),
-                        const Divider(height: 26, color: SomiaColors.outline),
+                        Divider(height: 26, color: SomiaColors.outline),
                         pair(
                             amount('Recebido no mês', d?.incomeMinor ?? 0,
                                 SomiaColors.green),
@@ -379,7 +379,7 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'Pendências até o fim do mês selecionado, incluindo atrasadas.',
               style: TextStyle(color: SomiaColors.muted),
             ),
@@ -404,7 +404,7 @@ class _UpcomingPanelState extends State<UpcomingPanel> {
                     ),
                     Text(
                       '${item.date.day.toString().padLeft(2, '0')}/${item.date.month.toString().padLeft(2, '0')}/${item.date.year} • ${item.isOverdue(DateTime.now()) ? 'Vencido' : 'Pendente'}',
-                      style: const TextStyle(color: SomiaColors.muted),
+                      style: TextStyle(color: SomiaColors.muted),
                     ),
                     Wrap(
                       alignment: WrapAlignment.spaceBetween,
@@ -502,7 +502,7 @@ class _SummaryAccountsState extends State<SummaryAccounts> {
                     padding: const EdgeInsets.only(top: 12, bottom: 8),
                     child: Text(
                       '${investment ? 'Investimentos' : 'Dia a dia'} • ${currency.currencyCode}',
-                      style: const TextStyle(color: SomiaColors.muted),
+                      style: TextStyle(color: SomiaColors.muted),
                     ),
                   ),
                 for (final a in currency.accounts.where(
@@ -531,7 +531,7 @@ class _SummaryAccountsState extends State<SummaryAccounts> {
                                   a.includeInBalance
                                       ? 'Incluída no saldo'
                                       : 'Fora do saldo principal',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: SomiaColors.muted,
                                     fontSize: 12,
                                   ),
