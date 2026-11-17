@@ -1,6 +1,10 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  errors:
+    # O Flutter 3.50 marcou package:flutter/material.dart como obsoleto em favor
+    # de package:material_ui. Até a migração, o aviso não deve barrar o CI.
+    deprecated_member_use: ignore
   exclude:
     - "**/*.g.dart"
     - build/**
