@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../di/injection.dart';
 import '../database/backup_manager.dart';
+import '../sync/sync_manager.dart';
 import '../widgets/somia_brand.dart';
 import 'app_router.dart';
 
@@ -26,91 +27,96 @@ class _MenuDestination {
   _MenuDestination(
     this.label,
     this.path,
-    this.icon, [
-    Color? color,
-  ]) : color = color ?? SomiaColors.muted;
+    this.icon, {
+    this.hint,
+    this.also = const {},
+  });
   final String label;
   final String path;
   final IconData icon;
-  final Color color;
+
+  /// Descrição curta exibida no menu do celular.
+  final String? hint;
+
+  /// Outras rotas que mantêm este item selecionado.
+  final Set<String> also;
 }
 
 abstract final class MovementIdentity {
   static const incomeIcon = Icons.arrow_circle_up_outlined;
   static const expenseIcon = Icons.arrow_circle_down_outlined;
   static const transferIcon = Icons.swap_horiz;
-  static final incomeColor = SomiaColors.green;
-  static final expenseColor = SomiaColors.red;
-  static final transferColor = SomiaColors.muted;
+  // Getters: a cor acompanha o tema ativo (claro ou escuro).
+  static Color get incomeColor => SomiaColors.green;
+  static Color get expenseColor => SomiaColors.red;
+  static Color get transferColor => SomiaColors.purple;
 }
 
-final _menu = <_MenuDestination>[
+/// Destinos da barra inferior do Android; no Windows ficam no topo da
+/// barra lateral.
+final _primary = <_MenuDestination>[
+  _MenuDestination('Resumo', AppRoutes.dashboardPath, Icons.home_outlined),
   _MenuDestination(
-    'Resumo',
-    AppRoutes.dashboardPath,
-    Icons.home_outlined,
-    SomiaColors.blue,
+    'Movimentos',
+    AppRoutes.transactionsPath,
+    Icons.receipt_long_outlined,
+    also: {
+      AppRoutes.incomePath,
+      AppRoutes.expensesPath,
+      AppRoutes.transfersPath,
+    },
   ),
   _MenuDestination(
-    'Receitas',
-    AppRoutes.incomePath,
-    MovementIdentity.incomeIcon,
-    MovementIdentity.incomeColor,
+    'Cartões',
+    AppRoutes.cardsPath,
+    Icons.credit_card_outlined,
+    also: {AppRoutes.debitCardsPath, AppRoutes.cashbackPath},
   ),
   _MenuDestination(
-    'Despesas',
-    AppRoutes.expensesPath,
-    MovementIdentity.expenseIcon,
-    MovementIdentity.expenseColor,
-  ),
-  _MenuDestination(
-    'Transferências',
-    AppRoutes.transfersPath,
-    MovementIdentity.transferIcon,
-    MovementIdentity.transferColor,
-  ),
+      'Relatórios', AppRoutes.analysisPath, Icons.bar_chart_outlined),
+];
+
+/// Áreas que só aparecem no menu lateral.
+final _secondary = <_MenuDestination>[
   _MenuDestination(
     'Contas',
     AppRoutes.accountsPath,
-    Icons.account_balance_wallet_outlined,
+    Icons.account_balance_outlined,
+    hint: 'Saldos e extratos',
   ),
-  _MenuDestination('Cartões', AppRoutes.cardsPath, Icons.credit_card_outlined),
-  _MenuDestination('Débito', AppRoutes.debitCardsPath, Icons.payment_outlined),
-  _MenuDestination('Cashback', AppRoutes.cashbackPath, Icons.paid_outlined),
+  _MenuDestination(
+    'Planejamento',
+    AppRoutes.planningPath,
+    Icons.flag_outlined,
+    hint: 'Orçamentos e metas',
+  ),
+  _MenuDestination(
+    'Patrimônio',
+    AppRoutes.investmentsPath,
+    Icons.savings_outlined,
+    hint: 'Investimentos, bens e dívidas',
+    also: {AppRoutes.assetsPath, AppRoutes.debtsPath},
+  ),
   _MenuDestination(
     'Pessoas e reembolsos',
     AppRoutes.reimbursementsPath,
     Icons.people_outline,
-  ),
-  _MenuDestination('Planejamento', AppRoutes.planningPath, Icons.flag_outlined),
-  _MenuDestination(
-    'Análises',
-    AppRoutes.analysisPath,
-    Icons.bar_chart_outlined,
+    hint: 'Valores a receber de outras pessoas',
   ),
   _MenuDestination(
-    'Investimentos',
-    AppRoutes.investmentsPath,
-    Icons.savings_outlined,
-  ),
-  _MenuDestination(
-    'Bens e patrimônio',
-    AppRoutes.assetsPath,
-    Icons.home_work_outlined,
-  ),
-  _MenuDestination(
-    'Dívidas e empréstimos',
-    AppRoutes.debtsPath,
-    Icons.account_balance_outlined,
-  ),
-  _MenuDestination('Categorias', AppRoutes.categoriesPath, Icons.sell_outlined),
-  _MenuDestination('Lixeira', AppRoutes.trashPath, Icons.delete_outline),
-  _MenuDestination(
-    'Configurações',
-    AppRoutes.settingsPath,
-    Icons.settings_outlined,
+    'Categorias',
+    AppRoutes.categoriesPath,
+    Icons.sell_outlined,
+    hint: 'Despesas e receitas',
   ),
 ];
+
+final _settings = _MenuDestination(
+  'Configurações',
+  AppRoutes.settingsPath,
+  Icons.settings_outlined,
+  also: {AppRoutes.trashPath},
+);
 
 /// O drawer pertence ao Scaffold externo; este botão o abre a partir das páginas.
 Widget? somiaMenuLeading(BuildContext context) =>
@@ -244,7 +250,12 @@ class _SomiaMobileNavigation extends StatelessWidget {
       AppRoutes.transfersPath,
     }.contains(location);
     final reports = location == AppRoutes.analysisPath;
-    final cards = location == AppRoutes.cardsPath;
+    final cards = {
+      AppRoutes.cardsPath,
+      AppRoutes.debitCardsPath,
+      AppRoutes.cashbackPath,
+    }.contains(location);
+    final t = context.somia;
 
     Widget destination(
       String label,
@@ -252,35 +263,37 @@ class _SomiaMobileNavigation extends StatelessWidget {
       bool selected,
       VoidCallback onTap,
     ) {
-      final color = selected ? SomiaColors.blue : SomiaColors.muted;
       return Expanded(
         child: InkWell(
           key: ValueKey('bottom-$label'),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: color, size: 25),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 56,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? t.accent.withValues(alpha: t.isDark ? 0.16 : 0.14)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(SomiaRadius.pill),
+                  ),
+                  child: Icon(icon,
+                      color: selected ? t.accent : t.muted, size: 22),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: color,
-                    fontSize: 11,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Container(
-                  width: 28,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: selected ? SomiaColors.blue : Colors.transparent,
-                    borderRadius: BorderRadius.circular(3),
+                    color: selected ? t.ink : t.muted,
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ],
@@ -291,12 +304,12 @@ class _SomiaMobileNavigation extends StatelessWidget {
     }
 
     return Material(
-      color: SomiaColors.sidebar,
+      color: t.surface,
       child: SafeArea(
         top: false,
         child: Container(
           decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: SomiaColors.outline)),
+            border: Border(top: BorderSide(color: t.outline)),
           ),
           child: Row(
             children: [
@@ -342,23 +355,32 @@ class _SomiaMenu extends StatelessWidget {
   final bool isDrawer;
   final bool compact;
 
+  bool _isSelected(_MenuDestination destination) =>
+      location == destination.path ||
+      destination.also.contains(location) ||
+      (destination.path == AppRoutes.accountsPath &&
+          location.startsWith('${AppRoutes.accountsPath}/'));
+
+  void _go(BuildContext context, String path) {
+    final router = GoRouter.of(context);
+    if (isDrawer) Navigator.of(context).pop();
+    if (location != path) router.go(path);
+  }
+
   @override
-  Widget build(BuildContext context) {
-    if (isDrawer) return _buildDrawer(context);
+  Widget build(BuildContext context) =>
+      isDrawer ? _buildDrawer(context) : _buildSidebar(context);
+
+  Widget _buildSidebar(BuildContext context) {
+    final t = context.somia;
     return Material(
-      color: SomiaColors.sidebar,
+      color: t.sidebar,
       child: SafeArea(
         right: false,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            compact ? 10 : 14,
-            18,
-            compact ? 10 : 14,
-            16,
-          ),
+        child: Column(
           children: [
             Padding(
-              padding: EdgeInsets.fromLTRB(compact ? 8 : 14, 20, 8, 32),
+              padding: EdgeInsets.fromLTRB(compact ? 8 : 26, 28, 8, 24),
               child: Row(
                 mainAxisAlignment: compact
                     ? MainAxisAlignment.center
@@ -370,135 +392,92 @@ class _SomiaMenu extends StatelessWidget {
                     const Expanded(
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: SomiaBrand(height: 42),
+                        child: SomiaBrand(height: 38),
                       ),
-                    ),
-                  if (isDrawer)
-                    IconButton(
-                      tooltip: 'Fechar menu',
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
                     ),
                 ],
               ),
             ),
-            for (final destination in _menu) ...[
-              if (const {
-                '/',
-                '/planning',
-                '/investments',
-                '/categories',
-              }.contains(destination.path))
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 16, 8, 8),
-                  child: Text(
-                    switch (destination.path) {
-                      '/planning' => 'PLANEJAMENTO',
-                      '/investments' => 'PATRIMÔNIO',
-                      '/categories' => 'ORGANIZAÇÃO',
-                      _ => 'DIA A DIA',
-                    },
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: SomiaColors.muted,
-                    ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
+                children: [
+                  for (final destination in _primary)
+                    _sidebarTile(context, destination),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: SomiaSpace.md, horizontal: SomiaSpace.md),
+                    child: Divider(color: t.outline),
                   ),
-                ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: ListTile(
-                  key: ValueKey('menu-${destination.path}'),
-                  leading: Icon(destination.icon, color: destination.color),
-                  title: compact ? null : Text(destination.label),
-                  minLeadingWidth: 0,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: compact ? 18 : 14,
-                  ),
-                  selected: location == destination.path ||
-                      (destination.path == AppRoutes.accountsPath &&
-                          location.startsWith('${AppRoutes.accountsPath}/')),
-                  selectedTileColor: SomiaColors.surfaceHigh,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onTap: () {
-                    final router = GoRouter.of(context);
-                    if (isDrawer) Navigator.of(context).pop();
-                    if (location != destination.path) {
-                      router.go(destination.path);
-                    }
-                  },
-                ),
+                  for (final destination in _secondary)
+                    _sidebarTile(context, destination),
+                ],
               ),
-            ],
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                  compact ? 10 : 14, SomiaSpace.sm, compact ? 10 : 14, 16),
+              child: _sidebarTile(context, _settings),
+            ),
           ],
         ),
       ),
     );
   }
 
+  Widget _sidebarTile(BuildContext context, _MenuDestination destination) {
+    final t = context.somia;
+    final selected = _isSelected(destination);
+    final tile = Padding(
+      padding: const EdgeInsets.only(bottom: SomiaSpace.xs),
+      child: ListTile(
+        key: ValueKey('menu-${destination.path}'),
+        leading: Icon(destination.icon,
+            color: selected ? t.accent : t.muted, size: 22),
+        title: compact
+            ? null
+            : Text(
+                destination.label,
+                style: TextStyle(
+                  color: t.ink,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+        minLeadingWidth: 0,
+        contentPadding: EdgeInsets.symmetric(horizontal: compact ? 18 : 14),
+        selected: selected,
+        selectedTileColor: t.accent.withValues(alpha: t.isDark ? 0.14 : 0.12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SomiaRadius.sm),
+        ),
+        onTap: () => _go(context, destination.path),
+      ),
+    );
+    return compact ? Tooltip(message: destination.label, child: tile) : tile;
+  }
+
   Widget _buildDrawer(BuildContext context) {
-    final groups = <(String, List<_MenuDestination>)>[
-      (
-        'FINANÇAS',
-        [
-          _menu[4],
-          _menu[5],
-          _menu[14],
-          _menu[3],
-          _menu[1],
-          _menu[2],
-          _menu[6],
-          _menu[7],
-          _menu[8],
-        ],
-      ),
-      (
-        'PLANEJAMENTO',
-        [
-          _menu[9],
-          _MenuDestination(
-            'Relatórios',
-            AppRoutes.analysisPath,
-            Icons.bar_chart_outlined,
-          ),
-          _menu[11],
-          _menu[12],
-          _menu[13],
-        ],
-      ),
-      (
-        'APLICATIVO',
-        [
-          _MenuDestination(
-            'Sincronização',
-            '${AppRoutes.settingsPath}?section=sync',
-            Icons.sync,
-          ),
-          _menu[15],
-          _menu[16],
-        ],
-      ),
-    ];
+    final t = context.somia;
+    final syncAvailable = getIt.isRegistered<SyncManager>();
     return Material(
-      color: SomiaColors.sidebar,
+      color: t.sidebar,
       child: SafeArea(
         right: false,
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 16, 12),
+              padding: const EdgeInsets.fromLTRB(24, 20, 12, 16),
               child: Row(
                 children: [
                   const Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: SomiaBrand(height: 36),
+                      child: SomiaBrand(height: 34),
                     ),
                   ),
                   IconButton(
                     tooltip: 'Fechar menu',
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: t.muted),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -506,94 +485,86 @@ class _SomiaMenu extends StatelessWidget {
             ),
             Expanded(
               child: ListView(
-                padding: EdgeInsets.fromLTRB(12, 8, 12, 24),
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                 children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                    leading: CircleAvatar(
-                      backgroundColor: SomiaColors.surfaceHigh,
-                      child: Icon(
-                        Icons.person_outline,
-                        color: SomiaColors.blue,
-                      ),
-                    ),
-                    title: Text('Minhas finanças'),
-                    subtitle: Text('Seu espaço no Somia'),
+                  for (final destination in _secondary)
+                    _drawerDestination(context, destination),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: SomiaSpace.sm, horizontal: SomiaSpace.md),
+                    child: Divider(color: t.outline),
                   ),
-                  SizedBox(height: 16),
-                  _drawerDestination(context, _menu.first),
-                  _drawerDestination(
-                    context,
-                    _MenuDestination(
-                      'Movimentos',
-                      AppRoutes.transactionsPath,
-                      Icons.receipt_long_outlined,
-                    ),
-                  ),
-                  for (final (title, destinations) in groups) ...[
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Divider(height: 1),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 8, 12),
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: SomiaColors.muted,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    for (final destination in destinations)
-                      _drawerDestination(context, destination),
-                  ],
+                  _drawerDestination(context, _settings),
                 ],
               ),
             ),
+            if (syncAvailable)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                child: Material(
+                  color: t.surface,
+                  borderRadius: BorderRadius.circular(SomiaRadius.md),
+                  child: ListTile(
+                    key: const ValueKey('menu-sync'),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(SomiaRadius.md),
+                    ),
+                    leading: Icon(Icons.sync, color: t.muted),
+                    title: const Text('Sincronização'),
+                    subtitle: const Text('Ver estado e sincronizar agora'),
+                    onTap: () =>
+                        _go(context, '${AppRoutes.settingsPath}?section=sync'),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  bool _isSelected(_MenuDestination destination) =>
-      location == destination.path ||
-      (destination.path == AppRoutes.accountsPath &&
-          location.startsWith('${AppRoutes.accountsPath}/'));
-
   Widget _drawerDestination(
     BuildContext context,
     _MenuDestination destination,
   ) {
-    final uri = GoRouter.maybeOf(context)?.routeInformationProvider.value.uri ??
-        Uri.parse(location);
+    final t = context.somia;
+    final selected = _isSelected(destination);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.only(bottom: SomiaSpace.xxs),
       child: ListTile(
         key: ValueKey('menu-${destination.path}'),
-        visualDensity: VisualDensity.standard,
-        trailing: Icon(
-          Icons.chevron_right,
-          size: 18,
-          color: SomiaColors.muted,
-        ),
         minLeadingWidth: 0,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-        leading: Icon(destination.icon, color: destination.color),
-        title: Text(destination.label),
-        selected: destination.path.contains('?')
-            ? uri.toString() == destination.path
-            : _isSelected(destination) &&
-                !(destination.path == AppRoutes.settingsPath && uri.hasQuery),
-        selectedTileColor: SomiaColors.surfaceHigh,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        onTap: () {
-          final router = GoRouter.of(context);
-          Navigator.of(context).pop();
-          if (location != destination.path) router.go(destination.path);
-        },
+        minTileHeight: 56,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: selected
+                ? t.accent.withValues(alpha: t.isDark ? 0.16 : 0.12)
+                : t.surface,
+            borderRadius: BorderRadius.circular(SomiaRadius.sm),
+          ),
+          child: Icon(destination.icon,
+              size: 20, color: selected ? t.accent : t.muted),
+        ),
+        title: Text(
+          destination.label,
+          style: TextStyle(
+            color: t.ink,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+          ),
+        ),
+        subtitle: destination.hint == null
+            ? null
+            : Text(destination.hint!,
+                style: TextStyle(color: t.muted, fontSize: 12)),
+        selected: selected,
+        selectedTileColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SomiaRadius.sm),
+        ),
+        onTap: () => _go(context, destination.path),
       ),
     );
   }
@@ -685,7 +656,10 @@ class SomiaQuickActions extends StatelessWidget {
         color: Theme.of(context).colorScheme.onPrimary,
         style: IconButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.primary,
-          minimumSize: const Size(56, 56),
+          minimumSize: const Size(60, 60),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(SomiaRadius.md + 2),
+          ),
         ),
         onPressed: () => _openMobileActions(context),
       );

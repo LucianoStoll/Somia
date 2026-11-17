@@ -8,7 +8,8 @@ void main() {
   testWidgets('ajustes mostram versão e abrem a explicação dos saldos',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SettingsPage()));
-    await tester.scrollUntilVisible(find.text(AppVersion.label), 250);
+    await tester.scrollUntilVisible(find.text(AppVersion.label), 250,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text(AppVersion.label), findsOneWidget);
     await tester.ensureVisible(find.text('Entender os saldos'));
     await tester.tap(find.text('Entender os saldos'));

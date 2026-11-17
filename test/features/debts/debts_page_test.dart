@@ -90,7 +90,11 @@ void main() {
       await tester.tap(find.text('Ativas  1'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-          find.byKey(ValueKey('debt-open-$id')), 150);
+          find.byKey(ValueKey('debt-open-$id')), 150,
+          scrollable: find
+              .byWidgetPredicate((w) =>
+                  w is Scrollable && w.axisDirection == AxisDirection.down)
+              .first);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('debt-open-$id')));
       await tester.pumpAndSettle();

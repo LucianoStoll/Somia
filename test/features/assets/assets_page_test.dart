@@ -92,7 +92,11 @@ void main() {
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       expect((await repo.load()).netMinor, 1500000);
-      await tester.scrollUntilVisible(find.text('Atualizar avaliação'), 200);
+      await tester.scrollUntilVisible(find.text('Atualizar avaliação'), 200,
+          scrollable: find
+              .byWidgetPredicate((w) =>
+                  w is Scrollable && w.axisDirection == AxisDirection.down)
+              .first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Atualizar avaliação'));
       await tester.pumpAndSettle();
@@ -124,7 +128,11 @@ void main() {
       await open(tester, platform,
           scale: platform == TargetPlatform.android ? 1.2 : 1);
       expect(find.text('Patrimônio líquido cadastrado'), findsOneWidget);
-      await tester.scrollUntilVisible(find.text('Palio'), 120);
+      await tester.scrollUntilVisible(find.text('Palio'), 120,
+          scrollable: find
+              .byWidgetPredicate((w) =>
+                  w is Scrollable && w.axisDirection == AxisDirection.down)
+              .first);
       await tester.pumpAndSettle();
       expect(find.text('Palio'), findsOneWidget);
       expect(tester.takeException(), isNull);

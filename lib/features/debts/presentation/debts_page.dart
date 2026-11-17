@@ -1,5 +1,6 @@
 import '../../../core/widgets/module_surface.dart';
 import 'package:flutter/material.dart';
+import '../../../core/widgets/section_tabs.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/routing/app_router.dart';
@@ -565,18 +566,14 @@ class _DebtsPageState extends State<DebtsPage> {
     return ModuleSurface(
         child: Scaffold(
             appBar: AppBar(
-                toolbarHeight: debt == null ? 76 : 64,
+                toolbarHeight: 64,
+                bottom: debt == null
+                    ? const SomiaSectionTabs.patrimony(
+                        current: AppRoutes.debtsPath)
+                    : null,
                 title: debt == null
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                            Text('Dívidas',
-                                style: TextStyle(fontWeight: FontWeight.w700)),
-                            SizedBox(height: 4),
-                            Text('Acompanhe seus compromissos',
-                                style: TextStyle(
-                                    fontSize: 12, color: SomiaColors.muted)),
-                          ])
+                    ? const Text('Patrimônio',
+                        style: TextStyle(fontWeight: FontWeight.w700))
                     : const Text('Detalhes da dívida',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                 leading: debt == null

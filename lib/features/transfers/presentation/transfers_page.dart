@@ -8,6 +8,8 @@ import '../../../core/series/series_form.dart';
 import '../../accounts/presentation/account_identity.dart';
 
 import 'package:flutter/material.dart';
+import '../../../core/routing/app_router.dart';
+import '../../../core/widgets/section_tabs.dart';
 
 import '../../../core/widgets/movement_form_frame.dart';
 import '../../../core/widgets/unsaved_changes_guard.dart';
@@ -458,6 +460,8 @@ class _TransfersViewState extends State<_TransfersView> {
         appBar: AppBar(
           title: const Text('Transferências'),
           leading: somiaMenuLeading(context),
+          bottom: const SomiaSectionTabs.movements(
+              current: AppRoutes.transfersPath),
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _edit(context),

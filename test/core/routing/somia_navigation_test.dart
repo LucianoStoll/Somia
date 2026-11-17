@@ -1,3 +1,4 @@
+import 'package:finapp/core/routing/somia_shell.dart';
 import 'package:finapp/features/cards/data/cards_repository.dart';
 import 'package:finapp/features/cards/domain/credit_card.dart';
 
@@ -328,13 +329,14 @@ void main() {
     await tester.tap(find.byTooltip('Abrir menu'));
     await tester.pumpAndSettle();
 
-    final icons = <Icon>[];
-    for (final path in ['/income', '/expenses', '/transfers']) {
-      icons.add(
-        tester.widget<ListTile>(find.byKey(ValueKey('menu-$path'))).leading!
-            as Icon,
-      );
-    }
+    expect(find.byKey(const ValueKey('menu-/income')), findsNothing);
+    expect(find.byKey(const ValueKey('menu-/investments')), findsOneWidget);
+    final icons = [
+      Icon(MovementIdentity.incomeIcon, color: MovementIdentity.incomeColor),
+      Icon(MovementIdentity.expenseIcon, color: MovementIdentity.expenseColor),
+      Icon(MovementIdentity.transferIcon,
+          color: MovementIdentity.transferColor),
+    ];
     await tester.tap(find.byTooltip('Fechar menu'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Adicionar lançamento ou transferência'));
@@ -699,10 +701,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final tile = tester.getRect(find.byKey(const ValueKey('menu-/income')));
+      final tile =
+          tester.getRect(find.byKey(const ValueKey('menu-/transactions')));
       final icon = tester.getRect(
         find.descendant(
-          of: find.byKey(const ValueKey('menu-/income')),
+          of: find.byKey(const ValueKey('menu-/transactions')),
           matching: find.byType(Icon),
         ),
       );
@@ -756,33 +759,37 @@ void main() {
           .descendant(
               of: find.byType(Drawer), matching: find.byType(Scrollable))
           .first;
-      for (final label in ['FINANÇAS', 'PLANEJAMENTO', 'APLICATIVO']) {
-        await tester.scrollUntilVisible(find.text(label), 150,
+      for (final path in [
+        '/accounts',
+        '/planning',
+        '/investments',
+        '/people',
+        '/categories',
+        '/settings',
+      ]) {
+        await tester.scrollUntilVisible(find.byKey(ValueKey('menu-$path')), 150,
             scrollable: drawerScroll);
-        expect(find.text(label), findsOneWidget);
+        expect(find.byKey(ValueKey('menu-$path')), findsOneWidget);
       }
-      await tester.drag(find.byType(Drawer), const Offset(0, 2000));
+      for (final label in ['FINANÇAS', 'PLANEJAMENTO', 'APLICATIVO']) {
+        expect(find.text(label), findsNothing);
+      }
+      expect(find.byKey(const ValueKey('menu-/income')), findsNothing);
+      await tester.tap(find.byTooltip('Fechar menu'));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('bottom-Mais')), findsNothing);
       expect(find.byKey(const ValueKey('bottom-Relatórios')), findsOneWidget);
       expect(find.byKey(const ValueKey('bottom-Cartões')), findsOneWidget);
-      expect(find.byKey(const ValueKey('menu-/income')), findsOneWidget);
-      await tester.ensureVisible(find.byKey(const ValueKey('menu-/income')));
-      await tester.tap(find.byKey(const ValueKey('menu-/income')));
+      await tester.tap(find.byKey(const ValueKey('bottom-Movimentos')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('section-/income')));
       await tester.pumpAndSettle();
       expect(find.text('Salário'), findsOneWidget);
       expect(find.text('Mercado'), findsNothing);
       expect(transactions.requestedTypes.last, TransactionType.income);
 
-      await tester.tap(find.byTooltip('Abrir menu'));
+      await tester.tap(find.byKey(const ValueKey('section-/expenses')));
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<ListTile>(find.byKey(const ValueKey('menu-/income')))
-            .selected,
-        isTrue,
-      );
-      await tester.tap(find.byKey(const ValueKey('menu-/expenses')));
       await tester.pumpAndSettle();
       expect(find.text('Mercado'), findsOneWidget);
       expect(find.text('Salário'), findsNothing);
@@ -797,7 +804,7 @@ void main() {
       expect(find.byType(TextFormField).first, findsOneWidget);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
-      expect(find.text('Receitas'), findsOneWidget);
+      expect(appRouter.routeInformationProvider.value.uri.path, '/income');
 
       await tester.tap(find.byKey(const ValueKey('bottom-Movimentos')));
       await tester.pumpAndSettle();
@@ -828,7 +835,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byTooltip('Abrir menu'), findsNothing);
     expect(find.byType(NavigationBar), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('menu-/income')));
+    expect(find.byKey(const ValueKey('menu-/income')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('menu-/transactions')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('section-/income')));
     await tester.pumpAndSettle();
     expect(find.text('Salário'), findsOneWidget);
   });

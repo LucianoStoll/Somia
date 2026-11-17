@@ -98,7 +98,7 @@ void main() {
     testWidgets('configurações agrupadas abrem backup e retornam $platform',
         (tester) async {
       final router = await open(tester, '/settings', platform);
-      expect(find.text('Finanças'), findsOneWidget);
+      expect(find.text('Dados e utilidades'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Backup e restauração'), 180,
           scrollable: find.byType(Scrollable).first);
       await tester.tap(find.text('Backup e restauração'));
@@ -112,7 +112,7 @@ void main() {
       }
       await tester.pumpAndSettle();
       expect(router.routeInformationProvider.value.uri.toString(), '/settings');
-      expect(find.text('Finanças'), findsOneWidget);
+      expect(find.text('Dados e utilidades'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

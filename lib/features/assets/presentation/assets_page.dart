@@ -1,5 +1,7 @@
 import '../../../core/widgets/module_surface.dart';
 import 'package:flutter/material.dart';
+import '../../../core/routing/app_router.dart';
+import '../../../core/widgets/section_tabs.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/routing/somia_shell.dart';
 import '../../../core/widgets/movement_form_frame.dart';
@@ -94,8 +96,10 @@ class _AssetsPageState extends State<AssetsPage> {
     return ModuleSurface(
         child: Scaffold(
             appBar: AppBar(
-                title: const Text('Bens e patrimônio'),
+                title: const Text('Patrimônio'),
                 leading: somiaMenuLeading(context),
+                bottom: const SomiaSectionTabs.patrimony(
+                    current: AppRoutes.assetsPath),
                 actions: [
                   IconButton(
                       tooltip: 'Atualizar patrimônio',

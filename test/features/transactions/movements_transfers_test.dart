@@ -215,7 +215,11 @@ void main() {
             location: '/transactions', child: TransactionsPage())));
     await tester.pumpAndSettle();
     final row = find.byKey(ValueKey('feed-transfer-${moved.id}'));
-    await tester.scrollUntilVisible(row, 160);
+    await tester.scrollUntilVisible(row, 160,
+        scrollable: find
+            .byWidgetPredicate(
+                (w) => w is Scrollable && w.axisDirection == AxisDirection.down)
+            .first);
     expect(row, findsOneWidget);
     expect(find.text('Conta A → Conta B'), findsOneWidget);
     expect(find.text('R\$ 200,00'), findsOneWidget);

@@ -1,5 +1,6 @@
 import '../../../core/widgets/module_surface.dart';
 import 'package:flutter/material.dart';
+import '../../../core/widgets/section_tabs.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -138,8 +139,10 @@ class _InvestmentsView extends StatelessWidget {
           return ModuleSurface(
               child: Scaffold(
             appBar: AppBar(
-              title: const Text('Investimentos'),
+              title: const Text('Patrimônio'),
               leading: somiaMenuLeading(context),
+              bottom: const SomiaSectionTabs.patrimony(
+                  current: AppRoutes.investmentsPath),
               actions: [
                 IconButton(
                   tooltip: 'Atualizar aplicações',

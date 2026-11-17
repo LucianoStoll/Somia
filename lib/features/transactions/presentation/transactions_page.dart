@@ -25,6 +25,8 @@ import '../../../core/series/series_form.dart';
 import '../../accounts/presentation/account_identity.dart';
 
 import 'package:flutter/material.dart';
+import '../../../core/routing/app_router.dart';
+import '../../../core/widgets/section_tabs.dart';
 
 import '../../../core/widgets/movement_form_frame.dart';
 import '../../../core/widgets/unsaved_changes_guard.dart';
@@ -508,6 +510,13 @@ class _TransactionsViewState extends State<_TransactionsView> {
               leading: somiaMenuLeading(context),
               toolbarHeight: 64,
               titleSpacing: 16,
+              bottom: SomiaSectionTabs.movements(
+                current: switch (widget.sectionType) {
+                  TransactionType.income => AppRoutes.incomePath,
+                  TransactionType.expense => AppRoutes.expensesPath,
+                  _ => AppRoutes.transactionsPath,
+                },
+              ),
               title: Row(
                 children: [
                   SomiaBrand(
@@ -537,6 +546,13 @@ class _TransactionsViewState extends State<_TransactionsView> {
                         : 'Movimentos',
               ),
               leading: somiaMenuLeading(context),
+              bottom: SomiaSectionTabs.movements(
+                current: switch (widget.sectionType) {
+                  TransactionType.income => AppRoutes.incomePath,
+                  TransactionType.expense => AppRoutes.expensesPath,
+                  _ => AppRoutes.transactionsPath,
+                },
+              ),
             ),
       floatingActionButton: const SomiaQuickActions(),
       body: BlocConsumer<TransactionsCubit, TransactionsState>(
