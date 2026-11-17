@@ -38,8 +38,7 @@ class _PlanningIndicatorsState extends State<PlanningIndicators> {
           Expanded(
               child: Text(
                   '${monthNames[widget.month.month - 1]} ${widget.month.year} · ${widget.currency}',
-                  style:
-                      TextStyle(color: SomiaColors.muted, fontSize: 13))),
+                  style: TextStyle(color: SomiaColors.muted, fontSize: 13))),
           IconButton(
               tooltip: 'Como os indicadores são calculados',
               icon: const Icon(Icons.info_outline, size: 20),
@@ -108,8 +107,7 @@ class _PlanningIndicatorsState extends State<PlanningIndicators> {
                   projected
                       ? 'Despesas previstas acima das receitas.'
                       : 'Despesas realizadas acima das receitas.',
-                  style:
-                      TextStyle(color: SomiaColors.red, fontSize: 12))),
+                  style: TextStyle(color: SomiaColors.red, fontSize: 12))),
       ]),
     ));
   }

@@ -12,8 +12,7 @@ class MovementCashTotals extends StatelessWidget {
     if (codes.isEmpty) codes.add('BRL');
     Widget column(String title, bool paid) =>
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title,
-              style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
+          Text(title, style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
           const SizedBox(height: 4),
           for (final code in codes)
             FittedBox(

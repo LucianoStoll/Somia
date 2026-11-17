@@ -163,8 +163,8 @@ class _DebtsPageState extends State<DebtsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: children)));
 
-  Widget _label(String text) => Text(text,
-      style: TextStyle(color: SomiaColors.muted, fontSize: 13));
+  Widget _label(String text) =>
+      Text(text, style: TextStyle(color: SomiaColors.muted, fontSize: 13));
   Widget _value(int value, {double size = 24}) => Text(_money(value),
       style: TextStyle(fontSize: size, fontWeight: FontWeight.w700));
   Widget _badge(Debt debt, {double size = 48}) => Container(
@@ -617,8 +617,7 @@ class _DebtsPageState extends State<DebtsPage> {
                             Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: Text(_error!,
-                                    style: TextStyle(
-                                        color: SomiaColors.red))),
+                                    style: TextStyle(color: SomiaColors.red))),
                           if (debt == null)
                             ..._overview(debts)
                           else

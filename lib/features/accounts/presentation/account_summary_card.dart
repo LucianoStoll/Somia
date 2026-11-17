@@ -69,8 +69,8 @@ class AccountSummaryCard extends StatelessWidget {
                 key: ValueKey('account-statement-${account.id}'),
                 tooltip: 'Abrir extrato',
                 onPressed: onOpen,
-                icon: Icon(Icons.receipt_long_outlined,
-                    color: SomiaColors.blue)),
+                icon:
+                    Icon(Icons.receipt_long_outlined, color: SomiaColors.blue)),
             PopupMenuButton<String>(
               key: ValueKey('account-menu-${account.id}'),
               tooltip: 'Ações da conta',
@@ -99,8 +99,7 @@ class AccountSummaryCard extends StatelessWidget {
                       color: SomiaColors.surfaceHigh,
                       borderRadius: BorderRadius.circular(20)),
                   child: Text(tag,
-                      style: TextStyle(
-                          fontSize: 12, color: SomiaColors.blue)),
+                      style: TextStyle(fontSize: 12, color: SomiaColors.blue)),
                 ),
             ]),
             const SizedBox(height: 8),

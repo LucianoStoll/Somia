@@ -50,8 +50,7 @@ class ModuleHero extends StatelessWidget {
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
                 child: Text(label,
-                    style: TextStyle(
-                        color: SomiaColors.muted, fontSize: 13))),
+                    style: TextStyle(color: SomiaColors.muted, fontSize: 13))),
             Icon(icon, color: color, size: 22),
           ]),
           const SizedBox(height: 10),
@@ -88,10 +87,7 @@ class ModuleDetails extends StatelessWidget {
 
 class ModuleStat extends StatelessWidget {
   ModuleStat(
-      {super.key,
-      required this.label,
-      required this.value,
-      Color? color})
+      {super.key, required this.label, required this.value, Color? color})
       : color = color ?? SomiaColors.blue;
   final String label, value;
   final Color color;
@@ -102,8 +98,7 @@ class ModuleStat extends StatelessWidget {
             color: color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(14)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
+          Text(label, style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
           const SizedBox(height: 6),
           Text(value,
               style: TextStyle(

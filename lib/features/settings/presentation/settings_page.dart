@@ -239,39 +239,35 @@ class _SettingsPageState extends State<SettingsPage> {
               fontWeight: FontWeight.w600)));
 
   Widget _themeSelector() {
-    final controller = getIt.isRegistered<ThemeController>()
-        ? getIt<ThemeController>()
-        : null;
+    final controller =
+        getIt.isRegistered<ThemeController>() ? getIt<ThemeController>() : null;
     if (controller == null) return const SizedBox.shrink();
     return ListenableBuilder(
         listenable: controller,
-        builder: (context, _) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Tema', style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: SomiaSpace.sm),
-                  SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<ThemeMode>(
-                      key: const Key('settings-theme-mode'),
-                      showSelectedIcon: false,
-                      segments: const [
-                        ButtonSegment(
-                            value: ThemeMode.dark, label: Text('Escuro')),
-                        ButtonSegment(
-                            value: ThemeMode.light, label: Text('Claro')),
-                        ButtonSegment(
-                            value: ThemeMode.system, label: Text('Sistema')),
-                      ],
-                      selected: {controller.mode},
-                      onSelectionChanged: (value) =>
-                          controller.setMode(value.single),
-                    ),
-                  ),
-                  const SizedBox(height: SomiaSpace.xs),
-                  Text('Sistema acompanha o modo claro ou escuro do aparelho.',
-                      style: Theme.of(context).textTheme.bodySmall),
-                ]));
+        builder: (context, _) =>
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Tema', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: SomiaSpace.sm),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<ThemeMode>(
+                  key: const Key('settings-theme-mode'),
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: ThemeMode.dark, label: Text('Escuro')),
+                    ButtonSegment(value: ThemeMode.light, label: Text('Claro')),
+                    ButtonSegment(
+                        value: ThemeMode.system, label: Text('Sistema')),
+                  ],
+                  selected: {controller.mode},
+                  onSelectionChanged: (value) =>
+                      controller.setMode(value.single),
+                ),
+              ),
+              const SizedBox(height: SomiaSpace.xs),
+              Text('Sistema acompanha o modo claro ou escuro do aparelho.',
+                  style: Theme.of(context).textTheme.bodySmall),
+            ]));
   }
 
   Widget _option(String label, IconData icon, VoidCallback? onTap,

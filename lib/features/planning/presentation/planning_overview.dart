@@ -77,8 +77,7 @@ class _PlanningOverviewState extends State<PlanningOverview> {
       });
     Widget metric(String label, int value, Color color) =>
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: TextStyle(fontSize: 12, color: SomiaColors.muted)),
+          Text(label, style: TextStyle(fontSize: 12, color: SomiaColors.muted)),
           const SizedBox(height: 4),
           Text(_money(value, code),
               style: TextStyle(

@@ -46,8 +46,8 @@ class DashboardTransfersCard extends StatelessWidget {
                   else ...[
                     Text(
                         '${c.transferCount} ${c.transferCount == 1 ? 'transferência' : 'transferências'} no mês',
-                        style: TextStyle(
-                            fontSize: 12, color: SomiaColors.muted)),
+                        style:
+                            TextStyle(fontSize: 12, color: SomiaColors.muted)),
                     const SizedBox(height: 8),
                     ModuleValueRow(
                         label: 'Realizadas', value: money(c.transferredMinor)),

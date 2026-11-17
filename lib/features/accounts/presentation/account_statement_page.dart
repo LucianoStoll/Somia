@@ -100,8 +100,7 @@ class _StatementViewState extends State<_StatementView> {
                       projected
                           ? 'Inclui realizados, pendentes pelo vencimento e agendados pela efetivação.'
                           : 'Somente movimentações efetivadas até hoje, no mês selecionado.',
-                      style: TextStyle(
-                          color: SomiaColors.muted, fontSize: 12)),
+                      style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
                   const SizedBox(height: 16),
                   LayoutBuilder(builder: (_, constraints) {
                     final width = constraints.maxWidth < 600

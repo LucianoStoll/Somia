@@ -99,8 +99,8 @@ abstract final class AppTheme {
         indicatorColor: t.accent.withValues(alpha: 0.16),
         selectedIconTheme: IconThemeData(color: t.accent),
         unselectedIconTheme: IconThemeData(color: t.muted),
-        selectedLabelTextStyle:
-            text.labelLarge?.copyWith(color: t.ink, fontWeight: FontWeight.w700),
+        selectedLabelTextStyle: text.labelLarge
+            ?.copyWith(color: t.ink, fontWeight: FontWeight.w700),
         unselectedLabelTextStyle: text.labelLarge?.copyWith(color: t.muted),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -161,8 +161,8 @@ abstract final class AppTheme {
           side: WidgetStatePropertyAll(BorderSide(color: t.outline)),
           backgroundColor: WidgetStateProperty.resolveWith((s) =>
               s.contains(WidgetState.selected) ? t.ink : Colors.transparent),
-          foregroundColor: WidgetStateProperty.resolveWith((s) =>
-              s.contains(WidgetState.selected) ? t.background : t.ink),
+          foregroundColor: WidgetStateProperty.resolveWith(
+              (s) => s.contains(WidgetState.selected) ? t.background : t.ink),
         ),
       ),
       chipTheme: ChipThemeData(
@@ -230,10 +230,10 @@ abstract final class AppTheme {
             horizontal: SomiaSpace.lg, vertical: SomiaSpace.xxs),
       ),
       switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((s) =>
-            s.contains(WidgetState.selected) ? t.onAccent : t.muted),
-        trackColor: WidgetStateProperty.resolveWith((s) =>
-            s.contains(WidgetState.selected) ? t.accent : t.outline),
+        thumbColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected) ? t.onAccent : t.muted),
+        trackColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected) ? t.accent : t.outline),
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
     );

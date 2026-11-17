@@ -146,8 +146,7 @@ class SummaryInsights extends StatelessWidget {
           const SizedBox(height: 12),
           row('Total por categorias', total),
           if (categories.length > 6)
-            Text(
-                'As 6 maiores estão acima. Consulte as demais em Análises.',
+            Text('As 6 maiores estão acima. Consulte as demais em Análises.',
                 style: TextStyle(color: SomiaColors.muted, fontSize: 12)),
         ]));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

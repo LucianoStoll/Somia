@@ -229,8 +229,7 @@ class _ExpenseAnalysisPageState extends State<ExpenseAnalysisPage>
             const SizedBox(height: 8),
             ModuleDetails(title: 'Como interpretar', children: [
               Text(explanation,
-                  style:
-                      TextStyle(color: SomiaColors.muted, fontSize: 13))
+                  style: TextStyle(color: SomiaColors.muted, fontSize: 13))
             ]),
             const SizedBox(height: 18),
             ...children
@@ -567,7 +566,6 @@ class AnalysisBar extends StatelessWidget {
                       Padding(
                           padding: const EdgeInsets.only(top: 5),
                           child: Text(detail!,
-                              style:
-                                  TextStyle(color: SomiaColors.muted))),
+                              style: TextStyle(color: SomiaColors.muted))),
                   ]))));
 }
