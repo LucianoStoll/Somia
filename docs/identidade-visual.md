@@ -430,6 +430,11 @@ refatoração da interface no ciclo v0.4.0-alpha. Mockups: tela de Resumo
 | Botão de lançar | Somente o ícone **+** (sem texto), abrindo o balão com Receita, Despesa e Transferência. |
 | Listas | Agrupadas por dia, com total do dia; pendências primeiro, marcadas por contorno e ação Efetivar. |
 | Contraste | Textos e valores com contraste mínimo de 4,5:1 nos dois temas (verificado em teste). |
+| Menu lateral (mobile) | Enxuto: Contas, Planejamento, Patrimônio, Pessoas e reembolsos, Categorias e Configurações, mais o estado da sincronização no rodapé. Itens que já estão na barra inferior saem do menu. |
+| Movimentos | Abas Todos, Receitas, Despesas e Transferências dentro da tela, no lugar de itens separados no menu. |
+| Patrimônio | Uma entrada no menu com abas Investimentos, Bens e Dívidas. |
+| Cartões | Débito e Cashback acessados pelos atalhos da tela Cartões. |
+| Configurações | Sem a lista duplicada de Finanças; Lixeira e Sincronização ficam em Dados e utilidades. |
 
 ### Implementação
 
