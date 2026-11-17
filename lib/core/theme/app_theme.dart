@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'somia_tokens.dart';
@@ -56,16 +57,28 @@ abstract final class AppTheme {
       outlineVariant: t.outline,
       error: t.expense,
     );
+    // O textTheme guardado no ThemeData segue o formato que o Flutter espera
+    // (cores e tamanhos, inherit: true); a geometria é acrescentada por
+    // Theme.of. Estilos de botões, animados entre estados e temas, são
+    // completos (inherit: false), como os padrões do Material.
+    final typography = Typography.material2021(platform: defaultTargetPlatform);
+    final text = _textTheme(t.isDark ? typography.white : typography.black, t);
+    TextStyle button(double size, FontWeight weight) =>
+        typography.englishLike.labelLarge!.copyWith(
+            fontFamily: somiaFontFamily,
+            fontSize: size,
+            fontWeight: weight,
+            letterSpacing: 0);
     final base = ThemeData(
       useMaterial3: true,
       brightness: t.brightness,
       colorScheme: scheme,
+      typography: typography,
+      textTheme: text,
       fontFamily: somiaFontFamily,
       extensions: [t],
     );
-    final text = _textTheme(base.textTheme, t);
     return base.copyWith(
-      textTheme: text,
       scaffoldBackgroundColor: t.background,
       canvasColor: t.background,
       dividerColor: t.outline,
@@ -129,10 +142,7 @@ abstract final class AppTheme {
           foregroundColor: t.onAccent,
           minimumSize: const Size(64, 44),
           shape: const StadiumBorder(),
-          textStyle: const TextStyle(
-              fontFamily: somiaFontFamily,
-              fontSize: 15,
-              fontWeight: FontWeight.w700),
+          textStyle: button(15, FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -141,19 +151,13 @@ abstract final class AppTheme {
           minimumSize: const Size(64, 40),
           side: BorderSide(color: t.outline),
           shape: const StadiumBorder(),
-          textStyle: const TextStyle(
-              fontFamily: somiaFontFamily,
-              fontSize: 14,
-              fontWeight: FontWeight.w600),
+          textStyle: button(14, FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: t.accent,
-          textStyle: const TextStyle(
-              fontFamily: somiaFontFamily,
-              fontSize: 14,
-              fontWeight: FontWeight.w700),
+          textStyle: button(14, FontWeight.w700),
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
@@ -170,7 +174,6 @@ abstract final class AppTheme {
         selectedColor: t.ink,
         side: BorderSide(color: t.outline),
         shape: const StadiumBorder(),
-        labelStyle: text.labelLarge,
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: t.surfaceHigh,
