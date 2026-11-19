@@ -197,6 +197,35 @@ class SqliteDebtsRepository implements DebtsRepository {
         await validateDebtFinancial(db);
       });
   @override
+  Future<void> updatePrincipal(String paymentId, int principalMinor) =>
+      db.transaction(() async {
+        if (principalMinor < 0 || principalMinor > 9000000000000000) {
+          throw const FormatException('Amortização fora do limite.');
+        }
+        final row = await db.customSelect(
+            '''SELECT COALESCE(t.actual_amount_minor,t.planned_amount_minor) AS amount
+            FROM debt_payments p JOIN transactions t ON t.id=p.transaction_id
+            WHERE p.id=? AND p.deleted_at IS NULL AND t.deleted_at IS NULL''',
+            variables: [Variable(paymentId)]).getSingleOrNull();
+        if (row == null) {
+          throw StateError('O vínculo já mudou. Atualize a tela.');
+        }
+        if (principalMinor > row.read<int>('amount')) {
+          throw const FormatException(
+              'A amortização não pode superar o valor da parcela.');
+        }
+        final now = EntityMetadata.nowUtcMillis();
+        await db.customUpdate(
+            'UPDATE debt_payments SET principal_minor=?,updated_at=?,sync_version=sync_version+1 WHERE id=? AND deleted_at IS NULL',
+            variables: [
+              Variable(principalMinor),
+              Variable(now),
+              Variable(paymentId)
+            ]);
+        // Confere também que a soma amortizada não supera o saldo inicial.
+        await validateDebtFinancial(db);
+      });
+  @override
   Future<void> unlink(String paymentId) => db.transaction(() async {
         final n = await db.customUpdate(
             'UPDATE debt_payments SET deleted_at=?,updated_at=?,sync_version=sync_version+1 WHERE id=? AND deleted_at IS NULL',

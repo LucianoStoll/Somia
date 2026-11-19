@@ -7,6 +7,7 @@ import '../../../core/routing/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/routing/somia_shell.dart';
 import '../../../core/widgets/movement_form_frame.dart';
+import '../../../core/widgets/monetary_calculator.dart';
 import '../../accounts/domain/money_minor.dart';
 import '../../assets/domain/asset.dart';
 import '../../assets/presentation/asset_form.dart' show assetDate;
@@ -85,6 +86,64 @@ class _DebtsPageState extends State<DebtsPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _editPrincipal(DebtPayment payment) async {
+    final controller = TextEditingController(
+        text: MoneyMinor.display(payment.principalMinor, 'BRL')
+            .replaceAll(RegExp(r'[^0-9,]'), ''));
+    String? error;
+    final saved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+            builder: (dialogContext, setDialog) => AlertDialog(
+                    title: const Text('Editar amortização'),
+                    content: SingleChildScrollView(
+                      child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                                '${payment.description}, parcela de ${_money(payment.amountMinor)}.'),
+                            const SizedBox(height: 16),
+                            MonetaryCalculatorField(
+                                key: const ValueKey('debt-principal-edit'),
+                                controller: controller,
+                                labelText: 'Amortização (principal)',
+                                minimumMinor: 0),
+                            const SizedBox(height: 12),
+                            const Text(
+                                'A diferença para o valor da parcela fica como juros e encargos. A despesa não é alterada.'),
+                            if (error != null)
+                              Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: Text(error!,
+                                      style: TextStyle(
+                                          color: Theme.of(dialogContext)
+                                              .colorScheme
+                                              .error))),
+                          ]),
+                    ),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('Cancelar')),
+                      FilledButton(
+                          onPressed: () async {
+                            try {
+                              await _repo.updatePrincipal(payment.id,
+                                  MoneyMinor.parse(controller.text));
+                              if (dialogContext.mounted) {
+                                Navigator.pop(dialogContext, true);
+                              }
+                            } catch (e) {
+                              setDialog(() => error = investmentError(e));
+                            }
+                          },
+                          child: const Text('Salvar amortização')),
+                    ])));
+    controller.dispose();
+    if (saved == true && mounted) await _load();
   }
 
   Future<void> _unlink(DebtPayment payment) async {
@@ -373,8 +432,21 @@ class _DebtsPageState extends State<DebtsPage> {
                       ModuleValueRow(
                           label: 'Juros e encargos',
                           value: _money(payment.chargesMinor)),
-                      if (!payment.unlinked) ...[
+                      if (payment.active) ...[
                         const SizedBox(height: 16),
+                        FilledButton.icon(
+                            key: const ValueKey('debt-edit-principal'),
+                            onPressed: _busy
+                                ? null
+                                : () {
+                                    Navigator.of(sheetContext).pop();
+                                    _editPrincipal(payment);
+                                  },
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Editar amortização')),
+                      ],
+                      if (!payment.unlinked) ...[
+                        const SizedBox(height: 8),
                         OutlinedButton.icon(
                             onPressed: _busy
                                 ? null

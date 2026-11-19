@@ -86,5 +86,8 @@ abstract interface class DebtsRepository {
   Future<String> save(DebtDraft draft, {String? id});
   Future<List<DebtExpense>> expenses(String debtId);
   Future<void> link(String debtId, String transactionId, int principalMinor);
+
+  /// Corrige a amortização (principal) de uma parcela já vinculada.
+  Future<void> updatePrincipal(String paymentId, int principalMinor);
   Future<void> unlink(String paymentId);
 }

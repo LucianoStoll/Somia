@@ -180,6 +180,44 @@ void main() {
     expect(await db.customSelect('SELECT * FROM transactions').get(),
         hasLength(1));
   });
+  test('edita a amortização de parcela vinculada respeitando os limites',
+      () async {
+    final id = await debts.save(debt(balance: 60000));
+    final tx = await expense(paid: true);
+    await debts.link(id, tx, 35000);
+    var payment = (await debts.load()).single.payments.single;
+
+    await debts.updatePrincipal(payment.id, 40000);
+    var d = (await debts.load()).single;
+    expect(d.payments.single.principalMinor, 40000);
+    expect(d.payments.single.chargesMinor, 10000);
+    expect(d.balanceMinor, 20000);
+
+    // Zero é permitido: a parcela passa a ser só encargos.
+    await debts.updatePrincipal(payment.id, 0);
+    expect((await debts.load()).single.balanceMinor, 60000);
+
+    // Não pode superar o valor da parcela nem o saldo inicial da dívida.
+    await expectLater(
+        debts.updatePrincipal(payment.id, 50001), throwsFormatException);
+    final other = await expense(paid: true, date: DateTime(2026, 2, 25));
+    await debts.link(id, other, 30000);
+    await expectLater(
+        debts.updatePrincipal(payment.id, 30001), throwsFormatException);
+    expect((await debts.load()).single.payments.last.principalMinor, 0);
+    await expectLater(
+        debts.updatePrincipal(payment.id, -1), throwsFormatException);
+
+    // Vínculo desfeito não pode mais ser editado.
+    await debts.unlink(payment.id);
+    await expectLater(debts.updatePrincipal(payment.id, 100), throwsStateError);
+    payment = (await debts.load())
+        .single
+        .payments
+        .firstWhere((p) => p.id == payment.id);
+    expect(payment.principalMinor, 0);
+  });
+
   test('desvincular preserva valor original após editar a despesa', () async {
     final id = await debts.save(debt());
     final tx = await expense(paid: true);

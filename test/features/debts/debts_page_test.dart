@@ -113,6 +113,27 @@ void main() {
       await tester.pumpAndSettle();
       expect((await repo.load()).single.balanceMinor, 1950000);
       expect((await repo.load()).single.projectedMinor, 1900000);
+
+      // Editar a amortização de uma parcela já vinculada.
+      await tester.tap(find.byKey(ValueKey('debt-payment-${payment.id}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('debt-edit-principal')));
+      await tester.pumpAndSettle();
+      expect(find.text('Editar amortização'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('debt-principal-edit')));
+      await tester.pumpAndSettle();
+      for (final key in ['C', '4', '0', '0', ',', '0', '0']) {
+        await tester.tap(find.byKey(ValueKey('calculator-key-$key')));
+      }
+      await tester.tap(find.text('Confirmar valor'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Salvar amortização'));
+      await tester.pumpAndSettle();
+      final edited = (await repo.load()).single;
+      expect(
+          edited.payments.firstWhere((p) => p.id == payment.id).principalMinor,
+          40000);
+      expect(edited.projectedMinor, 1910000);
       await tester.drag(find.byType(ListView).first, const Offset(0, 2000));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Dados'), 150);
