@@ -164,38 +164,50 @@ class SqliteDebtsRepository implements DebtsRepository {
 
   @override
   Future<void> link(String debtId, String transactionId, int principalMinor) =>
+      linkMany(debtId, {transactionId: principalMinor});
+
+  @override
+  Future<void> linkMany(String debtId, Map<String, int> principals) =>
       db.transaction(() async {
         await _find(debtId);
-        if (principalMinor < 0 || principalMinor > 9000000000000000) {
-          throw const FormatException('Amortização fora do limite.');
+        if (principals.isEmpty) {
+          throw const FormatException('Selecione ao menos uma despesa.');
         }
-        final expense = (await expenses(debtId))
-            .where((t) => t.id == transactionId)
-            .firstOrNull;
-        if (expense == null) {
-          throw const FormatException(
-              'Despesa indisponível ou já vinculada. Atualize a lista.');
-        }
-        if (principalMinor > expense.amountMinor) {
-          throw const FormatException(
-              'A amortização não pode superar o valor da parcela.');
-        }
+        final available = {
+          for (final e in await expenses(debtId)) e.id: e,
+        };
         final now = EntityMetadata.nowUtcMillis();
-        await db.customStatement(
-            'INSERT INTO debt_payments(id,debt_id,transaction_id,principal_minor,linked_amount_minor,linked_description,linked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)',
-            [
-              EntityMetadata.newId(),
-              debtId,
-              transactionId,
-              principalMinor,
-              expense.amountMinor,
-              expense.description,
-              day(expense.date),
-              now,
-              now
-            ]);
+        for (final MapEntry(key: transactionId, value: principalMinor)
+            in principals.entries) {
+          if (principalMinor < 0 || principalMinor > 9000000000000000) {
+            throw const FormatException('Amortização fora do limite.');
+          }
+          final expense = available[transactionId];
+          if (expense == null) {
+            throw const FormatException(
+                'Despesa indisponível ou já vinculada. Atualize a lista.');
+          }
+          if (principalMinor > expense.amountMinor) {
+            throw FormatException(
+                'A amortização de "${expense.description}" não pode superar o valor da parcela.');
+          }
+          await db.customStatement(
+              'INSERT INTO debt_payments(id,debt_id,transaction_id,principal_minor,linked_amount_minor,linked_description,linked_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)',
+              [
+                EntityMetadata.newId(),
+                debtId,
+                transactionId,
+                principalMinor,
+                expense.amountMinor,
+                expense.description,
+                day(expense.date),
+                now,
+                now
+              ]);
+        }
         await validateDebtFinancial(db);
       });
+
   @override
   Future<void> updatePrincipal(String paymentId, int principalMinor) =>
       db.transaction(() async {

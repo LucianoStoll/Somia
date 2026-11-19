@@ -218,6 +218,76 @@ void main() {
     expect(payment.principalMinor, 0);
   });
 
+  test('vincula várias despesas de uma vez, todas ou nenhuma', () async {
+    final id = await debts.save(debt(balance: 60000));
+    final a = await expense(amount: 30000, date: DateTime(2026, 1, 10));
+    final b = await expense(amount: 30000, date: DateTime(2026, 2, 10));
+    final c = await expense(amount: 30000, date: DateTime(2026, 3, 10));
+    // A soma passaria do saldo inicial: nada é gravado.
+    await expectLater(debts.linkMany(id, {a: 25000, b: 25000, c: 25000}),
+        throwsFormatException);
+    expect((await debts.load()).single.payments, isEmpty);
+    // Uma amortização maior que a própria parcela também desfaz o lote.
+    await expectLater(
+        debts.linkMany(id, {a: 10000, b: 30001}), throwsFormatException);
+    expect((await debts.load()).single.payments, isEmpty);
+    await expectLater(debts.linkMany(id, {}), throwsFormatException);
+    await debts.linkMany(id, {a: 20000, b: 20000});
+    final d = (await debts.load()).single;
+    expect(d.payments, hasLength(2));
+    expect(d.projectedMinor, 20000);
+    // Já vinculada não pode entrar de novo.
+    await expectLater(
+        debts.linkMany(id, {a: 1000, c: 1000}), throwsFormatException);
+    expect((await debts.load()).single.payments, hasLength(2));
+  });
+
+  test('despesa nova pode nascer vinculada à dívida, na mesma gravação',
+      () async {
+    final id = await debts.save(debt(balance: 60000));
+    final created = await transactions.create(TransactionDraft(
+        description: 'Parcela 1/36',
+        type: TransactionType.expense,
+        amountMinor: 52000,
+        date: DateTime(2026, 1, 20),
+        dueDate: DateTime(2026, 1, 20),
+        isEffective: true,
+        effectiveDate: DateTime(2026, 1, 20),
+        accountId: account,
+        debtLink: DebtLinkDraft(debtId: id, principalMinor: 28000)));
+    var d = (await debts.load()).single;
+    expect(d.payments.single.transactionId, created.id);
+    expect(d.payments.single.principalMinor, 28000);
+    expect(d.balanceMinor, 32000);
+
+    // Amortização acima do saldo da dívida: nada é gravado.
+    final before = (await transactions.list()).length;
+    await expectLater(
+        transactions.create(TransactionDraft(
+            description: 'Parcela 2/36',
+            type: TransactionType.expense,
+            amountMinor: 52000,
+            date: DateTime(2026, 2, 20),
+            isEffective: false,
+            accountId: account,
+            debtLink: DebtLinkDraft(debtId: id, principalMinor: 40000))),
+        throwsFormatException);
+    expect((await transactions.list()).length, before);
+    expect((await debts.load()).single.payments, hasLength(1));
+
+    // Receita não pode ser vinculada.
+    await expectLater(
+        transactions.create(TransactionDraft(
+            description: 'Errado',
+            type: TransactionType.income,
+            amountMinor: 1000,
+            date: DateTime(2026, 2, 20),
+            isEffective: false,
+            accountId: account,
+            debtLink: DebtLinkDraft(debtId: id, principalMinor: 0))),
+        throwsFormatException);
+  });
+
   test('desvincular preserva valor original após editar a despesa', () async {
     final id = await debts.save(debt());
     final tx = await expense(paid: true);

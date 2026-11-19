@@ -83,8 +83,19 @@ class FinancialTransaction {
   final String currencyCode;
 }
 
+/// Vínculo com uma dívida criado junto com uma despesa nova.
+class DebtLinkDraft {
+  const DebtLinkDraft({required this.debtId, required this.principalMinor});
+  final String debtId;
+
+  /// Amortização (principal) desta parcela.
+  final int principalMinor;
+  String get signature => '$debtId:$principalMinor';
+}
+
 class TransactionDraft {
   const TransactionDraft({
+    this.debtLink,
     this.reimbursements,
     this.allocations = const [],
     this.tags = const [],
@@ -110,6 +121,9 @@ class TransactionDraft {
   final List<String> tags;
   final String establishment;
   final List<ReimbursementDraft>? reimbursements;
+
+  /// Vincula a despesa nova a uma dívida na mesma gravação.
+  final DebtLinkDraft? debtLink;
 
   final String description;
   final TransactionType type;

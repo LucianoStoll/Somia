@@ -211,6 +211,81 @@ void main() {
                 : 'debts-desktop-preview.png'));
       }
     });
+    testWidgets('vincula várias despesas com o mesmo valor $platform',
+        (tester) async {
+      await repo.save(DebtDraft(
+          name: 'Financiamento',
+          creditor: 'Banco',
+          kind: DebtKind.financing,
+          balanceMinor: 100000,
+          referenceAt: DateTime(2025, 1, 1)));
+      final account = await SqliteAccountsRepository(db).create(
+          const AccountDraft(
+              name: 'Conta',
+              type: AccountType.checking,
+              currencyCode: 'BRL',
+              initialBalanceMinor: 300000,
+              includeInAnalytics: true));
+      final transactions = SqliteTransactionsRepository(db);
+      for (final month in [2, 3, 4]) {
+        await transactions.create(TransactionDraft(
+            description: 'Parcela $month',
+            type: TransactionType.expense,
+            amountMinor: 52000,
+            date: DateTime(2025, month, 10),
+            dueDate: DateTime(2025, month, 10),
+            isEffective: false,
+            accountId: account.id));
+      }
+      final debt = (await repo.load()).single;
+      final expenses = await repo.expenses(debt.id);
+      tester.view.physicalSize = platform == TargetPlatform.android
+          ? const Size(390, 844)
+          : const Size(1100, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(MaterialApp(
+          theme: AppTheme.light.copyWith(platform: platform),
+          home: Scaffold(
+              body: Builder(
+                  builder: (c) => TextButton(
+                      onPressed: () => showDialog<void>(
+                          context: c,
+                          builder: (_) => DebtPaymentForm(
+                              repository: repo,
+                              debt: debt,
+                              expenses: expenses)),
+                      child: const Text('Abrir'))))));
+      await tester.tap(find.text('Abrir'));
+      await tester.pumpAndSettle();
+      final chosen = expenses.take(2).toList();
+      for (final e in chosen) {
+        await tester.tap(find.text(e.description));
+        await tester.pumpAndSettle();
+      }
+      expect(find.text('2 selecionadas, amortização total'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('debt-link-same-value')));
+      await tester.pumpAndSettle();
+      for (final key in ['C', '3', '0', '0', ',', '0', '0']) {
+        await tester.tap(find.byKey(ValueKey('calculator-key-$key')));
+      }
+      await tester.tap(find.text('Confirmar valor'));
+      await tester.pumpAndSettle();
+      expect(
+          tester
+              .widget<Text>(find.byKey(const ValueKey('debt-link-total')))
+              .data,
+          contains('600,00'));
+      await tester.tap(find.text('Vincular 2 despesas'));
+      await tester.pumpAndSettle();
+      final linked = (await repo.load()).single;
+      expect(linked.payments.map((p) => p.transactionId).toSet(),
+          chosen.map((e) => e.id).toSet());
+      expect(linked.payments.every((p) => p.principalMinor == 30000), isTrue);
+      expect(linked.projectedMinor, 40000);
+      expect(tester.takeException(), isNull);
+    });
     testWidgets(
         'vincular exige despesa e mostra orientação quando vazio $platform',
         (tester) async {
@@ -241,9 +316,17 @@ void main() {
                       child: const Text('Abrir'))))));
       await tester.tap(find.text('Abrir'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Vincular'));
-      await tester.pumpAndSettle();
-      expect(find.text('Selecione uma despesa.'), findsOneWidget);
+      expect(find.text('Selecione as despesas'), findsOneWidget);
+      expect(
+          tester
+              .widget<FilledButton>(
+                  find.widgetWithText(FilledButton, 'Selecione as despesas'))
+              .onPressed,
+          isNull);
+      expect(
+          find.text(
+              'Nenhuma despesa disponível a partir da referência do saldo.'),
+          findsOneWidget);
       expect((await repo.load()).single.id, id);
       expect((await repo.load()).single.payments, isEmpty);
       expect(tester.takeException(), isNull);

@@ -15,6 +15,7 @@ import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/debt_integrity.dart';
+import '../../debts/data/sqlite_debts_repository.dart';
 import '../../../core/database/entity_metadata.dart';
 import '../domain/financial_transaction.dart';
 import '../domain/transactions_repository.dart';
@@ -142,12 +143,21 @@ class SqliteTransactionsRepository implements TransactionsRepository {
 
   @override
   Future<FinancialTransaction> create(TransactionDraft draft) async {
+    if (draft.cardId != null && draft.debtLink != null) {
+      throw const FormatException(
+          'Vincule à dívida uma despesa única paga em conta.');
+    }
     if (draft.cardId != null) {
       final repo = CardsRepository(_db);
       return repo.findMovement(await repo.createPurchase(draft));
     }
     _validateDraft(draft);
     final plan = draft.seriesPlan;
+    if (draft.debtLink != null &&
+        (draft.type != TransactionType.expense || plan != null)) {
+      throw const FormatException(
+          'Vincule à dívida uma despesa única paga em conta.');
+    }
     if (plan == null) return _checked(() => _createSingle(draft));
     if (draft.reimbursements?.isNotEmpty ?? false) {
       throw const FormatException(
@@ -281,6 +291,12 @@ class SqliteTransactionsRepository implements TransactionsRepository {
     }
     await DebitCardsRepository(_db)
         .link(id, draft.debitCardId, draft.accountId);
+    final debt = draft.debtLink;
+    if (debt != null) {
+      // Mesma transação: se o vínculo for recusado, a despesa não é criada.
+      await SqliteDebtsRepository(_db)
+          .link(debt.debtId, id, debt.principalMinor);
+    }
     return _find(id);
   }
 

@@ -87,6 +87,10 @@ abstract interface class DebtsRepository {
   Future<List<DebtExpense>> expenses(String debtId);
   Future<void> link(String debtId, String transactionId, int principalMinor);
 
+  /// Vincula várias despesas de uma vez: todas entram ou nenhuma entra.
+  /// A chave é o id da despesa; o valor, a amortização (principal).
+  Future<void> linkMany(String debtId, Map<String, int> principals);
+
   /// Corrige a amortização (principal) de uma parcela já vinculada.
   Future<void> updatePrincipal(String paymentId, int principalMinor);
   Future<void> unlink(String paymentId);

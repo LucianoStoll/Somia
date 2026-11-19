@@ -18,8 +18,16 @@ class MovementFormFrame extends StatelessWidget {
       required this.onSave,
       this.onCancel,
       this.saveLabel = 'Salvar lançamento',
-      this.compact = false});
+      this.compact = false,
+      this.footer,
+      this.canSave = true});
   final String title, saveLabel;
+
+  /// Resumo exibido junto do botão de salvar (por exemplo, totais).
+  final Widget? footer;
+
+  /// Desativa o botão de salvar sem esconder o formulário.
+  final bool canSave;
   final Widget child;
   final bool compact;
   final VoidCallback onSave;
@@ -58,12 +66,21 @@ class MovementFormFrame extends StatelessWidget {
     if (!mobile) {
       return AlertDialog(
         title: Text(title),
-        content: SizedBox(width: 480, child: form),
+        content: SizedBox(
+            width: 480,
+            child: footer == null
+                ? form
+                : Column(mainAxisSize: MainAxisSize.min, children: [
+                    Flexible(child: form),
+                    const SizedBox(height: 12),
+                    footer!,
+                  ])),
         actions: [
           TextButton(
               onPressed: onCancel ?? () => Navigator.maybePop(context),
               child: const Text('Cancelar')),
-          FilledButton(onPressed: onSave, child: Text(saveLabel)),
+          FilledButton(
+              onPressed: canSave ? onSave : null, child: Text(saveLabel)),
         ],
       );
     }
@@ -77,11 +94,18 @@ class MovementFormFrame extends StatelessWidget {
         top: false,
         child: Column(children: [
           Expanded(child: form),
+          if (footer != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: footer!,
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: SizedBox(
                 width: double.infinity,
-                child: FilledButton(onPressed: onSave, child: Text(saveLabel))),
+                child: FilledButton(
+                    onPressed: canSave ? onSave : null,
+                    child: Text(saveLabel))),
           ),
         ]),
       ),

@@ -10,6 +10,24 @@ import 'package:finapp/features/transfers/presentation/transfers_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:finapp/core/di/injection.dart';
+import 'package:finapp/features/debts/domain/debt.dart';
+
+class _DebtsStub implements DebtsRepository {
+  @override
+  Future<List<Debt>> load() async => [
+        Debt(
+            id: 'carro',
+            name: 'Financiamento do carro',
+            creditor: 'Banco',
+            kind: DebtKind.financing,
+            initialMinor: 1000000,
+            referenceAt: DateTime(2025),
+            payments: const []),
+      ];
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
 
 const _accounts = [
   Account(
@@ -395,4 +413,51 @@ void main() {
           matchesGoldenFile('movement-mobile-preview.png'));
     });
   }
+
+  testWidgets('despesa nova pode ser vinculada a uma dívida em Mais opções',
+      (tester) async {
+    getIt.registerSingleton<DebtsRepository>(_DebtsStub());
+    addTearDown(getIt.reset);
+    Object? result;
+    await _open(
+        tester,
+        const TransactionForm(
+            accounts: _accounts,
+            categories: [],
+            fixedType: TransactionType.expense,
+            initialType: TransactionType.expense),
+        onResult: (value) => result = value);
+    await tester.enterText(find.byType(TextFormField).at(0), 'Parcela 1/36');
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pumpAndSettle();
+    for (final key in ['5', '2', '0', ',', '0', '0']) {
+      await tester.tap(find.byKey(ValueKey('calculator-key-$key')));
+    }
+    await tester.tap(find.text('Confirmar valor'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Mais opções'));
+    await tester.tap(find.text('Mais opções'));
+    await tester.pumpAndSettle();
+    final toggle = find.byKey(const ValueKey('transaction-debt-link'));
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(find.text('Financiamento do carro'), findsOneWidget);
+    final principal = find.byKey(const ValueKey('transaction-debt-principal'));
+    await tester.ensureVisible(principal);
+    await tester.tap(principal);
+    await tester.pumpAndSettle();
+    for (final key in ['C', '2', '8', '0', ',', '0', '0']) {
+      await tester.tap(find.byKey(ValueKey('calculator-key-$key')));
+    }
+    await tester.tap(find.text('Confirmar valor'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Juros e encargos R\$ 240,00'), findsOneWidget);
+    await tester.tap(find.text('Salvar lançamento'));
+    await tester.pumpAndSettle();
+    final draft = result as TransactionDraft;
+    expect(draft.debtLink?.debtId, 'carro');
+    expect(draft.debtLink?.principalMinor, 28000);
+    expect(tester.takeException(), isNull);
+  });
 }

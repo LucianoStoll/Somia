@@ -11,6 +11,8 @@ import 'establishment_editor.dart';
 import 'transaction_tags_editor.dart';
 import '../domain/transaction_tags.dart';
 import '../../reimbursements/presentation/reimbursement_editor.dart';
+import '../../debts/domain/debt.dart';
+import '../../debts/presentation/debt_link_editor.dart';
 import '../../reimbursements/data/reimbursements_repository.dart';
 import '../../reimbursements/domain/reimbursement.dart';
 import '../../categories/presentation/category_visuals.dart';
@@ -1604,12 +1606,29 @@ class TransactionFormState extends State<TransactionForm> {
   String? _categoryId;
   String? _subcategoryId;
   List<ReimbursementDraft>? _reimbursements;
+  DebtLinkDraft? _debtLink;
   List<String> _tags = [];
   String _establishment = '';
   bool _rateioEnabled = false;
   List<CategoryAllocation> _allocations = [];
   void _amountChanged() {
     if (mounted) setState(() {});
+  }
+
+  /// Só uma despesa nova, única e paga em conta pode nascer vinculada.
+  bool get _allowsDebtLink =>
+      widget.item == null &&
+      _type == TransactionType.expense &&
+      _cardId == null &&
+      !_series.active &&
+      getIt.isRegistered<DebtsRepository>();
+
+  int get _amountMinorOrZero {
+    try {
+      return MoneyMinor.parse(_amount.text);
+    } catch (_) {
+      return 0;
+    }
   }
 
   bool _categoryChosenManually = false;
@@ -2015,6 +2034,7 @@ class TransactionFormState extends State<TransactionForm> {
         establishment: _establishment,
         reimbursements:
             _type == TransactionType.expense ? _reimbursements : null,
+        debtLink: _allowsDebtLink ? _debtLink : null,
         description: _description.text.trim(),
         type: _type,
         amountMinor: MoneyMinor.parse(_amount.text),
@@ -2078,6 +2098,7 @@ class TransactionFormState extends State<TransactionForm> {
         _cardMonth,
         _firstInstallment.text,
         _reimbursements?.map((r) => r.signature).join('|'),
+        _debtLink?.signature,
       ),
       builder: (context, cancel) => MovementFormFrame(
         onCancel: cancel,
@@ -2420,6 +2441,16 @@ class TransactionFormState extends State<TransactionForm> {
                               'BRL',
                       onChanged: (v) => setState(() => _reimbursements = v),
                     ),
+                  ListenableBuilder(
+                    listenable: _series,
+                    builder: (context, _) => _allowsDebtLink
+                        ? DebtLinkEditor(
+                            repo: getIt<DebtsRepository>(),
+                            amountMinor: _amountMinorOrZero,
+                            onChanged: (v) => setState(() => _debtLink = v),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
                   if (!_forcePending && _isEffective)
                     CompactMovementDate(
                       label: 'Data de efetivação',
